@@ -221,7 +221,51 @@ Nach der Umsetzung:
 - README, Datenmodell und Akzeptanzkriterien aktualisieren;
 - Ergebnis, Tests, Annahmen und offene Risiken verständlich melden.
 
-## 7. Erwartete Standardbefehle
+## 7. Git- und GitHub-Workflow
+
+Das Repository verwendet Conventional Commits und eine zweistufige
+Branch-Strategie:
+
+- `main` enthält den stabilen Stand.
+- `develop` ist der Integrationsbranch.
+- Neue Arbeiten beginnen auf einem zweckbezogenen Branch aus `develop`, zum
+  Beispiel `feat/calendar`, `fix/caldav-sync` oder `chore/repository`.
+- Änderungen werden zuerst in `develop` integriert und erst danach über einen
+  weiteren Pull Request von `develop` nach `main` gebracht.
+- Direkte Pushes auf `main` und `develop` sind zu vermeiden; GitHub-
+  Branch-Schutzregeln sollen Pull Requests und erfolgreiche CI voraussetzen.
+
+Commits verwenden das Format:
+
+```text
+<type>(<scope>): <description>
+```
+
+Erlaubte, bevorzugte Typen sind `feat`, `fix`, `docs`, `chore`, `refactor`,
+`test`, `ci`, `build` und `perf`. Commit- und Branch-Namen dürfen keine
+Bezeichnungen für KI-Tools enthalten.
+
+Pull Requests nach `develop` müssen automatisch die CI ausführen. Die CI muss
+mindestens Formatprüfung, Repository-/Compose-Prüfung und alle vorhandenen
+automatisierten Tests ausführen. Ein Pull Request darf bei fehlgeschlagener
+CI nicht als bereit für die Integration gemeldet werden.
+
+Codex soll Pull Requests selbstständig erstellen, sobald ein GitHub-Remote und
+die erforderlichen Berechtigungen verfügbar sind. Der Standardablauf ist:
+
+1. zweckbezogenen Branch aus `develop` anlegen;
+2. Änderung implementieren, prüfen und mit Conventional Commit committen;
+3. Branch pushen;
+4. Pull Request nach `develop` mit Zusammenfassung, Tests, Annahmen und Risiken
+   eröffnen;
+5. bei Bedarf nach erfolgreicher Integration einen Pull Request von `develop`
+   nach `main` vorbereiten.
+
+Ohne Remote oder GitHub-Berechtigung darf Codex keinen erfolgreichen Push oder
+Pull Request behaupten. In diesem Fall dokumentiert Codex den vorbereiteten
+lokalen Stand und den konkreten nächsten manuellen Schritt.
+
+## 8. Erwartete Standardbefehle
 
 Die tatsächlichen Skripte in `package.json` sind maßgeblich. Nach dem
 Scaffolding sollen mindestens dokumentierte Befehle für folgende Aufgaben
@@ -241,7 +285,7 @@ Build
 Keine Befehle als erfolgreich melden, die nicht tatsächlich ausgeführt oder
 deren Erfolg anderweitig nachgewiesen wurden.
 
-## 8. Änderungen an AGENTS.md durch Codex
+## 9. Änderungen an AGENTS.md durch Codex
 
 Diese Datei ist eine lebende Projektanweisung und darf von Codex selbstständig
 erweitert werden, wenn beim Arbeiten eine **dauerhafte, projektweit relevante
@@ -281,7 +325,7 @@ entfernen, nur um sie zu vereinfachen. Bei widersprüchlichen Regeln gilt die
 neuere, ausdrücklich begründete Entscheidung; unklare Widersprüche werden
 gemeldet.
 
-## 9. Änderungsprotokoll
+## 10. Änderungsprotokoll
 
 - **2026-07-18:** Initiale Projektregeln erstellt. Festgehalten wurden
   Local-First-Betrieb, React-Weboberfläche mit PWA, modularer Monolith,
@@ -289,3 +333,5 @@ gemeldet.
   Sicherheitsregeln und selbstständige Pflege dieser Datei.
 - **2026-07-18:** Regeln für Rückwärtskompatibilität, versionierte Migrationen,
   Backups sowie stabile CalDAV-IDs und Synchronisationsdaten ergänzt.
+- **2026-07-18:** Conventional-Commit-Regeln, `develop` als Integrationsbranch,
+  CI-Pflicht für Pull Requests und selbstständige PR-Erstellung ergänzt.
