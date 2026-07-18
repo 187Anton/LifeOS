@@ -139,6 +139,16 @@ create_field "Area" "SINGLE_SELECT" "API,Web,Database,CalDAV,CI,Documentation"
 create_field "Target Date" "DATE" ""
 
 USER_ID="$(gh api user --jq '.id')"
+PROJECT_NODE_ID="$(gh api graphql \
+  -f query='query($login:String!, $number:Int!) { user(login:$login) { projectV2(number:$number) { id } } }' \
+  -f login="$OWNER" \
+  -F number="$PROJECT_NUMBER" \
+  | jq -r '.data.user.projectV2.id // empty')"
+
+if [[ -z "$PROJECT_NODE_ID" ]]; then
+  echo "Fehler: Die ID des GitHub-Projects konnte nicht ermittelt werden." >&2
+  exit 1
+fi
 
 create_view() {
   local name="$1"
@@ -146,8 +156,11 @@ create_view() {
   local filter="$3"
   local existing
 
-  existing="$(gh api "users/$USER_ID/projectsV2/$PROJECT_NUMBER/views" \
-    | jq -r --arg name "$name" '(.value // .)[] | select(.name == $name) | .number')"
+  existing="$(gh api graphql \
+    -f query='query($id:ID!) { node(id:$id) { ... on ProjectV2 { views(first:100) { nodes { number name } } } } }' \
+    -f id="$PROJECT_NODE_ID" \
+    | jq -r --arg name "$name" '.data.node.views.nodes[]? | select(.name == $name) | .number' \
+    | head -n 1)"
 
   if [[ -n "$existing" ]]; then
     echo "Project-Ansicht vorhanden: $name"
