@@ -5,7 +5,7 @@ Dieses Repository ist zunächst für eine persönliche, lokale Anwendung gedacht
 ## Regeln
 
 - Keine Passwörter, Tokens, API-Schlüssel oder echten sensiblen Daten committen.
-- Lokale Geheimnisse ausschließlich in \`.env\` halten.
+- Lokale Geheimnisse ausschließlich in `.env` halten.
 - Beispieldaten synthetisch halten.
 - Sicherheitsrelevante Änderungen im Backend und nicht nur in der Oberfläche
   erzwingen.

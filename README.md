@@ -102,7 +102,29 @@ Check die Compose-Konfiguration:
 npm install
 npm run format:check
 npm run repo:check
+npm test
 ```
+
+`npm test` führt bereits echte Repository-Vertragstests aus. Die Ausgaben der
+API- und Web-Workspaces sind bis zu den Arbeitspaketen 0.1.4 und 0.1.8 noch
+ausdrücklich als Platzhalter markiert; sie gelten nicht als implementierte
+Anwendungstests.
+
+### Aktuell verfügbare Befehle
+
+| Aufgabe                                    | Befehl                    |
+| ------------------------------------------ | ------------------------- |
+| Abhängigkeiten installieren                | `npm ci`                  |
+| Datenbankkonfiguration prüfen              | `npm run repo:check`      |
+| Formatierung prüfen                        | `npm run format:check`    |
+| Repository- und vorhandene Workspace-Tests | `npm test`                |
+| Lokale Datenbank starten                   | `docker compose up -d db` |
+| Status der lokalen Dienste                 | `docker compose ps`       |
+| Lokale Dienste stoppen                     | `docker compose down`     |
+
+Migration, Seed, API-/Web-Start, Linting, Typecheck und Build werden mit den
+zugehörigen Arbeitspaketen ergänzt. Bis dahin werden dafür keine erfolgreichen
+Platzhalterbefehle behauptet.
 
 ## Daten und Backups
 

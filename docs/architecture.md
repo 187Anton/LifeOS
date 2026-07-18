@@ -4,7 +4,7 @@
 
 Das Life OS wird zunächst als modularer Monolith betrieben:
 
-\`\`\`text
+```text
 Browser / PWA
 │
 ▼
@@ -13,7 +13,7 @@ React-Weboberfläche ── REST/API ── Node.js-Backend
 ├── PostgreSQL
 ├── lokaler Dokumentenspeicher
 └── CalDAV-Schnittstelle
-\`\`\`
+```
 
 ## Bewusste Grenzen
 
