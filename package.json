@@ -14,7 +14,9 @@
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "repo:check": "docker compose config --quiet"
+    "repo:check": "docker compose config --quiet",
+    "test": "npm run test:repo && npm run test --workspaces --if-present",
+    "test:repo": "node --test tests/repository.test.mjs"
   },
   "devDependencies": {
     "prettier": "^3.6.2"

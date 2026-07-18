@@ -55,7 +55,7 @@ nicht vorgetäuscht.
 
 ## Repository-Struktur
 
-\`\`\`text
+```text
 apps/
 api/ Backend und spätere CalDAV-Schnittstelle
 web/ React-Weboberfläche
@@ -71,7 +71,8 @@ roadmap.md inkrementeller Umsetzungsplan
 compose.yaml lokale PostgreSQL-Infrastruktur
 .env.example Beispielkonfiguration ohne echte Secrets
 .github/ CI, Issue-Vorlagen und Pull-Request-Vorlage
-\`\`\`
+scripts/ Wiederholbare Repository- und GitHub-Einrichtung
+```
 
 ## Lokaler Start
 
@@ -83,32 +84,78 @@ Voraussetzungen:
 
 Konfiguration anlegen:
 
-\`\`\`bash
+```bash
 cp .env.example .env
-\`\`\`
+```
 
 Lokale Datenbank starten:
 
-\`\`\`bash
+```bash
 docker compose up -d db
-\`\`\`
+```
 
 Die Anwendung selbst wird nach dem Scaffolding von API und Weboberfläche über
 die jeweiligen Workspace-Skripte gestartet. Bis dahin prüft der Repository-
 Check die Compose-Konfiguration:
 
-\`\`\`bash
+```bash
 npm install
 npm run format:check
 npm run repo:check
-\`\`\`
+npm test
+```
+
+`npm test` führt bereits echte Repository-Vertragstests aus. Die Ausgaben der
+API- und Web-Workspaces sind bis zu den Arbeitspaketen 0.1.4 und 0.1.8 noch
+ausdrücklich als Platzhalter markiert; sie gelten nicht als implementierte
+Anwendungstests.
+
+### Aktuell verfügbare Befehle
+
+| Aufgabe                                    | Befehl                    |
+| ------------------------------------------ | ------------------------- |
+| Abhängigkeiten installieren                | `npm ci`                  |
+| Datenbankkonfiguration prüfen              | `npm run repo:check`      |
+| Formatierung prüfen                        | `npm run format:check`    |
+| Repository- und vorhandene Workspace-Tests | `npm test`                |
+| Lokale Datenbank starten                   | `docker compose up -d db` |
+| Status der lokalen Dienste                 | `docker compose ps`       |
+| Lokale Dienste stoppen                     | `docker compose down`     |
+
+Migration, Seed, API-/Web-Start, Linting, Typecheck und Build werden mit den
+zugehörigen Arbeitspaketen ergänzt. Bis dahin werden dafür keine erfolgreichen
+Platzhalterbefehle behauptet.
 
 ## Daten und Backups
 
-Lokale Daten liegen unter \`data/\` und werden nicht versioniert. Vor späteren
+Lokale Daten liegen unter `data/` und werden nicht versioniert. Vor späteren
 Datenbankmigrationen müssen ein PostgreSQL-Backup und eine Sicherung des
 Dokumentenverzeichnisses erstellt werden. Die konkreten Backup-Befehle werden
 mit der Datenbankimplementierung ergänzt.
+
+## GitHub-Planung einrichten
+
+Die Labels, Roadmap-Milestones und das persönliche GitHub-Project werden mit
+dem folgenden Skript eingerichtet:
+
+```bash
+bash scripts/setup-github-planning.sh
+```
+
+Das Skript benötigt eine gültige GitHub-CLI-Anmeldung und den `project`-Scope:
+
+```bash
+gh auth login -h github.com
+gh auth refresh -s project
+```
+
+Die Einrichtung wird im eigenen, bereits bei GitHub angemeldeten Terminal
+ausgeführt. Für persönliche Projects muss die Anmeldung den `project`-Scope
+besitzen; das Skript legt keine Zugangsdaten im Repository ab.
+
+Es ist wiederholbar: Bereits vorhandene Labels, Milestones, Project-Felder und
+Ansichten werden nicht doppelt angelegt. Das Project enthält die Ansichten
+`Backlog`, `Kanban` und `Roadmap`.
 
 ## Entwicklungsprinzip
 
