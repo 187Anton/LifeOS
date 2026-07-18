@@ -4,6 +4,7 @@ on:
   push:
     branches: ["main", "develop"]
   pull_request:
+    branches: ["main", "develop"]
 
 permissions:
   contents: read
@@ -31,3 +32,6 @@ jobs:
 
       - name: Validate Compose configuration
         run: docker compose config --quiet
+
+      - name: Run workspace tests
+        run: npm run test --workspaces --if-present

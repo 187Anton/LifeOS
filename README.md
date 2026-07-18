@@ -22,6 +22,37 @@ Fachlogik wird schrittweise ergänzt.
 Weitere Regeln stehen in [AGENTS.md](AGENTS.md) und im
 [Produkt- und Entwicklungsleitfaden](LifeOS%20Leitfaden.docx).
 
+## GitHub-Workflow
+
+Das Projekt verwendet Conventional Commits und zwei zentrale Branches:
+
+- `main` enthält den stabilen Stand.
+- `develop` ist der Integrationsbranch.
+
+Neue Änderungen beginnen auf einem zweckbezogenen Branch aus `develop`, zum
+Beispiel `feat/calendar`, `fix/caldav-sync` oder `chore/repository`. Sie werden
+zuerst per Pull Request nach `develop` gebracht. Erst nach erfolgreicher
+Prüfung und Integration wird `develop` per Pull Request nach `main` überführt.
+
+Commits verwenden dieses Format:
+
+```text
+<type>(<scope>): <description>
+```
+
+Beispiele sind `feat(calendar): add event model` oder
+`chore(repo): update CI workflow`.
+
+Pull Requests gegen `develop` und `main` starten automatisch die GitHub-
+Actions-CI. Sie prüft Formatierung, Compose-Konfiguration und alle vorhandenen
+automatisierten Tests. Auf GitHub sollten für beide Branches erforderliche
+Statusprüfungen und Pull Requests als Branch-Schutz eingerichtet werden.
+
+Codex darf und soll Pull Requests selbstständig erstellen, wenn das Repository
+mit einem GitHub-Remote verbunden ist und die nötigen Berechtigungen vorhanden
+sind. Ohne Remote wird nur der lokale Branch vorbereitet; ein Push oder PR wird
+nicht vorgetäuscht.
+
 ## Repository-Struktur
 
 \`\`\`text
