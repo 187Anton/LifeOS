@@ -88,11 +88,35 @@ Konfiguration anlegen:
 cp .env.example .env
 ```
 
-Lokale Datenbank starten:
+Die Werte sind ausschließlich synthetische Entwicklungswerte. Die Datei `.env`
+bleibt lokal und darf keine echten Passwörter oder personenbezogenen Daten
+enthalten.
+
+Docker und die Compose-Konfiguration vorab prüfen:
 
 ```bash
-docker compose up -d db
+npm run env:check
 ```
+
+Lokale Datenbank starten und auf einen grünen Healthcheck warten:
+
+```bash
+npm run db:start
+```
+
+Der Startbefehl prüft anschließend mit `pg_isready` und `SELECT 1`, ob
+PostgreSQL nicht nur läuft, sondern auch SQL-Verbindungen annimmt. Der Port ist
+nur an `127.0.0.1` gebunden und daher nicht aus dem lokalen Netzwerk erreichbar.
+
+Status und SQL-Verbindung erneut prüfen oder die Dienste stoppen:
+
+```bash
+npm run db:check
+npm run db:stop
+```
+
+`db:stop` entfernt keine Daten. Das benannte Docker-Volume `lifeos-postgres`
+bleibt erhalten und wird beim nächsten Start wieder verwendet.
 
 Die Anwendung selbst wird nach dem Scaffolding von API und Weboberfläche über
 die jeweiligen Workspace-Skripte gestartet. Bis dahin prüft der Repository-
@@ -112,26 +136,44 @@ Anwendungstests.
 
 ### Aktuell verfügbare Befehle
 
-| Aufgabe                                    | Befehl                    |
-| ------------------------------------------ | ------------------------- |
-| Abhängigkeiten installieren                | `npm ci`                  |
-| Datenbankkonfiguration prüfen              | `npm run repo:check`      |
-| Formatierung prüfen                        | `npm run format:check`    |
-| Repository- und vorhandene Workspace-Tests | `npm test`                |
-| Lokale Datenbank starten                   | `docker compose up -d db` |
-| Status der lokalen Dienste                 | `docker compose ps`       |
-| Lokale Dienste stoppen                     | `docker compose down`     |
+| Aufgabe                                    | Befehl                 |
+| ------------------------------------------ | ---------------------- |
+| Abhängigkeiten installieren                | `npm ci`               |
+| Docker und lokale Konfiguration prüfen     | `npm run env:check`    |
+| Datenbank starten und Verbindung prüfen    | `npm run db:start`     |
+| Datenbankstatus und SQL-Verbindung prüfen  | `npm run db:check`     |
+| Lokale Dienste ohne Datenverlust stoppen   | `npm run db:stop`      |
+| Compose-Konfiguration ohne Start prüfen    | `npm run repo:check`   |
+| Formatierung prüfen                        | `npm run format:check` |
+| Repository- und vorhandene Workspace-Tests | `npm test`             |
 
 Migration, Seed, API-/Web-Start, Linting, Typecheck und Build werden mit den
 zugehörigen Arbeitspaketen ergänzt. Bis dahin werden dafür keine erfolgreichen
 Platzhalterbefehle behauptet.
 
+### Häufige Docker-Probleme
+
+- **„Docker wurde nicht gefunden“:** Docker Desktop oder Docker Engine samt
+  Compose-Plugin installieren und das Terminal neu öffnen.
+- **„Docker-Dienst ist nicht erreichbar“:** Docker Desktop bzw. den
+  Docker-Daemon starten. Danach `npm run env:check` wiederholen.
+- **Datenbank wird nicht gesund:** `docker compose logs db` zeigt die
+  PostgreSQL-Ausgabe. Häufig sind widersprüchliche Werte in `.env` oder ein
+  bereits belegter Port die Ursache.
+- **Port 5432 ist belegt:** In `.env` beispielsweise `POSTGRES_PORT=5433`
+  setzen und den Port in `DATABASE_URL` ebenfalls auf `5433` ändern.
+
+`docker compose down --volumes` löscht das persistente Datenbank-Volume und ist
+nicht Teil des normalen Stop-Ablaufs. Dieser destruktive Befehl darf nur bewusst
+mit entbehrlichen, gesicherten Testdaten verwendet werden.
+
 ## Daten und Backups
 
-Lokale Daten liegen unter `data/` und werden nicht versioniert. Vor späteren
+Lokale Dokumentdaten liegen unter `data/`, PostgreSQL-Daten im benannten
+Docker-Volume `lifeos-postgres`; beides wird nicht versioniert. Vor späteren
 Datenbankmigrationen müssen ein PostgreSQL-Backup und eine Sicherung des
-Dokumentenverzeichnisses erstellt werden. Die konkreten Backup-Befehle werden
-mit der Datenbankimplementierung ergänzt.
+Dokumentenverzeichnisses erstellt werden. Die konkreten Backup- und
+Wiederherstellungsbefehle werden mit der Datenbankimplementierung ergänzt.
 
 ## GitHub-Planung einrichten
 

@@ -38,6 +38,9 @@ test("schützt lokale Secrets und Anwendungsdaten vor Git", async () => {
   assert.match(gitignore, /^\.env$/m);
   assert.match(gitignore, /^\.env\.\*$/m);
   assert.match(gitignore, /^!\.env\.example$/m);
+  assert.match(gitignore, /^secrets\/$/m);
+  assert.match(gitignore, /^\*\.key$/m);
+  assert.match(gitignore, /^\*\.pem$/m);
   assert.match(gitignore, /^data\/\*$/m);
   assert.match(gitignore, /^!data\/\.gitkeep$/m);
 });

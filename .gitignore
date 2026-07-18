@@ -13,6 +13,9 @@ coverage/
 .env
 .env.*
 !.env.example
+secrets/
+*.key
+*.pem
 
 # Local application data
 data/*
@@ -22,6 +25,7 @@ data/*
 
 # Logs and OS files
 *.log
+*.pid
 .DS_Store
 
 # IDE
@@ -33,4 +37,3 @@ data/*
 # Generated Prisma files
 packages/database/prisma/migrations/
 packages/database/node_modules/
-

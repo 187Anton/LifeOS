@@ -114,6 +114,10 @@ expliziter Freigabe und mit sicherer Speicherung verwendet werden.
 Der erste Betrieb erfolgt vollständig lokal:
 
 - PostgreSQL und die Anwendung laufen per Docker Compose oder lokal
+- PostgreSQL wird in der lokalen Compose-Umgebung nur an `127.0.0.1`
+  gebunden. `npm run env:check`, `npm run db:start`, `npm run db:check` und
+  `npm run db:stop` sind die verbindlichen lokalen Datenbankbefehle;
+  `db:stop` erhält das benannte Datenbank-Volume.
 - Dokumente liegen in einem nicht versionierten lokalen Datenverzeichnis
 - externe KI- und Cloud-Dienste sind optional und standardmäßig deaktiviert
 - ein Heimserver, NAS oder VPS wird nicht vorausgesetzt
@@ -335,3 +339,5 @@ gemeldet.
   Backups sowie stabile CalDAV-IDs und Synchronisationsdaten ergänzt.
 - **2026-07-18:** Conventional-Commit-Regeln, `develop` als Integrationsbranch,
   CI-Pflicht für Pull Requests und selbstständige PR-Erstellung ergänzt.
+- **2026-07-18:** Geprüfte lokale Docker-Befehle, ausschließlich lokale
+  PostgreSQL-Portbindung und datenerhaltender Stop-Ablauf ergänzt.
