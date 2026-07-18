@@ -1,0 +1,11 @@
+{
+  "name": "@lifeos/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo \"API scaffold: implementation pending\"",
+    "build": "echo \"API build: implementation pending\"",
+    "test": "echo \"API tests: implementation pending\""
+  }
+}

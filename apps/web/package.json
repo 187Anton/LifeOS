@@ -1,0 +1,11 @@
+{
+  "name": "@lifeos/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo \"Web scaffold: implementation pending\"",
+    "build": "echo \"Web build: implementation pending\"",
+    "test": "echo \"Web tests: implementation pending\""
+  }
+}

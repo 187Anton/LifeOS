@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build and tooling
+dist/
+build/
+coverage/
+.vite/
+.cache/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local application data
+data/*
+!data/.gitkeep
+*.sqlite
+*.sqlite-journal
+
+# Logs and OS files
+*.log
+.DS_Store
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Generated Prisma files
+packages/database/prisma/migrations/
+packages/database/node_modules/
+

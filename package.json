@@ -1,0 +1,22 @@
+{
+  "name": "anton-life-os",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lokales, persönliches Life OS für Studium, Arbeit, Projekte und Alltag.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22 <23",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "repo:check": "docker compose config --quiet"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}
