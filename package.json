@@ -26,6 +26,8 @@
     "auth:bootstrap": "npm run auth:bootstrap --workspace @lifeos/api",
     "caldav:bootstrap": "npm run caldav:bootstrap --workspace @lifeos/api",
     "caldav:revoke": "npm run caldav:revoke --workspace @lifeos/api",
+    "web:dev": "npm run dev --workspace @lifeos/web",
+    "web:preview": "npm run preview --workspace @lifeos/web",
     "build": "npm run db:generate && npm run build --workspaces --if-present",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

@@ -84,6 +84,14 @@ test("liefert Health und eine erfolgreiche Datenbank-Readiness", async (t) => {
     preflight.headers.get("access-control-allow-credentials"),
     "true",
   );
+  assert.match(
+    preflight.headers.get("access-control-allow-methods") ?? "",
+    /\bPUT\b/,
+  );
+  assert.match(
+    preflight.headers.get("access-control-allow-headers") ?? "",
+    /\bIf-Match\b/i,
+  );
 
   const readiness = await fetch(`${baseUrl}/api/v1/readiness`);
   assert.equal(readiness.status, 200);

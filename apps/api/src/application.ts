@@ -32,11 +32,11 @@ export const createApplication = ({
       response.setHeader("Vary", "Origin");
       response.setHeader(
         "Access-Control-Allow-Methods",
-        "GET, POST, PATCH, DELETE, OPTIONS",
+        "GET, POST, PUT, PATCH, DELETE, OPTIONS",
       );
       response.setHeader(
         "Access-Control-Allow-Headers",
-        "Authorization, Content-Type",
+        "Authorization, Content-Type, If-Match, If-None-Match",
       );
 
       if (request.method === "OPTIONS") {

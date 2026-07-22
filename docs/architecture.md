@@ -24,6 +24,22 @@ React-Weboberfläche ── REST/API ── Node.js-Backend
 - Keine externe KI-Verarbeitung ohne Freigabe.
 - Keine vollständige native App im ersten Schritt.
 
+## Weboberfläche und PWA
+
+Desktop und Smartphone verwenden dieselbe React-Anwendung. Eine separate
+Mobile-App oder zweite PWA-Oberfläche gibt es nicht. Der Browser spricht die
+versionierte REST-API über denselben Ursprung beziehungsweise einen lokalen
+`/api`-Proxy an; Kalenderänderungen landen dadurch im gemeinsamen Kern und
+werden auch über CalDAV sichtbar.
+
+Vite erzeugt ein Web-App-Manifest und einen Service Worker. Der Service Worker
+cached ausschließlich die statische App-Shell. REST-Antworten und persönliche
+Kalenderdaten sind von Laufzeit-Caching ausgeschlossen. Die Oberfläche nutzt
+weder `localStorage` noch `sessionStorage` für Zugangsdaten oder Fachdaten; das
+serverseitig geprüfte Sitzungstoken liegt ausschließlich in einem
+`HttpOnly`-/`SameSite=Strict`-Cookie. Notwendige Schriften und Icons sind lokal
+verfügbar, sodass die App-Shell keine externe Quelle benötigt.
+
 ## API-Grundgerüst
 
 Die Express-API beginnt unter `/api/v1`. Die Schichten bleiben innerhalb des
