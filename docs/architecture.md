@@ -67,6 +67,20 @@ Einstellungsänderungen und Zugangserneuerungen erzeugen Audit-Ereignisse. Deren
 Metadaten enthalten nur Quelle oder geänderte Feldnamen, keine Passwörter,
 Tokens oder persönlichen Einstellungswerte.
 
+## Kalender-Kernmodell
+
+Web und CalDAV verwenden denselben persistenten Kalenderkern. Externe
+Kalender-IDs und Ereignis-UIDs bleiben stabil; ETags, Sequenz und Sync-Token
+bilden Änderungen nachvollziehbar ab. Ein ETag-Update wird als bedingte
+SQL-Änderung ausgeführt, sodass zwei parallele Clients nicht beide denselben
+alten Stand überschreiben können.
+
+Zeitgebundene Ereignisse speichern UTC-Zeitpunkte plus fachliche IANA-Zeitzone.
+Ganztägige Ereignisse speichern reine, exklusive Datumsgrenzen. RRULE und
+Erinnerungsminuten werden verlustarm gespeichert und erst in der CalDAV-
+Schicht in iCalendar übersetzt. Löschungen setzen Markierungen statt Daten
+physisch zu entfernen; dadurch können spätere Sync-Reports Löschungen melden.
+
 ## CalDAV
 
 Das Life OS soll selbst als CalDAV-Server auftreten. Dadurch kann die

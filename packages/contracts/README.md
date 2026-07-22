@@ -10,6 +10,7 @@ Aktuell definiert es:
 - stabile Fehlercodes und Validierungsdetails,
 - Health- und Readiness-Antworten.
 - Profil-, Einstellungs- und Sitzungsantworten.
+- Kalender- und Ereignisantworten einschließlich UID, ETag und Sync-Token.
 
 Der Fehlervertragsstand wird getrennt von der Routen-Version geführt. Dadurch
 kann ein Client das Format eindeutig erkennen, ohne dass jede ergänzte

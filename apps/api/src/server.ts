@@ -4,6 +4,9 @@ import { createApplication } from "./application.js";
 import { loadLocalEnvironment, parseConfig } from "./config.js";
 import { startApiServer } from "./http-server.js";
 import { JsonLogger } from "./logger.js";
+import { PrismaCalendarRepository } from "./modules/calendar/repository.js";
+import { createCalendarRouter } from "./modules/calendar/router.js";
+import { CalendarService } from "./modules/calendar/service.js";
 import { PrismaProfileRepository } from "./modules/profile/repository.js";
 import { createProfileRouter } from "./modules/profile/router.js";
 import {
@@ -31,6 +34,10 @@ const main = async (): Promise<void> => {
         authentication,
         profile: new ProfileService(profileRepository),
         secureCookies: config.nodeEnv === "production",
+      }),
+      createCalendarRouter({
+        authentication,
+        calendars: new CalendarService(new PrismaCalendarRepository(database)),
       }),
     ],
   });

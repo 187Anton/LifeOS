@@ -45,14 +45,18 @@ werden.
 
 ## Betriebsendpunkte
 
-| Endpunkt                 | Bedeutung                                        |
-| ------------------------ | ------------------------------------------------ |
-| `GET /api/v1/health`     | HTTP-Prozess ist erreichbar                      |
-| `GET /api/v1/readiness`  | API und PostgreSQL-Verbindung sind einsatzbereit |
-| `POST /api/v1/session`   | lokale Sitzung über Passwort anlegen             |
-| `DELETE /api/v1/session` | aktuelle Sitzung widerrufen                      |
-| `GET /api/v1/profile`    | persönliches Profil und Einstellungen lesen      |
-| `PATCH /api/v1/settings` | Basiseinstellungen teilweise ändern              |
+| Endpunkt                                           | Bedeutung                                        |
+| -------------------------------------------------- | ------------------------------------------------ |
+| `GET /api/v1/health`                               | HTTP-Prozess ist erreichbar                      |
+| `GET /api/v1/readiness`                            | API und PostgreSQL-Verbindung sind einsatzbereit |
+| `POST /api/v1/session`                             | lokale Sitzung über Passwort anlegen             |
+| `DELETE /api/v1/session`                           | aktuelle Sitzung widerrufen                      |
+| `GET /api/v1/profile`                              | persönliches Profil und Einstellungen lesen      |
+| `PATCH /api/v1/settings`                           | Basiseinstellungen teilweise ändern              |
+| `GET/POST /api/v1/calendars`                       | Kalender auflisten oder anlegen                  |
+| `PATCH/DELETE /api/v1/calendars/:id`               | Kalender ändern oder soft löschen                |
+| `GET/POST /api/v1/calendars/:id/events`            | Ereignisse auflisten oder anlegen                |
+| `GET/PUT/DELETE /api/v1/calendars/:id/events/:uid` | Ereignis verwalten                               |
 
 Health greift absichtlich nicht auf die Datenbank zu. Readiness führt dagegen
 eine echte, ausschließlich lesende `SELECT 1`-Prüfung über den zentralen
@@ -79,6 +83,23 @@ Unterstützte Einstellungen sind IANA-Zeitzone, `de-DE` oder `en-US`, gültiger
 ISO-Währungscode, Wochenbeginn von 0 bis 6, Standardansicht `day`, `week` oder
 `month` und die Wochenendanzeige. Teilupdates schreiben nur geänderte Felder;
 das Audit speichert deren Namen, nicht die persönlichen Werte.
+
+## Kalendervertrag
+
+Kalender-IDs und Ereignis-UIDs bleiben stabil. Ein Ereignis-Update ist eine
+vollständige Ersetzung per `PUT`; `uid` und Besitzer werden dabei niemals aus
+dem Body übernommen. Für `PUT` und `DELETE` ist der zuletzt gelesene ETag im
+Header `If-Match` Pflicht. Fehlt er, antwortet die API mit HTTP 428; ist er
+veraltet, mit HTTP 412. Vergleich und Änderung erfolgen atomar, damit
+parallele Zugriffe keine neueren Daten überschreiben.
+
+Zeitgebundene Ereignisse verwenden ISO-Zeitpunkte mit Offset und eine IANA-
+Zeitzone. Ganztägige Ereignisse verwenden ausschließlich `startDate` und das
+exklusive `endDate`. RRULE-Werte werden ohne Zeilenumbrüche verlustarm
+gespeichert; bis zu zehn Erinnerungen werden als Minuten vor Beginn abgelegt.
+Jede Ereignisänderung erzeugt einen neuen ETag, erhöht `sequence` und den
+Kalender-`syncToken`. Löschungen sind Soft-Deletes und bleiben damit für die
+spätere CalDAV-Synchronisation nachvollziehbar.
 
 Beispiel:
 
@@ -124,6 +145,8 @@ weitergegeben.
 - `http-server.ts` verantwortet Start und kontrollierten Shutdown.
 - `modules/profile/` trennt Passwort-/Tokenlogik, Repository, Services und
   HTTP-Routen.
+- `modules/calendar/` kapselt Kalenderregeln, atomare ETag-Prüfung,
+  Datenbanktransaktionen und HTTP-Verträge.
 
 Logs sind JSON-Zeilen mit Ereignisname, Anfrage-ID, Methode, Routenmuster,
 Status und Dauer. Konkrete URL-Pfade, Anfragekörper,

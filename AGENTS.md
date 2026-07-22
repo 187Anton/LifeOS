@@ -153,6 +153,9 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
 - Exportformate versionieren und Importfehler verständlich anzeigen.
 - CalDAV-URLs, Kalender-IDs, Ereignis-UIDs, ETags und Synchronisationsdaten
   stabil halten.
+- Ereignisänderungen mit ETag müssen Vergleich und Schreiben atomar in der
+  Datenbank ausführen; veraltete ETags liefern einen Konflikt und dürfen
+  neuere Daten nicht überschreiben.
 - CalDAV-Änderungen dürfen keine Duplikate auf Apple-Geräten erzeugen.
 - Umbenennungen interner Felder über Migrationen und kompatible API-/CalDAV-
   Abbildung umsetzen.
@@ -364,3 +367,6 @@ gemeldet.
 - **2026-07-22:** Lokalen Passwort-Bootstrap mit `scrypt`, ausschließlich
   gehashte widerrufbare Sitzungstokens sowie wertfreie Audit-Metadaten nach
   Authentifizierungs- und Persistenztests festgehalten.
+- **2026-07-22:** Gemeinsamen Kalenderkern mit stabilen UIDs, atomarer
+  ETag-Prüfung, Sync-Token, Soft-Delete, reinen Ganztagsdaten und verlustarmer
+  RRULE-/Erinnerungsspeicherung nach End-to-End-Test festgehalten.

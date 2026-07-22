@@ -6,6 +6,9 @@ export type ApiErrorCode =
   | "VALIDATION_ERROR"
   | "UNAUTHORIZED"
   | "INVALID_CREDENTIALS"
+  | "PRECONDITION_REQUIRED"
+  | "PRECONDITION_FAILED"
+  | "CONFLICT"
   | "NOT_FOUND"
   | "SERVICE_NOT_READY"
   | "INTERNAL_ERROR";
@@ -61,4 +64,30 @@ export type UpdateSettingsRequest = Partial<UserSettingsResponse>;
 export interface SessionResponse {
   status: "authenticated";
   expiresAt: string;
+}
+
+export interface CalendarResponse {
+  id: string;
+  name: string;
+  timezone: string;
+  isPrimary: boolean;
+  syncToken: number;
+}
+
+export interface CalendarEventResponse {
+  uid: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  isAllDay: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  timezone: string;
+  recurrenceRule: string | null;
+  reminderMinutes: number[];
+  etag: string;
+  sequence: number;
+  updatedAt: string;
 }
