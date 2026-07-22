@@ -134,6 +134,13 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
 
 - Datenbankschemaänderungen ausschließlich über versionierte Migrationen
   durchführen.
+- Prisma 7 wird über `packages/database/prisma.config.ts` konfiguriert. Neue
+  Schemaänderungen werden zuerst als `--create-only`-Migration geprüft und
+  anschließend mit `npm run db:migrate` angewendet; `db push` ist kein
+  regulärer LifeOS-Ablauf.
+- Kalenderzeitpunkte werden als `TIMESTAMPTZ` plus fachliche IANA-Zeitzone,
+  ganztägige Ereignisse ausschließlich als `DATE`-Werte gespeichert. Ein
+  Datenbank-Constraint muss beide Formen eindeutig voneinander trennen.
 - Vor jeder potenziell verlustbehafteten Migration ein überprüftes Backup
   erstellen.
 - Keine Daten, Kalender oder Ereignisse stillschweigend löschen oder
@@ -341,3 +348,6 @@ gemeldet.
   CI-Pflicht für Pull Requests und selbstständige PR-Erstellung ergänzt.
 - **2026-07-18:** Geprüfte lokale Docker-Befehle, ausschließlich lokale
   PostgreSQL-Portbindung und datenerhaltender Stop-Ablauf ergänzt.
+- **2026-07-22:** Prisma-7-Konfiguration, versionierter Migrationsablauf sowie
+  getrennte Speicherung von Zeitpunkten und ganztägigen Datumswerten nach
+  erfolgreicher Migration und Integrationstest festgehalten.

@@ -1,70 +1,93 @@
 generator client {
-  provider = "prisma-client-js"
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String         @id @default(cuid())
-  name      String
-  timezone  String         @default("Europe/Berlin")
-  currency  String         @default("EUR")
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  calendars Calendar[]
-  auditLogs AuditEvent[]
+  id          String        @id @default(uuid()) @db.Uuid
+  externalId  String        @unique @db.VarChar(100)
+  displayName String        @db.VarChar(200)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
+  settings    UserSettings?
+  calendars   Calendar[]
+  auditEvents AuditEvent[]
+}
+
+model UserSettings {
+  userId       String   @id @db.Uuid
+  timezone     String   @default("Europe/Berlin") @db.VarChar(100)
+  currencyCode String   @default("EUR") @db.Char(3)
+  locale       String   @default("de-DE") @db.VarChar(35)
+  weekStartsOn Int      @default(1)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Calendar {
-  id         String          @id @default(cuid())
-  userId     String
-  name       String
-  timezone   String          @default("Europe/Berlin")
+  id         String          @id @default(uuid()) @db.Uuid
+  userId     String          @db.Uuid
+  externalId String          @unique @db.VarChar(100)
+  name       String          @db.VarChar(200)
+  timezone   String          @default("Europe/Berlin") @db.VarChar(100)
   isPrimary  Boolean         @default(false)
   syncToken  Int             @default(0)
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+  createdAt  DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime        @updatedAt @db.Timestamptz(3)
+  deletedAt  DateTime?       @db.Timestamptz(3)
   user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   events     CalendarEvent[]
 
-  @@index([userId])
+  @@unique([id, userId])
+  @@index([userId, deletedAt])
 }
 
 model CalendarEvent {
-  id              String    @id @default(cuid())
-  calendarId      String
-  uid             String
-  title           String
-  description     String?
-  location        String?
-  startAt         DateTime
-  endAt           DateTime
-  timezone        String?
-  allDay          Boolean   @default(false)
-  recurrenceRule  String?
-  etag            String
-  deletedAt       DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  calendar        Calendar  @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  calendarId     String    @db.Uuid
+  uid            String    @db.VarChar(255)
+  title          String    @db.VarChar(500)
+  description    String?
+  location       String?   @db.VarChar(500)
+  startsAt       DateTime? @db.Timestamptz(3)
+  endsAt         DateTime? @db.Timestamptz(3)
+  startDate      DateTime? @db.Date
+  endDate        DateTime? @db.Date
+  timezone       String    @default("Europe/Berlin") @db.VarChar(100)
+  isAllDay       Boolean   @default(false)
+  recurrenceRule String?   @db.Text
+  etag           String    @db.VarChar(100)
+  sequence       Int       @default(0)
+  deletedAt      DateTime? @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+  calendar       Calendar  @relation(fields: [calendarId, userId], references: [id, userId], onDelete: Cascade)
 
   @@unique([calendarId, uid])
-  @@index([calendarId, startAt])
+  @@index([userId, deletedAt])
+  @@index([calendarId, startsAt])
+  @@index([calendarId, startDate])
   @@index([calendarId, deletedAt])
 }
 
 model AuditEvent {
-  id         String   @id @default(cuid())
-  userId     String
-  action     String
-  entity     String
-  entityId   String?
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  action     String   @db.VarChar(100)
+  entityType String   @db.VarChar(100)
+  entityId   String?  @db.VarChar(100)
   metadata   Json?
-  createdAt  DateTime @default(now())
+  occurredAt DateTime @default(now()) @db.Timestamptz(3)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, createdAt])
+  @@index([userId, occurredAt])
+  @@index([entityType, entityId])
 }

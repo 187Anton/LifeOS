@@ -43,6 +43,9 @@ test("schützt lokale Secrets und Anwendungsdaten vor Git", async () => {
   assert.match(gitignore, /^\*\.pem$/m);
   assert.match(gitignore, /^data\/\*$/m);
   assert.match(gitignore, /^!data\/\.gitkeep$/m);
+  assert.match(gitignore, /^backups\/$/m);
+  assert.doesNotMatch(gitignore, /packages\/database\/prisma\/migrations\//);
+  assert.match(gitignore, /packages\/database\/src\/generated\//);
 });
 
 test("führt CI für develop und main mit den verbindlichen Prüfungen aus", async () => {
