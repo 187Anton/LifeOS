@@ -11,6 +11,7 @@ interface ApplicationDependencies {
   readinessProbe: ReadinessProbe;
   webOrigin: string;
   moduleRouters?: Router[];
+  rootRouters?: Router[];
 }
 
 export const createApplication = ({
@@ -18,6 +19,7 @@ export const createApplication = ({
   readinessProbe,
   webOrigin,
   moduleRouters = [],
+  rootRouters = [],
 }: ApplicationDependencies): Express => {
   const application = express();
 
@@ -45,6 +47,9 @@ export const createApplication = ({
     next();
   });
   application.use(express.json({ limit: "64kb" }));
+  for (const router of rootRouters) {
+    application.use(router);
+  }
   application.use("/api/v1", createHealthRouter(readinessProbe));
 
   for (const router of moduleRouters) {

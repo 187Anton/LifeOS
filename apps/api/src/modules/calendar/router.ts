@@ -20,9 +20,14 @@ const timezone = z
       return false;
     }
   });
-const calendarIdParams = z.strictObject({ calendarId: z.string().uuid() });
+const stableCalendarId = z
+  .string()
+  .min(1)
+  .max(100)
+  .regex(/^[A-Za-z0-9._~-]+$/);
+const calendarIdParams = z.strictObject({ calendarId: stableCalendarId });
 const eventParams = z.strictObject({
-  calendarId: z.string().uuid(),
+  calendarId: stableCalendarId,
   uid: z.string().min(1).max(255),
 });
 const calendarCreate = z.strictObject({

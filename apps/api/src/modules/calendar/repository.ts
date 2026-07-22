@@ -22,7 +22,7 @@ export class CalendarNotFoundError extends Error {}
 export class EventNotFoundError extends Error {}
 export class EtagConflictError extends Error {}
 
-const mapCalendar = (calendar: {
+export const mapCalendar = (calendar: {
   externalId: string;
   name: string;
   timezone: string;
@@ -36,7 +36,7 @@ const mapCalendar = (calendar: {
   syncToken: calendar.syncToken,
 });
 
-const mapEvent = (event: {
+export const mapEvent = (event: {
   uid: string;
   title: string;
   description: string | null;
@@ -228,12 +228,18 @@ export class PrismaCalendarRepository {
         where: { userId, externalId, deletedAt: null },
       });
       if (!calendar) throw new CalendarNotFoundError();
-      const event = await transaction.calendarEvent.create({
-        data: { ...input, userId, calendarId: calendar.id },
-      });
-      await transaction.calendar.update({
+      const changedCalendar = await transaction.calendar.update({
         where: { id: calendar.id },
         data: { syncToken: { increment: 1 } },
+        select: { syncToken: true },
+      });
+      const event = await transaction.calendarEvent.create({
+        data: {
+          ...input,
+          userId,
+          calendarId: calendar.id,
+          syncVersion: changedCalendar.syncToken,
+        },
       });
       await transaction.auditEvent.create({
         data: {
@@ -263,17 +269,22 @@ export class PrismaCalendarRepository {
         where: { userId, calendarId: calendar.id, uid, deletedAt: null },
       });
       if (!current) throw new EventNotFoundError();
+      const changedCalendar = await transaction.calendar.update({
+        where: { id: calendar.id },
+        data: { syncToken: { increment: 1 } },
+        select: { syncToken: true },
+      });
       const updated = await transaction.calendarEvent.updateMany({
         where: { id: current.id, etag: expectedEtag, deletedAt: null },
-        data: { ...values, sequence: { increment: 1 } },
+        data: {
+          ...values,
+          sequence: { increment: 1 },
+          syncVersion: changedCalendar.syncToken,
+        },
       });
       if (updated.count !== 1) throw new EtagConflictError();
       const event = await transaction.calendarEvent.findUniqueOrThrow({
         where: { id: current.id },
-      });
-      await transaction.calendar.update({
-        where: { id: calendar.id },
-        data: { syncToken: { increment: 1 } },
       });
       await transaction.auditEvent.create({
         data: {
@@ -303,19 +314,21 @@ export class PrismaCalendarRepository {
         where: { userId, calendarId: calendar.id, uid, deletedAt: null },
       });
       if (!current) throw new EventNotFoundError();
+      const changedCalendar = await transaction.calendar.update({
+        where: { id: calendar.id },
+        data: { syncToken: { increment: 1 } },
+        select: { syncToken: true },
+      });
       const deleted = await transaction.calendarEvent.updateMany({
         where: { id: current.id, etag: expectedEtag, deletedAt: null },
         data: {
           deletedAt: new Date(),
           etag: deletedEtag,
           sequence: { increment: 1 },
+          syncVersion: changedCalendar.syncToken,
         },
       });
       if (deleted.count !== 1) throw new EtagConflictError();
-      await transaction.calendar.update({
-        where: { id: calendar.id },
-        data: { syncToken: { increment: 1 } },
-      });
       await transaction.auditEvent.create({
         data: {
           userId,

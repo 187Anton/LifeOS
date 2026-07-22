@@ -186,6 +186,12 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
   Widerrufsstatus persistiert werden; Passwortwechsel widerrufen ältere
   Zugangsversionen.
 - CalDAV-Zugang und externe Integrationszugänge separat widerrufbar machen.
+- CalDAV verwendet einen eigenen gehashten lokalen Zugang. Ereignisänderungen
+  schreiben Kalender-`syncToken` und Ereignis-`syncVersion` atomar; iCalendar-
+  Ausgaben mit `TZID` enthalten eine passende `VTIMEZONE`-Definition.
+- Eine LAN-Bindung für CalDAV ist eine bewusste lokale Betriebsart. HTTP Basic
+  Auth ist nur im vertrauenswürdigen LAN zulässig; für andere Netze ist TLS
+  erforderlich.
 - Berechtigungen im Backend prüfen; Frontend-Sichtbarkeit ist keine Sicherheit.
 - Datei- und Repository-Pfade gegen Traversal und unberechtigten Zugriff
   schützen.
@@ -370,3 +376,6 @@ gemeldet.
 - **2026-07-22:** Gemeinsamen Kalenderkern mit stabilen UIDs, atomarer
   ETag-Prüfung, Sync-Token, Soft-Delete, reinen Ganztagsdaten und verlustarmer
   RRULE-/Erinnerungsspeicherung nach End-to-End-Test festgehalten.
+- **2026-07-22:** Getrennt widerrufbaren CalDAV-Zugang, inkrementelle
+  Ereignis-Sync-Versionen, RFC-5545-`VTIMEZONE` und die sichere Grenze zwischen
+  Loopback-, LAN- und TLS-Betrieb nach CalDAV-Integrationsprüfung festgehalten.

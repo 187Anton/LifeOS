@@ -4,6 +4,9 @@ import { createApplication } from "./application.js";
 import { loadLocalEnvironment, parseConfig } from "./config.js";
 import { startApiServer } from "./http-server.js";
 import { JsonLogger } from "./logger.js";
+import { CalDavAuthenticationService } from "./modules/caldav/authentication.js";
+import { PrismaCalDavRepository } from "./modules/caldav/repository.js";
+import { createCalDavRouter } from "./modules/caldav/router.js";
 import { PrismaCalendarRepository } from "./modules/calendar/repository.js";
 import { createCalendarRouter } from "./modules/calendar/router.js";
 import { CalendarService } from "./modules/calendar/service.js";
@@ -21,6 +24,9 @@ const main = async (): Promise<void> => {
   const logger = new JsonLogger(config.logLevel);
   const database = createDatabaseClient(config.databaseUrl);
   const profileRepository = new PrismaProfileRepository(database);
+  const calendarRepository = new PrismaCalendarRepository(database);
+  const calendars = new CalendarService(calendarRepository);
+  const calDavRepository = new PrismaCalDavRepository(database);
   const authentication = new AuthenticationService(
     profileRepository,
     config.sessionTtlHours,
@@ -29,6 +35,13 @@ const main = async (): Promise<void> => {
     logger,
     readinessProbe: createDatabaseReadinessProbe(database),
     webOrigin: config.webOrigin,
+    rootRouters: [
+      createCalDavRouter({
+        authentication: new CalDavAuthenticationService(calDavRepository),
+        repository: calDavRepository,
+        calendars,
+      }),
+    ],
     moduleRouters: [
       createProfileRouter({
         authentication,
@@ -37,7 +50,7 @@ const main = async (): Promise<void> => {
       }),
       createCalendarRouter({
         authentication,
-        calendars: new CalendarService(new PrismaCalendarRepository(database)),
+        calendars,
       }),
     ],
   });

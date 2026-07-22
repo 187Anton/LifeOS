@@ -8,3 +8,5 @@ Alle relevanten Änderungen werden hier kurz und nachvollziehbar dokumentiert.
 - Lokale PostgreSQL-Infrastruktur vorbereitet.
 - GitHub- und Entwicklungsdokumentation ergänzt.
 - CalDAV und PWA als frühe Architekturziele dokumentiert.
+- Lokalen CalDAV-Server mit Discovery, Kalender-/Ereignisverwaltung,
+  iCalendar-Zeitzonen, ETags, Sync-Tokens und getrenntem Zugang ergänzt.
