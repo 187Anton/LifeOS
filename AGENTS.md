@@ -147,6 +147,9 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
   überschreiben.
 - API mit `/api/v1` beginnen und Breaking Changes nur über eine neue
   API-Version oder eine dokumentierte Übergangsphase einführen.
+- API-Fehler folgen dem versionierten Vertrag in `packages/contracts`. Logs
+  verwenden Anfrage-IDs und betriebliche Metadaten, aber keine ungefilterten
+  Anfragekörper, Authorization-/Cookie-Header oder internen Fehlermeldungen.
 - Exportformate versionieren und Importfehler verständlich anzeigen.
 - CalDAV-URLs, Kalender-IDs, Ereignis-UIDs, ETags und Synchronisationsdaten
   stabil halten.
@@ -351,3 +354,6 @@ gemeldet.
 - **2026-07-22:** Prisma-7-Konfiguration, versionierter Migrationsablauf sowie
   getrennte Speicherung von Zeitpunkten und ganztägigen Datumswerten nach
   erfolgreicher Migration und Integrationstest festgehalten.
+- **2026-07-22:** Versionierten API-Fehlervertrag, datenbanksensitive
+  Readiness-Prüfung und datensparsame strukturierte Logs nach API- und
+  Build-Verifikation festgehalten.

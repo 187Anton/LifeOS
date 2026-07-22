@@ -126,9 +126,18 @@ npm run db:stop
 `db:stop` entfernt keine Daten. Das benannte Docker-Volume `lifeos-postgres`
 bleibt erhalten und wird beim nächsten Start wieder verwendet.
 
-Die Anwendung selbst wird nach dem Scaffolding von API und Weboberfläche über
-die jeweiligen Workspace-Skripte gestartet. Bis dahin prüft der Repository-
-Check die Compose-Konfiguration:
+Nach dem Datenbankstart kann die API lokal gestartet werden:
+
+```bash
+npm run api:start
+```
+
+Sie bindet standardmäßig nur an `127.0.0.1:3000`. Der Health-Endpunkt unter
+`/api/v1/health` prüft den HTTP-Prozess, während `/api/v1/readiness` zusätzlich
+eine echte PostgreSQL-Verbindung prüft. Details und Fehlervertrag stehen in
+[apps/api/README.md](apps/api/README.md).
+
+Die allgemeinen Repository-Prüfungen lauten:
 
 ```bash
 npm install
@@ -137,10 +146,8 @@ npm run repo:check
 npm test
 ```
 
-`npm test` führt bereits echte Repository-Vertragstests aus. Die Ausgaben der
-API- und Web-Workspaces sind bis zu den Arbeitspaketen 0.1.4 und 0.1.8 noch
-ausdrücklich als Platzhalter markiert; sie gelten nicht als implementierte
-Anwendungstests.
+`npm test` führt Repository-, Datenbank- und API-Tests aus. Der Web-Workspace
+bleibt bis zum Arbeitspaket 0.1.8 ausdrücklich als Platzhalter markiert.
 
 ### Aktuell verfügbare Befehle
 
@@ -155,14 +162,18 @@ Anwendungstests.
 | Versionierte Migrationen anwenden          | `npm run db:migrate`   |
 | Synthetische Seed-Daten anlegen            | `npm run db:seed`      |
 | Datenbank-Integrationstest ausführen       | `npm run db:test`      |
+| API lokal starten                          | `npm run api:start`    |
+| API im Watch-Modus starten                 | `npm run api:dev`      |
+| Workspaces linten                          | `npm run lint`         |
+| Workspaces typprüfen                       | `npm run typecheck`    |
+| Anwendungen und Packages bauen             | `npm run build`        |
 | Compose-Konfiguration ohne Start prüfen    | `npm run repo:check`   |
 | Formatierung prüfen                        | `npm run format:check` |
 | Repository- und vorhandene Workspace-Tests | `npm test`             |
 
-API-/Web-Start, Linting, Typecheck und Build werden mit den zugehörigen
-Arbeitspaketen ergänzt. Bis dahin werden dafür keine erfolgreichen
-Platzhalterbefehle behauptet. Details zu Schemaänderungen, Zeitwerten und
-Migrationssicherheit stehen in
+Web-Start und Web-Build werden mit dem zugehörigen Arbeitspaket ergänzt. Bis
+dahin werden dafür keine erfolgreichen Platzhalterbefehle behauptet. Details
+zu Schemaänderungen, Zeitwerten und Migrationssicherheit stehen in
 [packages/database/README.md](packages/database/README.md).
 
 ### Häufige Docker-Probleme
