@@ -22,6 +22,7 @@ test("enthält die verpflichtenden Repository-Artefakte", async () => {
     "README.md",
     "compose.yaml",
     "docs/architecture.md",
+    "docs/foundation-verification.md",
     "docs/roadmap.md",
   ];
 
@@ -53,11 +54,52 @@ test("führt CI für develop und main mit den verbindlichen Prüfungen aus", asy
 
   assert.match(workflow, /branches: \["main", "develop"\]/);
   assert.match(workflow, /run: npm ci/);
+  assert.match(workflow, /run: npm run security:secrets/);
   assert.match(workflow, /run: npm run format:check/);
   assert.match(workflow, /run: docker compose config --quiet/);
   assert.match(workflow, /run: npm run lint && npm run typecheck/);
   assert.match(workflow, /run: npm run build/);
+  assert.match(workflow, /run: npm run db:verify:recovery/);
   assert.match(workflow, /run: npm test/);
+  assert.match(workflow, /if: always\(\)/);
+});
+
+test("stellt Secret-Scan und isolierte Backup-/Restore-Prüfung bereit", async () => {
+  const packageJson = JSON.parse(
+    await readFile(path.join(repositoryRoot, "package.json"), "utf8"),
+  );
+  const recoveryScript = await readRepositoryFile(
+    "scripts/verify-database-recovery.sh",
+  );
+  const backupScript = await readRepositoryFile("scripts/backup-database.sh");
+  const restoreScript = await readRepositoryFile("scripts/restore-database.sh");
+
+  assert.equal(
+    packageJson.scripts["security:secrets"],
+    "node scripts/scan-secrets.mjs",
+  );
+  assert.equal(
+    packageJson.scripts["db:verify:recovery"],
+    "bash scripts/verify-database-recovery.sh",
+  );
+  assert.equal(
+    packageJson.scripts["db:restore"],
+    "bash scripts/restore-database.sh",
+  );
+  assert.match(recoveryScript, /lifeos_verify_/);
+  assert.match(recoveryScript, /lifeos_restore_/);
+  assert.match(recoveryScript, /pg_dump/);
+  assert.match(recoveryScript, /pg_restore/);
+  assert.doesNotMatch(recoveryScript, /docker compose down|--volumes/);
+  assert.match(backupScript, /umask 077/);
+  assert.match(backupScript, /pg_dump/);
+  assert.match(backupScript, /if \[\[ -e "\$destination" \]\]/);
+  assert.match(backupScript, /sha256/);
+  assert.match(restoreScript, /\^lifeos_restore_/);
+  assert.match(restoreScript, /pg_restore --list/);
+  assert.match(restoreScript, /--exit-on-error/);
+  assert.match(restoreScript, /timingSafeEqual/);
+  assert.doesNotMatch(restoreScript, /--clean|docker compose down|--volumes/);
 });
 
 test("dokumentiert den Issue-, Branch- und Pull-Request-Workflow", async () => {

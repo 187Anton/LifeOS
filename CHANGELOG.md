@@ -14,3 +14,8 @@ Alle relevanten Änderungen werden hier kurz und nachvollziehbar dokumentiert.
   Kalenderanzeige sowie Termin-Erstellung und -Bearbeitung ergänzt.
 - PWA-Manifest, lokal gebündelte Icons, Offline-App-Shell und automatisierte
   Desktop-/Smartphone-Tests ohne persistente persönliche Browserdaten ergänzt.
+- Nachvollziehbaren Secret-Scan und verpflichtende CI-Prüfung ergänzt.
+- Isolierten Migrations-, Backup- und Restore-Nachweis mit stabiler
+  Datenprüfung sowie manuelles PostgreSQL-Backup mit Prüfsumme ergänzt.
+- Reproduzierbare lokale Demo, Apple-Kalender-Testmatrix und konkrete Grenzen
+  des Fundaments dokumentiert.

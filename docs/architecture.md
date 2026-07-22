@@ -140,3 +140,17 @@ Integration und darf die lokale Kernfunktion nicht voraussetzen.
 - Vor potenziell verlustbehafteten Migrationen werden Backups erstellt.
 - API-Breaking-Changes werden über eine neue Version oder Übergangsphase
   behandelt.
+
+## Backup- und Wiederherstellungsgrenze
+
+PostgreSQL-Backups werden als Custom-Format-Archive mit separater SHA-256-
+Prüfsumme erstellt. Ein Restore erfolgt zuerst in eine neue Datenbank und wird
+dort durch Migration sowie Vergleich stabiler Profil-, Kalender-, Ereignis-
+und Synchronisationswerte geprüft. Die Quelldatenbank wird niemals als erster
+Restore-Schritt überschrieben.
+
+`db:verify:recovery` automatisiert diesen Nachweis mit eindeutig benannten,
+synthetischen Datenbanken und räumt sie unabhängig vom Ergebnis wieder auf.
+Das PostgreSQL-Archiv umfasst keine Dokumentdateien unter `data/`; sobald dort
+echte Dateien verwaltet werden, benötigt ein konsistentes Backup beide
+Speicherbereiche und einen gemeinsamen Wiederherstellungstest.
