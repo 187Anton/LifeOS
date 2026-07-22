@@ -11,8 +11,9 @@
 ## Branches und Commits
 
 `main` ist der stabile Branch, `develop` der Integrationsbranch. Für jede
-Änderung einen zweckbezogenen Branch aus `develop` verwenden. Commits folgen
-Conventional Commits:
+Änderung einen zweckbezogenen Branch aus dem aktuellen `develop` verwenden.
+Ein Branch bearbeitet genau ein GitHub-Issue und darf keine Bezeichnung eines
+KI-Werkzeugs tragen. Commits folgen Conventional Commits:
 
 ```text
 chore(repo): initialize project foundation
@@ -27,11 +28,21 @@ Pull Request von `develop` nach `main` integriert.
 
 Pull Requests enthalten:
 
+- eine Verknüpfung mit `Closes #<Issue-Nummer>`,
 - Problem und Ursache
 - Umfang der Änderung
 - Tests und lokale Verifikation
 - Annahmen und offene Risiken
 
 Die GitHub-Actions-CI läuft automatisch für Pull Requests nach `develop` und
-`main`. Codex soll Pull Requests selbstständig eröffnen, wenn Remote und
-Berechtigungen verfügbar sind.
+`main`. Pull Requests bleiben Entwürfe, bis Akzeptanzkriterien, relevante Tests
+und Dokumentation vollständig sind. Fehlgeschlagene erforderliche Checks
+dürfen nicht umgangen werden.
+
+Vor dem Push mindestens ausführen:
+
+```bash
+npm run format:check
+npm run repo:check
+npm test
+```

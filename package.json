@@ -12,9 +12,15 @@
     "npm": ">=10"
   },
   "scripts": {
+    "env:check": "bash scripts/check-local-environment.sh",
+    "db:start": "bash scripts/start-database.sh",
+    "db:check": "bash scripts/check-database.sh",
+    "db:stop": "bash scripts/stop-database.sh",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "repo:check": "docker compose config --quiet"
+    "repo:check": "docker compose config --quiet",
+    "test": "npm run test:repo && npm run test --workspaces --if-present",
+    "test:repo": "node --test tests/*.test.mjs"
   },
   "devDependencies": {
     "prettier": "^3.6.2"
