@@ -55,5 +55,11 @@ jobs:
       - name: Apply migrations and synthetic seed
         run: npm run db:migrate && npm run db:seed
 
+      - name: Lint and type-check workspaces
+        run: npm run lint && npm run typecheck
+
+      - name: Build applications and packages
+        run: npm run build
+
       - name: Run repository and workspace tests
         run: npm test

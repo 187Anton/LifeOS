@@ -55,6 +55,8 @@ test("führt CI für develop und main mit den verbindlichen Prüfungen aus", asy
   assert.match(workflow, /run: npm ci/);
   assert.match(workflow, /run: npm run format:check/);
   assert.match(workflow, /run: docker compose config --quiet/);
+  assert.match(workflow, /run: npm run lint && npm run typecheck/);
+  assert.match(workflow, /run: npm run build/);
   assert.match(workflow, /run: npm test/);
 });
 

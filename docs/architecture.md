@@ -24,6 +24,31 @@ React-Weboberfläche ── REST/API ── Node.js-Backend
 - Keine externe KI-Verarbeitung ohne Freigabe.
 - Keine vollständige native App im ersten Schritt.
 
+## API-Grundgerüst
+
+Die Express-API beginnt unter `/api/v1`. Die Schichten bleiben innerhalb des
+modularen Monolithen klar getrennt:
+
+```text
+HTTP / Express
+│
+├── Middleware: Anfrage-ID, Validierung, Fehlervertrag
+├── Routen: Transport und Statuscodes
+├── Fachmodule: Geschäftsregeln der jeweiligen Arbeitspakete
+└── Infrastruktur: Prisma und weitere lokale Adapter
+```
+
+Health prüft ausschließlich den HTTP-Prozess. Readiness hängt zusätzlich von
+einer erfolgreichen PostgreSQL-Abfrage ab. Die Datenbankprüfung wird über eine
+austauschbare Schnittstelle injiziert, damit API-Tests keine echte Datenbank
+voraussetzen und Fachrouten nicht direkt auf Prisma zugreifen müssen.
+
+Fehler verwenden den in `packages/contracts` definierten Vertragsstand `1`.
+Unerwartete interne Fehlermeldungen und ungefilterte Eingaben werden weder an
+Clients ausgegeben noch protokolliert. Strukturierte Logs enthalten nur
+betriebliche Metadaten wie Ereignis, Anfrage-ID, Methode, Routenmuster, Status
+und Dauer.
+
 ## CalDAV
 
 Das Life OS soll selbst als CalDAV-Server auftreten. Dadurch kann die
