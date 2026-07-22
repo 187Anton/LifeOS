@@ -17,7 +17,9 @@ Entwicklungsdaten.
   Kalenderkennung erhalten.
 - `CalendarEvent` trägt zusätzlich zur Kalender-ID die Benutzer-ID. Ein
   zusammengesetzter Fremdschlüssel verhindert, dass ein Ereignis versehentlich
-  einem Kalender eines anderen Benutzers zugeordnet wird.
+  einem Kalender eines anderen Benutzers zugeordnet wird. UID und ETag bleiben
+  stabil bzw. versionsbezogen; Wiederholungsregeln und bis zu zehn
+  Erinnerungszeitpunkte werden verlustarm gespeichert.
 - `AuditEvent` hält nachvollziehbare Änderungen mit Benutzer- und
   Entitätsbezug fest; Secrets gehören nicht in `metadata`.
 
@@ -27,6 +29,11 @@ Anwendung als UTC-Zeitpunkte behandelt. Die IANA-Zeitzone, etwa
 `startDate` und `endDate` als reine `DATE`-Werte; `endDate` ist wie in
 iCalendar exklusiv. Eine Datenbankbedingung verhindert gemischte oder
 unvollständige Zeitangaben.
+
+Kalender und Ereignisse werden fachlich per `deletedAt` soft gelöscht. Jede
+Ereignisänderung erhöht den Kalender-`syncToken`; Änderungen mit ETag verwenden
+eine atomare bedingte Datenbankänderung statt eines getrennten Lesen-und-
+Schreiben-Ablaufs.
 
 ## Befehle
 

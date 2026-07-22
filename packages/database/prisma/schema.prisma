@@ -76,26 +76,27 @@ model Calendar {
 }
 
 model CalendarEvent {
-  id             String    @id @default(uuid()) @db.Uuid
-  userId         String    @db.Uuid
-  calendarId     String    @db.Uuid
-  uid            String    @db.VarChar(255)
-  title          String    @db.VarChar(500)
-  description    String?
-  location       String?   @db.VarChar(500)
-  startsAt       DateTime? @db.Timestamptz(3)
-  endsAt         DateTime? @db.Timestamptz(3)
-  startDate      DateTime? @db.Date
-  endDate        DateTime? @db.Date
-  timezone       String    @default("Europe/Berlin") @db.VarChar(100)
-  isAllDay       Boolean   @default(false)
-  recurrenceRule String?   @db.Text
-  etag           String    @db.VarChar(100)
-  sequence       Int       @default(0)
-  deletedAt      DateTime? @db.Timestamptz(3)
-  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
-  calendar       Calendar  @relation(fields: [calendarId, userId], references: [id, userId], onDelete: Cascade)
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @db.Uuid
+  calendarId      String    @db.Uuid
+  uid             String    @db.VarChar(255)
+  title           String    @db.VarChar(500)
+  description     String?
+  location        String?   @db.VarChar(500)
+  startsAt        DateTime? @db.Timestamptz(3)
+  endsAt          DateTime? @db.Timestamptz(3)
+  startDate       DateTime? @db.Date
+  endDate         DateTime? @db.Date
+  timezone        String    @default("Europe/Berlin") @db.VarChar(100)
+  isAllDay        Boolean   @default(false)
+  recurrenceRule  String?   @db.Text
+  reminderMinutes Int[]     @default([])
+  etag            String    @db.VarChar(100)
+  sequence        Int       @default(0)
+  deletedAt       DateTime? @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+  calendar        Calendar  @relation(fields: [calendarId, userId], references: [id, userId], onDelete: Cascade)
 
   @@unique([calendarId, uid])
   @@index([userId, deletedAt])

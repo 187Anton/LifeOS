@@ -59,6 +59,19 @@ const readCookie = (
   return undefined;
 };
 
+export const readSessionToken = (
+  cookieHeader: string | undefined,
+): string | undefined => readCookie(cookieHeader, SESSION_COOKIE);
+
+export const createRequireAuthentication =
+  (authentication: AuthenticationService): RequestHandler =>
+  async (request, response, next) => {
+    response.locals.userId = await authentication.authenticate(
+      readSessionToken(request.headers.cookie),
+    );
+    next();
+  };
+
 const sessionCookie = (
   token: string,
   expiresAt: Date,
@@ -88,16 +101,7 @@ export const createProfileRouter = ({
   secureCookies: boolean;
 }): Router => {
   const router = Router();
-  const requireAuthentication: RequestHandler = async (
-    request,
-    response,
-    next,
-  ) => {
-    response.locals.userId = await authentication.authenticate(
-      readCookie(request.headers.cookie, SESSION_COOKIE),
-    );
-    next();
-  };
+  const requireAuthentication = createRequireAuthentication(authentication);
 
   router.post(
     "/session",
@@ -121,7 +125,7 @@ export const createProfileRouter = ({
     "/session",
     requireAuthentication,
     async (request, response) => {
-      const token = readCookie(request.headers.cookie, SESSION_COOKIE);
+      const token = readSessionToken(request.headers.cookie);
       if (token) await authentication.logout(token);
       response.setHeader("Set-Cookie", clearSessionCookie(secureCookies));
       response.status(204).end();

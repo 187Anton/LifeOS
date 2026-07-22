@@ -137,6 +137,10 @@ Sie bindet standardmäßig nur an `127.0.0.1:3000`. Der Health-Endpunkt unter
 eine echte PostgreSQL-Verbindung prüft. Details und Fehlervertrag stehen in
 [apps/api/README.md](apps/api/README.md).
 
+Nach lokaler Anmeldung stehen außerdem Kalender- und Ereignis-CRUD unter
+`/api/v1/calendars` bereit. Ereignisänderungen verwenden ETags und `If-Match`,
+damit ein veralteter Client keinen neueren Stand überschreibt.
+
 Vor dem ersten geschützten Profilzugriff wird einmalig ein lokales Passwort
 gesetzt. Es wird nicht in `.env` oder im Frontend gespeichert:
 
