@@ -53,6 +53,14 @@ mit einem GitHub-Remote verbunden ist und die nötigen Berechtigungen vorhanden
 sind. Ohne Remote wird nur der lokale Branch vorbereitet; ein Push oder PR wird
 nicht vorgetäuscht.
 
+## Veröffentlichung und Lizenz
+
+Dieses Repository ist öffentlich, damit der Entwicklungsprozess und der
+Quellcode als Programmierportfolio eingesehen werden können. LifeOS wird unter
+der [MIT-Lizenz](LICENSE) veröffentlicht. Persönliche Daten, lokale Dateien,
+Secrets und Backups gehören nicht in dieses Repository. Abhängigkeiten und
+externe Assets bleiben unter ihren jeweiligen Lizenzen.
+
 ## Repository-Struktur
 
 ```text
