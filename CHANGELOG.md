@@ -10,3 +10,7 @@ Alle relevanten Änderungen werden hier kurz und nachvollziehbar dokumentiert.
 - CalDAV und PWA als frühe Architekturziele dokumentiert.
 - Lokalen CalDAV-Server mit Discovery, Kalender-/Ereignisverwaltung,
   iCalendar-Zeitzonen, ETags, Sync-Tokens und getrenntem Zugang ergänzt.
+- Responsive React-Weboberfläche mit lokaler Anmeldung, Dashboard,
+  Kalenderanzeige sowie Termin-Erstellung und -Bearbeitung ergänzt.
+- PWA-Manifest, lokal gebündelte Icons, Offline-App-Shell und automatisierte
+  Desktop-/Smartphone-Tests ohne persistente persönliche Browserdaten ergänzt.

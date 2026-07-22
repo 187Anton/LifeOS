@@ -78,6 +78,12 @@ native iOS-App dürfen später dieselbe Weboberfläche wiederverwenden, wenn ein
 konkreter Bedarf wie Systembenachrichtigungen, Tray-Funktionen oder EventKit
 entsteht.
 
+Die PWA-App-Shell darf statische, lokal gebündelte Assets offline cachen.
+Persönliche API-Antworten, Kalenderdaten und Zugangsdaten werden weder im
+Service-Worker-Cache noch in `localStorage` oder `sessionStorage` persistiert.
+Notwendige Schriftarten und Icons dürfen im lokalen Betrieb keine externe
+Quelle voraussetzen.
+
 ### 3.3 Kalender und CalDAV
 
 CalDAV ist ab dem Fundament verpflichtend.
@@ -379,3 +385,7 @@ gemeldet.
 - **2026-07-22:** Getrennt widerrufbaren CalDAV-Zugang, inkrementelle
   Ereignis-Sync-Versionen, RFC-5545-`VTIMEZONE` und die sichere Grenze zwischen
   Loopback-, LAN- und TLS-Betrieb nach CalDAV-Integrationsprüfung festgehalten.
+- **2026-07-22:** Eine gemeinsame responsive React-PWA, ausschließlich lokal
+  gebündelte Pflicht-Assets sowie eine Offline-App-Shell ohne Cache oder
+  Browser-Storage für persönliche API-Daten nach Desktop-/Smartphone- und
+  Offline-Test festgehalten.

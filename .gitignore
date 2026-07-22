@@ -8,6 +8,9 @@ build/
 coverage/
 .vite/
 .cache/
+*.tsbuildinfo
+playwright-report/
+test-results/
 
 # Environment and secrets
 .env

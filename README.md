@@ -13,7 +13,7 @@ Fachlogik wird schrittweise ergänzt.
 - Node.js und TypeScript für die API
 - PostgreSQL als relationale Datenbank
 - Docker Compose für die lokale Infrastruktur
-- responsive Weboberfläche mit späterer PWA-Nutzung
+- eine responsive Weboberfläche mit installierbarer PWA-App-Shell
 - CalDAV-Server ab dem Fundament, damit Termine ohne installierte LifeOS-App
   in Apple Kalender sichtbar werden können
 - lokale Speicherung und synthetische Beispieldaten
@@ -65,8 +65,8 @@ externe Assets bleiben unter ihren jeweiligen Lizenzen.
 
 ```text
 apps/
-api/ Backend und spätere CalDAV-Schnittstelle
-web/ React-Weboberfläche
+api/ Backend und CalDAV-Schnittstelle
+web/ responsive React-Weboberfläche und PWA-App-Shell
 
 packages/
 contracts/ Gemeinsame API- und Datenverträge
@@ -174,6 +174,27 @@ npm run auth:bootstrap
 unset LIFEOS_BOOTSTRAP_PASSWORD
 ```
 
+Anschließend werden API und Weboberfläche in zwei Terminals gestartet:
+
+```bash
+npm run api:start
+npm run web:dev
+```
+
+Die Oberfläche ist unter `http://127.0.0.1:5173` erreichbar. Sie verwendet
+einen lokalen API-Proxy, zeigt Kalender und Termine auf Desktop und Smartphone
+an und kann Termine anlegen sowie bearbeiten. Ein Produktions-Build erzeugt
+zusätzlich Manifest und Offline-App-Shell:
+
+```bash
+npm run build --workspace @lifeos/web
+npm run web:preview
+```
+
+Die App-Shell ist offline verfügbar; persönliche API-Daten werden absichtlich
+nicht offline gecacht und nicht in `localStorage` oder `sessionStorage`
+geschrieben. Details stehen in [apps/web/README.md](apps/web/README.md).
+
 Die allgemeinen Repository-Prüfungen lauten:
 
 ```bash
@@ -183,8 +204,8 @@ npm run repo:check
 npm test
 ```
 
-`npm test` führt Repository-, Datenbank- und API-Tests aus. Der Web-Workspace
-bleibt bis zum Arbeitspaket 0.1.8 ausdrücklich als Platzhalter markiert.
+`npm test` führt Repository-, Datenbank-, API- und Web-Tests aus. Für die
+Playwright-End-to-End-Tests wird ein lokal verfügbares Chrome benötigt.
 
 ### Aktuell verfügbare Befehle
 
@@ -201,6 +222,8 @@ bleibt bis zum Arbeitspaket 0.1.8 ausdrücklich als Platzhalter markiert.
 | Datenbank-Integrationstest ausführen         | `npm run db:test`          |
 | API lokal starten                            | `npm run api:start`        |
 | API im Watch-Modus starten                   | `npm run api:dev`          |
+| Weboberfläche lokal starten                  | `npm run web:dev`          |
+| Gebaute Weboberfläche lokal prüfen           | `npm run web:preview`      |
 | Lokales Passwort setzen/Sitzungen widerrufen | `npm run auth:bootstrap`   |
 | Getrennten CalDAV-Zugang setzen              | `npm run caldav:bootstrap` |
 | Getrennten CalDAV-Zugang widerrufen          | `npm run caldav:revoke`    |
@@ -211,9 +234,9 @@ bleibt bis zum Arbeitspaket 0.1.8 ausdrücklich als Platzhalter markiert.
 | Formatierung prüfen                          | `npm run format:check`     |
 | Repository- und vorhandene Workspace-Tests   | `npm test`                 |
 
-Web-Start und Web-Build werden mit dem zugehörigen Arbeitspaket ergänzt. Bis
-dahin werden dafür keine erfolgreichen Platzhalterbefehle behauptet. Details
-zu Schemaänderungen, Zeitwerten und Migrationssicherheit stehen in
+Details zu Web- und PWA-Prüfungen stehen in
+[apps/web/README.md](apps/web/README.md). Details zu Schemaänderungen,
+Zeitwerten und Migrationssicherheit stehen in
 [packages/database/README.md](packages/database/README.md).
 
 ### Häufige Docker-Probleme
