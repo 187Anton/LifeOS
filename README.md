@@ -151,13 +151,19 @@ Anwendungstests.
 | Datenbank starten und Verbindung prüfen    | `npm run db:start`     |
 | Datenbankstatus und SQL-Verbindung prüfen  | `npm run db:check`     |
 | Lokale Dienste ohne Datenverlust stoppen   | `npm run db:stop`      |
+| Prisma-Schema prüfen                       | `npm run db:validate`  |
+| Versionierte Migrationen anwenden          | `npm run db:migrate`   |
+| Synthetische Seed-Daten anlegen            | `npm run db:seed`      |
+| Datenbank-Integrationstest ausführen       | `npm run db:test`      |
 | Compose-Konfiguration ohne Start prüfen    | `npm run repo:check`   |
 | Formatierung prüfen                        | `npm run format:check` |
 | Repository- und vorhandene Workspace-Tests | `npm test`             |
 
-Migration, Seed, API-/Web-Start, Linting, Typecheck und Build werden mit den
-zugehörigen Arbeitspaketen ergänzt. Bis dahin werden dafür keine erfolgreichen
-Platzhalterbefehle behauptet.
+API-/Web-Start, Linting, Typecheck und Build werden mit den zugehörigen
+Arbeitspaketen ergänzt. Bis dahin werden dafür keine erfolgreichen
+Platzhalterbefehle behauptet. Details zu Schemaänderungen, Zeitwerten und
+Migrationssicherheit stehen in
+[packages/database/README.md](packages/database/README.md).
 
 ### Häufige Docker-Probleme
 
@@ -178,10 +184,12 @@ mit entbehrlichen, gesicherten Testdaten verwendet werden.
 ## Daten und Backups
 
 Lokale Dokumentdaten liegen unter `data/`, PostgreSQL-Daten im benannten
-Docker-Volume `lifeos-postgres`; beides wird nicht versioniert. Vor späteren
-Datenbankmigrationen müssen ein PostgreSQL-Backup und eine Sicherung des
-Dokumentenverzeichnisses erstellt werden. Die konkreten Backup- und
-Wiederherstellungsbefehle werden mit der Datenbankimplementierung ergänzt.
+Docker-Volume `lifeos-postgres`; beides wird nicht versioniert. Prisma-
+Migrationen liegen dagegen versioniert unter
+`packages/database/prisma/migrations/`. Vor potenziell verlustbehafteten
+Migrationen müssen ein PostgreSQL-Backup und eine Sicherung des
+Dokumentenverzeichnisses erstellt werden. Der vollständige automatisierte
+Backup-/Wiederherstellungstest folgt im Absicherungspaket 0.1.9.
 
 ## GitHub-Planung einrichten
 

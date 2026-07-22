@@ -20,6 +20,7 @@ secrets/
 # Local application data
 data/*
 !data/.gitkeep
+backups/
 *.sqlite
 *.sqlite-journal
 
@@ -34,6 +35,6 @@ data/*
 !.vscode/extensions.json
 !.vscode/settings.json
 
-# Generated Prisma files
-packages/database/prisma/migrations/
+# Generated Prisma files (Migrationen werden ausdrücklich versioniert)
+packages/database/src/generated/
 packages/database/node_modules/

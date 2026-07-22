@@ -13,6 +13,22 @@ jobs:
   repository:
     name: Repository checks
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://lifeos:lifeos-ci@127.0.0.1:5432/lifeos
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: lifeos
+          POSTGRES_USER: lifeos
+          POSTGRES_PASSWORD: lifeos-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lifeos -d lifeos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout
@@ -32,6 +48,12 @@ jobs:
 
       - name: Validate Compose configuration
         run: docker compose config --quiet
+
+      - name: Validate and generate Prisma Client
+        run: npm run db:validate && npm run db:generate
+
+      - name: Apply migrations and synthetic seed
+        run: npm run db:migrate && npm run db:seed
 
       - name: Run repository and workspace tests
         run: npm test

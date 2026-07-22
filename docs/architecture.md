@@ -36,7 +36,15 @@ Integration und darf die lokale Kernfunktion nicht voraussetzen.
 
 ## Migration und Kompatibilität
 
-- Datenbankänderungen erfolgen über Migrationen.
+- Datenbankänderungen erfolgen ausschließlich über versionierte Prisma-
+  Migrationen; `db push` ist kein regulärer Entwicklungsablauf.
+- Prisma 7 liest die lokale Verbindungs-URL aus
+  `packages/database/prisma.config.ts` und verbindet den generierten Client
+  über den PostgreSQL-Treiberadapter.
+- Persönliche Datensätze tragen einen Besitzerbezug. Ereignisse sichern die
+  Kombination aus Kalender und Benutzer zusätzlich per Fremdschlüssel ab.
+- Absolute Zeitpunkte liegen als `TIMESTAMPTZ`, ganztägige Kalenderwerte als
+  reine `DATE`-Spalten vor; die fachliche Zeitzone wird getrennt gespeichert.
 - CalDAV-UIDs, Kalender-IDs und ETags bleiben stabil.
 - Vor potenziell verlustbehafteten Migrationen werden Backups erstellt.
 - API-Breaking-Changes werden über eine neue Version oder Übergangsphase
