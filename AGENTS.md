@@ -178,6 +178,10 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
 - Secrets ausschließlich über Umgebungsvariablen oder Secret-Management
   zuführen.
 - Passwörter nur mit einem geeigneten Passwort-Hash speichern.
+- Das lokale Passwort wird mit gesalzenem `scrypt` gespeichert. Sitzungen
+  verwenden zufällige Tokens, von denen nur SHA-256-Hashes, Ablauf und
+  Widerrufsstatus persistiert werden; Passwortwechsel widerrufen ältere
+  Zugangsversionen.
 - CalDAV-Zugang und externe Integrationszugänge separat widerrufbar machen.
 - Berechtigungen im Backend prüfen; Frontend-Sichtbarkeit ist keine Sicherheit.
 - Datei- und Repository-Pfade gegen Traversal und unberechtigten Zugriff
@@ -357,3 +361,6 @@ gemeldet.
 - **2026-07-22:** Versionierten API-Fehlervertrag, datenbanksensitive
   Readiness-Prüfung und datensparsame strukturierte Logs nach API- und
   Build-Verifikation festgehalten.
+- **2026-07-22:** Lokalen Passwort-Bootstrap mit `scrypt`, ausschließlich
+  gehashte widerrufbare Sitzungstokens sowie wertfreie Audit-Metadaten nach
+  Authentifizierungs- und Persistenztests festgehalten.

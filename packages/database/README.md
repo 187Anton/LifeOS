@@ -8,8 +8,11 @@ Entwicklungsdaten.
 
 - `User` ist der persönliche Besitzer aller Daten und hat eine stabile externe
   ID.
-- `UserSettings` speichert Zeitzone, Währung, Sprache und Wochenbeginn getrennt
-  vom Benutzerstammsatz.
+- `UserSettings` speichert Zeitzone, Währung, Sprache, Wochenbeginn und
+  Kalenderansicht getrennt vom Benutzerstammsatz.
+- `UserCredential` enthält ausschließlich den versionierten Passwort-Hash.
+- `UserSession` speichert nur den SHA-256-Hash eines zufälligen Tokens,
+  Ablaufzeit, Zugangsversion und optionalen Widerrufszeitpunkt.
 - `Calendar` gehört immer zu einem Benutzer. `externalId` bleibt als stabile
   Kalenderkennung erhalten.
 - `CalendarEvent` trägt zusätzlich zur Kalender-ID die Benutzer-ID. Ein
@@ -45,6 +48,11 @@ npm run db:test
   einen Kalender, ein Ereignis und ein Audit-Ereignis an.
 - `db:test` speichert und liest einen eigenen synthetischen Datensatz und
   entfernt ihn anschließend wieder.
+
+Das lokale Passwort wird getrennt vom Seed mit `npm run auth:bootstrap`
+gesetzt. Dadurch liegt kein funktionsfähiges Standardpasswort im Repository.
+Ein erneuter Bootstrap erhöht die Zugangsversion und widerruft vorhandene
+Sitzungen.
 
 Der Seed muss ausdrücklich ausgeführt werden. Prisma 7 startet ihn nicht mehr
 automatisch zusammen mit einer Migration.

@@ -4,6 +4,8 @@ export const ERROR_CONTRACT_VERSION = "1" as const;
 export type ApiErrorCode =
   | "INVALID_JSON"
   | "VALIDATION_ERROR"
+  | "UNAUTHORIZED"
+  | "INVALID_CREDENTIALS"
   | "NOT_FOUND"
   | "SERVICE_NOT_READY"
   | "INTERNAL_ERROR";
@@ -34,4 +36,29 @@ export interface ReadinessResponse {
   checks: {
     database: "up";
   };
+}
+
+export type SupportedLocale = "de-DE" | "en-US";
+export type CalendarView = "day" | "week" | "month";
+
+export interface UserSettingsResponse {
+  timezone: string;
+  locale: SupportedLocale;
+  currencyCode: string;
+  weekStartsOn: number;
+  defaultCalendarView: CalendarView;
+  showWeekends: boolean;
+}
+
+export interface ProfileResponse {
+  id: string;
+  displayName: string;
+  settings: UserSettingsResponse;
+}
+
+export type UpdateSettingsRequest = Partial<UserSettingsResponse>;
+
+export interface SessionResponse {
+  status: "authenticated";
+  expiresAt: string;
 }

@@ -30,6 +30,7 @@ test("startet und beendet HTTP-Server und Datenbankverbindung kontrolliert", asy
     webOrigin: "http://localhost:5173",
     logLevel: "error",
     shutdownTimeoutMs: 1000,
+    sessionTtlHours: 24,
   };
 
   const running = await startApiServer({
@@ -62,6 +63,7 @@ test("meldet einen belegten Port als verständlichen Startfehler", async () => {
     webOrigin: "http://localhost:5173",
     logLevel: "error",
     shutdownTimeoutMs: 1000,
+    sessionTtlHours: 24,
   };
   const first = await startApiServer({
     application,

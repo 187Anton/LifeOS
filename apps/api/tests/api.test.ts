@@ -80,6 +80,10 @@ test("liefert Health und eine erfolgreiche Datenbank-Readiness", async (t) => {
     preflight.headers.get("access-control-allow-origin"),
     "http://localhost:5173",
   );
+  assert.equal(
+    preflight.headers.get("access-control-allow-credentials"),
+    "true",
+  );
 
   const readiness = await fetch(`${baseUrl}/api/v1/readiness`);
   assert.equal(readiness.status, 200);

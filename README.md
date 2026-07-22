@@ -137,6 +137,16 @@ Sie bindet standardmäßig nur an `127.0.0.1:3000`. Der Health-Endpunkt unter
 eine echte PostgreSQL-Verbindung prüft. Details und Fehlervertrag stehen in
 [apps/api/README.md](apps/api/README.md).
 
+Vor dem ersten geschützten Profilzugriff wird einmalig ein lokales Passwort
+gesetzt. Es wird nicht in `.env` oder im Frontend gespeichert:
+
+```bash
+read -s LIFEOS_BOOTSTRAP_PASSWORD
+export LIFEOS_BOOTSTRAP_PASSWORD
+npm run auth:bootstrap
+unset LIFEOS_BOOTSTRAP_PASSWORD
+```
+
 Die allgemeinen Repository-Prüfungen lauten:
 
 ```bash
@@ -151,25 +161,26 @@ bleibt bis zum Arbeitspaket 0.1.8 ausdrücklich als Platzhalter markiert.
 
 ### Aktuell verfügbare Befehle
 
-| Aufgabe                                    | Befehl                 |
-| ------------------------------------------ | ---------------------- |
-| Abhängigkeiten installieren                | `npm ci`               |
-| Docker und lokale Konfiguration prüfen     | `npm run env:check`    |
-| Datenbank starten und Verbindung prüfen    | `npm run db:start`     |
-| Datenbankstatus und SQL-Verbindung prüfen  | `npm run db:check`     |
-| Lokale Dienste ohne Datenverlust stoppen   | `npm run db:stop`      |
-| Prisma-Schema prüfen                       | `npm run db:validate`  |
-| Versionierte Migrationen anwenden          | `npm run db:migrate`   |
-| Synthetische Seed-Daten anlegen            | `npm run db:seed`      |
-| Datenbank-Integrationstest ausführen       | `npm run db:test`      |
-| API lokal starten                          | `npm run api:start`    |
-| API im Watch-Modus starten                 | `npm run api:dev`      |
-| Workspaces linten                          | `npm run lint`         |
-| Workspaces typprüfen                       | `npm run typecheck`    |
-| Anwendungen und Packages bauen             | `npm run build`        |
-| Compose-Konfiguration ohne Start prüfen    | `npm run repo:check`   |
-| Formatierung prüfen                        | `npm run format:check` |
-| Repository- und vorhandene Workspace-Tests | `npm test`             |
+| Aufgabe                                      | Befehl                   |
+| -------------------------------------------- | ------------------------ |
+| Abhängigkeiten installieren                  | `npm ci`                 |
+| Docker und lokale Konfiguration prüfen       | `npm run env:check`      |
+| Datenbank starten und Verbindung prüfen      | `npm run db:start`       |
+| Datenbankstatus und SQL-Verbindung prüfen    | `npm run db:check`       |
+| Lokale Dienste ohne Datenverlust stoppen     | `npm run db:stop`        |
+| Prisma-Schema prüfen                         | `npm run db:validate`    |
+| Versionierte Migrationen anwenden            | `npm run db:migrate`     |
+| Synthetische Seed-Daten anlegen              | `npm run db:seed`        |
+| Datenbank-Integrationstest ausführen         | `npm run db:test`        |
+| API lokal starten                            | `npm run api:start`      |
+| API im Watch-Modus starten                   | `npm run api:dev`        |
+| Lokales Passwort setzen/Sitzungen widerrufen | `npm run auth:bootstrap` |
+| Workspaces linten                            | `npm run lint`           |
+| Workspaces typprüfen                         | `npm run typecheck`      |
+| Anwendungen und Packages bauen               | `npm run build`          |
+| Compose-Konfiguration ohne Start prüfen      | `npm run repo:check`     |
+| Formatierung prüfen                          | `npm run format:check`   |
+| Repository- und vorhandene Workspace-Tests   | `npm test`               |
 
 Web-Start und Web-Build werden mit dem zugehörigen Arbeitspaket ergänzt. Bis
 dahin werden dafür keine erfolgreichen Platzhalterbefehle behauptet. Details
