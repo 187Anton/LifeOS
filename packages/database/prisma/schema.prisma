@@ -10,16 +10,17 @@ datasource db {
 }
 
 model User {
-  id          String          @id @default(uuid()) @db.Uuid
-  externalId  String          @unique @db.VarChar(100)
-  displayName String          @db.VarChar(200)
-  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime        @updatedAt @db.Timestamptz(3)
-  settings    UserSettings?
-  credential  UserCredential?
-  sessions    UserSession[]
-  calendars   Calendar[]
-  auditEvents AuditEvent[]
+  id               String            @id @default(uuid()) @db.Uuid
+  externalId       String            @unique @db.VarChar(100)
+  displayName      String            @db.VarChar(200)
+  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
+  settings         UserSettings?
+  credential       UserCredential?
+  calDavCredential CalDavCredential?
+  sessions         UserSession[]
+  calendars        Calendar[]
+  auditEvents      AuditEvent[]
 }
 
 model UserSettings {
@@ -55,6 +56,17 @@ model UserSession {
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt, expiresAt])
+}
+
+model CalDavCredential {
+  userId       String    @id @db.Uuid
+  username     String    @unique @db.VarChar(100)
+  passwordHash String    @db.VarChar(255)
+  revision     Int       @default(1)
+  revokedAt    DateTime? @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Calendar {
@@ -93,6 +105,7 @@ model CalendarEvent {
   reminderMinutes Int[]     @default([])
   etag            String    @db.VarChar(100)
   sequence        Int       @default(0)
+  syncVersion     Int       @default(0)
   deletedAt       DateTime? @db.Timestamptz(3)
   createdAt       DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
@@ -103,6 +116,7 @@ model CalendarEvent {
   @@index([calendarId, startsAt])
   @@index([calendarId, startDate])
   @@index([calendarId, deletedAt])
+  @@index([calendarId, syncVersion])
 }
 
 model AuditEvent {

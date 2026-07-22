@@ -8,6 +8,8 @@
     "start": "tsx src/server.ts",
     "start:built": "node dist/server.js",
     "auth:bootstrap": "tsx src/modules/profile/bootstrap-password.ts",
+    "caldav:bootstrap": "tsx src/modules/caldav/bootstrap-credential.ts",
+    "caldav:revoke": "tsx src/modules/caldav/revoke-credential.ts",
     "build": "tsup",
     "lint": "eslint src tests",
     "test": "tsx --test tests/*.test.ts",
@@ -20,7 +22,10 @@
     "@prisma/client": "7.8.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "fast-xml-parser": "^5.10.1",
+    "ical.js": "^2.2.1",
     "pg": "^8.22.0",
+    "timezones-ical-library": "^2.3.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

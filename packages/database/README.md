@@ -13,6 +13,8 @@ Entwicklungsdaten.
 - `UserCredential` enthält ausschließlich den versionierten Passwort-Hash.
 - `UserSession` speichert nur den SHA-256-Hash eines zufälligen Tokens,
   Ablaufzeit, Zugangsversion und optionalen Widerrufszeitpunkt.
+- `CalDavCredential` speichert den getrennt widerrufbaren CalDAV-Benutzernamen
+  und ausschließlich dessen versionierten `scrypt`-Passwort-Hash.
 - `Calendar` gehört immer zu einem Benutzer. `externalId` bleibt als stabile
   Kalenderkennung erhalten.
 - `CalendarEvent` trägt zusätzlich zur Kalender-ID die Benutzer-ID. Ein
@@ -31,7 +33,9 @@ iCalendar exklusiv. Eine Datenbankbedingung verhindert gemischte oder
 unvollständige Zeitangaben.
 
 Kalender und Ereignisse werden fachlich per `deletedAt` soft gelöscht. Jede
-Ereignisänderung erhöht den Kalender-`syncToken`; Änderungen mit ETag verwenden
+Ereignisänderung erhöht den Kalender-`syncToken` und speichert denselben Wert
+als `CalendarEvent.syncVersion`. Dadurch kann `sync-collection` seit einem
+bestimmten Token auch Löschmarkierungen liefern. Änderungen mit ETag verwenden
 eine atomare bedingte Datenbankänderung statt eines getrennten Lesen-und-
 Schreiben-Ablaufs.
 
@@ -60,6 +64,10 @@ Das lokale Passwort wird getrennt vom Seed mit `npm run auth:bootstrap`
 gesetzt. Dadurch liegt kein funktionsfähiges Standardpasswort im Repository.
 Ein erneuter Bootstrap erhöht die Zugangsversion und widerruft vorhandene
 Sitzungen.
+
+Der CalDAV-Zugang wird ebenfalls nicht geseedet. `npm run caldav:bootstrap`
+setzt ihn aus der temporären Variable `LIFEOS_CALDAV_PASSWORD`;
+`npm run caldav:revoke` widerruft ihn unabhängig von der Web-Anmeldung.
 
 Der Seed muss ausdrücklich ausgeführt werden. Prisma 7 startet ihn nicht mehr
 automatisch zusammen mit einer Migration.

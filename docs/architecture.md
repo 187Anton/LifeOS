@@ -88,6 +88,24 @@ Apple-Kalender-App einen LifeOS-Kalender als eigenen Account anzeigen und
 bearbeiten. Die CalDAV-Schnittstelle bleibt von der internen Datenbankstruktur
 entkoppelt.
 
+Der Server verwendet die stabilen Pfade `/caldav/principals/local/` und
+`/caldav/calendars/local/`. Ein eigener, gesalzen gehashter Basic-Auth-Zugang
+ist getrennt von Web-Passwort und Sitzungen widerrufbar. `PROPFIND` bildet
+Principal und Calendar Home ab; `calendar-query`, `calendar-multiget` und
+`sync-collection` verwenden denselben Kalenderkern wie `/api/v1`.
+
+Eine Ereignisänderung erhöht in derselben Transaktion den Kalender-`syncToken`
+und schreibt ihn als `syncVersion` an das Ereignis. Soft gelöschte Ereignisse
+bleiben dadurch als Tombstones für inkrementelle Sync-Reports erhalten.
+iCalendar-Ausgaben enthalten stabile UID/ETag-Werte, exklusive Ganztagsdaten,
+RRULE, DISPLAY-Alarme und eine zur IANA-Zeitzone passende `VTIMEZONE`-
+Definition. Eingehendes XML lehnt DTD-/Entity-Deklarationen ab.
+
+Die Standardbindung an `127.0.0.1` bleibt sicher lokal. Zugriff von Apple
+Kalender im selben vertrauenswürdigen Netz ist eine bewusste Betriebsart mit
+LAN-Bindung. Der erste Entwicklungsbetrieb nutzt HTTP Basic Auth; außerhalb
+eines vertrauenswürdigen LAN ist TLS vorgeschaltet erforderlich.
+
 Ein späterer CalDAV-Client für bestehende iCloud-Kalender ist eine separate
 Integration und darf die lokale Kernfunktion nicht voraussetzen.
 

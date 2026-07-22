@@ -97,9 +97,10 @@ export class CalendarService {
   async createCalendar(
     userId: string,
     input: { name: string; timezone: string; isPrimary?: boolean },
+    externalId: string = randomUUID(),
   ) {
     return this.repository.createCalendar(userId, {
-      externalId: randomUUID(),
+      externalId,
       name: input.name,
       timezone: input.timezone,
       isPrimary: input.isPrimary ?? false,

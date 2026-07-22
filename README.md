@@ -141,6 +141,29 @@ Nach lokaler Anmeldung stehen außerdem Kalender- und Ereignis-CRUD unter
 `/api/v1/calendars` bereit. Ereignisänderungen verwenden ETags und `If-Match`,
 damit ein veralteter Client keinen neueren Stand überschreibt.
 
+Der CalDAV-Server liegt unabhängig von der REST-API unter `/caldav/`. Sein
+Zugang wird getrennt von der Browser-Anmeldung gesetzt und widerrufen:
+
+```bash
+read -s LIFEOS_CALDAV_PASSWORD
+export LIFEOS_CALDAV_PASSWORD
+npm run caldav:bootstrap
+unset LIFEOS_CALDAV_PASSWORD
+```
+
+Für einen Client auf demselben Rechner lautet die Account-URL
+`http://127.0.0.1:3000/caldav/`, der Benutzername ist `local`. Mit
+`npm run caldav:revoke` lässt sich nur dieser Zugang sperren.
+
+Auf einem iPhone bezeichnet `localhost` das iPhone, nicht den
+Entwicklungsrechner. Für Apple Kalender muss die API deshalb bewusst im
+vertrauenswürdigen lokalen Netz gebunden werden, beispielsweise mit
+`API_HOST=0.0.0.0 npm run api:start`. Als Server dient dann die LAN-Adresse des
+Rechners mit Port `3000` und Pfad `/caldav/`. Der erste lokale Betrieb nutzt
+HTTP Basic Auth und darf nicht ohne TLS oder Reverse Proxy ins öffentliche
+Internet gestellt werden. Details stehen in
+[apps/api/README.md](apps/api/README.md).
+
 Vor dem ersten geschützten Profilzugriff wird einmalig ein lokales Passwort
 gesetzt. Es wird nicht in `.env` oder im Frontend gespeichert:
 
@@ -165,26 +188,28 @@ bleibt bis zum Arbeitspaket 0.1.8 ausdrücklich als Platzhalter markiert.
 
 ### Aktuell verfügbare Befehle
 
-| Aufgabe                                      | Befehl                   |
-| -------------------------------------------- | ------------------------ |
-| Abhängigkeiten installieren                  | `npm ci`                 |
-| Docker und lokale Konfiguration prüfen       | `npm run env:check`      |
-| Datenbank starten und Verbindung prüfen      | `npm run db:start`       |
-| Datenbankstatus und SQL-Verbindung prüfen    | `npm run db:check`       |
-| Lokale Dienste ohne Datenverlust stoppen     | `npm run db:stop`        |
-| Prisma-Schema prüfen                         | `npm run db:validate`    |
-| Versionierte Migrationen anwenden            | `npm run db:migrate`     |
-| Synthetische Seed-Daten anlegen              | `npm run db:seed`        |
-| Datenbank-Integrationstest ausführen         | `npm run db:test`        |
-| API lokal starten                            | `npm run api:start`      |
-| API im Watch-Modus starten                   | `npm run api:dev`        |
-| Lokales Passwort setzen/Sitzungen widerrufen | `npm run auth:bootstrap` |
-| Workspaces linten                            | `npm run lint`           |
-| Workspaces typprüfen                         | `npm run typecheck`      |
-| Anwendungen und Packages bauen               | `npm run build`          |
-| Compose-Konfiguration ohne Start prüfen      | `npm run repo:check`     |
-| Formatierung prüfen                          | `npm run format:check`   |
-| Repository- und vorhandene Workspace-Tests   | `npm test`               |
+| Aufgabe                                      | Befehl                     |
+| -------------------------------------------- | -------------------------- |
+| Abhängigkeiten installieren                  | `npm ci`                   |
+| Docker und lokale Konfiguration prüfen       | `npm run env:check`        |
+| Datenbank starten und Verbindung prüfen      | `npm run db:start`         |
+| Datenbankstatus und SQL-Verbindung prüfen    | `npm run db:check`         |
+| Lokale Dienste ohne Datenverlust stoppen     | `npm run db:stop`          |
+| Prisma-Schema prüfen                         | `npm run db:validate`      |
+| Versionierte Migrationen anwenden            | `npm run db:migrate`       |
+| Synthetische Seed-Daten anlegen              | `npm run db:seed`          |
+| Datenbank-Integrationstest ausführen         | `npm run db:test`          |
+| API lokal starten                            | `npm run api:start`        |
+| API im Watch-Modus starten                   | `npm run api:dev`          |
+| Lokales Passwort setzen/Sitzungen widerrufen | `npm run auth:bootstrap`   |
+| Getrennten CalDAV-Zugang setzen              | `npm run caldav:bootstrap` |
+| Getrennten CalDAV-Zugang widerrufen          | `npm run caldav:revoke`    |
+| Workspaces linten                            | `npm run lint`             |
+| Workspaces typprüfen                         | `npm run typecheck`        |
+| Anwendungen und Packages bauen               | `npm run build`            |
+| Compose-Konfiguration ohne Start prüfen      | `npm run repo:check`       |
+| Formatierung prüfen                          | `npm run format:check`     |
+| Repository- und vorhandene Workspace-Tests   | `npm test`                 |
 
 Web-Start und Web-Build werden mit dem zugehörigen Arbeitspaket ergänzt. Bis
 dahin werden dafür keine erfolgreichen Platzhalterbefehle behauptet. Details

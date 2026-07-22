@@ -11,6 +11,9 @@ Dieses Repository ist zunächst für eine persönliche, lokale Anwendung gedacht
   erzwingen.
 - Lokale Server nicht ohne ausdrückliche Entscheidung öffentlich ins Internet
   stellen.
+- Der CalDAV-Zugang bleibt getrennt von der Web-Anmeldung widerrufbar. Basic
+  Auth über HTTP ist ausschließlich für ein vertrauenswürdiges lokales Netz;
+  vor Zugriff aus anderen Netzen muss TLS vorgeschaltet werden.
 
 ## Meldung
 

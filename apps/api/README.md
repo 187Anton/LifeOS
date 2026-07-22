@@ -43,6 +43,64 @@ Hash, erhöht die Zugangsversion und widerruft alle bestehenden Sitzungen. Das
 Passwort darf nicht in `.env`, Shell-Skripten, Browsercode oder Git gespeichert
 werden.
 
+## CalDAV-Zugang und lokale Einrichtung
+
+CalDAV verwendet absichtlich nicht das Browser-Cookie. Der eigene Zugang mit
+Benutzername `local` wird aus einer temporären Variable gesetzt:
+
+```bash
+read -s LIFEOS_CALDAV_PASSWORD
+export LIFEOS_CALDAV_PASSWORD
+npm run caldav:bootstrap
+unset LIFEOS_CALDAV_PASSWORD
+```
+
+Das Passwort muss 12 bis 200 Zeichen lang sein und wird als gesalzener
+`scrypt`-Hash gespeichert. Ein erneuter Bootstrap ersetzt nur den
+CalDAV-Zugang. Dieser kann unabhängig von Web-Passwort und Sitzungen gesperrt
+werden:
+
+```bash
+npm run caldav:revoke
+```
+
+Auf demselben Rechner ist die Account-URL `http://127.0.0.1:3000/caldav/`.
+Für Apple Kalender oder einen anderen Client im lokalen Netz:
+
+1. Datenbank, Migrationen und Seed starten; anschließend den CalDAV-Zugang
+   setzen.
+2. Die API bewusst im LAN erreichbar starten, zum Beispiel
+   `API_HOST=0.0.0.0 npm run api:start`.
+3. Die LAN-Adresse des Rechners ermitteln und im CalDAV-Client als
+   `http://<LAN-IP>:3000/caldav/` eintragen.
+4. Benutzer `local`, das lokal eingegebene CalDAV-Passwort, Port `3000` und
+   für diese HTTP-Entwicklungsverbindung SSL aus verwenden.
+
+`localhost` auf dem iPhone verweist auf das iPhone und erreicht den Rechner
+nicht. Beide Geräte müssen im selben vertrauenswürdigen Netz sein; der Rechner
+muss laufen und eine lokale Firewall muss Port 3000 zulassen. Basic Auth über
+HTTP schützt das Passwort nicht vor Mitschneiden im Netz. Für jedes fremde
+Netz oder einen späteren Dauerbetrieb ist deshalb TLS vor der API Pflicht.
+
+Der Server unterstützt Principal- und Calendar-Home-Discovery, `OPTIONS`,
+`PROPFIND`, `MKCALENDAR`, `REPORT`, `GET`, `PUT` und `DELETE`.
+`calendar-query`, `calendar-multiget` und `sync-collection` liefern ETags und
+stabile Sync-Tokens. Ereignisse werden als RFC-5545-iCalendar mit
+`VTIMEZONE`, UID, RRULE, ganztägigen Datumsgrenzen und DISPLAY-Erinnerungen
+ausgegeben. Änderungen verlangen `If-Match`; neue Ressourcen können mit
+`If-None-Match: *` gegen Duplikate geschützt werden.
+
+Ein kurzer Discovery-Test ohne Klartextpasswort in der Kommandohistorie:
+
+```bash
+read -s CALDAV_TEST_PASSWORD
+curl --user "local:${CALDAV_TEST_PASSWORD}" \
+  -X PROPFIND -H 'Depth: 0' -H 'Content-Type: application/xml' \
+  --data '<d:propfind xmlns:d="DAV:"><d:prop><d:current-user-principal/></d:prop></d:propfind>' \
+  http://127.0.0.1:3000/caldav/
+unset CALDAV_TEST_PASSWORD
+```
+
 ## Betriebsendpunkte
 
 | Endpunkt                                           | Bedeutung                                        |
@@ -57,6 +115,8 @@ werden.
 | `PATCH/DELETE /api/v1/calendars/:id`               | Kalender ändern oder soft löschen                |
 | `GET/POST /api/v1/calendars/:id/events`            | Ereignisse auflisten oder anlegen                |
 | `GET/PUT/DELETE /api/v1/calendars/:id/events/:uid` | Ereignis verwalten                               |
+| `/.well-known/caldav`                              | CalDAV-Discovery auf `/caldav/`                  |
+| `/caldav/…`                                        | WebDAV-/CalDAV-Ressourcen                        |
 
 Health greift absichtlich nicht auf die Datenbank zu. Readiness führt dagegen
 eine echte, ausschließlich lesende `SELECT 1`-Prüfung über den zentralen
@@ -147,6 +207,9 @@ weitergegeben.
   HTTP-Routen.
 - `modules/calendar/` kapselt Kalenderregeln, atomare ETag-Prüfung,
   Datenbanktransaktionen und HTTP-Verträge.
+- `modules/caldav/` übersetzt den gemeinsamen Kalenderkern in WebDAV-XML und
+  RFC-5545-iCalendar; Zugang, Parser und Transport bleiben von der REST-API
+  getrennt.
 
 Logs sind JSON-Zeilen mit Ereignisname, Anfrage-ID, Methode, Routenmuster,
 Status und Dauer. Konkrete URL-Pfade, Anfragekörper,
