@@ -23,6 +23,7 @@
     "db:test": "npm test --workspace @lifeos/database",
     "api:dev": "npm run dev --workspace @lifeos/api",
     "api:start": "npm run start --workspace @lifeos/api",
+    "auth:bootstrap": "npm run auth:bootstrap --workspace @lifeos/api",
     "build": "npm run db:generate && npm run build --workspaces --if-present",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

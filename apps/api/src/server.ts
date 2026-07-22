@@ -4,6 +4,12 @@ import { createApplication } from "./application.js";
 import { loadLocalEnvironment, parseConfig } from "./config.js";
 import { startApiServer } from "./http-server.js";
 import { JsonLogger } from "./logger.js";
+import { PrismaProfileRepository } from "./modules/profile/repository.js";
+import { createProfileRouter } from "./modules/profile/router.js";
+import {
+  AuthenticationService,
+  ProfileService,
+} from "./modules/profile/service.js";
 import { createDatabaseReadinessProbe } from "./readiness.js";
 
 const main = async (): Promise<void> => {
@@ -11,10 +17,22 @@ const main = async (): Promise<void> => {
   const config = parseConfig();
   const logger = new JsonLogger(config.logLevel);
   const database = createDatabaseClient(config.databaseUrl);
+  const profileRepository = new PrismaProfileRepository(database);
+  const authentication = new AuthenticationService(
+    profileRepository,
+    config.sessionTtlHours,
+  );
   const application = createApplication({
     logger,
     readinessProbe: createDatabaseReadinessProbe(database),
     webOrigin: config.webOrigin,
+    moduleRouters: [
+      createProfileRouter({
+        authentication,
+        profile: new ProfileService(profileRepository),
+        secureCookies: config.nodeEnv === "production",
+      }),
+    ],
   });
   let runningServer: Awaited<ReturnType<typeof startApiServer>>;
   try {

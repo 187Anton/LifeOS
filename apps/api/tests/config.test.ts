@@ -24,6 +24,7 @@ test("liest eine gültige lokale API-Konfiguration", () => {
     webOrigin: validEnvironment.WEB_ORIGIN,
     logLevel: "warn",
     shutdownTimeoutMs: 5000,
+    sessionTtlHours: 24,
   });
 });
 

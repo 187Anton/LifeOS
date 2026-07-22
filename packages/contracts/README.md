@@ -9,6 +9,7 @@ Aktuell definiert es:
 - den Fehlervertragsstand `1`,
 - stabile Fehlercodes und Validierungsdetails,
 - Health- und Readiness-Antworten.
+- Profil-, Einstellungs- und Sitzungsantworten.
 
 Der Fehlervertragsstand wird getrennt von der Routen-Version geführt. Dadurch
 kann ein Client das Format eindeutig erkennen, ohne dass jede ergänzte

@@ -28,6 +28,7 @@ const environmentSchema = z.strictObject({
     .min(100)
     .max(60_000)
     .default(10_000),
+  SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(24),
 });
 
 export interface ApiConfig {
@@ -38,6 +39,7 @@ export interface ApiConfig {
   webOrigin: string;
   logLevel: "debug" | "info" | "warn" | "error";
   shutdownTimeoutMs: number;
+  sessionTtlHours: number;
 }
 
 export class ConfigurationError extends Error {
@@ -66,6 +68,7 @@ export const parseConfig = (
     WEB_ORIGIN: environment.WEB_ORIGIN,
     LOG_LEVEL: environment.LOG_LEVEL,
     SHUTDOWN_TIMEOUT_MS: environment.SHUTDOWN_TIMEOUT_MS,
+    SESSION_TTL_HOURS: environment.SESSION_TTL_HOURS,
   });
 
   if (!result.success) {
@@ -87,5 +90,6 @@ export const parseConfig = (
     webOrigin: result.data.WEB_ORIGIN,
     logLevel: result.data.LOG_LEVEL,
     shutdownTimeoutMs: result.data.SHUTDOWN_TIMEOUT_MS,
+    sessionTtlHours: result.data.SESSION_TTL_HOURS,
   };
 };

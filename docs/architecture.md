@@ -49,6 +49,24 @@ Clients ausgegeben noch protokolliert. Strukturierte Logs enthalten nur
 betriebliche Metadaten wie Ereignis, Anfrage-ID, Methode, Routenmuster, Status
 und Dauer.
 
+## Lokales Profil und Sitzungen
+
+Es gibt genau ein synthetisch angelegtes persönliches Profil und keine
+öffentliche Registrierung. Der Passwort-Bootstrap liest das Passwort nur aus
+einer temporären Umgebungsvariable und speichert einen gesalzenen `scrypt`-
+Hash. Ein neues Passwort erhöht die Zugangsversion und macht ältere Sitzungen
+ungültig.
+
+Der Browser erhält ein zufälliges, widerrufbares Sitzungstoken als
+`HttpOnly`-/`SameSite=Strict`-Cookie. Die Datenbank speichert ausschließlich
+den SHA-256-Hash, Ablauf und Widerrufszeitpunkt. Profil- und Einstellungsrouten
+enthalten keine Benutzer-ID im Pfad, sondern leiten den Besitzer ausschließlich
+aus der serverseitig geprüften Sitzung ab.
+
+Einstellungsänderungen und Zugangserneuerungen erzeugen Audit-Ereignisse. Deren
+Metadaten enthalten nur Quelle oder geänderte Feldnamen, keine Passwörter,
+Tokens oder persönlichen Einstellungswerte.
+
 ## CalDAV
 
 Das Life OS soll selbst als CalDAV-Server auftreten. Dadurch kann die

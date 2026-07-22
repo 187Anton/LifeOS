@@ -26,6 +26,7 @@ export const createApplication = ({
   application.use((request, response, next) => {
     if (request.headers.origin === webOrigin) {
       response.setHeader("Access-Control-Allow-Origin", webOrigin);
+      response.setHeader("Access-Control-Allow-Credentials", "true");
       response.setHeader("Vary", "Origin");
       response.setHeader(
         "Access-Control-Allow-Methods",
