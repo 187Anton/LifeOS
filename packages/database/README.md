@@ -50,6 +50,9 @@ npm run db:generate
 npm run db:migrate
 npm run db:seed
 npm run db:test
+npm run db:backup
+npm run db:restore -- backups/<datei>.dump lifeos_restore_<name>
+npm run db:verify:recovery
 ```
 
 - `db:validate` prüft Schema und Prisma-Konfiguration.
@@ -59,6 +62,14 @@ npm run db:test
   einen Kalender, ein Ereignis und ein Audit-Ereignis an.
 - `db:test` speichert und liest einen eigenen synthetischen Datensatz und
   entfernt ihn anschließend wieder.
+- `db:backup` schreibt einen Custom-Format-Dump samt SHA-256-Prüfsumme in das
+  ignorierte Verzeichnis `backups/`; die Dateien enthalten persönliche Daten
+  und müssen vertraulich behandelt werden.
+- `db:restore` prüft Prüfsumme und Archiv und restauriert ausschließlich in
+  eine neue Datenbank mit Präfix `lifeos_restore_`; die konfigurierte Quelle
+  wird weder geleert noch überschrieben.
+- `db:verify:recovery` prüft Migration, wiederholten Seed, Dump und Restore in
+  zwei isolierten synthetischen Datenbanken und entfernt sie anschließend.
 
 Das lokale Passwort wird getrennt vom Seed mit `npm run auth:bootstrap`
 gesetzt. Dadurch liegt kein funktionsfähiges Standardpasswort im Repository.
@@ -93,10 +104,12 @@ nachträglich verändert; jede Korrektur erhält eine neue Migration.
 
 ## Backup und Kompatibilität
 
-Vor jeder potenziell verlustbehafteten Migration wird ein PostgreSQL-Backup in
-das ignorierte Verzeichnis `backups/` geschrieben und durch eine
-Wiederherstellung mit synthetischen Daten geprüft. Die automatisierten Backup-
-und Restore-Abläufe folgen im Absicherungspaket 0.1.9.
+Vor jeder potenziell verlustbehafteten Migration wird mit `npm run db:backup`
+ein PostgreSQL-Backup in das ignorierte Verzeichnis `backups/` geschrieben und
+mit `npm run db:verify:recovery` durch eine Wiederherstellung mit synthetischen
+Daten geprüft. Der Nachweis überschreibt niemals die konfigurierte Datenbank.
+Der sichere reale Wiederherstellungsablauf steht in
+[`docs/foundation-verification.md`](../../docs/foundation-verification.md).
 
 Interne Umbenennungen müssen Daten in einer neuen Migration übernehmen. Stabile
 Benutzer-/Kalender-IDs, Ereignis-UIDs, ETags und CalDAV-Synchronisationswerte

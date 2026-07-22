@@ -201,38 +201,46 @@ Die allgemeinen Repository-Prüfungen lauten:
 npm install
 npm run format:check
 npm run repo:check
+npm run security:secrets
+npm run db:verify:recovery
 npm test
 ```
 
 `npm test` führt Repository-, Datenbank-, API- und Web-Tests aus. Für die
 Playwright-End-to-End-Tests wird ein lokal verfügbares Chrome benötigt.
+Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
+[docs/foundation-verification.md](docs/foundation-verification.md).
 
 ### Aktuell verfügbare Befehle
 
-| Aufgabe                                      | Befehl                     |
-| -------------------------------------------- | -------------------------- |
-| Abhängigkeiten installieren                  | `npm ci`                   |
-| Docker und lokale Konfiguration prüfen       | `npm run env:check`        |
-| Datenbank starten und Verbindung prüfen      | `npm run db:start`         |
-| Datenbankstatus und SQL-Verbindung prüfen    | `npm run db:check`         |
-| Lokale Dienste ohne Datenverlust stoppen     | `npm run db:stop`          |
-| Prisma-Schema prüfen                         | `npm run db:validate`      |
-| Versionierte Migrationen anwenden            | `npm run db:migrate`       |
-| Synthetische Seed-Daten anlegen              | `npm run db:seed`          |
-| Datenbank-Integrationstest ausführen         | `npm run db:test`          |
-| API lokal starten                            | `npm run api:start`        |
-| API im Watch-Modus starten                   | `npm run api:dev`          |
-| Weboberfläche lokal starten                  | `npm run web:dev`          |
-| Gebaute Weboberfläche lokal prüfen           | `npm run web:preview`      |
-| Lokales Passwort setzen/Sitzungen widerrufen | `npm run auth:bootstrap`   |
-| Getrennten CalDAV-Zugang setzen              | `npm run caldav:bootstrap` |
-| Getrennten CalDAV-Zugang widerrufen          | `npm run caldav:revoke`    |
-| Workspaces linten                            | `npm run lint`             |
-| Workspaces typprüfen                         | `npm run typecheck`        |
-| Anwendungen und Packages bauen               | `npm run build`            |
-| Compose-Konfiguration ohne Start prüfen      | `npm run repo:check`       |
-| Formatierung prüfen                          | `npm run format:check`     |
-| Repository- und vorhandene Workspace-Tests   | `npm test`                 |
+| Aufgabe                                       | Befehl                       |
+| --------------------------------------------- | ---------------------------- |
+| Abhängigkeiten installieren                   | `npm ci`                     |
+| Docker und lokale Konfiguration prüfen        | `npm run env:check`          |
+| Datenbank starten und Verbindung prüfen       | `npm run db:start`           |
+| Datenbankstatus und SQL-Verbindung prüfen     | `npm run db:check`           |
+| Lokale Dienste ohne Datenverlust stoppen      | `npm run db:stop`            |
+| Prisma-Schema prüfen                          | `npm run db:validate`        |
+| Versionierte Migrationen anwenden             | `npm run db:migrate`         |
+| Synthetische Seed-Daten anlegen               | `npm run db:seed`            |
+| Datenbank-Integrationstest ausführen          | `npm run db:test`            |
+| Lokales PostgreSQL-Backup erstellen           | `npm run db:backup`          |
+| Backup sicher in neue Datenbank restaurieren  | `npm run db:restore -- …`    |
+| Migration, Backup und Restore isoliert prüfen | `npm run db:verify:recovery` |
+| API lokal starten                             | `npm run api:start`          |
+| API im Watch-Modus starten                    | `npm run api:dev`            |
+| Weboberfläche lokal starten                   | `npm run web:dev`            |
+| Gebaute Weboberfläche lokal prüfen            | `npm run web:preview`        |
+| Lokales Passwort setzen/Sitzungen widerrufen  | `npm run auth:bootstrap`     |
+| Getrennten CalDAV-Zugang setzen               | `npm run caldav:bootstrap`   |
+| Getrennten CalDAV-Zugang widerrufen           | `npm run caldav:revoke`      |
+| Workspaces linten                             | `npm run lint`               |
+| Workspaces typprüfen                          | `npm run typecheck`          |
+| Anwendungen und Packages bauen                | `npm run build`              |
+| Compose-Konfiguration ohne Start prüfen       | `npm run repo:check`         |
+| Versionierte Dateien auf Secrets prüfen       | `npm run security:secrets`   |
+| Formatierung prüfen                           | `npm run format:check`       |
+| Repository- und vorhandene Workspace-Tests    | `npm test`                   |
 
 Details zu Web- und PWA-Prüfungen stehen in
 [apps/web/README.md](apps/web/README.md). Details zu Schemaänderungen,

@@ -124,6 +124,11 @@ Der erste Betrieb erfolgt vollständig lokal:
   gebunden. `npm run env:check`, `npm run db:start`, `npm run db:check` und
   `npm run db:stop` sind die verbindlichen lokalen Datenbankbefehle;
   `db:stop` erhält das benannte Datenbank-Volume.
+- `npm run db:backup` erstellt einen vertraulich zu behandelnden Dump samt
+  Prüfsumme. `npm run db:restore -- <dump> lifeos_restore_<name>` stellt nur in
+  eine neue Datenbank wieder her. `npm run db:verify:recovery` prüft Migration,
+  wiederholten Seed, Backup und Restore ausschließlich in isolierten
+  synthetischen Datenbanken; die Quelle wird nie ungeprüft überschrieben.
 - Dokumente liegen in einem nicht versionierten lokalen Datenverzeichnis
 - externe KI- und Cloud-Dienste sind optional und standardmäßig deaktiviert
 - ein Heimserver, NAS oder VPS wird nicht vorausgesetzt
@@ -186,6 +191,8 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
   Beispieldaten committen.
 - Secrets ausschließlich über Umgebungsvariablen oder Secret-Management
   zuführen.
+- `npm run security:secrets` ist vor Veröffentlichung und in CI verbindlich;
+  Trefferwerte dürfen weder im Terminalbericht noch in Logs ausgegeben werden.
 - Passwörter nur mit einem geeigneten Passwort-Hash speichern.
 - Das lokale Passwort wird mit gesalzenem `scrypt` gespeichert. Sitzungen
   verwenden zufällige Tokens, von denen nur SHA-256-Hashes, Ablauf und
@@ -389,3 +396,6 @@ gemeldet.
   gebündelte Pflicht-Assets sowie eine Offline-App-Shell ohne Cache oder
   Browser-Storage für persönliche API-Daten nach Desktop-/Smartphone- und
   Offline-Test festgehalten.
+- **2026-07-22:** Verbindlichen Secret-Scan, Custom-Format-Backup mit Prüfsumme
+  sowie isolierten Migrations-/Restore-Nachweis nach erfolgreichem
+  Datenvergleich festgehalten.

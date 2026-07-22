@@ -13,22 +13,9 @@ jobs:
   repository:
     name: Repository checks
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     env:
-      DATABASE_URL: postgresql://lifeos:lifeos-ci@127.0.0.1:5432/lifeos
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: lifeos
-          POSTGRES_USER: lifeos
-          POSTGRES_PASSWORD: lifeos-ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U lifeos -d lifeos"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+      DATABASE_URL: postgresql://lifeos:change-me-locally@127.0.0.1:5432/lifeos
 
     steps:
       - name: Checkout
@@ -40,6 +27,12 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Prepare synthetic local configuration
+        run: cp .env.example .env
+
+      - name: Scan tracked files for secrets
+        run: npm run security:secrets
+
       - name: Install dependencies
         run: npm ci
 
@@ -49,11 +42,17 @@ jobs:
       - name: Validate Compose configuration
         run: docker compose config --quiet
 
+      - name: Start local PostgreSQL
+        run: npm run db:start
+
       - name: Validate and generate Prisma Client
         run: npm run db:validate && npm run db:generate
 
       - name: Apply migrations and synthetic seed
         run: npm run db:migrate && npm run db:seed
+
+      - name: Verify migration, backup and restore
+        run: npm run db:verify:recovery
 
       - name: Lint and type-check workspaces
         run: npm run lint && npm run typecheck
@@ -63,3 +62,7 @@ jobs:
 
       - name: Run repository and workspace tests
         run: npm test
+
+      - name: Stop local PostgreSQL
+        if: always()
+        run: docker compose down

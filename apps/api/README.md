@@ -76,6 +76,10 @@ Für Apple Kalender oder einen anderen Client im lokalen Netz:
 4. Benutzer `local`, das lokal eingegebene CalDAV-Passwort, Port `3000` und
    für diese HTTP-Entwicklungsverbindung SSL aus verwenden.
 
+Die vollständige physische Testmatrix für Lesen, Erstellen, Ändern, Löschen,
+Ganztag, Wiederholung, Erinnerung und Konflikt steht in
+[`docs/foundation-verification.md`](../../docs/foundation-verification.md).
+
 `localhost` auf dem iPhone verweist auf das iPhone und erreicht den Rechner
 nicht. Beide Geräte müssen im selben vertrauenswürdigen Netz sein; der Rechner
 muss laufen und eine lokale Firewall muss Port 3000 zulassen. Basic Auth über

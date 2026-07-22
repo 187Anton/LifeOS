@@ -15,6 +15,28 @@ Dieses Repository ist zunächst für eine persönliche, lokale Anwendung gedacht
   Auth über HTTP ist ausschließlich für ein vertrauenswürdiges lokales Netz;
   vor Zugriff aus anderen Netzen muss TLS vorgeschaltet werden.
 
+## Secret-Prüfung
+
+```bash
+npm run security:secrets
+```
+
+Der lokale, in `scripts/scan-secrets.mjs` einsehbare Scan prüft alle aktuell
+versionierten Textdateien auf Private-Key-Blöcke, hochsichere Tokenformate und
+fest zugewiesene sensible Werte. Er gibt bei einem Treffer nur Datei,
+Zeilennummer und Regel aus, niemals den gefundenen Wert. Klar bezeichnete
+synthetische Testwerte sind erlaubt.
+
+Die Prüfung läuft verpflichtend in CI. Sie ergänzt GitHubs Secret Scanning und
+Push Protection, ersetzt diese aber nicht: ungewöhnliche oder unbekannte
+Secret-Formate können eine reine Musterprüfung umgehen. GitHub dokumentiert
+die unterstützten Provider- und generischen Muster unter
+[Supported secret scanning patterns](https://docs.github.com/en/code-security/reference/secret-security/supported-secret-scanning-patterns).
+
+Ein tatsächlich eingechecktes Secret gilt unabhängig von einer späteren
+Löschung als kompromittiert: zuerst widerrufen/rotieren, dann aus aktuellem
+Stand und bei Bedarf kontrolliert aus der Historie entfernen.
+
 ## Meldung
 
 Sicherheitsprobleme bitte nicht öffentlich als Issue mit vertraulichen Details

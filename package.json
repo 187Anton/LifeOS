@@ -21,6 +21,9 @@
     "db:migrate": "npm run db:migrate:deploy --workspace @lifeos/database",
     "db:seed": "npm run db:seed --workspace @lifeos/database",
     "db:test": "npm test --workspace @lifeos/database",
+    "db:backup": "bash scripts/backup-database.sh",
+    "db:restore": "bash scripts/restore-database.sh",
+    "db:verify:recovery": "bash scripts/verify-database-recovery.sh",
     "api:dev": "npm run dev --workspace @lifeos/api",
     "api:start": "npm run start --workspace @lifeos/api",
     "auth:bootstrap": "npm run auth:bootstrap --workspace @lifeos/api",
@@ -33,6 +36,7 @@
     "format:check": "prettier --check .",
     "lint": "npm run lint --workspaces --if-present",
     "repo:check": "docker compose config --quiet",
+    "security:secrets": "node scripts/scan-secrets.mjs",
     "test": "npm run test:repo && npm run test --workspaces --if-present",
     "test:repo": "node --test tests/*.test.mjs",
     "typecheck": "npm run db:generate && npm run typecheck --workspaces --if-present"
