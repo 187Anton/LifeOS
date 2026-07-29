@@ -135,6 +135,11 @@ Ziel: Aufgaben und Kalender im Alltag miteinander verbinden.
 - Aufgaben archivieren, wieder öffnen und löschen können.
 - Statusänderungen und relevante Änderungen protokollieren.
 
+Umsetzungsnachweis: Issue #32 führt das besitzgebundene Aufgabenmodell,
+versionierte Migrationen, synthetische Seed-Daten und `/api/v1/tasks` mit
+Unit-, API- und Datenbanktests ein. Projektverwaltung bleibt in 0.4; 0.2.1
+stellt dafür nur einen besitzgesicherten Relationsanker bereit.
+
 ### 0.2.2 Aufgabenoberfläche
 
 - Aufgabenliste, Detailansicht und Bearbeitungsformular erstellen.

@@ -97,6 +97,26 @@ Erinnerungsminuten werden verlustarm gespeichert und erst in der CalDAV-
 Schicht in iCalendar übersetzt. Löschungen setzen Markierungen statt Daten
 physisch zu entfernen; dadurch können spätere Sync-Reports Löschungen melden.
 
+## Aufgaben-Kernmodell
+
+Aufgaben sind ein eigenes Fachmodul und werden nicht als Kalenderereignisse
+modelliert. Sie tragen immer den Besitzer aus der serverseitig geprüften
+Sitzung. Status (`open`, `in_progress`, `blocked`, `done`, `cancelled`),
+Priorität, Bereich, Tags und ganzzahlige Dauerminuten bleiben Aufgabenlogik.
+Eine Fälligkeit ist ein reines `DATE`; eine optionale geplante Startzeit ist
+ein `TIMESTAMPTZ` zusammen mit der fachlichen IANA-Zeitzone.
+
+Elternaufgaben und Projektanker verwenden zusammengesetzte Fremdschlüssel mit
+der Benutzer-ID. Dadurch können Beziehungen nicht auf Datensätze eines anderen
+Besitzers zeigen. Die Services verhindern zusätzlich Hierarchiezyklen und
+setzen den Abschlusszeitpunkt passend zum Status. Archivierung ist umkehrbar,
+während Löschen eine datenschutzgerechte Löschmarkierung setzt. Jede
+schreibende Änderung erzeugt ein wertfreies Audit-Ereignis.
+
+Der `Project`-Datensatz ist in Phase 0.2 nur ein stabiler, besitzgebundener
+Anker für die optionale Aufgabenrelation. Projekt-CRUD, Ziele und Meilensteine
+gehören weiterhin in Roadmap 0.4 und werden nicht vorweggenommen.
+
 ## CalDAV
 
 Das Life OS soll selbst als CalDAV-Server auftreten. Dadurch kann die
@@ -133,9 +153,12 @@ Integration und darf die lokale Kernfunktion nicht voraussetzen.
   `packages/database/prisma.config.ts` und verbindet den generierten Client
   über den PostgreSQL-Treiberadapter.
 - Persönliche Datensätze tragen einen Besitzerbezug. Ereignisse sichern die
-  Kombination aus Kalender und Benutzer zusätzlich per Fremdschlüssel ab.
+  Kombination aus Kalender und Benutzer zusätzlich per Fremdschlüssel ab;
+  Aufgaben sichern Eltern- und Projektbezüge entsprechend ab.
 - Absolute Zeitpunkte liegen als `TIMESTAMPTZ`, ganztägige Kalenderwerte als
   reine `DATE`-Spalten vor; die fachliche Zeitzone wird getrennt gespeichert.
+  Aufgabenfälligkeiten sind ebenfalls reine `DATE`-Werte, geplante
+  Aufgabenstarts verwenden `TIMESTAMPTZ` plus IANA-Zeitzone.
 - CalDAV-UIDs, Kalender-IDs und ETags bleiben stabil.
 - Vor potenziell verlustbehafteten Migrationen werden Backups erstellt.
 - API-Breaking-Changes werden über eine neue Version oder Übergangsphase

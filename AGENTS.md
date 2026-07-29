@@ -186,6 +186,10 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
 - Kalendertage, etwa Prüfungstermine, als reine Datumswerte modellieren.
 - Persönliche Tabellen erhalten eine Besitz- oder Nutzerreferenz, auch wenn
   zunächst nur ein Nutzer existiert.
+- Aufgabenfälligkeiten werden als `DATE`, geplante Aufgabenstarts als
+  `TIMESTAMPTZ` plus IANA-Zeitzone und geschätzte Dauern als ganze Minuten
+  gespeichert. Eltern- und Projektbezüge müssen denselben Besitzer haben;
+  Archivierung bleibt umkehrbar und Löschen setzt eine Löschmarkierung.
 - Datenbankänderungen ausschließlich über versionierte Migrationen vornehmen.
 - Keine echten Unternehmensgeheimnisse, Tokens, Passwörter oder sensiblen
   Beispieldaten committen.
@@ -399,3 +403,7 @@ gemeldet.
 - **2026-07-22:** Verbindlichen Secret-Scan, Custom-Format-Backup mit Prüfsumme
   sowie isolierten Migrations-/Restore-Nachweis nach erfolgreichem
   Datenvergleich festgehalten.
+- **2026-07-29:** Besitzgebundenes Aufgabenmodell mit reinen Fälligkeitstagen,
+  zeitzonensicherer Startplanung, ganzzahligen Dauern, sicherer Hierarchie,
+  Projektanker, Archivierung und Soft-Delete nach API- und Datenbanktests
+  festgehalten.

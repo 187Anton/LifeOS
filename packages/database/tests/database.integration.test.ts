@@ -100,3 +100,111 @@ test("speichert und liest ein Kalenderereignis mit stabilem Besitzerbezug", asyn
     }),
   );
 });
+
+test("erzwingt Besitz, Zeitform und Dauer des Aufgabenmodells", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalIds = [
+    `task-database-owner-${suffix}`,
+    `task-database-other-${suffix}`,
+  ];
+
+  t.after(async () => {
+    await database.user.deleteMany({
+      where: { externalId: { in: externalIds } },
+    });
+    await database.$disconnect();
+  });
+
+  const [owner, other] = await Promise.all(
+    externalIds.map((externalId) =>
+      database.user.create({
+        data: {
+          externalId,
+          displayName: "Synthetische Aufgabenperson",
+          settings: { create: {} },
+        },
+      }),
+    ),
+  );
+  assert.ok(owner && other);
+
+  const project = await database.project.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetischer Projektanker",
+    },
+  });
+  const parent = await database.task.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetische Elternaufgabe",
+      priority: "high",
+      dueDate: new Date("2032-06-15T00:00:00.000Z"),
+      scheduledStartAt: new Date("2032-06-14T08:00:00.000Z"),
+      scheduledStartTimezone: "Europe/Berlin",
+      estimatedDurationMinutes: 60,
+      tags: ["integration"],
+      area: "projects",
+      projectId: project.id,
+    },
+  });
+  const child = await database.task.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetische Unteraufgabe",
+      parentTaskId: parent.id,
+    },
+  });
+
+  const persisted = await database.task.findUnique({
+    where: { id: child.id },
+    include: { parentTask: true },
+  });
+  assert.equal(persisted?.userId, owner.id);
+  assert.equal(persisted?.parentTask?.id, parent.id);
+  assert.equal(parent.dueDate?.toISOString(), "2032-06-15T00:00:00.000Z");
+
+  await assert.rejects(() =>
+    database.task.create({
+      data: {
+        userId: owner.id,
+        title: "Ungültige Dauer",
+        estimatedDurationMinutes: 0,
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.task.create({
+      data: {
+        userId: owner.id,
+        title: "Unvollständige Zeitplanung",
+        scheduledStartAt: new Date("2032-06-14T08:00:00.000Z"),
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.task.create({
+      data: {
+        userId: other.id,
+        title: "Unzulässige fremde Unteraufgabe",
+        parentTaskId: parent.id,
+      },
+    }),
+  );
+  const foreignProject = await database.project.create({
+    data: {
+      userId: other.id,
+      title: "Fremder Projektanker",
+    },
+  });
+  await assert.rejects(() =>
+    database.task.create({
+      data: {
+        userId: owner.id,
+        title: "Unzulässige fremde Projektaufgabe",
+        projectId: foreignProject.id,
+      },
+    }),
+  );
+});

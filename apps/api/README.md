@@ -119,6 +119,8 @@ unset CALDAV_TEST_PASSWORD
 | `PATCH/DELETE /api/v1/calendars/:id`               | Kalender ändern oder soft löschen                |
 | `GET/POST /api/v1/calendars/:id/events`            | Ereignisse auflisten oder anlegen                |
 | `GET/PUT/DELETE /api/v1/calendars/:id/events/:uid` | Ereignis verwalten                               |
+| `GET/POST /api/v1/tasks`                           | Aufgaben filtern oder anlegen                    |
+| `GET/PATCH/DELETE /api/v1/tasks/:taskId`           | Aufgabe lesen, ändern oder soft löschen          |
 | `/.well-known/caldav`                              | CalDAV-Discovery auf `/caldav/`                  |
 | `/caldav/…`                                        | WebDAV-/CalDAV-Ressourcen                        |
 
@@ -165,6 +167,29 @@ Jede Ereignisänderung erzeugt einen neuen ETag, erhöht `sequence` und den
 Kalender-`syncToken`. Löschungen sind Soft-Deletes und bleiben damit für die
 spätere CalDAV-Synchronisation nachvollziehbar.
 
+## Aufgabenvertrag
+
+Aufgaben gehören immer dem über die Sitzung ermittelten Benutzer; eine
+Benutzer-ID wird weder im Pfad noch im Body akzeptiert. `GET /tasks` blendet
+archivierte Aufgaben standardmäßig aus und kann über `status`, `priority` und
+`area` filtern. `includeArchived=true` schließt archivierte, aber nicht soft
+gelöschte Aufgaben ein.
+
+Statuswerte sind `open`, `in_progress`, `blocked`, `done` und `cancelled`.
+Direkte Übergänge aus `done` oder `cancelled` sind nur zurück nach `open`
+zulässig. Beim Abschluss setzt die API `completedAt`; beim Wiederöffnen wird
+dieser Zeitpunkt entfernt. Fälligkeiten sind `YYYY-MM-DD`-Werte. Eine geplante
+Startzeit wird nur zusammen mit ihrer gültigen IANA-Zeitzone akzeptiert und als
+UTC-Zeitpunkt plus Zeitzone gespeichert. Geschätzte Dauern sind ganzzahlige
+Minuten zwischen 1 und 525600.
+
+Elternaufgaben und der optionale Projektanker müssen demselben Besitzer
+gehören. Zyklen in der Aufgabenhierarchie werden abgelehnt. Die vollständige
+Projektverwaltung folgt erst in Roadmap 0.4; der jetzige Projektanker schafft
+nur eine stabile, besitzgesicherte Relation. Archivierung ist umkehrbar,
+`DELETE` setzt dagegen eine Löschmarkierung. Erstellen, Ändern und Löschen
+erzeugen wertfreie Audit-Ereignisse.
+
 Beispiel:
 
 ```bash
@@ -210,6 +235,8 @@ weitergegeben.
 - `modules/profile/` trennt Passwort-/Tokenlogik, Repository, Services und
   HTTP-Routen.
 - `modules/calendar/` kapselt Kalenderregeln, atomare ETag-Prüfung,
+  Datenbanktransaktionen und HTTP-Verträge.
+- `modules/tasks/` kapselt Aufgabenstatus, Besitz- und Hierarchieprüfung,
   Datenbanktransaktionen und HTTP-Verträge.
 - `modules/caldav/` übersetzt den gemeinsamen Kalenderkern in WebDAV-XML und
   RFC-5545-iCalendar; Zugang, Parser und Transport bleiben von der REST-API
