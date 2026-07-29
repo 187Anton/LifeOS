@@ -154,6 +154,12 @@ Ganztagswerte bleiben reine Daten, Serienvorkommen sind flüchtige Projektionen
 der RRULE und Bearbeiten oder Löschen verwendet immer die stabile UID und den
 aktuellen ETag des zugrunde liegenden Ereignisses.
 
+Aufgaben und Termine können optional über `/api/v1/task-event-links`
+miteinander verknüpft und in beiden Editoren wieder getrennt werden. Die
+Beziehung speichert nur die besitzgeprüften Referenzen: Status und Fälligkeit
+bleiben an der Aufgabe, Start und Ende am Kalenderereignis. Abschluss,
+Löschung oder Änderung eines Objekts verändert das andere nicht automatisch.
+
 Der CalDAV-Server liegt unabhängig von der REST-API unter `/caldav/`. Sein
 Zugang wird getrennt von der Browser-Anmeldung gesetzt und widerrufen:
 

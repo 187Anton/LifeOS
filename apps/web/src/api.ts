@@ -2,10 +2,12 @@ import type {
   ApiErrorResponse,
   CalendarEventResponse,
   CalendarResponse,
+  CreateTaskEventLinkRequest,
   CreateTaskRequest,
   ProfileResponse,
   SessionResponse,
   TaskResponse,
+  TaskEventLinkResponse,
   UpdateTaskRequest,
 } from "@lifeos/contracts";
 
@@ -131,6 +133,23 @@ export const api = {
         headers: { "If-Match": etag },
       },
     );
+  },
+
+  listTaskEventLinks() {
+    return request<TaskEventLinkResponse[]>("/task-event-links");
+  },
+
+  createTaskEventLink(payload: CreateTaskEventLinkRequest) {
+    return request<TaskEventLinkResponse>("/task-event-links", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteTaskEventLink(linkId: string) {
+    return request<void>(`/task-event-links/${encodeURIComponent(linkId)}`, {
+      method: "DELETE",
+    });
   },
 
   listTasks(includeArchived = true) {

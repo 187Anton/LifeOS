@@ -1,8 +1,11 @@
 import type {
+  CalendarEventResponse,
+  CreateTaskEventLinkRequest,
   CreateTaskRequest,
   TaskArea,
   TaskPriority,
   TaskResponse,
+  TaskEventLinkResponse,
   TaskStatus,
   UpdateTaskRequest,
 } from "@lifeos/contracts";
@@ -11,16 +14,22 @@ import { useState, type FormEvent } from "react";
 import { dateTimeInputToIso, toDateTimeInput } from "../date";
 import { taskAreaLabels, taskPriorityLabels, taskStatusLabels } from "../task";
 import { ArchiveIcon, TrashIcon } from "./Icons";
+import { TaskEventLinkPanel } from "./TaskEventLinkPanel";
 
 interface TaskFormProps {
   task: TaskResponse | null;
   tasks: TaskResponse[];
+  events: CalendarEventResponse[];
+  links: TaskEventLinkResponse[];
+  selectedCalendarId: string | null;
   timezone: string;
   pending: boolean;
   onCancel: () => void;
   onSubmit: (payload: CreateTaskRequest | UpdateTaskRequest) => Promise<void>;
   onArchive: (archived: boolean) => Promise<void>;
   onDelete: () => Promise<void>;
+  onLink: (input: CreateTaskEventLinkRequest) => Promise<void>;
+  onUnlink: (linkId: string) => Promise<void>;
 }
 
 interface Draft {
@@ -79,12 +88,17 @@ const initialDraft = (task: TaskResponse | null): Draft => ({
 export const TaskForm = ({
   task,
   tasks,
+  events,
+  links,
+  selectedCalendarId,
   timezone,
   pending,
   onCancel,
   onSubmit,
   onArchive,
   onDelete,
+  onLink,
+  onUnlink,
 }: TaskFormProps) => {
   const [draft, setDraft] = useState(() => initialDraft(task));
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -321,6 +335,19 @@ export const TaskForm = ({
           <p role="alert" className="form-error full-field">
             {validationError}
           </p>
+        ) : null}
+
+        {task ? (
+          <TaskEventLinkPanel
+            target={{ kind: "task", taskId: task.id }}
+            links={links}
+            tasks={tasks}
+            events={events}
+            selectedCalendarId={selectedCalendarId}
+            pending={pending}
+            onLink={onLink}
+            onUnlink={onUnlink}
+          />
         ) : null}
 
         {task ? (

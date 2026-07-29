@@ -78,7 +78,9 @@ FROM (
   UNION ALL
   SELECT 8, 'task|' || id::text || '|' || "userId"::text || '|' || title || '|' || status::text || '|' || priority::text || '|' || coalesce("dueDate"::text, '') || '|' || coalesce("scheduledStartAt"::text, '') || '|' || coalesce("scheduledStartTimezone", '') || '|' || coalesce("estimatedDurationMinutes"::text, '') || '|' || tags::text || '|' || area::text || '|' || coalesce("projectId"::text, '') || '|' || coalesce("parentTaskId"::text, '') || '|' || coalesce("completedAt"::text, '') || '|' || coalesce("archivedAt"::text, '') || '|' || coalesce("deletedAt"::text, '') FROM "Task"
   UNION ALL
-  SELECT 9, 'audit-count|' || count(*)::text FROM "AuditEvent"
+  SELECT 9, 'task-event-link|' || id::text || '|' || "userId"::text || '|' || "taskId"::text || '|' || "calendarEventId"::text FROM "TaskEventLink"
+  UNION ALL
+  SELECT 10, 'audit-count|' || count(*)::text FROM "AuditEvent"
 ) AS stable_values
 ORDER BY ordinal, value;
 SQL

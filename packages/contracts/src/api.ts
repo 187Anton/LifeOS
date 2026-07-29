@@ -151,3 +151,25 @@ export interface UpdateTaskRequest {
   parentTaskId?: string | null;
   archived?: boolean;
 }
+
+export interface TaskEventLinkResponse {
+  id: string;
+  task: {
+    id: string;
+    title: string | null;
+    available: boolean;
+  };
+  event: {
+    calendarId: string;
+    uid: string;
+    title: string | null;
+    available: boolean;
+  };
+  createdAt: string;
+}
+
+export interface CreateTaskEventLinkRequest {
+  taskId: string;
+  calendarId: string;
+  eventUid: string;
+}

@@ -110,6 +110,11 @@ Kalenderkerns. Sie speichern keine eigenen Ereignisse oder Serieninstanzen;
 Bearbeiten und Löschen adressiert immer die stabile UID und den aktuellen ETag
 des führenden Ereignisses.
 
+Aufgaben und Kalenderereignisse werden ausschließlich über eine eigene,
+besitzgebundene Beziehung verknüpft. Die Beziehung kopiert keine Fachdaten:
+Aufgabenstatus und Fälligkeit bleiben im Aufgabenmodell, Start und Ende im
+Kalenderkern. Änderungen eines Objekts verändern das andere nicht automatisch.
+
 Die lokale Erreichbarkeit muss dokumentiert werden. `localhost` auf dem
 iPhone zeigt auf das iPhone selbst; für lokale Synchronisation wird die
 Netzwerkadresse oder ein lokaler DNS-Name des Entwicklungsrechners benötigt.
@@ -415,3 +420,6 @@ gemeldet.
 - **2026-07-29:** Kalenderansichten als flüchtige Projektionen des gemeinsamen
   REST-/CalDAV-Kerns mit stabiler UID und ETag-geschützten Änderungen nach
   Unit-, UI- und CalDAV-Integrationstests festgehalten.
+- **2026-07-29:** Besitzgebundene Aufgaben-Termin-Beziehungen ohne kopierte
+  Fachdaten oder automatische Seiteneffekte nach API-, Datenbank- und UI-Tests
+  festgehalten.

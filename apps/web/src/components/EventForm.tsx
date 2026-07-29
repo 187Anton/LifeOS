@@ -1,4 +1,9 @@
-import type { CalendarEventResponse } from "@lifeos/contracts";
+import type {
+  CalendarEventResponse,
+  CreateTaskEventLinkRequest,
+  TaskEventLinkResponse,
+  TaskResponse,
+} from "@lifeos/contracts";
 import { useState, type FormEvent } from "react";
 
 import type { EventPayload } from "../api";
@@ -9,13 +14,20 @@ import {
   toDateTimeInput,
 } from "../date";
 import { TrashIcon } from "./Icons";
+import { TaskEventLinkPanel } from "./TaskEventLinkPanel";
 
 interface EventFormProps {
   event: CalendarEventResponse | null;
+  calendarId: string | null;
+  tasks: TaskResponse[];
+  events: CalendarEventResponse[];
+  links: TaskEventLinkResponse[];
   pending: boolean;
   onCancel: () => void;
   onSubmit: (payload: EventPayload) => Promise<void>;
   onDelete: () => Promise<void>;
+  onLink: (input: CreateTaskEventLinkRequest) => Promise<void>;
+  onUnlink: (linkId: string) => Promise<void>;
 }
 
 interface Draft {
@@ -83,10 +95,16 @@ const initialDraft = (event: CalendarEventResponse | null): Draft => {
 
 export const EventForm = ({
   event,
+  calendarId,
+  tasks,
+  events,
+  links,
   pending,
   onCancel,
   onSubmit,
   onDelete,
+  onLink,
+  onUnlink,
 }: EventFormProps) => {
   const [draft, setDraft] = useState(() => initialDraft(event));
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -326,6 +344,18 @@ export const EventForm = ({
           <p role="alert" className="form-error full-field">
             {validationError}
           </p>
+        ) : null}
+        {event && calendarId ? (
+          <TaskEventLinkPanel
+            target={{ kind: "event", calendarId, eventUid: event.uid }}
+            links={links}
+            tasks={tasks}
+            events={events}
+            selectedCalendarId={calendarId}
+            pending={pending}
+            onLink={onLink}
+            onUnlink={onUnlink}
+          />
         ) : null}
         {event ? (
           <div className="task-danger-zone full-field">

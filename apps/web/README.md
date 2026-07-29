@@ -16,6 +16,8 @@ aktuell folgende Abläufe ab:
   Termine,
 - Zeitzone, Ort, Beschreibung, Erinnerung und einfache RRULE-Eingabe,
 - verständliche ETag-Konflikte ohne stilles Überschreiben,
+- Aufgaben und Termine in beiden Editoren verknüpfen und wieder trennen,
+- nicht mehr verfügbare verknüpfte Objekte nachvollziehbar anzeigen,
 - verständliche Lade-, Leer-, Erfolgs- und Fehlerzustände.
 
 ## Lokal starten
@@ -66,5 +68,5 @@ Aufgaben-CRUD, kombinierte Filter, Leerzustände und Fehlerfälle. Die
 Playwright-Tests laufen in Chrome für Desktop und Smartphone. Sie prüfen
 Aufgaben-Erstellung, Neuladen, Suche, Filter, Bearbeitung, Abschluss,
 Wiederöffnung, Archivierung, Löschung, Kalenderansichten, Termin-CRUD,
-fehlende Browserpersistenz, horizontalen Überlauf sowie Manifest, Service
-Worker und Offline-App-Shell.
+Aufgaben-Termin-Verknüpfung und -Trennung, fehlende Browserpersistenz,
+horizontalen Überlauf sowie Manifest, Service Worker und Offline-App-Shell.

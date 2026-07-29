@@ -19,6 +19,9 @@ import {
 import { PrismaTaskRepository } from "./modules/tasks/repository.js";
 import { createTaskRouter } from "./modules/tasks/router.js";
 import { TaskService } from "./modules/tasks/service.js";
+import { PrismaTaskEventLinkRepository } from "./modules/task-event-links/repository.js";
+import { createTaskEventLinkRouter } from "./modules/task-event-links/router.js";
+import { TaskEventLinkService } from "./modules/task-event-links/service.js";
 import { createDatabaseReadinessProbe } from "./readiness.js";
 
 const main = async (): Promise<void> => {
@@ -30,6 +33,9 @@ const main = async (): Promise<void> => {
   const calendarRepository = new PrismaCalendarRepository(database);
   const calendars = new CalendarService(calendarRepository);
   const tasks = new TaskService(new PrismaTaskRepository(database));
+  const taskEventLinks = new TaskEventLinkService(
+    new PrismaTaskEventLinkRepository(database),
+  );
   const calDavRepository = new PrismaCalDavRepository(database);
   const authentication = new AuthenticationService(
     profileRepository,
@@ -59,6 +65,10 @@ const main = async (): Promise<void> => {
       createTaskRouter({
         authentication,
         tasks,
+      }),
+      createTaskEventLinkRouter({
+        authentication,
+        links: taskEventLinks,
       }),
     ],
   });

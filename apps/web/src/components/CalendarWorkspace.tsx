@@ -1,6 +1,9 @@
 import type {
   CalendarEventResponse,
   CalendarResponse,
+  CreateTaskEventLinkRequest,
+  TaskEventLinkResponse,
+  TaskResponse,
 } from "@lifeos/contracts";
 import { useMemo, useState } from "react";
 
@@ -23,6 +26,8 @@ interface CalendarWorkspaceProps {
   calendars: CalendarResponse[];
   selectedCalendarId: string | null;
   events: CalendarEventResponse[];
+  tasks: TaskResponse[];
+  links: TaskEventLinkResponse[];
   initialView: CalendarView;
   loading: boolean;
   saving: boolean;
@@ -36,6 +41,8 @@ interface CalendarWorkspaceProps {
     payload: EventPayload,
   ) => Promise<void>;
   onDelete: (event: CalendarEventResponse) => Promise<void>;
+  onLink: (input: CreateTaskEventLinkRequest) => Promise<void>;
+  onUnlink: (linkId: string) => Promise<void>;
 }
 
 const viewLabels: Record<CalendarView, string> = {
@@ -222,6 +229,8 @@ export const CalendarWorkspace = ({
   calendars,
   selectedCalendarId,
   events,
+  tasks,
+  links,
   initialView,
   loading,
   saving,
@@ -232,6 +241,8 @@ export const CalendarWorkspace = ({
   onReload,
   onSave,
   onDelete,
+  onLink,
+  onUnlink,
 }: CalendarWorkspaceProps) => {
   const [editorEvent, setEditorEvent] = useState<
     CalendarEventResponse | null | undefined
@@ -430,10 +441,16 @@ export const CalendarWorkspace = ({
           <EventForm
             key={editorEvent?.etag ?? "new-event"}
             event={editorEvent}
+            calendarId={selectedCalendarId}
+            tasks={tasks}
+            events={events}
+            links={links}
             pending={saving}
             onCancel={() => setEditorEvent(undefined)}
             onSubmit={save}
             onDelete={deleteEvent}
+            onLink={onLink}
+            onUnlink={onUnlink}
           />
         ) : null}
       </div>

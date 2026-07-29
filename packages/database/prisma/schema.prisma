@@ -22,6 +22,7 @@ model User {
   calendars        Calendar[]
   projects         Project[]
   tasks            Task[]
+  taskEventLinks   TaskEventLink[]
   auditEvents      AuditEvent[]
 }
 
@@ -90,29 +91,31 @@ model Calendar {
 }
 
 model CalendarEvent {
-  id              String    @id @default(uuid()) @db.Uuid
-  userId          String    @db.Uuid
-  calendarId      String    @db.Uuid
-  uid             String    @db.VarChar(255)
-  title           String    @db.VarChar(500)
+  id              String          @id @default(uuid()) @db.Uuid
+  userId          String          @db.Uuid
+  calendarId      String          @db.Uuid
+  uid             String          @db.VarChar(255)
+  title           String          @db.VarChar(500)
   description     String?
-  location        String?   @db.VarChar(500)
-  startsAt        DateTime? @db.Timestamptz(3)
-  endsAt          DateTime? @db.Timestamptz(3)
-  startDate       DateTime? @db.Date
-  endDate         DateTime? @db.Date
-  timezone        String    @default("Europe/Berlin") @db.VarChar(100)
-  isAllDay        Boolean   @default(false)
-  recurrenceRule  String?   @db.Text
-  reminderMinutes Int[]     @default([])
-  etag            String    @db.VarChar(100)
-  sequence        Int       @default(0)
-  syncVersion     Int       @default(0)
-  deletedAt       DateTime? @db.Timestamptz(3)
-  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
-  calendar        Calendar  @relation(fields: [calendarId, userId], references: [id, userId], onDelete: Cascade)
+  location        String?         @db.VarChar(500)
+  startsAt        DateTime?       @db.Timestamptz(3)
+  endsAt          DateTime?       @db.Timestamptz(3)
+  startDate       DateTime?       @db.Date
+  endDate         DateTime?       @db.Date
+  timezone        String          @default("Europe/Berlin") @db.VarChar(100)
+  isAllDay        Boolean         @default(false)
+  recurrenceRule  String?         @db.Text
+  reminderMinutes Int[]           @default([])
+  etag            String          @db.VarChar(100)
+  sequence        Int             @default(0)
+  syncVersion     Int             @default(0)
+  deletedAt       DateTime?       @db.Timestamptz(3)
+  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
+  calendar        Calendar        @relation(fields: [calendarId, userId], references: [id, userId], onDelete: Cascade)
+  taskLinks       TaskEventLink[]
 
+  @@unique([id, userId])
   @@unique([calendarId, uid])
   @@index([userId, deletedAt])
   @@index([calendarId, startsAt])
@@ -160,29 +163,30 @@ model Project {
 }
 
 model Task {
-  id                       String       @id @default(uuid()) @db.Uuid
-  userId                   String       @db.Uuid
-  title                    String       @db.VarChar(500)
+  id                       String          @id @default(uuid()) @db.Uuid
+  userId                   String          @db.Uuid
+  title                    String          @db.VarChar(500)
   description              String?
-  status                   TaskStatus   @default(open)
-  priority                 TaskPriority @default(medium)
-  dueDate                  DateTime?    @db.Date
-  scheduledStartAt         DateTime?    @db.Timestamptz(3)
-  scheduledStartTimezone   String?      @db.VarChar(100)
+  status                   TaskStatus      @default(open)
+  priority                 TaskPriority    @default(medium)
+  dueDate                  DateTime?       @db.Date
+  scheduledStartAt         DateTime?       @db.Timestamptz(3)
+  scheduledStartTimezone   String?         @db.VarChar(100)
   estimatedDurationMinutes Int?
-  tags                     String[]     @default([])
-  area                     TaskArea     @default(personal)
-  projectId                String?      @db.Uuid
-  parentTaskId             String?      @db.Uuid
-  completedAt              DateTime?    @db.Timestamptz(3)
-  archivedAt               DateTime?    @db.Timestamptz(3)
-  deletedAt                DateTime?    @db.Timestamptz(3)
-  createdAt                DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt                DateTime     @updatedAt @db.Timestamptz(3)
-  user                     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project                  Project?     @relation(fields: [projectId, userId], references: [id, userId], onDelete: Restrict)
-  parentTask               Task?        @relation("TaskHierarchy", fields: [parentTaskId, userId], references: [id, userId], onDelete: Restrict)
-  subtasks                 Task[]       @relation("TaskHierarchy")
+  tags                     String[]        @default([])
+  area                     TaskArea        @default(personal)
+  projectId                String?         @db.Uuid
+  parentTaskId             String?         @db.Uuid
+  completedAt              DateTime?       @db.Timestamptz(3)
+  archivedAt               DateTime?       @db.Timestamptz(3)
+  deletedAt                DateTime?       @db.Timestamptz(3)
+  createdAt                DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime        @updatedAt @db.Timestamptz(3)
+  user                     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project                  Project?        @relation(fields: [projectId, userId], references: [id, userId], onDelete: Restrict)
+  parentTask               Task?           @relation("TaskHierarchy", fields: [parentTaskId, userId], references: [id, userId], onDelete: Restrict)
+  subtasks                 Task[]          @relation("TaskHierarchy")
+  eventLinks               TaskEventLink[]
 
   @@unique([id, userId])
   @@index([userId, deletedAt, archivedAt])
@@ -191,6 +195,21 @@ model Task {
   @@index([userId, area, dueDate])
   @@index([parentTaskId])
   @@index([projectId])
+}
+
+model TaskEventLink {
+  id              String        @id @default(uuid()) @db.Uuid
+  userId          String        @db.Uuid
+  taskId          String        @db.Uuid
+  calendarEventId String        @db.Uuid
+  createdAt       DateTime      @default(now()) @db.Timestamptz(3)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task            Task          @relation(fields: [taskId, userId], references: [id, userId], onDelete: Cascade)
+  calendarEvent   CalendarEvent @relation(fields: [calendarEventId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([userId, taskId, calendarEventId])
+  @@index([userId, taskId])
+  @@index([userId, calendarEventId])
 }
 
 model AuditEvent {

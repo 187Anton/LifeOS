@@ -95,6 +95,19 @@ export const TrashIcon = (props: IconProps) => (
   </Icon>
 );
 
+export const LinkIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.1 1.1" />
+    <path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.1-1.1" />
+  </Icon>
+);
+
+export const UnlinkIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="m3 3 18 18M10.5 10.5a5 5 0 0 0-4 .1l-2 2a5 5 0 0 0 7 7l1.1-1.1M13.5 13.5a5 5 0 0 0 4-.1l2-2a5 5 0 0 0-7-7l-1.1 1.1" />
+  </Icon>
+);
+
 export const LogOutIcon = (props: IconProps) => (
   <Icon {...props}>
     <path d="M10 17l5-5-5-5M15 12H3M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" />

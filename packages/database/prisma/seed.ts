@@ -17,6 +17,7 @@ const SYNTHETIC_EVENT_ID = "00000000-0000-4000-8000-000000000003";
 const SYNTHETIC_AUDIT_ID = "00000000-0000-4000-8000-000000000004";
 const SYNTHETIC_TASK_ID = "00000000-0000-4000-8000-000000000005";
 const SYNTHETIC_PROJECT_ID = "00000000-0000-4000-8000-000000000006";
+const SYNTHETIC_TASK_EVENT_LINK_ID = "00000000-0000-4000-8000-000000000007";
 
 const seed = async () => {
   const database = createDatabaseClient();
@@ -57,7 +58,7 @@ const seed = async () => {
       },
     });
 
-    await database.calendarEvent.upsert({
+    const event = await database.calendarEvent.upsert({
       where: {
         calendarId_uid: {
           calendarId: calendar.id,
@@ -89,7 +90,7 @@ const seed = async () => {
       },
     });
 
-    await database.task.upsert({
+    const task = await database.task.upsert({
       where: { id: SYNTHETIC_TASK_ID },
       update: {},
       create: {
@@ -105,6 +106,17 @@ const seed = async () => {
         tags: ["organisation", "synthetisch"],
         area: "projects",
         projectId: project.id,
+      },
+    });
+
+    await database.taskEventLink.upsert({
+      where: { id: SYNTHETIC_TASK_EVENT_LINK_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_TASK_EVENT_LINK_ID,
+        userId: user.id,
+        taskId: task.id,
+        calendarEventId: event.id,
       },
     });
 
