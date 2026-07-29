@@ -21,14 +21,32 @@ const calendar = {
   syncToken: 1,
 };
 
+const eventStartsAt = new Date().toISOString();
+const eventEndsAt = new Date(
+  new Date(eventStartsAt).valueOf() + 60 * 60 * 1000,
+).toISOString();
+const berlinDate = (value: Date): string => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(value);
+  const part = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+};
+const today = berlinDate(new Date());
+const tomorrow = berlinDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
+
 const initialEvent = {
   uid: "termin-1",
   title: "Ruhiger Fokusblock",
   description: "Synthetischer Termin",
   location: "Arbeitszimmer",
   isAllDay: false,
-  startsAt: "2030-07-22T08:00:00.000Z",
-  endsAt: "2030-07-22T09:00:00.000Z",
+  startsAt: eventStartsAt,
+  endsAt: eventEndsAt,
   startDate: null,
   endDate: null,
   timezone: "Europe/Berlin",
@@ -137,8 +155,12 @@ const installApi = async (page: Page) => {
       events.push({
         ...initialEvent,
         ...payload,
-        uid: "termin-2",
-        etag: '"etag-2"',
+        startsAt: payload.isAllDay ? null : payload.startsAt,
+        endsAt: payload.isAllDay ? null : payload.endsAt,
+        startDate: payload.isAllDay ? payload.startDate : null,
+        endDate: payload.isAllDay ? payload.endDate : null,
+        uid: `termin-${events.length + 1}`,
+        etag: `"etag-${events.length + 1}"`,
         sequence: 0,
       });
       await route.fulfill({ status: 201, json: events.at(-1) });
@@ -157,6 +179,15 @@ const installApi = async (page: Page) => {
         sequence: 1,
       };
       await route.fulfill({ json: events[0] });
+      return;
+    }
+    if (
+      path === "/api/v1/calendars/kalender-1/events/termin-1" &&
+      method === "DELETE"
+    ) {
+      expect(request.headers()["if-match"]).toBe('"etag-1-neu"');
+      events.splice(0, 1);
+      await route.fulfill({ status: 204, body: "" });
       return;
     }
     await route.fulfill({
@@ -186,6 +217,29 @@ test("zeigt die lokale Übersicht und speichert Termine ohne Browserpersistenz",
   await expect(
     page.getByRole("heading", { name: "Kalender", exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Tag", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Ruhiger Fokusblock bearbeiten" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Monat", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: /Ruhiger Fokusblock/ }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Agenda", exact: true }).click();
+
+  await page.getByRole("button", { name: /Neuer Termin/ }).click();
+  await page.getByLabel("Titel").fill("Synthetischer Prüfungstag");
+  await page
+    .locator("label.toggle-field")
+    .filter({ hasText: "Ganztägiger Termin" })
+    .click();
+  await page.getByLabel("Startdatum").fill(today);
+  await page.getByLabel("Enddatum (exklusiv)").fill(tomorrow);
+  await page.getByRole("button", { name: "Termin anlegen" }).click();
+  const allDayCard = page.locator(".event-card").filter({
+    hasText: "Synthetischer Prüfungstag",
+  });
+  await expect(allDayCard.getByText("Ganztägig").first()).toBeVisible();
 
   await page.getByRole("button", { name: /Neuer Termin/ }).click();
   await page.getByLabel("Titel").fill("Synthetischer Arzttermin");
@@ -201,6 +255,14 @@ test("zeigt die lokale Übersicht und speichert Termine ohne Browserpersistenz",
   await page.getByRole("button", { name: "Änderungen speichern" }).click();
   await expect(page.getByText("Fokusblock aktualisiert")).toBeVisible();
   await expect(page.getByRole("status")).toContainText("aktualisiert");
+
+  await page
+    .getByRole("button", { name: "Fokusblock aktualisiert bearbeiten" })
+    .click();
+  await page.getByRole("button", { name: "Löschen" }).click();
+  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await expect(page.getByText("Fokusblock aktualisiert")).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText("gelöscht");
 
   expect(
     await page.evaluate(() => ({

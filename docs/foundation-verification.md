@@ -193,15 +193,17 @@ Testgrenze und kein automatisierter Erfolgsnachweis.
   Testbetriebsart; ein öffentlicher Betrieb ohne TLS ist untersagt.
 - Der CalDAV-Server stellt LifeOS-Kalender bereit. Eine iCloud-/externe
   CalDAV-Clientintegration ist ein späteres, getrenntes Arbeitspaket.
-- RRULE-Werte werden verlustarm gespeichert, aber die Weboberfläche bietet
-  noch keinen visuellen Serieneditor und keine ausgebaute Instanzbearbeitung.
+- RRULE-Werte werden verlustarm gespeichert und unterstützte Serien in den
+  Kalenderansichten projiziert. Ein visueller Serieneditor und die getrennte
+  Bearbeitung einzelner Ausnahmen sind noch nicht implementiert; Änderungen
+  betreffen nachvollziehbar das führende Serienereignis.
 - Konflikte werden sicher per ETag abgelehnt; eine fachliche Zusammenführung
   konkurrierender Änderungen ist noch nicht implementiert.
 - Die PWA cached nur die statische App-Shell. Persönliche Daten benötigen eine
   erreichbare lokale API; Push-Benachrichtigungen und Hintergrund-Sync fehlen.
-- Die Weboberfläche kann Termine anlegen und bearbeiten. Löschen und
-  Kalenderverwaltung stehen im Fundament über REST/CalDAV, aber noch nicht als
-  Web-Bedienung bereit.
+- Die Weboberfläche kann Termine anlegen, bearbeiten und nach Bestätigung
+  löschen. Die Verwaltung ganzer Kalender bleibt über REST/CalDAV verfügbar,
+  aber noch nicht als Web-Bedienung.
 - Der lokale Secret-Scan ist eine nachvollziehbare Musterprüfung, aber kein
   mathematischer Beweis. GitHubs Secret Scanning und Push Protection ergänzen
   ihn für bekannte Provider-Muster und die Repository-Historie.

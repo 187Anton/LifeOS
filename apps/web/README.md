@@ -10,9 +10,12 @@ aktuell folgende Abläufe ab:
   Fälligkeitsfiltern,
 - Aufgaben anlegen, bearbeiten, abschließen, wieder öffnen, archivieren,
   wiederherstellen und nach ausdrücklicher Bestätigung soft löschen,
-- Kalenderauswahl und Terminliste,
-- Anlegen und Bearbeiten zeitgebundener sowie ganztägiger Termine,
+- Kalenderauswahl sowie Tages-, Wochen-, Monats- und Agendaansicht,
+- Zeitraum-Navigation und flüchtige Projektion einfacher RRULE-Serien,
+- Anlegen, Bearbeiten und bestätigtes Löschen zeitgebundener sowie ganztägiger
+  Termine,
 - Zeitzone, Ort, Beschreibung, Erinnerung und einfache RRULE-Eingabe,
+- verständliche ETag-Konflikte ohne stilles Überschreiben,
 - verständliche Lade-, Leer-, Erfolgs- und Fehlerzustände.
 
 ## Lokal starten
@@ -58,9 +61,10 @@ npm run test:e2e --workspace @lifeos/web
 npm run build --workspace @lifeos/web
 ```
 
-Die Unit-Tests prüfen API-Client, Laden, Aufgaben-CRUD, kombinierte Filter,
-Leerzustände und Fehlerfälle. Die Playwright-Tests laufen in Chrome für Desktop
-und Smartphone. Sie prüfen Aufgaben-Erstellung, Neuladen, Suche, Filter,
-Bearbeitung, Abschluss, Wiederöffnung, Archivierung, Löschung,
-Termin-Erstellung und -Bearbeitung, fehlende Browserpersistenz, horizontalen
-Überlauf sowie Manifest, Service Worker und Offline-App-Shell.
+Die Unit-Tests prüfen API-Client, Kalenderzeiträume, Serienprojektion, Laden,
+Aufgaben-CRUD, kombinierte Filter, Leerzustände und Fehlerfälle. Die
+Playwright-Tests laufen in Chrome für Desktop und Smartphone. Sie prüfen
+Aufgaben-Erstellung, Neuladen, Suche, Filter, Bearbeitung, Abschluss,
+Wiederöffnung, Archivierung, Löschung, Kalenderansichten, Termin-CRUD,
+fehlende Browserpersistenz, horizontalen Überlauf sowie Manifest, Service
+Worker und Offline-App-Shell.

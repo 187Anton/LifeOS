@@ -2,10 +2,20 @@ import type {
   CalendarEventResponse,
   CalendarResponse,
 } from "@lifeos/contracts";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { EventPayload } from "../api";
-import { eventSortValue, formatEventDate, formatEventTime } from "../date";
+import {
+  daysInRange,
+  formatOccurrenceTime,
+  formatPeriodTitle,
+  moveAnchor,
+  occurrencesInRange,
+  rangeForView,
+  todayInTimezone,
+  type CalendarOccurrence,
+  type CalendarView,
+} from "../calendar-view";
 import { CalendarIcon, ClockIcon, EditIcon, PlusIcon } from "./Icons";
 import { EventForm } from "./EventForm";
 
@@ -13,9 +23,11 @@ interface CalendarWorkspaceProps {
   calendars: CalendarResponse[];
   selectedCalendarId: string | null;
   events: CalendarEventResponse[];
+  initialView: CalendarView;
   loading: boolean;
   saving: boolean;
   error: string | null;
+  warning: string | null;
   success: string | null;
   onCalendarChange: (calendarId: string) => void;
   onReload: () => void;
@@ -23,19 +35,203 @@ interface CalendarWorkspaceProps {
     event: CalendarEventResponse | null,
     payload: EventPayload,
   ) => Promise<void>;
+  onDelete: (event: CalendarEventResponse) => Promise<void>;
 }
+
+const viewLabels: Record<CalendarView, string> = {
+  day: "Tag",
+  week: "Woche",
+  month: "Monat",
+  agenda: "Agenda",
+};
+
+const dateLabel = (date: string, long = false): string =>
+  new Intl.DateTimeFormat("de-DE", {
+    weekday: long ? "long" : "short",
+    day: "2-digit",
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T12:00:00.000Z`));
+
+const OccurrenceCard = ({
+  occurrence,
+  compact = false,
+  onEdit,
+}: {
+  occurrence: CalendarOccurrence;
+  compact?: boolean;
+  onEdit: (event: CalendarEventResponse) => void;
+}) => (
+  <article className={compact ? "event-card compact-event" : "event-card"}>
+    <span className="event-accent" aria-hidden="true" />
+    {!compact ? (
+      <div className="event-when">
+        <strong>{dateLabel(occurrence.dateKey, true)}</strong>
+        <span>{formatOccurrenceTime(occurrence)}</span>
+      </div>
+    ) : (
+      <span className="compact-event-time">
+        {formatOccurrenceTime(occurrence)}
+      </span>
+    )}
+    <div className="event-copy">
+      <h3>{occurrence.event.title}</h3>
+      {!compact ? (
+        <p>
+          {occurrence.event.location ||
+            occurrence.event.description ||
+            "Keine weiteren Angaben"}
+        </p>
+      ) : null}
+      <div className="event-tags">
+        {occurrence.recurring ? <span>Serie</span> : null}
+        {occurrence.event.isAllDay ? <span>Ganztägig</span> : null}
+        {!compact && occurrence.event.reminderMinutes.length > 0 ? (
+          <span>Erinnerung</span>
+        ) : null}
+        {!compact ? <span>{occurrence.event.timezone}</span> : null}
+      </div>
+    </div>
+    <button
+      className="icon-button"
+      onClick={() => onEdit(occurrence.event)}
+      aria-label={`${occurrence.event.title} bearbeiten`}
+    >
+      <EditIcon />
+    </button>
+  </article>
+);
+
+const PeriodView = ({
+  view,
+  range,
+  occurrences,
+  onEdit,
+}: {
+  view: CalendarView;
+  range: ReturnType<typeof rangeForView>;
+  occurrences: CalendarOccurrence[];
+  onEdit: (event: CalendarEventResponse) => void;
+}) => {
+  const days =
+    view === "day"
+      ? [range.start]
+      : daysInRange(range).filter((date) =>
+          occurrences.some((occurrence) => occurrence.dateKey === date),
+        );
+
+  if (occurrences.length === 0) {
+    return (
+      <div className="state-card empty-state compact-empty">
+        <ClockIcon />
+        <h3>Keine Termine in diesem Zeitraum</h3>
+        <p>Wechsle den Zeitraum oder lege einen neuen Termin an.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="calendar-period-list">
+      {days.map((date) => (
+        <section className="calendar-day-group" key={date}>
+          <header>
+            <h3>{dateLabel(date, true)}</h3>
+            <span>
+              {
+                occurrences.filter((occurrence) => occurrence.dateKey === date)
+                  .length
+              }{" "}
+              Termine
+            </span>
+          </header>
+          <ol className="event-list">
+            {occurrences
+              .filter((occurrence) => occurrence.dateKey === date)
+              .map((occurrence) => (
+                <li key={occurrence.key}>
+                  <OccurrenceCard occurrence={occurrence} onEdit={onEdit} />
+                </li>
+              ))}
+          </ol>
+        </section>
+      ))}
+    </div>
+  );
+};
+
+const MonthView = ({
+  range,
+  occurrences,
+  onEdit,
+}: {
+  range: ReturnType<typeof rangeForView>;
+  occurrences: CalendarOccurrence[];
+  onEdit: (event: CalendarEventResponse) => void;
+}) => {
+  const days = daysInRange(range);
+  const firstColumn =
+    ((new Date(`${range.start}T12:00:00.000Z`).getUTCDay() + 6) % 7) + 1;
+
+  return (
+    <div className="month-view" aria-label="Monatsansicht">
+      <div className="month-weekdays" aria-hidden="true">
+        {["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map((day) => (
+          <span key={day}>{day}</span>
+        ))}
+      </div>
+      <div className="month-grid">
+        {days.map((date, index) => {
+          const dayOccurrences = occurrences.filter(
+            (occurrence) => occurrence.dateKey === date,
+          );
+          return (
+            <section
+              className="month-day"
+              key={date}
+              style={index === 0 ? { gridColumnStart: firstColumn } : undefined}
+              aria-label={dateLabel(date, true)}
+            >
+              <time dateTime={date}>{Number(date.slice(-2))}</time>
+              <div className="month-events">
+                {dayOccurrences.map((occurrence) => (
+                  <button
+                    type="button"
+                    key={occurrence.key}
+                    className={
+                      occurrence.event.isAllDay
+                        ? "month-event all-day"
+                        : "month-event"
+                    }
+                    onClick={() => onEdit(occurrence.event)}
+                    title={`${formatOccurrenceTime(occurrence)} · ${occurrence.event.title}`}
+                  >
+                    <span>{formatOccurrenceTime(occurrence)}</span>
+                    {occurrence.event.title}
+                  </button>
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 export const CalendarWorkspace = ({
   calendars,
   selectedCalendarId,
   events,
+  initialView,
   loading,
   saving,
   error,
+  warning,
   success,
   onCalendarChange,
   onReload,
   onSave,
+  onDelete,
 }: CalendarWorkspaceProps) => {
   const [editorEvent, setEditorEvent] = useState<
     CalendarEventResponse | null | undefined
@@ -43,12 +239,23 @@ export const CalendarWorkspace = ({
   const selectedCalendar = calendars.find(
     (calendar) => calendar.id === selectedCalendarId,
   );
-  const sortedEvents = [...events].sort(
-    (left, right) => eventSortValue(left) - eventSortValue(right),
+  const timezone = selectedCalendar?.timezone ?? "UTC";
+  const [view, setView] = useState<CalendarView>(initialView);
+  const [anchor, setAnchor] = useState(() => todayInTimezone(timezone));
+  const range = useMemo(() => rangeForView(view, anchor), [view, anchor]);
+  const occurrences = useMemo(
+    () => occurrencesInRange(events, range, timezone),
+    [events, range, timezone],
   );
 
   const save = async (payload: EventPayload) => {
     await onSave(editorEvent ?? null, payload);
+    setEditorEvent(undefined);
+  };
+
+  const deleteEvent = async () => {
+    if (!editorEvent) return;
+    await onDelete(editorEvent);
     setEditorEvent(undefined);
   };
 
@@ -84,13 +291,18 @@ export const CalendarWorkspace = ({
               </option>
             ))}
           </select>
-          <span className="timezone-chip">{selectedCalendar?.timezone}</span>
+          <span className="timezone-chip">{timezone}</span>
         </div>
       ) : null}
 
       {success ? (
         <p role="status" className="success-banner">
           {success}
+        </p>
+      ) : null}
+      {warning ? (
+        <p role="alert" className="conflict-banner">
+          {warning}
         </p>
       ) : null}
 
@@ -102,15 +314,64 @@ export const CalendarWorkspace = ({
         }
       >
         <section
-          className="event-list-section"
+          className="event-list-section calendar-view-section"
           aria-labelledby="event-list-title"
         >
+          <div className="calendar-view-toolbar">
+            <div
+              className="view-switcher"
+              role="group"
+              aria-label="Kalenderansicht"
+            >
+              {(Object.keys(viewLabels) as CalendarView[]).map((candidate) => (
+                <button
+                  key={candidate}
+                  type="button"
+                  className={candidate === view ? "active" : ""}
+                  aria-pressed={candidate === view}
+                  onClick={() => setView(candidate)}
+                >
+                  {viewLabels[candidate]}
+                </button>
+              ))}
+            </div>
+            <div className="period-navigation">
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Vorheriger Zeitraum"
+                onClick={() => setAnchor(moveAnchor(view, anchor, -1))}
+              >
+                ←
+              </button>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setAnchor(todayInTimezone(timezone))}
+              >
+                Heute
+              </button>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Nächster Zeitraum"
+                onClick={() => setAnchor(moveAnchor(view, anchor, 1))}
+              >
+                →
+              </button>
+            </div>
+          </div>
+
           <div className="section-heading event-list-heading">
             <div>
-              <h2 id="event-list-title">Gespeicherte Termine</h2>
+              <h2 id="event-list-title">
+                {formatPeriodTitle(view, range, timezone)}
+              </h2>
               <p>{selectedCalendar?.name ?? "Kein Kalender ausgewählt"}</p>
             </div>
-            {!loading && !error ? <span>{events.length} Einträge</span> : null}
+            {!loading && !error ? (
+              <span>{occurrences.length} sichtbar</span>
+            ) : null}
           </div>
 
           {loading ? (
@@ -135,7 +396,7 @@ export const CalendarWorkspace = ({
                 an.
               </p>
             </div>
-          ) : sortedEvents.length === 0 ? (
+          ) : events.length === 0 ? (
             <div className="state-card empty-state">
               <ClockIcon />
               <h3>Dieser Kalender ist noch frei</h3>
@@ -149,43 +410,19 @@ export const CalendarWorkspace = ({
                 <PlusIcon /> Ersten Termin anlegen
               </button>
             </div>
+          ) : view === "month" ? (
+            <MonthView
+              range={range}
+              occurrences={occurrences}
+              onEdit={setEditorEvent}
+            />
           ) : (
-            <ol className="event-list">
-              {sortedEvents.map((event) => (
-                <li key={event.uid}>
-                  <article className="event-card">
-                    <span className="event-accent" aria-hidden="true" />
-                    <div className="event-when">
-                      <strong>{formatEventDate(event)}</strong>
-                      <span>{formatEventTime(event)}</span>
-                    </div>
-                    <div className="event-copy">
-                      <h3>{event.title}</h3>
-                      <p>
-                        {event.location ||
-                          event.description ||
-                          "Keine weiteren Angaben"}
-                      </p>
-                      <div className="event-tags">
-                        {event.recurrenceRule ? (
-                          <span>Wiederholung</span>
-                        ) : null}
-                        {event.reminderMinutes.length > 0 ? (
-                          <span>Erinnerung</span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <button
-                      className="icon-button"
-                      onClick={() => setEditorEvent(event)}
-                      aria-label={`${event.title} bearbeiten`}
-                    >
-                      <EditIcon />
-                    </button>
-                  </article>
-                </li>
-              ))}
-            </ol>
+            <PeriodView
+              view={view}
+              range={range}
+              occurrences={occurrences}
+              onEdit={setEditorEvent}
+            />
           )}
         </section>
 
@@ -196,6 +433,7 @@ export const CalendarWorkspace = ({
             pending={saving}
             onCancel={() => setEditorEvent(undefined)}
             onSubmit={save}
+            onDelete={deleteEvent}
           />
         ) : null}
       </div>

@@ -154,9 +154,16 @@ Smartphone einschließlich Neuladen und fehlender Browserpersistenz.
 
 ### 0.2.3 Kalenderansichten
 
-- Tages-, Wochen- und Monatsansicht ergänzen.
+- Tages-, Wochen-, Monats- und Agendaansicht ergänzen.
 - Ereignisse aus dem internen Kalender anzeigen.
 - Zeitzonen und Ganztägigkeit konsistent darstellen.
+
+Umsetzungsnachweis: Issue #34 ergänzt Zeitraum-Navigation, flüchtige
+RRULE-Projektionen sowie vollständiges Termin-CRUD in der gemeinsamen
+React-PWA. UID, ETag, Zeitpunkte, Ganztagsdaten und Serienregel bleiben im
+vorhandenen Kalenderkern führend. Unit-, Playwright-, REST- und
+CalDAV-Integrationstests prüfen Ansichten, Zeitzonen, Ganztägigkeit,
+Serienvorkommen, Löschung und veraltete ETags.
 
 ### 0.2.4 Aufgaben-Termin-Verknüpfung
 

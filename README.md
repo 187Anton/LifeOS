@@ -145,8 +145,14 @@ Aufgaben werden nach lokaler Anmeldung unter `/api/v1/tasks` verwaltet. Das
 Aufgabenmodell unterstützt Status, Priorität, Fälligkeit als reines Datum,
 optionale geplante Startzeit mit IANA-Zeitzone, ganzzahlige Dauerminuten, Tags,
 Bereich, Projekt- und Elternbezug sowie Archivierung und Soft-Delete. Die
-Aufgabenoberfläche folgt im nächsten Roadmap-Arbeitspaket; die API speichert
-bereits alle Änderungen besitzgebunden und mit Audit-Ereignissen.
+responsive Aufgabenoberfläche unterstützt Erstellen, Bearbeiten, Statuswechsel,
+Archivierung, bestätigtes Löschen sowie kombinierbare Suche und Filter.
+
+Der Kalender bietet Tages-, Wochen-, Monats- und Agendaansicht. Termine werden
+weiterhin ausschließlich über den gemeinsamen Kalenderkern gespeichert:
+Ganztagswerte bleiben reine Daten, Serienvorkommen sind flüchtige Projektionen
+der RRULE und Bearbeiten oder Löschen verwendet immer die stabile UID und den
+aktuellen ETag des zugrunde liegenden Ereignisses.
 
 Der CalDAV-Server liegt unabhängig von der REST-API unter `/caldav/`. Sein
 Zugang wird getrennt von der Browser-Anmeldung gesetzt und widerrufen:

@@ -8,12 +8,14 @@ import {
   nextWholeHour,
   toDateTimeInput,
 } from "../date";
+import { TrashIcon } from "./Icons";
 
 interface EventFormProps {
   event: CalendarEventResponse | null;
   pending: boolean;
   onCancel: () => void;
   onSubmit: (payload: EventPayload) => Promise<void>;
+  onDelete: () => Promise<void>;
 }
 
 interface Draft {
@@ -84,12 +86,25 @@ export const EventForm = ({
   pending,
   onCancel,
   onSubmit,
+  onDelete,
 }: EventFormProps) => {
   const [draft, setDraft] = useState(() => initialDraft(event));
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState(false);
 
   const update = <Key extends keyof Draft>(key: Key, value: Draft[Key]) => {
     setDraft((current) => ({ ...current, [key]: value }));
+  };
+
+  const deleteEvent = async () => {
+    setValidationError(null);
+    try {
+      await onDelete();
+    } catch {
+      setValidationError(
+        "Der Termin konnte nicht gelöscht werden. Prüfe den Hinweis in der Kalenderansicht.",
+      );
+    }
   };
 
   const submit = async (formEvent: FormEvent<HTMLFormElement>) => {
@@ -129,24 +144,39 @@ export const EventForm = ({
         setValidationError("Das Enddatum muss nach dem Startdatum liegen.");
         return;
       }
-      await onSubmit({
-        ...common,
-        isAllDay: true,
-        startDate: draft.startDate,
-        endDate: draft.endDate,
-      });
+      try {
+        await onSubmit({
+          ...common,
+          isAllDay: true,
+          startDate: draft.startDate,
+          endDate: draft.endDate,
+        });
+      } catch {
+        setValidationError(
+          "Der Termin konnte nicht gespeichert werden. Prüfe den Hinweis in der Kalenderansicht.",
+        );
+      }
+      return;
+    }
+    let startsAt: string;
+    let endsAt: string;
+    try {
+      startsAt = dateTimeInputToIso(draft.startsAt, draft.timezone);
+      endsAt = dateTimeInputToIso(draft.endsAt, draft.timezone);
+    } catch {
+      setValidationError("Beginn oder Ende ist nicht gültig.");
+      return;
+    }
+    if (endsAt <= startsAt) {
+      setValidationError("Das Ende muss nach dem Beginn liegen.");
       return;
     }
     try {
-      const startsAt = dateTimeInputToIso(draft.startsAt, draft.timezone);
-      const endsAt = dateTimeInputToIso(draft.endsAt, draft.timezone);
-      if (endsAt <= startsAt) {
-        setValidationError("Das Ende muss nach dem Beginn liegen.");
-        return;
-      }
       await onSubmit({ ...common, isAllDay: false, startsAt, endsAt });
     } catch {
-      setValidationError("Beginn oder Ende ist nicht gültig.");
+      setValidationError(
+        "Der Termin konnte nicht gespeichert werden. Prüfe den Hinweis in der Kalenderansicht.",
+      );
     }
   };
 
@@ -296,6 +326,38 @@ export const EventForm = ({
           <p role="alert" className="form-error full-field">
             {validationError}
           </p>
+        ) : null}
+        {event ? (
+          <div className="task-danger-zone full-field">
+            {deleteConfirmation ? (
+              <div className="delete-confirmation" role="alert">
+                <span>Termin wirklich löschen?</span>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => setDeleteConfirmation(false)}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="button"
+                  className="danger-button"
+                  disabled={pending}
+                  onClick={() => void deleteEvent()}
+                >
+                  Endgültig löschen
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="text-button danger-text"
+                onClick={() => setDeleteConfirmation(true)}
+              >
+                <TrashIcon /> Löschen
+              </button>
+            )}
+          </div>
         ) : null}
         <div className="form-actions full-field">
           <button type="button" className="secondary-button" onClick={onCancel}>

@@ -105,6 +105,11 @@ Für den ersten CalDAV-Ausbau gelten diese Ziele:
 - Erinnerungen,
 - nachvollziehbare Konfliktbehandlung.
 
+Kalenderansichten im Web sind flüchtige Projektionen des gemeinsamen
+Kalenderkerns. Sie speichern keine eigenen Ereignisse oder Serieninstanzen;
+Bearbeiten und Löschen adressiert immer die stabile UID und den aktuellen ETag
+des führenden Ereignisses.
+
 Die lokale Erreichbarkeit muss dokumentiert werden. `localhost` auf dem
 iPhone zeigt auf das iPhone selbst; für lokale Synchronisation wird die
 Netzwerkadresse oder ein lokaler DNS-Name des Entwicklungsrechners benötigt.
@@ -407,3 +412,6 @@ gemeldet.
   zeitzonensicherer Startplanung, ganzzahligen Dauern, sicherer Hierarchie,
   Projektanker, Archivierung und Soft-Delete nach API- und Datenbanktests
   festgehalten.
+- **2026-07-29:** Kalenderansichten als flüchtige Projektionen des gemeinsamen
+  REST-/CalDAV-Kerns mit stabiler UID und ETag-geschützten Änderungen nach
+  Unit-, UI- und CalDAV-Integrationstests festgehalten.

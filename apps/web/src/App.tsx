@@ -41,6 +41,7 @@ export const App = () => {
   const [saving, setSaving] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [calendarWarning, setCalendarWarning] = useState<string | null>(null);
   const [taskError, setTaskError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [taskSuccess, setTaskSuccess] = useState<string | null>(null);
@@ -139,6 +140,7 @@ export const App = () => {
   const changeCalendar = (calendarId: string) => {
     setSelectedCalendarId(calendarId);
     setSuccess(null);
+    setCalendarWarning(null);
     void loadEvents(calendarId);
   };
 
@@ -149,6 +151,7 @@ export const App = () => {
     if (!selectedCalendarId) return;
     setSaving(true);
     setCalendarError(null);
+    setCalendarWarning(null);
     setSuccess(null);
     try {
       if (event) {
@@ -165,7 +168,45 @@ export const App = () => {
       }
       await loadEvents(selectedCalendarId);
     } catch (error) {
-      setCalendarError(errorMessage(error));
+      if (
+        error instanceof ApiClientError &&
+        error.code === "PRECONDITION_FAILED"
+      ) {
+        await loadEvents(selectedCalendarId);
+        setCalendarWarning(
+          "Der Termin wurde zwischenzeitlich geändert. Die aktuelle Version wurde neu geladen; prüfe sie vor einem weiteren Speicherversuch.",
+        );
+      } else {
+        setCalendarError(errorMessage(error));
+      }
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteEvent = async (event: CalendarEventResponse) => {
+    if (!selectedCalendarId) return;
+    setSaving(true);
+    setCalendarError(null);
+    setCalendarWarning(null);
+    setSuccess(null);
+    try {
+      await api.deleteEvent(selectedCalendarId, event.uid, event.etag);
+      setSuccess("Der Termin wurde gelöscht.");
+      await loadEvents(selectedCalendarId);
+    } catch (error) {
+      if (
+        error instanceof ApiClientError &&
+        error.code === "PRECONDITION_FAILED"
+      ) {
+        await loadEvents(selectedCalendarId);
+        setCalendarWarning(
+          "Der Termin wurde zwischenzeitlich geändert. Die aktuelle Version wurde neu geladen; prüfe sie vor einem weiteren Löschversuch.",
+        );
+      } else {
+        setCalendarError(errorMessage(error));
+      }
       throw error;
     } finally {
       setSaving(false);
@@ -276,15 +317,19 @@ export const App = () => {
           calendars={calendars}
           selectedCalendarId={selectedCalendarId}
           events={events}
+          initialView={profile.settings.defaultCalendarView}
           loading={eventsLoading}
           saving={saving}
           error={calendarError}
+          warning={calendarWarning}
           success={success}
           onCalendarChange={changeCalendar}
-          onReload={() =>
-            selectedCalendarId && void loadEvents(selectedCalendarId)
-          }
+          onReload={() => {
+            setCalendarWarning(null);
+            if (selectedCalendarId) void loadEvents(selectedCalendarId);
+          }}
           onSave={saveEvent}
+          onDelete={deleteEvent}
         />
       )}
     </Shell>

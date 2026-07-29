@@ -123,6 +123,16 @@ export const api = {
     );
   },
 
+  deleteEvent(calendarId: string, uid: string, etag: string) {
+    return request<void>(
+      `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(uid)}`,
+      {
+        method: "DELETE",
+        headers: { "If-Match": etag },
+      },
+    );
+  },
+
   listTasks(includeArchived = true) {
     return request<TaskResponse[]>(
       `/tasks?includeArchived=${includeArchived ? "true" : "false"}`,

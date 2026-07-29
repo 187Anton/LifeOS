@@ -25,14 +25,19 @@ const calendar = {
   syncToken: 1,
 };
 
+const eventStartsAt = new Date().toISOString();
+const eventEndsAt = new Date(
+  new Date(eventStartsAt).valueOf() + 60 * 60 * 1000,
+).toISOString();
+
 const event = {
   uid: "termin-1",
   title: "Ruhiger Fokusblock",
   description: "Synthetischer Termin",
   location: null,
   isAllDay: false,
-  startsAt: "2030-07-22T08:00:00.000Z",
-  endsAt: "2030-07-22T09:00:00.000Z",
+  startsAt: eventStartsAt,
+  endsAt: eventEndsAt,
   startDate: null,
   endDate: null,
   timezone: "Europe/Berlin",
@@ -81,12 +86,16 @@ const installApi = ({
   calendars = [calendar],
   events = [event],
   tasks = [task],
+  deleteEventConflict = false,
 }: {
   calendars?: (typeof calendar)[];
   events?: (typeof event)[];
   tasks?: (typeof task)[];
+  deleteEventConflict?: boolean;
 } = {}) => {
+  const eventState = events.map((item) => ({ ...item }));
   const taskState = tasks.map((item) => ({ ...item }));
+  let conflictReturned = false;
   const fetchMock = vi.fn(
     (request: string | URL | Request, init?: RequestInit) => {
       const path =
@@ -98,7 +107,50 @@ const installApi = ({
       const method = init?.method ?? "GET";
       if (path === "/api/v1/profile") return json(profile);
       if (path === "/api/v1/calendars") return json(calendars);
-      if (path.endsWith("/events")) return json(events);
+      if (path.endsWith("/events") && method === "GET") {
+        return json(eventState);
+      }
+      if (path.endsWith("/events") && method === "POST") {
+        const payload = requestBody(init);
+        const created = {
+          ...event,
+          ...payload,
+          uid: `termin-${eventState.length + 1}`,
+          etag: `"etag-${eventState.length + 1}"`,
+        };
+        eventState.push(created);
+        return json(created, 201);
+      }
+      if (path.includes("/events/") && method === "PUT") {
+        const uid = decodeURIComponent(path.split("/").at(-1)!);
+        const index = eventState.findIndex((item) => item.uid === uid);
+        eventState[index] = {
+          ...eventState[index]!,
+          ...requestBody(init),
+          etag: '"etag-neu"',
+          sequence: eventState[index]!.sequence + 1,
+        };
+        return json(eventState[index]);
+      }
+      if (path.includes("/events/") && method === "DELETE") {
+        if (deleteEventConflict && !conflictReturned) {
+          conflictReturned = true;
+          eventState[0] = { ...eventState[0]!, etag: '"etag-vom-server"' };
+          return json(
+            {
+              error: {
+                code: "PRECONDITION_FAILED",
+                message: "Das Ereignis wurde zwischenzeitlich geändert.",
+              },
+            },
+            412,
+          );
+        }
+        const uid = decodeURIComponent(path.split("/").at(-1)!);
+        const index = eventState.findIndex((item) => item.uid === uid);
+        if (index >= 0) eventState.splice(index, 1);
+        return new Response(null, { status: 204 });
+      }
       if (path === "/api/v1/tasks?includeArchived=true" && method === "GET") {
         return json(taskState);
       }
@@ -150,7 +202,7 @@ const installApi = ({
     },
   );
   vi.stubGlobal("fetch", fetchMock);
-  return { fetchMock, taskState };
+  return { fetchMock, eventState, taskState };
 };
 
 afterEach(() => {
@@ -204,6 +256,64 @@ describe("LifeOS-Weboberfläche", () => {
     expect(
       screen.getByRole("button", { name: /Ersten Termin anlegen/ }),
     ).toBeEnabled();
+  });
+
+  it("wechselt Ansichten und löscht einen Termin mit seinem ETag", async () => {
+    const { fetchMock } = installApi();
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Kalender" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Tag" }));
+    expect(
+      screen.getByRole("button", { name: "Ruhiger Fokusblock bearbeiten" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Monat" }));
+    expect(
+      screen.getByRole("button", { name: /Ruhiger Fokusblock/ }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Agenda" }));
+
+    await user.click(
+      screen.getByRole("button", { name: "Ruhiger Fokusblock bearbeiten" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Löschen" }));
+    await user.click(screen.getByRole("button", { name: "Endgültig löschen" }));
+
+    expect(
+      await screen.findByText("Dieser Kalender ist noch frei"),
+    ).toBeVisible();
+    const deleteCall = fetchMock.mock.calls.find(
+      ([, init]) => init?.method === "DELETE",
+    ) as [string, RequestInit] | undefined;
+    expect(deleteCall?.[0]).toBe(
+      "/api/v1/calendars/kalender-1/events/termin-1",
+    );
+    expect(new Headers(deleteCall?.[1].headers).get("If-Match")).toBe(
+      '"etag-1"',
+    );
+  });
+
+  it("lädt bei einem veralteten ETag die aktuelle Terminversion neu", async () => {
+    installApi({ deleteEventConflict: true });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Kalender" })[0]!);
+    await user.click(
+      screen.getByRole("button", { name: "Ruhiger Fokusblock bearbeiten" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Löschen" }));
+    await user.click(screen.getByRole("button", { name: "Endgültig löschen" }));
+
+    expect(
+      await screen.findByText(/aktuelle Version wurde neu geladen/),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Ruhiger Fokusblock bearbeiten" }),
+    ).toBeVisible();
   });
 
   it("erstellt, bearbeitet und filtert Aufgaben gemeinsam", async () => {
