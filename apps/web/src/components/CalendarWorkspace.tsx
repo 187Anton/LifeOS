@@ -5,7 +5,7 @@ import type {
   TaskEventLinkResponse,
   TaskResponse,
 } from "@lifeos/contracts";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { EventPayload } from "../api";
 import {
@@ -34,6 +34,8 @@ interface CalendarWorkspaceProps {
   error: string | null;
   warning: string | null;
   success: string | null;
+  createRequested: boolean;
+  onCreateRequestHandled: () => void;
   onCalendarChange: (calendarId: string) => void;
   onReload: () => void;
   onSave: (
@@ -237,6 +239,8 @@ export const CalendarWorkspace = ({
   error,
   warning,
   success,
+  createRequested,
+  onCreateRequestHandled,
   onCalendarChange,
   onReload,
   onSave,
@@ -246,7 +250,10 @@ export const CalendarWorkspace = ({
 }: CalendarWorkspaceProps) => {
   const [editorEvent, setEditorEvent] = useState<
     CalendarEventResponse | null | undefined
-  >(undefined);
+  >(createRequested ? null : undefined);
+  useEffect(() => {
+    if (createRequested) onCreateRequestHandled();
+  }, [createRequested, onCreateRequestHandled]);
   const selectedCalendar = calendars.find(
     (calendar) => calendar.id === selectedCalendarId,
   );

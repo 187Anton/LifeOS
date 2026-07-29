@@ -18,6 +18,10 @@ aktuell folgende Abläufe ab:
 - verständliche ETag-Konflikte ohne stilles Überschreiben,
 - Aufgaben und Termine in beiden Editoren verknüpfen und wieder trennen,
 - nicht mehr verfügbare verknüpfte Objekte nachvollziehbar anzeigen,
+- Organisations-Dashboard mit heutigen und nächsten Terminen, offenen,
+  überfälligen und hoch priorisierten Aufgaben sowie Bereichen und Projekten,
+- Hinweise auf Terminüberschneidungen und Aufgaben ohne Fälligkeit,
+- Schnellaktionen für die bestehenden Aufgaben- und Termin-Formulare,
 - verständliche Lade-, Leer-, Erfolgs- und Fehlerzustände.
 
 ## Lokal starten
@@ -68,5 +72,6 @@ Aufgaben-CRUD, kombinierte Filter, Leerzustände und Fehlerfälle. Die
 Playwright-Tests laufen in Chrome für Desktop und Smartphone. Sie prüfen
 Aufgaben-Erstellung, Neuladen, Suche, Filter, Bearbeitung, Abschluss,
 Wiederöffnung, Archivierung, Löschung, Kalenderansichten, Termin-CRUD,
-Aufgaben-Termin-Verknüpfung und -Trennung, fehlende Browserpersistenz,
-horizontalen Überlauf sowie Manifest, Service Worker und Offline-App-Shell.
+Aufgaben-Termin-Verknüpfung und -Trennung, Dashboard-Schnellaktionen und
+Aktualisierung, fehlende Browserpersistenz, horizontalen Überlauf sowie
+Manifest, Service Worker und Offline-App-Shell.

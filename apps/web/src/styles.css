@@ -642,6 +642,99 @@ input[readonly] {
   gap: 1rem;
   margin-top: 1rem;
 }
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.7rem;
+}
+.dashboard-actions button {
+  white-space: nowrap;
+}
+.dashboard-loading {
+  min-height: 320px;
+}
+.organisation-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.organisation-grid .feature-card {
+  min-width: 0;
+}
+.dashboard-list {
+  display: grid;
+  gap: 0;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+.dashboard-list-item {
+  display: grid;
+  grid-template-columns: minmax(68px, auto) minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: center;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.dashboard-list-item > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+.dashboard-list-item strong,
+.dashboard-list-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard-list-item small,
+.dashboard-time,
+.quiet-copy {
+  color: var(--muted);
+}
+.dashboard-time {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.priority-dot {
+  width: 11px;
+  height: 11px;
+  margin-left: 0.2rem;
+  border-radius: 50%;
+  background: #8fa197;
+}
+.priority-dot.high {
+  background: #d97958;
+}
+.priority-dot.critical {
+  background: #a63d35;
+}
+.dashboard-summary {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.focus-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1.25rem;
+}
+.focus-groups span {
+  padding: 0.5rem 0.7rem;
+  border-radius: 999px;
+  color: var(--forest-soft);
+  background: var(--sage);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.dashboard-notices ul {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1.2rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+}
 .feature-card {
   padding: clamp(1.4rem, 3vw, 2rem);
   border: 1px solid var(--line);
@@ -1598,6 +1691,19 @@ input[readonly] {
   }
   .dashboard-heading .secondary-button {
     display: none;
+  }
+  .dashboard-heading {
+    display: grid;
+  }
+  .dashboard-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+  .dashboard-heading .dashboard-actions .secondary-button,
+  .dashboard-actions .primary-button {
+    display: inline-flex;
+    width: 100%;
   }
   .calendar-heading,
   .task-heading {

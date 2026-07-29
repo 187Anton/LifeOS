@@ -95,6 +95,27 @@ const installApi = async (page: Page) => {
       await route.fulfill({ json: [calendar] });
       return;
     }
+    if (path === "/api/v1/dashboard" && method === "GET") {
+      await route.fulfill({
+        json: {
+          generatedAt: new Date().toISOString(),
+          timezone: profile.settings.timezone,
+          tasks: tasks.filter(
+            (task) =>
+              !task.archivedAt &&
+              task.status !== "done" &&
+              task.status !== "cancelled",
+          ),
+          events: events.map((event) => ({
+            ...event,
+            calendarId: calendar.id,
+            calendarName: calendar.name,
+          })),
+          projects: [],
+        },
+      });
+      return;
+    }
     if (path === "/api/v1/task-event-links" && method === "GET") {
       await route.fulfill({ json: links });
       return;
@@ -354,6 +375,45 @@ test("bleibt auf Desktop und Smartphone ohne horizontalen Überlauf bedienbar", 
   }
 });
 
+test("aktualisiert das Dashboard nach Schnellaktionen aus gespeicherten Daten", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: /Guten Tag, Anton/ }),
+  ).toBeVisible();
+  await expect(page.getByText("Offen und wichtig")).toBeVisible();
+  await expect(page.getByText("Roadmap prüfen")).toBeVisible();
+
+  await page.getByRole("button", { name: /Aufgabe erstellen/ }).click();
+  const taskEditor = page.locator(".task-editor");
+  await expect(taskEditor).toBeVisible();
+  await taskEditor.getByLabel("Titel").fill("Dashboard-Aufgabe");
+  await taskEditor.getByRole("button", { name: "Aufgabe anlegen" }).click();
+  await page
+    .getByRole("button", { name: "Übersicht", exact: true })
+    .filter({ visible: true })
+    .click();
+  await expect(page.getByText("Dashboard-Aufgabe")).toBeVisible();
+
+  await page.getByRole("button", { name: /Termin erstellen/ }).click();
+  const eventEditor = page.locator(".event-editor");
+  await expect(eventEditor).toBeVisible();
+  await eventEditor.getByLabel("Titel").fill("Dashboard-Termin");
+  await eventEditor
+    .locator("label.toggle-field")
+    .filter({ hasText: "Ganztägiger Termin" })
+    .click();
+  await eventEditor.getByLabel("Startdatum").fill(today);
+  await eventEditor.getByLabel("Enddatum (exklusiv)").fill(tomorrow);
+  await eventEditor.getByRole("button", { name: "Termin anlegen" }).click();
+  await page
+    .getByRole("button", { name: "Übersicht", exact: true })
+    .filter({ visible: true })
+    .click();
+  await expect(page.getByText("Dashboard-Termin")).toBeVisible();
+});
+
 test("erstellt, filtert, bearbeitet und verwaltet Aufgaben ohne Browserpersistenz", async ({
   page,
 }) => {
@@ -381,20 +441,26 @@ test("erstellt, filtert, bearbeitet und verwaltet Aufgaben ohne Browserpersisten
   await editor.getByLabel("Tags").fill("organisation, fokus");
   await editor.getByLabel("Beschreibung").fill("Synthetischer UI-Ablauf");
   await editor.getByRole("button", { name: "Aufgabe anlegen" }).click();
-  await expect(page.getByText("Unterlagen sortieren")).toBeVisible();
+  await expect(
+    page.locator(".task-card").filter({ hasText: "Unterlagen sortieren" }),
+  ).toBeVisible();
 
   await page.reload();
   await page
     .getByRole("button", { name: "Aufgaben", exact: true })
     .filter({ visible: true })
     .click();
-  await expect(page.getByText("Unterlagen sortieren")).toBeVisible();
+  await expect(
+    page.locator(".task-card").filter({ hasText: "Unterlagen sortieren" }),
+  ).toBeVisible();
 
   const filters = page.getByRole("region", { name: "Aufgaben filtern" });
   await filters.getByRole("searchbox").fill("unterlagen");
   await filters.getByLabel("Priorität").selectOption("high");
   await filters.getByLabel("Bereich").selectOption("work");
-  await expect(page.getByText("Unterlagen sortieren")).toBeVisible();
+  await expect(
+    page.locator(".task-card").filter({ hasText: "Unterlagen sortieren" }),
+  ).toBeVisible();
   await expect(page.getByText("1 von 2 sichtbar")).toBeVisible();
 
   const taskCard = page.locator(".task-card").filter({
@@ -405,7 +471,9 @@ test("erstellt, filtert, bearbeitet und verwaltet Aufgaben ohne Browserpersisten
     .click();
   await editor.getByLabel("Titel").fill("Unterlagen archivieren");
   await editor.getByRole("button", { name: "Änderungen speichern" }).click();
-  await expect(page.getByText("Unterlagen archivieren")).toBeVisible();
+  await expect(
+    page.locator(".task-card").filter({ hasText: "Unterlagen archivieren" }),
+  ).toBeVisible();
 
   const updatedCard = page.locator(".task-card").filter({
     hasText: "Unterlagen archivieren",
@@ -419,9 +487,13 @@ test("erstellt, filtert, bearbeitet und verwaltet Aufgaben ohne Browserpersisten
     .getByRole("button", { name: "Unterlagen archivieren bearbeiten" })
     .click();
   await editor.getByRole("button", { name: "Archivieren" }).click();
-  await expect(page.getByText("Unterlagen archivieren")).toHaveCount(0);
+  await expect(
+    page.locator(".task-card").filter({ hasText: "Unterlagen archivieren" }),
+  ).toHaveCount(0);
   await filters.getByLabel("Archivierte anzeigen").check();
-  await expect(page.getByText("Unterlagen archivieren")).toBeVisible();
+  await expect(
+    page.locator(".task-card").filter({ hasText: "Unterlagen archivieren" }),
+  ).toBeVisible();
 
   const archivedCard = page.locator(".task-card").filter({
     hasText: "Unterlagen archivieren",
@@ -431,7 +503,9 @@ test("erstellt, filtert, bearbeitet und verwaltet Aufgaben ohne Browserpersisten
     .click();
   await editor.getByRole("button", { name: /Löschen/ }).click();
   await editor.getByRole("button", { name: "Endgültig löschen" }).click();
-  await expect(page.getByText("Unterlagen archivieren")).toHaveCount(0);
+  await expect(
+    page.locator(".task-card").filter({ hasText: "Unterlagen archivieren" }),
+  ).toHaveCount(0);
 
   expect(
     await page.evaluate(() => ({

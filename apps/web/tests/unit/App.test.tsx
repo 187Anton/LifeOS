@@ -88,6 +88,7 @@ const installApi = ({
   tasks = [task],
   links = [],
   deleteEventConflict = false,
+  dashboardError = false,
 }: {
   calendars?: (typeof calendar)[];
   events?: (typeof event)[];
@@ -104,6 +105,7 @@ const installApi = ({
     createdAt: string;
   }>;
   deleteEventConflict?: boolean;
+  dashboardError?: boolean;
 } = {}) => {
   const eventState = events.map((item) => ({ ...item }));
   const taskState = tasks.map((item) => ({ ...item }));
@@ -120,6 +122,34 @@ const installApi = ({
       const method = init?.method ?? "GET";
       if (path === "/api/v1/profile") return json(profile);
       if (path === "/api/v1/calendars") return json(calendars);
+      if (path === "/api/v1/dashboard" && method === "GET") {
+        if (dashboardError) {
+          return json(
+            {
+              error: {
+                code: "SERVICE_NOT_READY",
+                message: "Das Dashboard ist vorübergehend nicht verfügbar.",
+              },
+            },
+            503,
+          );
+        }
+        return json({
+          generatedAt: new Date().toISOString(),
+          timezone: profile.settings.timezone,
+          tasks: taskState.filter(
+            (item) =>
+              !item.archivedAt &&
+              !["done", "cancelled"].includes(String(item.status)),
+          ),
+          events: eventState.map((item) => ({
+            ...item,
+            calendarId: calendar.id,
+            calendarName: calendar.name,
+          })),
+          projects: [],
+        });
+      }
       if (path === "/api/v1/task-event-links" && method === "GET") {
         return json(linkState);
       }
@@ -286,6 +316,8 @@ describe("LifeOS-Weboberfläche", () => {
       await screen.findByRole("heading", { name: /Guten Tag, Anton/ }),
     ).toBeVisible();
     expect(screen.getByText("Ruhiger Fokusblock")).toBeVisible();
+    expect(screen.getByText("Offen und wichtig")).toBeVisible();
+    expect(screen.getByText("Roadmap prüfen")).toBeVisible();
 
     await user.click(screen.getAllByRole("button", { name: "Kalender" })[0]!);
     expect(
@@ -294,6 +326,40 @@ describe("LifeOS-Weboberfläche", () => {
     expect(
       screen.getByRole("button", { name: "Ruhiger Fokusblock bearbeiten" }),
     ).toBeVisible();
+  });
+
+  it("öffnet über Dashboard-Schnellaktionen die vorhandenen Erstellformulare", async () => {
+    installApi();
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getByRole("button", { name: /Aufgabe erstellen/ }));
+    expect(
+      await screen.findByRole("region", {
+        name: "Was möchtest du erledigen?",
+      }),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Schließen" }));
+    await user.click(screen.getAllByRole("button", { name: "Übersicht" })[0]!);
+    await user.click(screen.getByRole("button", { name: /Termin erstellen/ }));
+    expect(
+      await screen.findByRole("region", { name: "Zeit bewusst einplanen" }),
+    ).toBeVisible();
+  });
+
+  it("zeigt einen verständlichen Dashboard-Fehler mit Wiederholungsaktion", async () => {
+    installApi({ dashboardError: true });
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Das Dashboard ist vorübergehend nicht verfügbar.",
+    );
+    expect(
+      screen.getByRole("button", { name: "Erneut versuchen" }),
+    ).toBeEnabled();
   });
 
   it("zeigt einen leeren Kalender mit klarer nächster Aktion", async () => {

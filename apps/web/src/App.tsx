@@ -3,6 +3,7 @@ import type {
   CalendarResponse,
   CreateTaskEventLinkRequest,
   CreateTaskRequest,
+  DashboardResponse,
   ProfileResponse,
   TaskResponse,
   TaskEventLinkResponse,
@@ -39,7 +40,11 @@ export const App = () => {
   const [taskEventLinks, setTaskEventLinks] = useState<TaskEventLinkResponse[]>(
     [],
   );
+  const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [view, setView] = useState<View>("dashboard");
+  const [createRequest, setCreateRequest] = useState<"task" | "event" | null>(
+    null,
+  );
   const [loginPending, setLoginPending] = useState(false);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [tasksLoading, setTasksLoading] = useState(false);
@@ -48,6 +53,8 @@ export const App = () => {
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [calendarWarning, setCalendarWarning] = useState<string | null>(null);
   const [taskError, setTaskError] = useState<string | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [taskSuccess, setTaskSuccess] = useState<string | null>(null);
 
@@ -89,6 +96,22 @@ export const App = () => {
     setTaskEventLinks(await api.listTaskEventLinks());
   }, []);
 
+  const loadDashboard = useCallback(async () => {
+    setDashboardLoading(true);
+    setDashboardError(null);
+    try {
+      setDashboard(await api.getDashboard());
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401) {
+        setSession("anonymous");
+      } else {
+        setDashboardError(errorMessage(error));
+      }
+    } finally {
+      setDashboardLoading(false);
+    }
+  }, []);
+
   const loadAuthenticatedData = useCallback(async () => {
     const [loadedProfile, loadedCalendars, loadedTasks, loadedLinks] =
       await Promise.all([
@@ -105,10 +128,13 @@ export const App = () => {
       loadedCalendars.find((calendar) => calendar.isPrimary) ??
       loadedCalendars[0];
     setSelectedCalendarId(selected?.id ?? null);
-    if (selected) await loadEvents(selected.id);
-    else setEvents([]);
+    if (!selected) setEvents([]);
     setSession("authenticated");
-  }, [loadEvents]);
+    await Promise.all([
+      selected ? loadEvents(selected.id) : Promise.resolve(),
+      loadDashboard(),
+    ]);
+  }, [loadDashboard, loadEvents]);
 
   useEffect(() => {
     // Der initiale API-Aufruf synchronisiert React mit der lokalen Sitzung.
@@ -146,6 +172,7 @@ export const App = () => {
     setEvents([]);
     setTasks([]);
     setTaskEventLinks([]);
+    setDashboard(null);
     setSelectedCalendarId(null);
     setLoginError(null);
   };
@@ -179,7 +206,7 @@ export const App = () => {
         await api.createEvent(selectedCalendarId, payload);
         setSuccess("Der Termin wurde angelegt.");
       }
-      await loadEvents(selectedCalendarId);
+      await Promise.all([loadEvents(selectedCalendarId), loadDashboard()]);
     } catch (error) {
       if (
         error instanceof ApiClientError &&
@@ -207,7 +234,11 @@ export const App = () => {
     try {
       await api.deleteEvent(selectedCalendarId, event.uid, event.etag);
       setSuccess("Der Termin wurde gelöscht.");
-      await Promise.all([loadEvents(selectedCalendarId), loadTaskEventLinks()]);
+      await Promise.all([
+        loadEvents(selectedCalendarId),
+        loadTaskEventLinks(),
+        loadDashboard(),
+      ]);
     } catch (error) {
       if (
         error instanceof ApiClientError &&
@@ -241,7 +272,7 @@ export const App = () => {
         await api.createTask(payload as CreateTaskRequest);
         setTaskSuccess("Die Aufgabe wurde angelegt.");
       }
-      await loadTasks();
+      await Promise.all([loadTasks(), loadDashboard()]);
     } catch (error) {
       setTaskError(errorMessage(error));
       throw error;
@@ -257,7 +288,7 @@ export const App = () => {
     try {
       await api.updateTask(taskId, payload);
       setTaskSuccess("Die Aufgabe wurde aktualisiert.");
-      await loadTasks();
+      await Promise.all([loadTasks(), loadDashboard()]);
     } catch (error) {
       setTaskError(errorMessage(error));
       throw error;
@@ -273,7 +304,7 @@ export const App = () => {
     try {
       await api.deleteTask(taskId);
       setTaskSuccess("Die Aufgabe wurde gelöscht.");
-      await Promise.all([loadTasks(), loadTaskEventLinks()]);
+      await Promise.all([loadTasks(), loadTaskEventLinks(), loadDashboard()]);
     } catch (error) {
       setTaskError(errorMessage(error));
       throw error;
@@ -350,9 +381,20 @@ export const App = () => {
       {view === "dashboard" ? (
         <Dashboard
           profile={profile}
-          calendars={calendars}
-          events={events}
+          snapshot={dashboard}
+          loading={dashboardLoading}
+          error={dashboardError}
+          onReload={() => void loadDashboard()}
+          onOpenTasks={() => setView("tasks")}
           onOpenCalendar={() => setView("calendar")}
+          onCreateTask={() => {
+            setCreateRequest("task");
+            setView("tasks");
+          }}
+          onCreateEvent={() => {
+            setCreateRequest("event");
+            setView("calendar");
+          }}
         />
       ) : view === "tasks" ? (
         <TaskWorkspace
@@ -365,6 +407,8 @@ export const App = () => {
           saving={saving}
           error={taskError}
           success={taskSuccess}
+          createRequested={createRequest === "task"}
+          onCreateRequestHandled={() => setCreateRequest(null)}
           onReload={() => void loadTasks()}
           onSave={saveTask}
           onUpdate={updateTask}
@@ -385,6 +429,8 @@ export const App = () => {
           error={calendarError}
           warning={calendarWarning}
           success={success}
+          createRequested={createRequest === "event"}
+          onCreateRequestHandled={() => setCreateRequest(null)}
           onCalendarChange={changeCalendar}
           onReload={() => {
             setCalendarWarning(null);

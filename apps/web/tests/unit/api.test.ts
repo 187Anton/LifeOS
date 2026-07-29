@@ -199,4 +199,29 @@ describe("API-Client", () => {
       eventUid: "termin-1",
     });
   });
+
+  it("lädt den Organisations-Snapshot rein lesend aus der v1-API", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          generatedAt: "2032-05-01T00:00:00.000Z",
+          timezone: "Europe/Berlin",
+          tasks: [],
+          events: [],
+          projects: [],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.getDashboard();
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/v1/dashboard");
+    expect(init.credentials).toBe("include");
+    expect(init.method).toBeUndefined();
+    expect(init.body).toBeUndefined();
+  });
 });
