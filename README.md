@@ -13,7 +13,7 @@ Fachlogik wird schrittweise ergänzt.
 - Node.js und TypeScript für die API
 - PostgreSQL als relationale Datenbank
 - Docker Compose für die lokale Infrastruktur
-- responsive Weboberfläche mit späterer PWA-Nutzung
+- eine responsive Weboberfläche mit installierbarer PWA-App-Shell
 - CalDAV-Server ab dem Fundament, damit Termine ohne installierte LifeOS-App
   in Apple Kalender sichtbar werden können
 - lokale Speicherung und synthetische Beispieldaten
@@ -65,8 +65,8 @@ externe Assets bleiben unter ihren jeweiligen Lizenzen.
 
 ```text
 apps/
-api/ Backend und spätere CalDAV-Schnittstelle
-web/ React-Weboberfläche
+api/ Backend und CalDAV-Schnittstelle
+web/ responsive React-Weboberfläche und PWA-App-Shell
 
 packages/
 contracts/ Gemeinsame API- und Datenverträge
@@ -126,38 +126,126 @@ npm run db:stop
 `db:stop` entfernt keine Daten. Das benannte Docker-Volume `lifeos-postgres`
 bleibt erhalten und wird beim nächsten Start wieder verwendet.
 
-Die Anwendung selbst wird nach dem Scaffolding von API und Weboberfläche über
-die jeweiligen Workspace-Skripte gestartet. Bis dahin prüft der Repository-
-Check die Compose-Konfiguration:
+Nach dem Datenbankstart kann die API lokal gestartet werden:
+
+```bash
+npm run api:start
+```
+
+Sie bindet standardmäßig nur an `127.0.0.1:3000`. Der Health-Endpunkt unter
+`/api/v1/health` prüft den HTTP-Prozess, während `/api/v1/readiness` zusätzlich
+eine echte PostgreSQL-Verbindung prüft. Details und Fehlervertrag stehen in
+[apps/api/README.md](apps/api/README.md).
+
+Nach lokaler Anmeldung stehen außerdem Kalender- und Ereignis-CRUD unter
+`/api/v1/calendars` bereit. Ereignisänderungen verwenden ETags und `If-Match`,
+damit ein veralteter Client keinen neueren Stand überschreibt.
+
+Der CalDAV-Server liegt unabhängig von der REST-API unter `/caldav/`. Sein
+Zugang wird getrennt von der Browser-Anmeldung gesetzt und widerrufen:
+
+```bash
+read -s LIFEOS_CALDAV_PASSWORD
+export LIFEOS_CALDAV_PASSWORD
+npm run caldav:bootstrap
+unset LIFEOS_CALDAV_PASSWORD
+```
+
+Für einen Client auf demselben Rechner lautet die Account-URL
+`http://127.0.0.1:3000/caldav/`, der Benutzername ist `local`. Mit
+`npm run caldav:revoke` lässt sich nur dieser Zugang sperren.
+
+Auf einem iPhone bezeichnet `localhost` das iPhone, nicht den
+Entwicklungsrechner. Für Apple Kalender muss die API deshalb bewusst im
+vertrauenswürdigen lokalen Netz gebunden werden, beispielsweise mit
+`API_HOST=0.0.0.0 npm run api:start`. Als Server dient dann die LAN-Adresse des
+Rechners mit Port `3000` und Pfad `/caldav/`. Der erste lokale Betrieb nutzt
+HTTP Basic Auth und darf nicht ohne TLS oder Reverse Proxy ins öffentliche
+Internet gestellt werden. Details stehen in
+[apps/api/README.md](apps/api/README.md).
+
+Vor dem ersten geschützten Profilzugriff wird einmalig ein lokales Passwort
+gesetzt. Es wird nicht in `.env` oder im Frontend gespeichert:
+
+```bash
+read -s LIFEOS_BOOTSTRAP_PASSWORD
+export LIFEOS_BOOTSTRAP_PASSWORD
+npm run auth:bootstrap
+unset LIFEOS_BOOTSTRAP_PASSWORD
+```
+
+Anschließend werden API und Weboberfläche in zwei Terminals gestartet:
+
+```bash
+npm run api:start
+npm run web:dev
+```
+
+Die Oberfläche ist unter `http://127.0.0.1:5173` erreichbar. Sie verwendet
+einen lokalen API-Proxy, zeigt Kalender und Termine auf Desktop und Smartphone
+an und kann Termine anlegen sowie bearbeiten. Ein Produktions-Build erzeugt
+zusätzlich Manifest und Offline-App-Shell:
+
+```bash
+npm run build --workspace @lifeos/web
+npm run web:preview
+```
+
+Die App-Shell ist offline verfügbar; persönliche API-Daten werden absichtlich
+nicht offline gecacht und nicht in `localStorage` oder `sessionStorage`
+geschrieben. Details stehen in [apps/web/README.md](apps/web/README.md).
+
+Die allgemeinen Repository-Prüfungen lauten:
 
 ```bash
 npm install
 npm run format:check
 npm run repo:check
+npm run security:secrets
+npm run db:verify:recovery
 npm test
 ```
 
-`npm test` führt bereits echte Repository-Vertragstests aus. Die Ausgaben der
-API- und Web-Workspaces sind bis zu den Arbeitspaketen 0.1.4 und 0.1.8 noch
-ausdrücklich als Platzhalter markiert; sie gelten nicht als implementierte
-Anwendungstests.
+`npm test` führt Repository-, Datenbank-, API- und Web-Tests aus. Für die
+Playwright-End-to-End-Tests wird ein lokal verfügbares Chrome benötigt.
+Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
+[docs/foundation-verification.md](docs/foundation-verification.md).
 
 ### Aktuell verfügbare Befehle
 
-| Aufgabe                                    | Befehl                 |
-| ------------------------------------------ | ---------------------- |
-| Abhängigkeiten installieren                | `npm ci`               |
-| Docker und lokale Konfiguration prüfen     | `npm run env:check`    |
-| Datenbank starten und Verbindung prüfen    | `npm run db:start`     |
-| Datenbankstatus und SQL-Verbindung prüfen  | `npm run db:check`     |
-| Lokale Dienste ohne Datenverlust stoppen   | `npm run db:stop`      |
-| Compose-Konfiguration ohne Start prüfen    | `npm run repo:check`   |
-| Formatierung prüfen                        | `npm run format:check` |
-| Repository- und vorhandene Workspace-Tests | `npm test`             |
+| Aufgabe                                       | Befehl                       |
+| --------------------------------------------- | ---------------------------- |
+| Abhängigkeiten installieren                   | `npm ci`                     |
+| Docker und lokale Konfiguration prüfen        | `npm run env:check`          |
+| Datenbank starten und Verbindung prüfen       | `npm run db:start`           |
+| Datenbankstatus und SQL-Verbindung prüfen     | `npm run db:check`           |
+| Lokale Dienste ohne Datenverlust stoppen      | `npm run db:stop`            |
+| Prisma-Schema prüfen                          | `npm run db:validate`        |
+| Versionierte Migrationen anwenden             | `npm run db:migrate`         |
+| Synthetische Seed-Daten anlegen               | `npm run db:seed`            |
+| Datenbank-Integrationstest ausführen          | `npm run db:test`            |
+| Lokales PostgreSQL-Backup erstellen           | `npm run db:backup`          |
+| Backup sicher in neue Datenbank restaurieren  | `npm run db:restore -- …`    |
+| Migration, Backup und Restore isoliert prüfen | `npm run db:verify:recovery` |
+| API lokal starten                             | `npm run api:start`          |
+| API im Watch-Modus starten                    | `npm run api:dev`            |
+| Weboberfläche lokal starten                   | `npm run web:dev`            |
+| Gebaute Weboberfläche lokal prüfen            | `npm run web:preview`        |
+| Lokales Passwort setzen/Sitzungen widerrufen  | `npm run auth:bootstrap`     |
+| Getrennten CalDAV-Zugang setzen               | `npm run caldav:bootstrap`   |
+| Getrennten CalDAV-Zugang widerrufen           | `npm run caldav:revoke`      |
+| Workspaces linten                             | `npm run lint`               |
+| Workspaces typprüfen                          | `npm run typecheck`          |
+| Anwendungen und Packages bauen                | `npm run build`              |
+| Compose-Konfiguration ohne Start prüfen       | `npm run repo:check`         |
+| Versionierte Dateien auf Secrets prüfen       | `npm run security:secrets`   |
+| Formatierung prüfen                           | `npm run format:check`       |
+| Repository- und vorhandene Workspace-Tests    | `npm test`                   |
 
-Migration, Seed, API-/Web-Start, Linting, Typecheck und Build werden mit den
-zugehörigen Arbeitspaketen ergänzt. Bis dahin werden dafür keine erfolgreichen
-Platzhalterbefehle behauptet.
+Details zu Web- und PWA-Prüfungen stehen in
+[apps/web/README.md](apps/web/README.md). Details zu Schemaänderungen,
+Zeitwerten und Migrationssicherheit stehen in
+[packages/database/README.md](packages/database/README.md).
 
 ### Häufige Docker-Probleme
 
@@ -178,10 +266,12 @@ mit entbehrlichen, gesicherten Testdaten verwendet werden.
 ## Daten und Backups
 
 Lokale Dokumentdaten liegen unter `data/`, PostgreSQL-Daten im benannten
-Docker-Volume `lifeos-postgres`; beides wird nicht versioniert. Vor späteren
-Datenbankmigrationen müssen ein PostgreSQL-Backup und eine Sicherung des
-Dokumentenverzeichnisses erstellt werden. Die konkreten Backup- und
-Wiederherstellungsbefehle werden mit der Datenbankimplementierung ergänzt.
+Docker-Volume `lifeos-postgres`; beides wird nicht versioniert. Prisma-
+Migrationen liegen dagegen versioniert unter
+`packages/database/prisma/migrations/`. Vor potenziell verlustbehafteten
+Migrationen müssen ein PostgreSQL-Backup und eine Sicherung des
+Dokumentenverzeichnisses erstellt werden. Der vollständige automatisierte
+Backup-/Wiederherstellungstest folgt im Absicherungspaket 0.1.9.
 
 ## GitHub-Planung einrichten
 
