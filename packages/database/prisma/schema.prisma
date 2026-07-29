@@ -20,6 +20,8 @@ model User {
   calDavCredential CalDavCredential?
   sessions         UserSession[]
   calendars        Calendar[]
+  projects         Project[]
+  tasks            Task[]
   auditEvents      AuditEvent[]
 }
 
@@ -117,6 +119,78 @@ model CalendarEvent {
   @@index([calendarId, startDate])
   @@index([calendarId, deletedAt])
   @@index([calendarId, syncVersion])
+}
+
+enum TaskStatus {
+  open
+  in_progress
+  blocked
+  done
+  cancelled
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+  critical
+}
+
+enum TaskArea {
+  study
+  work
+  projects
+  finance
+  fitness
+  personal
+}
+
+model Project {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  title      String    @db.VarChar(500)
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @db.Timestamptz(3)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks      Task[]
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt])
+}
+
+model Task {
+  id                       String       @id @default(uuid()) @db.Uuid
+  userId                   String       @db.Uuid
+  title                    String       @db.VarChar(500)
+  description              String?
+  status                   TaskStatus   @default(open)
+  priority                 TaskPriority @default(medium)
+  dueDate                  DateTime?    @db.Date
+  scheduledStartAt         DateTime?    @db.Timestamptz(3)
+  scheduledStartTimezone   String?      @db.VarChar(100)
+  estimatedDurationMinutes Int?
+  tags                     String[]     @default([])
+  area                     TaskArea     @default(personal)
+  projectId                String?      @db.Uuid
+  parentTaskId             String?      @db.Uuid
+  completedAt              DateTime?    @db.Timestamptz(3)
+  archivedAt               DateTime?    @db.Timestamptz(3)
+  deletedAt                DateTime?    @db.Timestamptz(3)
+  createdAt                DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime     @updatedAt @db.Timestamptz(3)
+  user                     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project                  Project?     @relation(fields: [projectId, userId], references: [id, userId], onDelete: Restrict)
+  parentTask               Task?        @relation("TaskHierarchy", fields: [parentTaskId, userId], references: [id, userId], onDelete: Restrict)
+  subtasks                 Task[]       @relation("TaskHierarchy")
+
+  @@unique([id, userId])
+  @@index([userId, deletedAt, archivedAt])
+  @@index([userId, status, dueDate])
+  @@index([userId, priority, dueDate])
+  @@index([userId, area, dueDate])
+  @@index([parentTaskId])
+  @@index([projectId])
 }
 
 model AuditEvent {

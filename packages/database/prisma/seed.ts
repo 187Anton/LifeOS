@@ -15,6 +15,8 @@ const SYNTHETIC_USER_ID = "00000000-0000-4000-8000-000000000001";
 const SYNTHETIC_CALENDAR_ID = "00000000-0000-4000-8000-000000000002";
 const SYNTHETIC_EVENT_ID = "00000000-0000-4000-8000-000000000003";
 const SYNTHETIC_AUDIT_ID = "00000000-0000-4000-8000-000000000004";
+const SYNTHETIC_TASK_ID = "00000000-0000-4000-8000-000000000005";
+const SYNTHETIC_PROJECT_ID = "00000000-0000-4000-8000-000000000006";
 
 const seed = async () => {
   const database = createDatabaseClient();
@@ -74,6 +76,35 @@ const seed = async () => {
         endsAt: new Date("2030-01-15T18:00:00.000Z"),
         timezone: "Europe/Berlin",
         etag: '"seed-v1"',
+      },
+    });
+
+    const project = await database.project.upsert({
+      where: { id: SYNTHETIC_PROJECT_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_PROJECT_ID,
+        userId: user.id,
+        title: "Synthetisches LifeOS-Projekt",
+      },
+    });
+
+    await database.task.upsert({
+      where: { id: SYNTHETIC_TASK_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_TASK_ID,
+        userId: user.id,
+        title: "Synthetische LifeOS-Aufgabe",
+        description: "Lokaler Beispieldatensatz für Entwicklung und Tests.",
+        priority: "high",
+        dueDate: new Date("2030-01-16T00:00:00.000Z"),
+        scheduledStartAt: new Date("2030-01-15T15:00:00.000Z"),
+        scheduledStartTimezone: "Europe/Berlin",
+        estimatedDurationMinutes: 60,
+        tags: ["organisation", "synthetisch"],
+        area: "projects",
+        projectId: project.id,
       },
     });
 

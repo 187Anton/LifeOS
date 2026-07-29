@@ -74,7 +74,11 @@ FROM (
   UNION ALL
   SELECT 6, 'event|' || uid || '|' || title || '|' || timezone || '|' || "isAllDay"::text || '|' || coalesce("startsAt"::text, '') || '|' || coalesce("startDate"::text, '') || '|' || coalesce("recurrenceRule", '') || '|' || "reminderMinutes"::text || '|' || etag || '|' || sequence::text || '|' || "syncVersion"::text FROM "CalendarEvent"
   UNION ALL
-  SELECT 7, 'audit-count|' || count(*)::text FROM "AuditEvent"
+  SELECT 7, 'project|' || id::text || '|' || "userId"::text || '|' || title || '|' || coalesce("archivedAt"::text, '') FROM "Project"
+  UNION ALL
+  SELECT 8, 'task|' || id::text || '|' || "userId"::text || '|' || title || '|' || status::text || '|' || priority::text || '|' || coalesce("dueDate"::text, '') || '|' || coalesce("scheduledStartAt"::text, '') || '|' || coalesce("scheduledStartTimezone", '') || '|' || coalesce("estimatedDurationMinutes"::text, '') || '|' || tags::text || '|' || area::text || '|' || coalesce("projectId"::text, '') || '|' || coalesce("parentTaskId"::text, '') || '|' || coalesce("completedAt"::text, '') || '|' || coalesce("archivedAt"::text, '') || '|' || coalesce("deletedAt"::text, '') FROM "Task"
+  UNION ALL
+  SELECT 9, 'audit-count|' || count(*)::text FROM "AuditEvent"
 ) AS stable_values
 ORDER BY ordinal, value;
 SQL

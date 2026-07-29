@@ -141,6 +141,13 @@ Nach lokaler Anmeldung stehen außerdem Kalender- und Ereignis-CRUD unter
 `/api/v1/calendars` bereit. Ereignisänderungen verwenden ETags und `If-Match`,
 damit ein veralteter Client keinen neueren Stand überschreibt.
 
+Aufgaben werden nach lokaler Anmeldung unter `/api/v1/tasks` verwaltet. Das
+Aufgabenmodell unterstützt Status, Priorität, Fälligkeit als reines Datum,
+optionale geplante Startzeit mit IANA-Zeitzone, ganzzahlige Dauerminuten, Tags,
+Bereich, Projekt- und Elternbezug sowie Archivierung und Soft-Delete. Die
+Aufgabenoberfläche folgt im nächsten Roadmap-Arbeitspaket; die API speichert
+bereits alle Änderungen besitzgebunden und mit Audit-Ereignissen.
+
 Der CalDAV-Server liegt unabhängig von der REST-API unter `/caldav/`. Sein
 Zugang wird getrennt von der Browser-Anmeldung gesetzt und widerrufen:
 
