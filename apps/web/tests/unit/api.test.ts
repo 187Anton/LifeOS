@@ -55,6 +55,20 @@ describe("API-Client", () => {
     expect(init.method).toBe("PUT");
   });
 
+  it("verwendet auch beim Löschen den aktuellen ETag als If-Match", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.deleteEvent("kalender-1", "termin/1", '"etag-2"');
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/v1/calendars/kalender-1/events/termin%2F1");
+    expect(init.method).toBe("DELETE");
+    expect(new Headers(init.headers).get("If-Match")).toBe('"etag-2"');
+  });
+
   it("bildet versionierte API-Fehler auf einen typisierten Fehler ab", async () => {
     vi.stubGlobal(
       "fetch",

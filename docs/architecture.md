@@ -103,6 +103,14 @@ Erinnerungsminuten werden verlustarm gespeichert und erst in der CalDAV-
 Schicht in iCalendar übersetzt. Löschungen setzen Markierungen statt Daten
 physisch zu entfernen; dadurch können spätere Sync-Reports Löschungen melden.
 
+Die React-Kalenderansichten sind ausschließlich eine flüchtige Projektion
+dieser Ereignisse. Tages-, Wochen-, Monats- und Agendaansicht erzeugen weder
+eigene Ereignisdatensätze noch neue UIDs. Unterstützte RRULE-Vorkommen werden
+für den sichtbaren Zeitraum berechnet; Bearbeiten und Löschen adressiert stets
+das führende Serienereignis mit dessen stabiler UID und aktuellem ETag.
+Aufgabenstatus oder spätere Aufgabenverknüpfungen werden nicht in diese
+Kalenderprojektion kopiert.
+
 ## Aufgaben-Kernmodell
 
 Aufgaben sind ein eigenes Fachmodul und werden nicht als Kalenderereignisse
