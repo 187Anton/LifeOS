@@ -81,6 +81,7 @@ const initialTask = {
 const installApi = async (page: Page) => {
   const events: Array<Record<string, unknown>> = [{ ...initialEvent }];
   const tasks: Array<Record<string, unknown>> = [{ ...initialTask }];
+  const links: Array<Record<string, unknown>> = [];
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -92,6 +93,51 @@ const installApi = async (page: Page) => {
     }
     if (path === "/api/v1/calendars" && method === "GET") {
       await route.fulfill({ json: [calendar] });
+      return;
+    }
+    if (path === "/api/v1/task-event-links" && method === "GET") {
+      await route.fulfill({ json: links });
+      return;
+    }
+    if (path === "/api/v1/task-event-links" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, string>;
+      const linkedTask = tasks.find((task) => task.id === payload.taskId)!;
+      const linkedEvent = events.find(
+        (event) => event.uid === payload.eventUid,
+      )!;
+      const existing = links.find(
+        (link) =>
+          (link.task as Record<string, unknown>).id === linkedTask.id &&
+          (link.event as Record<string, unknown>).uid === linkedEvent.uid,
+      );
+      if (existing) {
+        await route.fulfill({ json: existing });
+        return;
+      }
+      const created = {
+        id: `link-${links.length + 1}`,
+        task: {
+          id: linkedTask.id,
+          title: linkedTask.title,
+          available: true,
+        },
+        event: {
+          calendarId: payload.calendarId,
+          uid: linkedEvent.uid,
+          title: linkedEvent.title,
+          available: true,
+        },
+        createdAt: "2026-07-29T13:00:00.000Z",
+      };
+      links.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    if (path.startsWith("/api/v1/task-event-links/") && method === "DELETE") {
+      const linkId = path.split("/").at(-1);
+      const index = links.findIndex((link) => link.id === linkId);
+      if (index >= 0) links.splice(index, 1);
+      await route.fulfill({ status: 204, body: "" });
       return;
     }
     if (path === "/api/v1/calendars/kalender-1/events" && method === "GET") {
@@ -259,6 +305,16 @@ test("zeigt die lokale Übersicht und speichert Termine ohne Browserpersistenz",
   await page
     .getByRole("button", { name: "Fokusblock aktualisiert bearbeiten" })
     .click();
+  const eventEditor = page.locator(".event-editor");
+  await eventEditor.getByLabel("Aufgabe auswählen").selectOption("aufgabe-1");
+  await eventEditor.getByRole("button", { name: "Verknüpfen" }).click();
+  await expect(eventEditor.getByText("Roadmap prüfen")).toBeVisible();
+  await eventEditor
+    .getByRole("button", {
+      name: "Verknüpfung mit Roadmap prüfen entfernen",
+    })
+    .click();
+  await expect(eventEditor.getByText("Noch keine Verknüpfung.")).toBeVisible();
   await page.getByRole("button", { name: "Löschen" }).click();
   await page.getByRole("button", { name: "Endgültig löschen" }).click();
   await expect(page.getByText("Fokusblock aktualisiert")).toHaveCount(0);

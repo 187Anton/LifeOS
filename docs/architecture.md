@@ -131,6 +131,22 @@ Der `Project`-Datensatz ist in Phase 0.2 nur ein stabiler, besitzgebundener
 Anker für die optionale Aufgabenrelation. Projekt-CRUD, Ziele und Meilensteine
 gehören weiterhin in Roadmap 0.4 und werden nicht vorweggenommen.
 
+## Aufgaben-Termin-Beziehung
+
+Aufgabe, geplante Bearbeitungszeit und tatsächlich stattfindender Termin
+bleiben getrennte Fachkonzepte. Eine Aufgabenfälligkeit und die optionale
+Aufgaben-Startplanung gehören zum Aufgabenmodell. Beginn und Ende eines
+Termins oder eines ausdrücklich angelegten Zeitblocks gehören weiterhin zum
+Kalenderkern.
+
+`TaskEventLink` speichert ausschließlich die Beziehung zwischen beiden
+Objekten und den serverseitig geprüften Besitzer. Zusammengesetzte
+Fremdschlüssel verhindern Beziehungen über Benutzergrenzen; ein eindeutiger
+Schlüssel macht wiederholtes Verknüpfen idempotent. Es werden weder
+Aufgabenstatus noch Terminzeiten kopiert. Soft-Deletes bleiben als nicht
+verfügbare Beziehungspartner sichtbar. Das Ändern, Abschließen oder Löschen
+eines Objekts löst keine unbestätigte Änderung am anderen Objekt aus.
+
 ## CalDAV
 
 Das Life OS soll selbst als CalDAV-Server auftreten. Dadurch kann die
@@ -169,6 +185,8 @@ Integration und darf die lokale Kernfunktion nicht voraussetzen.
 - Persönliche Datensätze tragen einen Besitzerbezug. Ereignisse sichern die
   Kombination aus Kalender und Benutzer zusätzlich per Fremdschlüssel ab;
   Aufgaben sichern Eltern- und Projektbezüge entsprechend ab.
+  Aufgaben-Termin-Beziehungen prüfen Aufgabe und Ereignis mit demselben
+  Besitzerbezug.
 - Absolute Zeitpunkte liegen als `TIMESTAMPTZ`, ganztägige Kalenderwerte als
   reine `DATE`-Spalten vor; die fachliche Zeitzone wird getrennt gespeichert.
   Aufgabenfälligkeiten sind ebenfalls reine `DATE`-Werte, geplante

@@ -1,9 +1,11 @@
 import type {
   CalendarEventResponse,
   CalendarResponse,
+  CreateTaskEventLinkRequest,
   CreateTaskRequest,
   ProfileResponse,
   TaskResponse,
+  TaskEventLinkResponse,
   UpdateTaskRequest,
 } from "@lifeos/contracts";
 import { useCallback, useEffect, useState } from "react";
@@ -34,6 +36,9 @@ export const App = () => {
   );
   const [events, setEvents] = useState<CalendarEventResponse[]>([]);
   const [tasks, setTasks] = useState<TaskResponse[]>([]);
+  const [taskEventLinks, setTaskEventLinks] = useState<TaskEventLinkResponse[]>(
+    [],
+  );
   const [view, setView] = useState<View>("dashboard");
   const [loginPending, setLoginPending] = useState(false);
   const [eventsLoading, setEventsLoading] = useState(false);
@@ -80,15 +85,22 @@ export const App = () => {
     }
   }, []);
 
+  const loadTaskEventLinks = useCallback(async () => {
+    setTaskEventLinks(await api.listTaskEventLinks());
+  }, []);
+
   const loadAuthenticatedData = useCallback(async () => {
-    const [loadedProfile, loadedCalendars, loadedTasks] = await Promise.all([
-      api.getProfile(),
-      api.listCalendars(),
-      api.listTasks(true),
-    ]);
+    const [loadedProfile, loadedCalendars, loadedTasks, loadedLinks] =
+      await Promise.all([
+        api.getProfile(),
+        api.listCalendars(),
+        api.listTasks(true),
+        api.listTaskEventLinks(),
+      ]);
     setProfile(loadedProfile);
     setCalendars(loadedCalendars);
     setTasks(loadedTasks);
+    setTaskEventLinks(loadedLinks);
     const selected =
       loadedCalendars.find((calendar) => calendar.isPrimary) ??
       loadedCalendars[0];
@@ -133,6 +145,7 @@ export const App = () => {
     setCalendars([]);
     setEvents([]);
     setTasks([]);
+    setTaskEventLinks([]);
     setSelectedCalendarId(null);
     setLoginError(null);
   };
@@ -194,7 +207,7 @@ export const App = () => {
     try {
       await api.deleteEvent(selectedCalendarId, event.uid, event.etag);
       setSuccess("Der Termin wurde gelöscht.");
-      await loadEvents(selectedCalendarId);
+      await Promise.all([loadEvents(selectedCalendarId), loadTaskEventLinks()]);
     } catch (error) {
       if (
         error instanceof ApiClientError &&
@@ -260,9 +273,51 @@ export const App = () => {
     try {
       await api.deleteTask(taskId);
       setTaskSuccess("Die Aufgabe wurde gelöscht.");
-      await loadTasks();
+      await Promise.all([loadTasks(), loadTaskEventLinks()]);
     } catch (error) {
       setTaskError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const createTaskEventLink = async (input: CreateTaskEventLinkRequest) => {
+    setSaving(true);
+    setTaskError(null);
+    setCalendarError(null);
+    try {
+      await api.createTaskEventLink(input);
+      await loadTaskEventLinks();
+      if (view === "tasks") {
+        setTaskSuccess("Aufgabe und Termin wurden verknüpft.");
+      } else {
+        setSuccess("Termin und Aufgabe wurden verknüpft.");
+      }
+    } catch (error) {
+      if (view === "tasks") setTaskError(errorMessage(error));
+      else setCalendarError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteTaskEventLink = async (linkId: string) => {
+    setSaving(true);
+    setTaskError(null);
+    setCalendarError(null);
+    try {
+      await api.deleteTaskEventLink(linkId);
+      await loadTaskEventLinks();
+      if (view === "tasks") {
+        setTaskSuccess("Die Aufgaben-Termin-Verknüpfung wurde entfernt.");
+      } else {
+        setSuccess("Die Termin-Aufgaben-Verknüpfung wurde entfernt.");
+      }
+    } catch (error) {
+      if (view === "tasks") setTaskError(errorMessage(error));
+      else setCalendarError(errorMessage(error));
       throw error;
     } finally {
       setSaving(false);
@@ -302,6 +357,9 @@ export const App = () => {
       ) : view === "tasks" ? (
         <TaskWorkspace
           tasks={tasks}
+          events={events}
+          links={taskEventLinks}
+          selectedCalendarId={selectedCalendarId}
           timezone={profile.settings.timezone}
           loading={tasksLoading}
           saving={saving}
@@ -311,12 +369,16 @@ export const App = () => {
           onSave={saveTask}
           onUpdate={updateTask}
           onDelete={deleteTask}
+          onLink={createTaskEventLink}
+          onUnlink={deleteTaskEventLink}
         />
       ) : (
         <CalendarWorkspace
           calendars={calendars}
           selectedCalendarId={selectedCalendarId}
           events={events}
+          tasks={tasks}
+          links={taskEventLinks}
           initialView={profile.settings.defaultCalendarView}
           loading={eventsLoading}
           saving={saving}
@@ -330,6 +392,8 @@ export const App = () => {
           }}
           onSave={saveEvent}
           onDelete={deleteEvent}
+          onLink={createTaskEventLink}
+          onUnlink={deleteTaskEventLink}
         />
       )}
     </Shell>

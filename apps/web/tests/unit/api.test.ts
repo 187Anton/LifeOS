@@ -142,4 +142,61 @@ describe("API-Client", () => {
       "include",
     ]);
   });
+
+  it("verwaltet Aufgaben-Termin-Beziehungen über den additiven v1-Vertrag", async () => {
+    const link = {
+      id: "link-1",
+      task: { id: "aufgabe-1", title: "Aufgabe", available: true },
+      event: {
+        calendarId: "kalender-1",
+        uid: "termin-1",
+        title: "Termin",
+        available: true,
+      },
+      createdAt: "2026-07-29T13:00:00.000Z",
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(link), {
+          status: 201,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.listTaskEventLinks();
+    await api.createTaskEventLink({
+      taskId: "aufgabe-1",
+      calendarId: "kalender-1",
+      eventUid: "termin-1",
+    });
+    await api.deleteTaskEventLink("link/1");
+
+    const calls = fetchMock.mock.calls as unknown as Array<
+      [string, RequestInit]
+    >;
+    expect(calls.map(([url]) => url)).toEqual([
+      "/api/v1/task-event-links",
+      "/api/v1/task-event-links",
+      "/api/v1/task-event-links/link%2F1",
+    ]);
+    expect(calls.map(([, init]) => init.method ?? "GET")).toEqual([
+      "GET",
+      "POST",
+      "DELETE",
+    ]);
+    expect(JSON.parse(calls[1]?.[1].body as string)).toEqual({
+      taskId: "aufgabe-1",
+      calendarId: "kalender-1",
+      eventUid: "termin-1",
+    });
+  });
 });

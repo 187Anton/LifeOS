@@ -168,8 +168,14 @@ Serienvorkommen, Löschung und veraltete ETags.
 ### 0.2.4 Aufgaben-Termin-Verknüpfung
 
 - Aufgaben mit Ereignissen verknüpfen.
-- Aus einem Termin eine Aufgabe erzeugen können.
 - Verknüpfungen in beiden Detailansichten anzeigen.
+- Verknüpfungen wieder entfernen und nicht verfügbare Objekte anzeigen.
+
+Umsetzungsnachweis: Issue #35 ergänzt eine besitzgebundene, idempotente
+Beziehung ohne kopierte Fachdaten. Aufgabenstatus und Fälligkeit bleiben im
+Aufgabenmodell, Terminbeginn und -ende im Kalenderkern. API-, Datenbank-,
+Unit- und Playwright-Tests prüfen Verknüpfung, Aufhebung, Besitzgrenzen,
+Soft-Delete und ausbleibende Seiteneffekte.
 
 ### 0.2.5 Dashboard
 

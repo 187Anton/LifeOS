@@ -208,3 +208,85 @@ test("erzwingt Besitz, Zeitform und Dauer des Aufgabenmodells", async (t) => {
     }),
   );
 });
+
+test("erzwingt eindeutige besitzgebundene Aufgaben-Termin-Verknüpfungen", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalIds = [
+    `link-database-owner-${suffix}`,
+    `link-database-other-${suffix}`,
+  ];
+
+  t.after(async () => {
+    await database.user.deleteMany({
+      where: { externalId: { in: externalIds } },
+    });
+    await database.$disconnect();
+  });
+
+  const [owner, other] = await Promise.all(
+    externalIds.map((externalId) =>
+      database.user.create({
+        data: {
+          externalId,
+          displayName: "Synthetische Link-Person",
+          settings: { create: {} },
+        },
+      }),
+    ),
+  );
+  assert.ok(owner && other);
+  const calendar = await database.calendar.create({
+    data: {
+      userId: owner.id,
+      externalId: `link-database-calendar-${suffix}`,
+      name: "Synthetischer Link-Kalender",
+    },
+  });
+  const event = await database.calendarEvent.create({
+    data: {
+      userId: owner.id,
+      calendarId: calendar.id,
+      uid: `link-database-event-${suffix}@lifeos.local`,
+      title: "Synthetischer Link-Termin",
+      startsAt: new Date("2032-05-02T08:00:00.000Z"),
+      endsAt: new Date("2032-05-02T09:00:00.000Z"),
+      etag: '"link-database-etag"',
+    },
+  });
+  const [task, foreignTask] = await Promise.all([
+    database.task.create({
+      data: { userId: owner.id, title: "Synthetische Link-Aufgabe" },
+    }),
+    database.task.create({
+      data: { userId: other.id, title: "Fremde Link-Aufgabe" },
+    }),
+  ]);
+
+  const link = await database.taskEventLink.create({
+    data: {
+      userId: owner.id,
+      taskId: task.id,
+      calendarEventId: event.id,
+    },
+  });
+  assert.equal(link.userId, owner.id);
+  await assert.rejects(() =>
+    database.taskEventLink.create({
+      data: {
+        userId: owner.id,
+        taskId: task.id,
+        calendarEventId: event.id,
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.taskEventLink.create({
+      data: {
+        userId: owner.id,
+        taskId: foreignTask.id,
+        calendarEventId: event.id,
+      },
+    }),
+  );
+});

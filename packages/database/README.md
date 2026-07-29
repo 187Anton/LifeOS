@@ -30,6 +30,9 @@ Entwicklungsdaten.
   Projekt-/Elternbezug sowie Abschluss-, Archivierungs- und Löschzeitpunkte.
   Zusammengesetzte Fremdschlüssel verhindern fremde Elternaufgaben oder
   Projektzuordnungen.
+- `TaskEventLink` speichert ausschließlich die besitzgebundene Beziehung
+  zwischen Aufgabe und Kalenderereignis. Eine zusammengesetzte Eindeutigkeit
+  verhindert Duplikate; Fachdaten werden nicht kopiert.
 - `AuditEvent` hält nachvollziehbare Änderungen mit Benutzer- und
   Entitätsbezug fest; Secrets gehören nicht in `metadata`.
 
@@ -75,8 +78,8 @@ npm run db:verify:recovery
 - `db:generate` erzeugt den nicht versionierten TypeScript-Client.
 - `db:migrate` wendet ausschließlich vorhandene, versionierte Migrationen an.
 - `db:seed` legt wiederholbar dieselbe synthetische Person, Einstellungen,
-  einen Kalender, ein Ereignis, einen Projektanker, eine Aufgabe und ein
-  Audit-Ereignis an.
+  einen Kalender, ein Ereignis, einen Projektanker, eine Aufgabe, deren
+  Beziehung und ein Audit-Ereignis an.
 - `db:test` speichert und liest einen eigenen synthetischen Datensatz und
   entfernt ihn anschließend wieder.
 - `db:backup` schreibt einen Custom-Format-Dump samt SHA-256-Prüfsumme in das

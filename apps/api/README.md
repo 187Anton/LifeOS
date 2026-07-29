@@ -121,6 +121,8 @@ unset CALDAV_TEST_PASSWORD
 | `GET/PUT/DELETE /api/v1/calendars/:id/events/:uid` | Ereignis verwalten                               |
 | `GET/POST /api/v1/tasks`                           | Aufgaben filtern oder anlegen                    |
 | `GET/PATCH/DELETE /api/v1/tasks/:taskId`           | Aufgabe lesen, ändern oder soft löschen          |
+| `GET/POST /api/v1/task-event-links`                | Aufgaben-Termin-Beziehungen lesen oder anlegen   |
+| `DELETE /api/v1/task-event-links/:linkId`          | Aufgaben-Termin-Beziehung entfernen              |
 | `/.well-known/caldav`                              | CalDAV-Discovery auf `/caldav/`                  |
 | `/caldav/…`                                        | WebDAV-/CalDAV-Ressourcen                        |
 
@@ -190,6 +192,21 @@ nur eine stabile, besitzgesicherte Relation. Archivierung ist umkehrbar,
 `DELETE` setzt dagegen eine Löschmarkierung. Erstellen, Ändern und Löschen
 erzeugen wertfreie Audit-Ereignisse.
 
+## Aufgaben-Termin-Vertrag
+
+Eine Beziehung verbindet optional genau eine Aufgabe mit genau einem
+Kalenderereignis desselben, aus der Sitzung ermittelten Besitzers. Wiederholtes
+Anlegen derselben Beziehung ist idempotent und erzeugt kein Duplikat. Die API
+nimmt keine Benutzer-ID entgegen und antwortet für fremde oder nicht
+verfügbare Objekte wie bei einem nicht vorhandenen Datensatz.
+
+Die Beziehung speichert keine Kopien von Fachdaten. Aufgabenstatus und
+Fälligkeit bleiben im Aufgabenmodell; Beginn und Ende bleiben im
+Kalendermodell. Das Abschließen oder Löschen einer Aufgabe verändert den Termin
+nicht, und das Löschen eines Termins löscht die Aufgabe nicht. Soft gelöschte
+Objekte werden in bestehenden Beziehungen als nicht verfügbar angezeigt,
+damit die Beziehung nachvollziehbar entfernt werden kann.
+
 Beispiel:
 
 ```bash
@@ -238,6 +255,8 @@ weitergegeben.
   Datenbanktransaktionen und HTTP-Verträge.
 - `modules/tasks/` kapselt Aufgabenstatus, Besitz- und Hierarchieprüfung,
   Datenbanktransaktionen und HTTP-Verträge.
+- `modules/task-event-links/` kapselt besitzgebundene, idempotente Beziehungen
+  zwischen Aufgaben- und Kalenderkern.
 - `modules/caldav/` übersetzt den gemeinsamen Kalenderkern in WebDAV-XML und
   RFC-5545-iCalendar; Zugang, Parser und Transport bleiben von der REST-API
   getrennt.

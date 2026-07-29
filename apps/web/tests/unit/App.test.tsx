@@ -86,15 +86,28 @@ const installApi = ({
   calendars = [calendar],
   events = [event],
   tasks = [task],
+  links = [],
   deleteEventConflict = false,
 }: {
   calendars?: (typeof calendar)[];
   events?: (typeof event)[];
   tasks?: (typeof task)[];
+  links?: Array<{
+    id: string;
+    task: { id: string; title: string | null; available: boolean };
+    event: {
+      calendarId: string;
+      uid: string;
+      title: string | null;
+      available: boolean;
+    };
+    createdAt: string;
+  }>;
   deleteEventConflict?: boolean;
 } = {}) => {
   const eventState = events.map((item) => ({ ...item }));
   const taskState = tasks.map((item) => ({ ...item }));
+  const linkState = links.map((item) => structuredClone(item));
   let conflictReturned = false;
   const fetchMock = vi.fn(
     (request: string | URL | Request, init?: RequestInit) => {
@@ -107,6 +120,47 @@ const installApi = ({
       const method = init?.method ?? "GET";
       if (path === "/api/v1/profile") return json(profile);
       if (path === "/api/v1/calendars") return json(calendars);
+      if (path === "/api/v1/task-event-links" && method === "GET") {
+        return json(linkState);
+      }
+      if (path === "/api/v1/task-event-links" && method === "POST") {
+        const payload = requestBody(init);
+        const linkedTask = taskState.find(
+          (item) => item.id === payload.taskId,
+        )!;
+        const linkedEvent = eventState.find(
+          (item) => item.uid === payload.eventUid,
+        )!;
+        const existing = linkState.find(
+          (item) =>
+            item.task.id === linkedTask.id &&
+            item.event.uid === linkedEvent.uid,
+        );
+        if (existing) return json(existing);
+        const created = {
+          id: `link-${linkState.length + 1}`,
+          task: {
+            id: linkedTask.id,
+            title: linkedTask.title,
+            available: true,
+          },
+          event: {
+            calendarId: String(payload.calendarId),
+            uid: linkedEvent.uid,
+            title: linkedEvent.title,
+            available: true,
+          },
+          createdAt: "2026-07-29T13:00:00.000Z",
+        };
+        linkState.push(created);
+        return json(created, 201);
+      }
+      if (path.startsWith("/api/v1/task-event-links/") && method === "DELETE") {
+        const linkId = path.split("/").at(-1);
+        const index = linkState.findIndex((item) => item.id === linkId);
+        if (index >= 0) linkState.splice(index, 1);
+        return new Response(null, { status: 204 });
+      }
       if (path.endsWith("/events") && method === "GET") {
         return json(eventState);
       }
@@ -202,7 +256,7 @@ const installApi = ({
     },
   );
   vi.stubGlobal("fetch", fetchMock);
-  return { fetchMock, eventState, taskState };
+  return { fetchMock, eventState, taskState, linkState };
 };
 
 afterEach(() => {
@@ -313,6 +367,49 @@ describe("LifeOS-Weboberfläche", () => {
     ).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Ruhiger Fokusblock bearbeiten" }),
+    ).toBeVisible();
+  });
+
+  it("zeigt eine Aufgaben-Termin-Verknüpfung in beiden Editoren", async () => {
+    installApi();
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Aufgaben" })[0]!);
+    await user.click(
+      screen.getByRole("button", { name: "Roadmap prüfen bearbeiten" }),
+    );
+    const taskEditor = screen.getByRole("region", { name: "Roadmap prüfen" });
+    await user.selectOptions(
+      within(taskEditor).getByLabelText("Termin auswählen"),
+      "termin-1",
+    );
+    await user.click(
+      within(taskEditor).getByRole("button", { name: "Verknüpfen" }),
+    );
+    expect(
+      await within(taskEditor).findByText("Ruhiger Fokusblock"),
+    ).toBeVisible();
+    await user.click(
+      within(taskEditor).getByRole("button", { name: "Schließen" }),
+    );
+
+    await user.click(screen.getAllByRole("button", { name: "Kalender" })[0]!);
+    await user.click(
+      screen.getByRole("button", { name: "Ruhiger Fokusblock bearbeiten" }),
+    );
+    const eventEditor = screen.getByRole("region", {
+      name: "Ruhiger Fokusblock",
+    });
+    expect(within(eventEditor).getByText("Roadmap prüfen")).toBeVisible();
+    await user.click(
+      within(eventEditor).getByRole("button", {
+        name: "Verknüpfung mit Roadmap prüfen entfernen",
+      }),
+    );
+    expect(
+      await within(eventEditor).findByText("Noch keine Verknüpfung."),
     ).toBeVisible();
   });
 

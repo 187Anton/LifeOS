@@ -1,8 +1,11 @@
 import type {
+  CalendarEventResponse,
+  CreateTaskEventLinkRequest,
   CreateTaskRequest,
   TaskArea,
   TaskPriority,
   TaskResponse,
+  TaskEventLinkResponse,
   TaskStatus,
   UpdateTaskRequest,
 } from "@lifeos/contracts";
@@ -32,6 +35,9 @@ type DueFilter = "all" | "overdue" | "today" | "upcoming" | "none";
 
 interface TaskWorkspaceProps {
   tasks: TaskResponse[];
+  events: CalendarEventResponse[];
+  links: TaskEventLinkResponse[];
+  selectedCalendarId: string | null;
   timezone: string;
   loading: boolean;
   saving: boolean;
@@ -44,10 +50,15 @@ interface TaskWorkspaceProps {
   ) => Promise<void>;
   onUpdate: (taskId: string, payload: UpdateTaskRequest) => Promise<void>;
   onDelete: (taskId: string) => Promise<void>;
+  onLink: (input: CreateTaskEventLinkRequest) => Promise<void>;
+  onUnlink: (linkId: string) => Promise<void>;
 }
 
 export const TaskWorkspace = ({
   tasks,
+  events,
+  links,
+  selectedCalendarId,
   timezone,
   loading,
   saving,
@@ -57,6 +68,8 @@ export const TaskWorkspace = ({
   onSave,
   onUpdate,
   onDelete,
+  onLink,
+  onUnlink,
 }: TaskWorkspaceProps) => {
   const [editorTask, setEditorTask] = useState<TaskResponse | null | undefined>(
     undefined,
@@ -360,6 +373,9 @@ export const TaskWorkspace = ({
             key={editorTask?.updatedAt ?? "new-task"}
             task={editorTask}
             tasks={tasks}
+            events={events}
+            links={links}
+            selectedCalendarId={selectedCalendarId}
             timezone={timezone}
             pending={saving}
             onCancel={() => setEditorTask(undefined)}
@@ -372,6 +388,8 @@ export const TaskWorkspace = ({
             onDelete={() =>
               editorTask ? onDelete(editorTask.id) : Promise.resolve()
             }
+            onLink={onLink}
+            onUnlink={onUnlink}
           />
         ) : null}
       </div>
