@@ -39,8 +39,30 @@ const initialEvent = {
   updatedAt: "2026-07-22T08:00:00.000Z",
 };
 
+const initialTask = {
+  id: "aufgabe-1",
+  ownerId: "nutzer-1",
+  title: "Roadmap prüfen",
+  description: "Synthetische Aufgabe",
+  status: "open",
+  priority: "high",
+  dueDate: "2030-07-23",
+  scheduledStartAt: "2030-07-22T10:00:00.000Z",
+  scheduledStartTimezone: "Europe/Berlin",
+  estimatedDurationMinutes: 60,
+  tags: ["organisation"],
+  area: "projects",
+  projectId: null,
+  parentTaskId: null,
+  completedAt: null,
+  archivedAt: null,
+  createdAt: "2026-07-22T08:00:00.000Z",
+  updatedAt: "2026-07-22T08:00:00.000Z",
+};
+
 const installApi = async (page: Page) => {
   const events: Array<Record<string, unknown>> = [{ ...initialEvent }];
+  const tasks: Array<Record<string, unknown>> = [{ ...initialTask }];
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -56,6 +78,58 @@ const installApi = async (page: Page) => {
     }
     if (path === "/api/v1/calendars/kalender-1/events" && method === "GET") {
       await route.fulfill({ json: events });
+      return;
+    }
+    if (
+      path === "/api/v1/tasks" &&
+      request.url().includes("includeArchived=true") &&
+      method === "GET"
+    ) {
+      await route.fulfill({ json: tasks });
+      return;
+    }
+    if (path === "/api/v1/tasks" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const created = {
+        ...initialTask,
+        ...payload,
+        id: `aufgabe-${tasks.length + 1}`,
+        createdAt: "2026-07-22T09:00:00.000Z",
+        updatedAt: "2026-07-22T09:00:00.000Z",
+      };
+      tasks.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    if (path.startsWith("/api/v1/tasks/") && method === "PATCH") {
+      const taskId = path.split("/").at(-1);
+      const index = tasks.findIndex((task) => task.id === taskId);
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      tasks[index] = {
+        ...tasks[index],
+        ...payload,
+        completedAt:
+          payload.status === "done"
+            ? "2026-07-22T10:00:00.000Z"
+            : payload.status === "open"
+              ? null
+              : tasks[index]?.completedAt,
+        archivedAt:
+          payload.archived === true
+            ? "2026-07-22T10:00:00.000Z"
+            : payload.archived === false
+              ? null
+              : tasks[index]?.archivedAt,
+        updatedAt: "2026-07-22T10:00:00.000Z",
+      };
+      await route.fulfill({ json: tasks[index] });
+      return;
+    }
+    if (path.startsWith("/api/v1/tasks/") && method === "DELETE") {
+      const taskId = path.split("/").at(-1);
+      const index = tasks.findIndex((task) => task.id === taskId);
+      if (index >= 0) tasks.splice(index, 1);
+      await route.fulfill({ status: 204, body: "" });
       return;
     }
     if (path === "/api/v1/calendars/kalender-1/events" && method === "POST") {
@@ -160,6 +234,93 @@ test("bleibt auf Desktop und Smartphone ohne horizontalen Überlauf bedienbar", 
       page.getByRole("navigation", { name: "Hauptnavigation" }),
     ).toBeVisible();
   }
+});
+
+test("erstellt, filtert, bearbeitet und verwaltet Aufgaben ohne Browserpersistenz", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: /Guten Tag, Anton/ }),
+  ).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "Aufgaben", exact: true })
+    .filter({ visible: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Aufgaben", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Roadmap prüfen")).toBeVisible();
+
+  await page.getByRole("button", { name: /Neue Aufgabe/ }).click();
+  const editor = page.locator(".task-editor");
+  await editor.getByLabel("Titel").fill("Unterlagen sortieren");
+  await editor.getByLabel("Priorität").selectOption("high");
+  await editor.getByLabel("Bereich").selectOption("work");
+  await editor.getByLabel("Fällig am").fill("2030-07-24");
+  await editor.getByLabel("Geschätzte Dauer (Minuten)").fill("45");
+  await editor.getByLabel("Tags").fill("organisation, fokus");
+  await editor.getByLabel("Beschreibung").fill("Synthetischer UI-Ablauf");
+  await editor.getByRole("button", { name: "Aufgabe anlegen" }).click();
+  await expect(page.getByText("Unterlagen sortieren")).toBeVisible();
+
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Aufgaben", exact: true })
+    .filter({ visible: true })
+    .click();
+  await expect(page.getByText("Unterlagen sortieren")).toBeVisible();
+
+  const filters = page.getByRole("region", { name: "Aufgaben filtern" });
+  await filters.getByRole("searchbox").fill("unterlagen");
+  await filters.getByLabel("Priorität").selectOption("high");
+  await filters.getByLabel("Bereich").selectOption("work");
+  await expect(page.getByText("Unterlagen sortieren")).toBeVisible();
+  await expect(page.getByText("1 von 2 sichtbar")).toBeVisible();
+
+  const taskCard = page.locator(".task-card").filter({
+    hasText: "Unterlagen sortieren",
+  });
+  await taskCard
+    .getByRole("button", { name: "Unterlagen sortieren bearbeiten" })
+    .click();
+  await editor.getByLabel("Titel").fill("Unterlagen archivieren");
+  await editor.getByRole("button", { name: "Änderungen speichern" }).click();
+  await expect(page.getByText("Unterlagen archivieren")).toBeVisible();
+
+  const updatedCard = page.locator(".task-card").filter({
+    hasText: "Unterlagen archivieren",
+  });
+  await updatedCard.getByRole("button", { name: "Abschließen" }).click();
+  await expect(updatedCard.getByText("Erledigt")).toBeVisible();
+  await updatedCard.getByRole("button", { name: "Wieder öffnen" }).click();
+  await expect(updatedCard.getByText("Offen")).toBeVisible();
+
+  await updatedCard
+    .getByRole("button", { name: "Unterlagen archivieren bearbeiten" })
+    .click();
+  await editor.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByText("Unterlagen archivieren")).toHaveCount(0);
+  await filters.getByLabel("Archivierte anzeigen").check();
+  await expect(page.getByText("Unterlagen archivieren")).toBeVisible();
+
+  const archivedCard = page.locator(".task-card").filter({
+    hasText: "Unterlagen archivieren",
+  });
+  await archivedCard
+    .getByRole("button", { name: "Unterlagen archivieren bearbeiten" })
+    .click();
+  await editor.getByRole("button", { name: /Löschen/ }).click();
+  await editor.getByRole("button", { name: "Endgültig löschen" }).click();
+  await expect(page.getByText("Unterlagen archivieren")).toHaveCount(0);
+
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
 });
 
 test("liefert Manifest, Service Worker und das App-Shell offline aus", async ({

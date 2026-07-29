@@ -2,8 +2,11 @@ import type {
   ApiErrorResponse,
   CalendarEventResponse,
   CalendarResponse,
+  CreateTaskRequest,
   ProfileResponse,
   SessionResponse,
+  TaskResponse,
+  UpdateTaskRequest,
 } from "@lifeos/contracts";
 
 const API_BASE = "/api/v1";
@@ -118,5 +121,31 @@ export const api = {
         body: JSON.stringify(payload),
       },
     );
+  },
+
+  listTasks(includeArchived = true) {
+    return request<TaskResponse[]>(
+      `/tasks?includeArchived=${includeArchived ? "true" : "false"}`,
+    );
+  },
+
+  createTask(payload: CreateTaskRequest) {
+    return request<TaskResponse>("/tasks", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateTask(taskId: string, payload: UpdateTaskRequest) {
+    return request<TaskResponse>(`/tasks/${encodeURIComponent(taskId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteTask(taskId: string) {
+    return request<void>(`/tasks/${encodeURIComponent(taskId)}`, {
+      method: "DELETE",
+    });
   },
 };

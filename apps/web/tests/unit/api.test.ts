@@ -82,4 +82,50 @@ describe("API-Client", () => {
       }),
     );
   });
+
+  it("verwendet für Aufgaben CRUD nur die versionierte lokale API", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: "aufgabe-1" }), {
+          status: 201,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: "aufgabe-1" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.listTasks(true);
+    await api.createTask({ title: "Synthetische Aufgabe" });
+    await api.updateTask("aufgabe/1", { status: "done" });
+    await api.deleteTask("aufgabe/1");
+
+    const taskCalls = fetchMock.mock.calls as unknown as Array<
+      [string, RequestInit]
+    >;
+    expect(taskCalls.map(([url]) => url)).toEqual([
+      "/api/v1/tasks?includeArchived=true",
+      "/api/v1/tasks",
+      "/api/v1/tasks/aufgabe%2F1",
+      "/api/v1/tasks/aufgabe%2F1",
+    ]);
+    expect(taskCalls.map(([, init]) => init.credentials)).toEqual([
+      "include",
+      "include",
+      "include",
+      "include",
+    ]);
+  });
 });
