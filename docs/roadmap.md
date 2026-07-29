@@ -135,29 +135,61 @@ Ziel: Aufgaben und Kalender im Alltag miteinander verbinden.
 - Aufgaben archivieren, wieder öffnen und löschen können.
 - Statusänderungen und relevante Änderungen protokollieren.
 
+Umsetzungsnachweis: Issue #32 führt das besitzgebundene Aufgabenmodell,
+versionierte Migrationen, synthetische Seed-Daten und `/api/v1/tasks` mit
+Unit-, API- und Datenbanktests ein. Projektverwaltung bleibt in 0.4; 0.2.1
+stellt dafür nur einen besitzgesicherten Relationsanker bereit.
+
 ### 0.2.2 Aufgabenoberfläche
 
 - Aufgabenliste, Detailansicht und Bearbeitungsformular erstellen.
 - Nach Status, Priorität und Fälligkeit filtern und sortieren.
 - Mobile Bedienung und verständliche leere Zustände ergänzen.
 
+Umsetzungsnachweis: Issue #33 ergänzt die gemeinsame React-PWA um responsive
+Aufgaben-Navigation, vollständiges Erstellen und Bearbeiten, Statusaktionen,
+Archivierung, bestätigtes Soft-Delete sowie kombinierbare Suche und Filter.
+Unit- und Playwright-Tests prüfen den zentralen Ablauf auf Desktop und
+Smartphone einschließlich Neuladen und fehlender Browserpersistenz.
+
 ### 0.2.3 Kalenderansichten
 
-- Tages-, Wochen- und Monatsansicht ergänzen.
+- Tages-, Wochen-, Monats- und Agendaansicht ergänzen.
 - Ereignisse aus dem internen Kalender anzeigen.
 - Zeitzonen und Ganztägigkeit konsistent darstellen.
+
+Umsetzungsnachweis: Issue #34 ergänzt Zeitraum-Navigation, flüchtige
+RRULE-Projektionen sowie vollständiges Termin-CRUD in der gemeinsamen
+React-PWA. UID, ETag, Zeitpunkte, Ganztagsdaten und Serienregel bleiben im
+vorhandenen Kalenderkern führend. Unit-, Playwright-, REST- und
+CalDAV-Integrationstests prüfen Ansichten, Zeitzonen, Ganztägigkeit,
+Serienvorkommen, Löschung und veraltete ETags.
 
 ### 0.2.4 Aufgaben-Termin-Verknüpfung
 
 - Aufgaben mit Ereignissen verknüpfen.
-- Aus einem Termin eine Aufgabe erzeugen können.
 - Verknüpfungen in beiden Detailansichten anzeigen.
+- Verknüpfungen wieder entfernen und nicht verfügbare Objekte anzeigen.
+
+Umsetzungsnachweis: Issue #35 ergänzt eine besitzgebundene, idempotente
+Beziehung ohne kopierte Fachdaten. Aufgabenstatus und Fälligkeit bleiben im
+Aufgabenmodell, Terminbeginn und -ende im Kalenderkern. API-, Datenbank-,
+Unit- und Playwright-Tests prüfen Verknüpfung, Aufhebung, Besitzgrenzen,
+Soft-Delete und ausbleibende Seiteneffekte.
 
 ### 0.2.5 Dashboard
 
 - Offene Aufgaben, heutige Termine und überfällige Aufgaben zusammenfassen.
 - Dashboard vollständig aus lokalen Daten berechnen.
 - Ladezeit und verständliche Fehlerzustände testen.
+
+Umsetzungsnachweis: Issue #36 ergänzt einen geschützten, rein lesenden
+Dashboard-Snapshot aus PostgreSQL und eine responsive Übersicht. Profilzeitzone
+und Snapshot-Zeitpunkt führen die Bestimmung von „heute“ und „überfällig“;
+Serientermine bleiben flüchtige Projektionen. Unit-, API-, Datenbank- und
+Playwright-Tests prüfen echte gespeicherte Daten, Besitzgrenzen,
+Schnellaktionen, Aktualisierung, Leer- und Fehlerzustände sowie Desktop und
+Smartphone.
 
 Abschlusskriterium: Ein typischer Tag kann vollständig über Aufgaben,
 Kalender und Dashboard geplant werden.

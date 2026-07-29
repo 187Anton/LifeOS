@@ -119,6 +119,11 @@ unset CALDAV_TEST_PASSWORD
 | `PATCH/DELETE /api/v1/calendars/:id`               | Kalender ändern oder soft löschen                |
 | `GET/POST /api/v1/calendars/:id/events`            | Ereignisse auflisten oder anlegen                |
 | `GET/PUT/DELETE /api/v1/calendars/:id/events/:uid` | Ereignis verwalten                               |
+| `GET/POST /api/v1/tasks`                           | Aufgaben filtern oder anlegen                    |
+| `GET/PATCH/DELETE /api/v1/tasks/:taskId`           | Aufgabe lesen, ändern oder soft löschen          |
+| `GET/POST /api/v1/task-event-links`                | Aufgaben-Termin-Beziehungen lesen oder anlegen   |
+| `DELETE /api/v1/task-event-links/:linkId`          | Aufgaben-Termin-Beziehung entfernen              |
+| `GET /api/v1/dashboard`                            | rein lesenden Organisations-Snapshot laden       |
 | `/.well-known/caldav`                              | CalDAV-Discovery auf `/caldav/`                  |
 | `/caldav/…`                                        | WebDAV-/CalDAV-Ressourcen                        |
 
@@ -164,6 +169,60 @@ gespeichert; bis zu zehn Erinnerungen werden als Minuten vor Beginn abgelegt.
 Jede Ereignisänderung erzeugt einen neuen ETag, erhöht `sequence` und den
 Kalender-`syncToken`. Löschungen sind Soft-Deletes und bleiben damit für die
 spätere CalDAV-Synchronisation nachvollziehbar.
+
+## Aufgabenvertrag
+
+Aufgaben gehören immer dem über die Sitzung ermittelten Benutzer; eine
+Benutzer-ID wird weder im Pfad noch im Body akzeptiert. `GET /tasks` blendet
+archivierte Aufgaben standardmäßig aus und kann über `status`, `priority` und
+`area` filtern. `includeArchived=true` schließt archivierte, aber nicht soft
+gelöschte Aufgaben ein.
+
+Statuswerte sind `open`, `in_progress`, `blocked`, `done` und `cancelled`.
+Direkte Übergänge aus `done` oder `cancelled` sind nur zurück nach `open`
+zulässig. Beim Abschluss setzt die API `completedAt`; beim Wiederöffnen wird
+dieser Zeitpunkt entfernt. Fälligkeiten sind `YYYY-MM-DD`-Werte. Eine geplante
+Startzeit wird nur zusammen mit ihrer gültigen IANA-Zeitzone akzeptiert und als
+UTC-Zeitpunkt plus Zeitzone gespeichert. Geschätzte Dauern sind ganzzahlige
+Minuten zwischen 1 und 525600.
+
+Elternaufgaben und der optionale Projektanker müssen demselben Besitzer
+gehören. Zyklen in der Aufgabenhierarchie werden abgelehnt. Die vollständige
+Projektverwaltung folgt erst in Roadmap 0.4; der jetzige Projektanker schafft
+nur eine stabile, besitzgesicherte Relation. Archivierung ist umkehrbar,
+`DELETE` setzt dagegen eine Löschmarkierung. Erstellen, Ändern und Löschen
+erzeugen wertfreie Audit-Ereignisse.
+
+## Aufgaben-Termin-Vertrag
+
+Eine Beziehung verbindet optional genau eine Aufgabe mit genau einem
+Kalenderereignis desselben, aus der Sitzung ermittelten Besitzers. Wiederholtes
+Anlegen derselben Beziehung ist idempotent und erzeugt kein Duplikat. Die API
+nimmt keine Benutzer-ID entgegen und antwortet für fremde oder nicht
+verfügbare Objekte wie bei einem nicht vorhandenen Datensatz.
+
+Die Beziehung speichert keine Kopien von Fachdaten. Aufgabenstatus und
+Fälligkeit bleiben im Aufgabenmodell; Beginn und Ende bleiben im
+Kalendermodell. Das Abschließen oder Löschen einer Aufgabe verändert den Termin
+nicht, und das Löschen eines Termins löscht die Aufgabe nicht. Soft gelöschte
+Objekte werden in bestehenden Beziehungen als nicht verfügbar angezeigt,
+damit die Beziehung nachvollziehbar entfernt werden kann.
+
+## Dashboard-Vertrag
+
+`GET /dashboard` verwendet ausschließlich den Besitzer aus der geprüften
+Sitzung und führt keine schreibende Aktion aus. Der Snapshot enthält aktive,
+nicht archivierte Aufgaben, nicht gelöschte Ereignisse aus allen eigenen,
+nicht gelöschten Kalendern sowie Projektanker mit offenen Aufgaben. Er nennt
+den Erstellungszeitpunkt und die gespeicherte Profilzeitzone, damit der Client
+„heute“ und „überfällig“ reproduzierbar bestimmen kann. Nicht wiederkehrende
+Ereignisse werden bereits in der Datenbank auf den sichtbaren Zeitraum von
+heute bis 30 Tage im Voraus begrenzt; Serienwurzeln bleiben für die flüchtige
+Projektion erhalten.
+
+Der Endpunkt erfindet oder ergänzt keine Termine und Aufgaben. Persönliche
+Inhalte werden nicht protokolliert; der bestehende Anfrage-Logger speichert nur
+Anfrage-ID, Routenmetadaten, Status und Dauer.
 
 Beispiel:
 
@@ -211,6 +270,12 @@ weitergegeben.
   HTTP-Routen.
 - `modules/calendar/` kapselt Kalenderregeln, atomare ETag-Prüfung,
   Datenbanktransaktionen und HTTP-Verträge.
+- `modules/tasks/` kapselt Aufgabenstatus, Besitz- und Hierarchieprüfung,
+  Datenbanktransaktionen und HTTP-Verträge.
+- `modules/task-event-links/` kapselt besitzgebundene, idempotente Beziehungen
+  zwischen Aufgaben- und Kalenderkern.
+- `modules/dashboard/` bündelt den besitzgebundenen, rein lesenden
+  Organisations-Snapshot ohne eigene Fachdaten oder Schreiblogik.
 - `modules/caldav/` übersetzt den gemeinsamen Kalenderkern in WebDAV-XML und
   RFC-5545-iCalendar; Zugang, Parser und Transport bleiben von der REST-API
   getrennt.

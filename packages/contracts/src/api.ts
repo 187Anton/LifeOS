@@ -91,3 +91,104 @@ export interface CalendarEventResponse {
   sequence: number;
   updatedAt: string;
 }
+
+export type TaskStatus =
+  "open" | "in_progress" | "blocked" | "done" | "cancelled";
+
+export type TaskPriority = "low" | "medium" | "high" | "critical";
+
+export type TaskArea =
+  "study" | "work" | "projects" | "finance" | "fitness" | "personal";
+
+export interface TaskResponse {
+  id: string;
+  ownerId: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueDate: string | null;
+  scheduledStartAt: string | null;
+  scheduledStartTimezone: string | null;
+  estimatedDurationMinutes: number | null;
+  tags: string[];
+  area: TaskArea;
+  projectId: string | null;
+  parentTaskId: string | null;
+  completedAt: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTaskRequest {
+  title: string;
+  description?: string | null;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  dueDate?: string | null;
+  scheduledStartAt?: string | null;
+  scheduledStartTimezone?: string | null;
+  estimatedDurationMinutes?: number | null;
+  tags?: string[];
+  area?: TaskArea;
+  projectId?: string | null;
+  parentTaskId?: string | null;
+}
+
+export interface UpdateTaskRequest {
+  title?: string;
+  description?: string | null;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  dueDate?: string | null;
+  scheduledStartAt?: string | null;
+  scheduledStartTimezone?: string | null;
+  estimatedDurationMinutes?: number | null;
+  tags?: string[];
+  area?: TaskArea;
+  projectId?: string | null;
+  parentTaskId?: string | null;
+  archived?: boolean;
+}
+
+export interface TaskEventLinkResponse {
+  id: string;
+  task: {
+    id: string;
+    title: string | null;
+    available: boolean;
+  };
+  event: {
+    calendarId: string;
+    uid: string;
+    title: string | null;
+    available: boolean;
+  };
+  createdAt: string;
+}
+
+export interface CreateTaskEventLinkRequest {
+  taskId: string;
+  calendarId: string;
+  eventUid: string;
+}
+
+export interface DashboardEventResponse extends CalendarEventResponse {
+  calendarId: string;
+  calendarName: string;
+}
+
+export interface DashboardProjectResponse {
+  id: string;
+  title: string;
+  openTaskCount: number;
+}
+
+export interface DashboardResponse {
+  generatedAt: string;
+  timezone: string;
+  tasks: TaskResponse[];
+  events: DashboardEventResponse[];
+  projects: DashboardProjectResponse[];
+}

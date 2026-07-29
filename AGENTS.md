@@ -105,6 +105,22 @@ Für den ersten CalDAV-Ausbau gelten diese Ziele:
 - Erinnerungen,
 - nachvollziehbare Konfliktbehandlung.
 
+Kalenderansichten im Web sind flüchtige Projektionen des gemeinsamen
+Kalenderkerns. Sie speichern keine eigenen Ereignisse oder Serieninstanzen;
+Bearbeiten und Löschen adressiert immer die stabile UID und den aktuellen ETag
+des führenden Ereignisses.
+
+Aufgaben und Kalenderereignisse werden ausschließlich über eine eigene,
+besitzgebundene Beziehung verknüpft. Die Beziehung kopiert keine Fachdaten:
+Aufgabenstatus und Fälligkeit bleiben im Aufgabenmodell, Start und Ende im
+Kalenderkern. Änderungen eines Objekts verändern das andere nicht automatisch.
+
+Das Organisations-Dashboard ist eine rein lesende, besitzgebundene Projektion
+vorhandener Aufgaben-, Kalender- und Projektdaten. Es speichert keine
+Kennzahlen, verwendet die Profilzeitzone für „heute“ und „überfällig“ und
+öffnet bei Schnellaktionen nur bestehende Formulare; Schreiben bleibt eine
+getrennte, bestätigte Fachaktion.
+
 Die lokale Erreichbarkeit muss dokumentiert werden. `localhost` auf dem
 iPhone zeigt auf das iPhone selbst; für lokale Synchronisation wird die
 Netzwerkadresse oder ein lokaler DNS-Name des Entwicklungsrechners benötigt.
@@ -186,6 +202,10 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
 - Kalendertage, etwa Prüfungstermine, als reine Datumswerte modellieren.
 - Persönliche Tabellen erhalten eine Besitz- oder Nutzerreferenz, auch wenn
   zunächst nur ein Nutzer existiert.
+- Aufgabenfälligkeiten werden als `DATE`, geplante Aufgabenstarts als
+  `TIMESTAMPTZ` plus IANA-Zeitzone und geschätzte Dauern als ganze Minuten
+  gespeichert. Eltern- und Projektbezüge müssen denselben Besitzer haben;
+  Archivierung bleibt umkehrbar und Löschen setzt eine Löschmarkierung.
 - Datenbankänderungen ausschließlich über versionierte Migrationen vornehmen.
 - Keine echten Unternehmensgeheimnisse, Tokens, Passwörter oder sensiblen
   Beispieldaten committen.
@@ -399,3 +419,17 @@ gemeldet.
 - **2026-07-22:** Verbindlichen Secret-Scan, Custom-Format-Backup mit Prüfsumme
   sowie isolierten Migrations-/Restore-Nachweis nach erfolgreichem
   Datenvergleich festgehalten.
+- **2026-07-29:** Besitzgebundenes Aufgabenmodell mit reinen Fälligkeitstagen,
+  zeitzonensicherer Startplanung, ganzzahligen Dauern, sicherer Hierarchie,
+  Projektanker, Archivierung und Soft-Delete nach API- und Datenbanktests
+  festgehalten.
+- **2026-07-29:** Kalenderansichten als flüchtige Projektionen des gemeinsamen
+  REST-/CalDAV-Kerns mit stabiler UID und ETag-geschützten Änderungen nach
+  Unit-, UI- und CalDAV-Integrationstests festgehalten.
+- **2026-07-29:** Besitzgebundene Aufgaben-Termin-Beziehungen ohne kopierte
+  Fachdaten oder automatische Seiteneffekte nach API-, Datenbank- und UI-Tests
+  festgehalten.
+- **2026-07-29:** Organisations-Dashboard als rein lesende,
+  besitzgebundene und zeitzonenkorrekte Projektion ohne eigene Datenquelle oder
+  ungefragte Schreibaktionen nach API-, Datenbank-, Unit- und E2E-Tests
+  festgehalten.
