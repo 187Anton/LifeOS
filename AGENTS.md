@@ -78,6 +78,12 @@ native iOS-App dürfen später dieselbe Weboberfläche wiederverwenden, wenn ein
 konkreter Bedarf wie Systembenachrichtigungen, Tray-Funktionen oder EventKit
 entsteht.
 
+Die PWA-App-Shell darf statische, lokal gebündelte Assets offline cachen.
+Persönliche API-Antworten, Kalenderdaten und Zugangsdaten werden weder im
+Service-Worker-Cache noch in `localStorage` oder `sessionStorage` persistiert.
+Notwendige Schriftarten und Icons dürfen im lokalen Betrieb keine externe
+Quelle voraussetzen.
+
 ### 3.3 Kalender und CalDAV
 
 CalDAV ist ab dem Fundament verpflichtend.
@@ -118,6 +124,11 @@ Der erste Betrieb erfolgt vollständig lokal:
   gebunden. `npm run env:check`, `npm run db:start`, `npm run db:check` und
   `npm run db:stop` sind die verbindlichen lokalen Datenbankbefehle;
   `db:stop` erhält das benannte Datenbank-Volume.
+- `npm run db:backup` erstellt einen vertraulich zu behandelnden Dump samt
+  Prüfsumme. `npm run db:restore -- <dump> lifeos_restore_<name>` stellt nur in
+  eine neue Datenbank wieder her. `npm run db:verify:recovery` prüft Migration,
+  wiederholten Seed, Backup und Restore ausschließlich in isolierten
+  synthetischen Datenbanken; die Quelle wird nie ungeprüft überschrieben.
 - Dokumente liegen in einem nicht versionierten lokalen Datenverzeichnis
 - externe KI- und Cloud-Dienste sind optional und standardmäßig deaktiviert
 - ein Heimserver, NAS oder VPS wird nicht vorausgesetzt
@@ -134,15 +145,28 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
 
 - Datenbankschemaänderungen ausschließlich über versionierte Migrationen
   durchführen.
+- Prisma 7 wird über `packages/database/prisma.config.ts` konfiguriert. Neue
+  Schemaänderungen werden zuerst als `--create-only`-Migration geprüft und
+  anschließend mit `npm run db:migrate` angewendet; `db push` ist kein
+  regulärer LifeOS-Ablauf.
+- Kalenderzeitpunkte werden als `TIMESTAMPTZ` plus fachliche IANA-Zeitzone,
+  ganztägige Ereignisse ausschließlich als `DATE`-Werte gespeichert. Ein
+  Datenbank-Constraint muss beide Formen eindeutig voneinander trennen.
 - Vor jeder potenziell verlustbehafteten Migration ein überprüftes Backup
   erstellen.
 - Keine Daten, Kalender oder Ereignisse stillschweigend löschen oder
   überschreiben.
 - API mit `/api/v1` beginnen und Breaking Changes nur über eine neue
   API-Version oder eine dokumentierte Übergangsphase einführen.
+- API-Fehler folgen dem versionierten Vertrag in `packages/contracts`. Logs
+  verwenden Anfrage-IDs und betriebliche Metadaten, aber keine ungefilterten
+  Anfragekörper, Authorization-/Cookie-Header oder internen Fehlermeldungen.
 - Exportformate versionieren und Importfehler verständlich anzeigen.
 - CalDAV-URLs, Kalender-IDs, Ereignis-UIDs, ETags und Synchronisationsdaten
   stabil halten.
+- Ereignisänderungen mit ETag müssen Vergleich und Schreiben atomar in der
+  Datenbank ausführen; veraltete ETags liefern einen Konflikt und dürfen
+  neuere Daten nicht überschreiben.
 - CalDAV-Änderungen dürfen keine Duplikate auf Apple-Geräten erzeugen.
 - Umbenennungen interner Felder über Migrationen und kompatible API-/CalDAV-
   Abbildung umsetzen.
@@ -167,8 +191,20 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
   Beispieldaten committen.
 - Secrets ausschließlich über Umgebungsvariablen oder Secret-Management
   zuführen.
+- `npm run security:secrets` ist vor Veröffentlichung und in CI verbindlich;
+  Trefferwerte dürfen weder im Terminalbericht noch in Logs ausgegeben werden.
 - Passwörter nur mit einem geeigneten Passwort-Hash speichern.
+- Das lokale Passwort wird mit gesalzenem `scrypt` gespeichert. Sitzungen
+  verwenden zufällige Tokens, von denen nur SHA-256-Hashes, Ablauf und
+  Widerrufsstatus persistiert werden; Passwortwechsel widerrufen ältere
+  Zugangsversionen.
 - CalDAV-Zugang und externe Integrationszugänge separat widerrufbar machen.
+- CalDAV verwendet einen eigenen gehashten lokalen Zugang. Ereignisänderungen
+  schreiben Kalender-`syncToken` und Ereignis-`syncVersion` atomar; iCalendar-
+  Ausgaben mit `TZID` enthalten eine passende `VTIMEZONE`-Definition.
+- Eine LAN-Bindung für CalDAV ist eine bewusste lokale Betriebsart. HTTP Basic
+  Auth ist nur im vertrauenswürdigen LAN zulässig; für andere Netze ist TLS
+  erforderlich.
 - Berechtigungen im Backend prüfen; Frontend-Sichtbarkeit ist keine Sicherheit.
 - Datei- und Repository-Pfade gegen Traversal und unberechtigten Zugriff
   schützen.
@@ -341,3 +377,25 @@ gemeldet.
   CI-Pflicht für Pull Requests und selbstständige PR-Erstellung ergänzt.
 - **2026-07-18:** Geprüfte lokale Docker-Befehle, ausschließlich lokale
   PostgreSQL-Portbindung und datenerhaltender Stop-Ablauf ergänzt.
+- **2026-07-22:** Prisma-7-Konfiguration, versionierter Migrationsablauf sowie
+  getrennte Speicherung von Zeitpunkten und ganztägigen Datumswerten nach
+  erfolgreicher Migration und Integrationstest festgehalten.
+- **2026-07-22:** Versionierten API-Fehlervertrag, datenbanksensitive
+  Readiness-Prüfung und datensparsame strukturierte Logs nach API- und
+  Build-Verifikation festgehalten.
+- **2026-07-22:** Lokalen Passwort-Bootstrap mit `scrypt`, ausschließlich
+  gehashte widerrufbare Sitzungstokens sowie wertfreie Audit-Metadaten nach
+  Authentifizierungs- und Persistenztests festgehalten.
+- **2026-07-22:** Gemeinsamen Kalenderkern mit stabilen UIDs, atomarer
+  ETag-Prüfung, Sync-Token, Soft-Delete, reinen Ganztagsdaten und verlustarmer
+  RRULE-/Erinnerungsspeicherung nach End-to-End-Test festgehalten.
+- **2026-07-22:** Getrennt widerrufbaren CalDAV-Zugang, inkrementelle
+  Ereignis-Sync-Versionen, RFC-5545-`VTIMEZONE` und die sichere Grenze zwischen
+  Loopback-, LAN- und TLS-Betrieb nach CalDAV-Integrationsprüfung festgehalten.
+- **2026-07-22:** Eine gemeinsame responsive React-PWA, ausschließlich lokal
+  gebündelte Pflicht-Assets sowie eine Offline-App-Shell ohne Cache oder
+  Browser-Storage für persönliche API-Daten nach Desktop-/Smartphone- und
+  Offline-Test festgehalten.
+- **2026-07-22:** Verbindlichen Secret-Scan, Custom-Format-Backup mit Prüfsumme
+  sowie isolierten Migrations-/Restore-Nachweis nach erfolgreichem
+  Datenvergleich festgehalten.

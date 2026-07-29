@@ -118,6 +118,13 @@ die über die API gespeicherten Kalenderdaten auf Desktop und Handy an.
 
 Abschlusskriterium: Phase 0.1 kann als stabile lokale Demo reproduziert werden.
 
+Der verbindliche Abschlussnachweis besteht aus `npm run security:secrets`,
+`npm run db:verify:recovery`, der vollständigen Root-/Workspace-Suite sowie der
+in [`docs/foundation-verification.md`](foundation-verification.md)
+dokumentierten lokalen Demo und Apple-Kalender-Checkliste. Issue #17 und dessen
+CI-Lauf bilden das technische Gate für den anschließenden Pull Request von
+`develop` nach `main`.
+
 ## 0.2 Organisation
 
 Ziel: Aufgaben und Kalender im Alltag miteinander verbinden.
