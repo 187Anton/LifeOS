@@ -55,6 +55,20 @@ describe("API-Client", () => {
     expect(init.method).toBe("PUT");
   });
 
+  it("verwendet auch beim Löschen den aktuellen ETag als If-Match", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.deleteEvent("kalender-1", "termin/1", '"etag-2"');
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/v1/calendars/kalender-1/events/termin%2F1");
+    expect(init.method).toBe("DELETE");
+    expect(new Headers(init.headers).get("If-Match")).toBe('"etag-2"');
+  });
+
   it("bildet versionierte API-Fehler auf einen typisierten Fehler ab", async () => {
     vi.stubGlobal(
       "fetch",
@@ -81,5 +95,133 @@ describe("API-Client", () => {
         message: "Der Termin wurde zwischenzeitlich geändert.",
       }),
     );
+  });
+
+  it("verwendet für Aufgaben CRUD nur die versionierte lokale API", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: "aufgabe-1" }), {
+          status: 201,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: "aufgabe-1" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.listTasks(true);
+    await api.createTask({ title: "Synthetische Aufgabe" });
+    await api.updateTask("aufgabe/1", { status: "done" });
+    await api.deleteTask("aufgabe/1");
+
+    const taskCalls = fetchMock.mock.calls as unknown as Array<
+      [string, RequestInit]
+    >;
+    expect(taskCalls.map(([url]) => url)).toEqual([
+      "/api/v1/tasks?includeArchived=true",
+      "/api/v1/tasks",
+      "/api/v1/tasks/aufgabe%2F1",
+      "/api/v1/tasks/aufgabe%2F1",
+    ]);
+    expect(taskCalls.map(([, init]) => init.credentials)).toEqual([
+      "include",
+      "include",
+      "include",
+      "include",
+    ]);
+  });
+
+  it("verwaltet Aufgaben-Termin-Beziehungen über den additiven v1-Vertrag", async () => {
+    const link = {
+      id: "link-1",
+      task: { id: "aufgabe-1", title: "Aufgabe", available: true },
+      event: {
+        calendarId: "kalender-1",
+        uid: "termin-1",
+        title: "Termin",
+        available: true,
+      },
+      createdAt: "2026-07-29T13:00:00.000Z",
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(link), {
+          status: 201,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.listTaskEventLinks();
+    await api.createTaskEventLink({
+      taskId: "aufgabe-1",
+      calendarId: "kalender-1",
+      eventUid: "termin-1",
+    });
+    await api.deleteTaskEventLink("link/1");
+
+    const calls = fetchMock.mock.calls as unknown as Array<
+      [string, RequestInit]
+    >;
+    expect(calls.map(([url]) => url)).toEqual([
+      "/api/v1/task-event-links",
+      "/api/v1/task-event-links",
+      "/api/v1/task-event-links/link%2F1",
+    ]);
+    expect(calls.map(([, init]) => init.method ?? "GET")).toEqual([
+      "GET",
+      "POST",
+      "DELETE",
+    ]);
+    expect(JSON.parse(calls[1]?.[1].body as string)).toEqual({
+      taskId: "aufgabe-1",
+      calendarId: "kalender-1",
+      eventUid: "termin-1",
+    });
+  });
+
+  it("lädt den Organisations-Snapshot rein lesend aus der v1-API", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          generatedAt: "2032-05-01T00:00:00.000Z",
+          timezone: "Europe/Berlin",
+          tasks: [],
+          events: [],
+          projects: [],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.getDashboard();
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/v1/dashboard");
+    expect(init.credentials).toBe("include");
+    expect(init.method).toBeUndefined();
+    expect(init.body).toBeUndefined();
   });
 });

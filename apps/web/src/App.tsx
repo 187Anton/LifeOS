@@ -1,7 +1,13 @@
 import type {
   CalendarEventResponse,
   CalendarResponse,
+  CreateTaskEventLinkRequest,
+  CreateTaskRequest,
+  DashboardResponse,
   ProfileResponse,
+  TaskResponse,
+  TaskEventLinkResponse,
+  UpdateTaskRequest,
 } from "@lifeos/contracts";
 import { useCallback, useEffect, useState } from "react";
 
@@ -10,6 +16,7 @@ import { CalendarWorkspace } from "./components/CalendarWorkspace";
 import { Dashboard } from "./components/Dashboard";
 import { Login } from "./components/Login";
 import { Shell, type View } from "./components/Shell";
+import { TaskWorkspace } from "./components/TaskWorkspace";
 
 type SessionState = "checking" | "anonymous" | "authenticated";
 
@@ -29,13 +36,44 @@ export const App = () => {
     null,
   );
   const [events, setEvents] = useState<CalendarEventResponse[]>([]);
+  const [tasks, setTasks] = useState<TaskResponse[]>([]);
+  const [taskEventLinks, setTaskEventLinks] = useState<TaskEventLinkResponse[]>(
+    [],
+  );
+  const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [view, setView] = useState<View>("dashboard");
+  const [createRequest, setCreateRequest] = useState<"task" | "event" | null>(
+    null,
+  );
   const [loginPending, setLoginPending] = useState(false);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [tasksLoading, setTasksLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [calendarWarning, setCalendarWarning] = useState<string | null>(null);
+  const [taskError, setTaskError] = useState<string | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [taskSuccess, setTaskSuccess] = useState<string | null>(null);
+
+  const loadTasks = useCallback(async () => {
+    setTasksLoading(true);
+    setTaskError(null);
+    try {
+      setTasks(await api.listTasks(true));
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401) {
+        setSession("anonymous");
+      } else {
+        setTaskError(errorMessage(error));
+      }
+      setTasks([]);
+    } finally {
+      setTasksLoading(false);
+    }
+  }, []);
 
   const loadEvents = useCallback(async (calendarId: string) => {
     setEventsLoading(true);
@@ -54,21 +92,49 @@ export const App = () => {
     }
   }, []);
 
+  const loadTaskEventLinks = useCallback(async () => {
+    setTaskEventLinks(await api.listTaskEventLinks());
+  }, []);
+
+  const loadDashboard = useCallback(async () => {
+    setDashboardLoading(true);
+    setDashboardError(null);
+    try {
+      setDashboard(await api.getDashboard());
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401) {
+        setSession("anonymous");
+      } else {
+        setDashboardError(errorMessage(error));
+      }
+    } finally {
+      setDashboardLoading(false);
+    }
+  }, []);
+
   const loadAuthenticatedData = useCallback(async () => {
-    const [loadedProfile, loadedCalendars] = await Promise.all([
-      api.getProfile(),
-      api.listCalendars(),
-    ]);
+    const [loadedProfile, loadedCalendars, loadedTasks, loadedLinks] =
+      await Promise.all([
+        api.getProfile(),
+        api.listCalendars(),
+        api.listTasks(true),
+        api.listTaskEventLinks(),
+      ]);
     setProfile(loadedProfile);
     setCalendars(loadedCalendars);
+    setTasks(loadedTasks);
+    setTaskEventLinks(loadedLinks);
     const selected =
       loadedCalendars.find((calendar) => calendar.isPrimary) ??
       loadedCalendars[0];
     setSelectedCalendarId(selected?.id ?? null);
-    if (selected) await loadEvents(selected.id);
-    else setEvents([]);
+    if (!selected) setEvents([]);
     setSession("authenticated");
-  }, [loadEvents]);
+    await Promise.all([
+      selected ? loadEvents(selected.id) : Promise.resolve(),
+      loadDashboard(),
+    ]);
+  }, [loadDashboard, loadEvents]);
 
   useEffect(() => {
     // Der initiale API-Aufruf synchronisiert React mit der lokalen Sitzung.
@@ -104,6 +170,9 @@ export const App = () => {
     setProfile(null);
     setCalendars([]);
     setEvents([]);
+    setTasks([]);
+    setTaskEventLinks([]);
+    setDashboard(null);
     setSelectedCalendarId(null);
     setLoginError(null);
   };
@@ -111,6 +180,7 @@ export const App = () => {
   const changeCalendar = (calendarId: string) => {
     setSelectedCalendarId(calendarId);
     setSuccess(null);
+    setCalendarWarning(null);
     void loadEvents(calendarId);
   };
 
@@ -121,6 +191,7 @@ export const App = () => {
     if (!selectedCalendarId) return;
     setSaving(true);
     setCalendarError(null);
+    setCalendarWarning(null);
     setSuccess(null);
     try {
       if (event) {
@@ -135,9 +206,149 @@ export const App = () => {
         await api.createEvent(selectedCalendarId, payload);
         setSuccess("Der Termin wurde angelegt.");
       }
-      await loadEvents(selectedCalendarId);
+      await Promise.all([loadEvents(selectedCalendarId), loadDashboard()]);
     } catch (error) {
-      setCalendarError(errorMessage(error));
+      if (
+        error instanceof ApiClientError &&
+        error.code === "PRECONDITION_FAILED"
+      ) {
+        await loadEvents(selectedCalendarId);
+        setCalendarWarning(
+          "Der Termin wurde zwischenzeitlich geändert. Die aktuelle Version wurde neu geladen; prüfe sie vor einem weiteren Speicherversuch.",
+        );
+      } else {
+        setCalendarError(errorMessage(error));
+      }
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteEvent = async (event: CalendarEventResponse) => {
+    if (!selectedCalendarId) return;
+    setSaving(true);
+    setCalendarError(null);
+    setCalendarWarning(null);
+    setSuccess(null);
+    try {
+      await api.deleteEvent(selectedCalendarId, event.uid, event.etag);
+      setSuccess("Der Termin wurde gelöscht.");
+      await Promise.all([
+        loadEvents(selectedCalendarId),
+        loadTaskEventLinks(),
+        loadDashboard(),
+      ]);
+    } catch (error) {
+      if (
+        error instanceof ApiClientError &&
+        error.code === "PRECONDITION_FAILED"
+      ) {
+        await loadEvents(selectedCalendarId);
+        setCalendarWarning(
+          "Der Termin wurde zwischenzeitlich geändert. Die aktuelle Version wurde neu geladen; prüfe sie vor einem weiteren Löschversuch.",
+        );
+      } else {
+        setCalendarError(errorMessage(error));
+      }
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveTask = async (
+    task: TaskResponse | null,
+    payload: CreateTaskRequest | UpdateTaskRequest,
+  ) => {
+    setSaving(true);
+    setTaskError(null);
+    setTaskSuccess(null);
+    try {
+      if (task) {
+        await api.updateTask(task.id, payload);
+        setTaskSuccess("Die Aufgabe wurde aktualisiert.");
+      } else {
+        await api.createTask(payload as CreateTaskRequest);
+        setTaskSuccess("Die Aufgabe wurde angelegt.");
+      }
+      await Promise.all([loadTasks(), loadDashboard()]);
+    } catch (error) {
+      setTaskError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateTask = async (taskId: string, payload: UpdateTaskRequest) => {
+    setSaving(true);
+    setTaskError(null);
+    setTaskSuccess(null);
+    try {
+      await api.updateTask(taskId, payload);
+      setTaskSuccess("Die Aufgabe wurde aktualisiert.");
+      await Promise.all([loadTasks(), loadDashboard()]);
+    } catch (error) {
+      setTaskError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    setSaving(true);
+    setTaskError(null);
+    setTaskSuccess(null);
+    try {
+      await api.deleteTask(taskId);
+      setTaskSuccess("Die Aufgabe wurde gelöscht.");
+      await Promise.all([loadTasks(), loadTaskEventLinks(), loadDashboard()]);
+    } catch (error) {
+      setTaskError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const createTaskEventLink = async (input: CreateTaskEventLinkRequest) => {
+    setSaving(true);
+    setTaskError(null);
+    setCalendarError(null);
+    try {
+      await api.createTaskEventLink(input);
+      await loadTaskEventLinks();
+      if (view === "tasks") {
+        setTaskSuccess("Aufgabe und Termin wurden verknüpft.");
+      } else {
+        setSuccess("Termin und Aufgabe wurden verknüpft.");
+      }
+    } catch (error) {
+      if (view === "tasks") setTaskError(errorMessage(error));
+      else setCalendarError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteTaskEventLink = async (linkId: string) => {
+    setSaving(true);
+    setTaskError(null);
+    setCalendarError(null);
+    try {
+      await api.deleteTaskEventLink(linkId);
+      await loadTaskEventLinks();
+      if (view === "tasks") {
+        setTaskSuccess("Die Aufgaben-Termin-Verknüpfung wurde entfernt.");
+      } else {
+        setSuccess("Die Termin-Aufgaben-Verknüpfung wurde entfernt.");
+      }
+    } catch (error) {
+      if (view === "tasks") setTaskError(errorMessage(error));
+      else setCalendarError(errorMessage(error));
       throw error;
     } finally {
       setSaving(false);
@@ -170,24 +381,65 @@ export const App = () => {
       {view === "dashboard" ? (
         <Dashboard
           profile={profile}
-          calendars={calendars}
-          events={events}
+          snapshot={dashboard}
+          loading={dashboardLoading}
+          error={dashboardError}
+          onReload={() => void loadDashboard()}
+          onOpenTasks={() => setView("tasks")}
           onOpenCalendar={() => setView("calendar")}
+          onCreateTask={() => {
+            setCreateRequest("task");
+            setView("tasks");
+          }}
+          onCreateEvent={() => {
+            setCreateRequest("event");
+            setView("calendar");
+          }}
+        />
+      ) : view === "tasks" ? (
+        <TaskWorkspace
+          tasks={tasks}
+          events={events}
+          links={taskEventLinks}
+          selectedCalendarId={selectedCalendarId}
+          timezone={profile.settings.timezone}
+          loading={tasksLoading}
+          saving={saving}
+          error={taskError}
+          success={taskSuccess}
+          createRequested={createRequest === "task"}
+          onCreateRequestHandled={() => setCreateRequest(null)}
+          onReload={() => void loadTasks()}
+          onSave={saveTask}
+          onUpdate={updateTask}
+          onDelete={deleteTask}
+          onLink={createTaskEventLink}
+          onUnlink={deleteTaskEventLink}
         />
       ) : (
         <CalendarWorkspace
           calendars={calendars}
           selectedCalendarId={selectedCalendarId}
           events={events}
+          tasks={tasks}
+          links={taskEventLinks}
+          initialView={profile.settings.defaultCalendarView}
           loading={eventsLoading}
           saving={saving}
           error={calendarError}
+          warning={calendarWarning}
           success={success}
+          createRequested={createRequest === "event"}
+          onCreateRequestHandled={() => setCreateRequest(null)}
           onCalendarChange={changeCalendar}
-          onReload={() =>
-            selectedCalendarId && void loadEvents(selectedCalendarId)
-          }
+          onReload={() => {
+            setCalendarWarning(null);
+            if (selectedCalendarId) void loadEvents(selectedCalendarId);
+          }}
           onSave={saveEvent}
+          onDelete={deleteEvent}
+          onLink={createTaskEventLink}
+          onUnlink={deleteTaskEventLink}
         />
       )}
     </Shell>

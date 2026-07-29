@@ -195,6 +195,11 @@ test("unterstützt Discovery, Ereignis-CRUD, Reports, Sync und Widerruf", async 
   assert.match(fetchedIcs, /DTSTART;TZID=Europe\/Berlin:20320310T090000/);
   assert.match(fetchedIcs, /RRULE:FREQ=WEEKLY;COUNT=4/);
   assert.match(fetchedIcs, /TRIGGER:-PT10M/);
+  const webApiProjection = await calendars.listEvents(user.id, calendarId);
+  assert.equal(webApiProjection.length, 1);
+  assert.equal(webApiProjection[0]?.uid, uid);
+  assert.equal(webApiProjection[0]?.etag, firstEtag);
+  assert.equal(webApiProjection[0]?.recurrenceRule, "FREQ=WEEKLY;COUNT=4");
 
   const query = await fetch(calendarUrl, {
     method: "REPORT",
@@ -273,6 +278,7 @@ test("unterstützt Discovery, Ereignis-CRUD, Reports, Sync und Widerruf", async 
     headers: { authorization, "if-match": secondEtag },
   });
   assert.equal(deleted.status, 204);
+  assert.deepEqual(await calendars.listEvents(user.id, calendarId), []);
   const deletionSync = await fetch(calendarUrl, {
     method: "REPORT",
     headers: { authorization, depth: "1", "content-type": "application/xml" },

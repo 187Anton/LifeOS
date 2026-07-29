@@ -2,8 +2,14 @@ import type {
   ApiErrorResponse,
   CalendarEventResponse,
   CalendarResponse,
+  CreateTaskEventLinkRequest,
+  CreateTaskRequest,
+  DashboardResponse,
   ProfileResponse,
   SessionResponse,
+  TaskResponse,
+  TaskEventLinkResponse,
+  UpdateTaskRequest,
 } from "@lifeos/contracts";
 
 const API_BASE = "/api/v1";
@@ -87,6 +93,10 @@ export const api = {
     return request<ProfileResponse>("/profile");
   },
 
+  getDashboard() {
+    return request<DashboardResponse>("/dashboard");
+  },
+
   listCalendars() {
     return request<CalendarResponse[]>("/calendars");
   },
@@ -118,5 +128,58 @@ export const api = {
         body: JSON.stringify(payload),
       },
     );
+  },
+
+  deleteEvent(calendarId: string, uid: string, etag: string) {
+    return request<void>(
+      `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(uid)}`,
+      {
+        method: "DELETE",
+        headers: { "If-Match": etag },
+      },
+    );
+  },
+
+  listTaskEventLinks() {
+    return request<TaskEventLinkResponse[]>("/task-event-links");
+  },
+
+  createTaskEventLink(payload: CreateTaskEventLinkRequest) {
+    return request<TaskEventLinkResponse>("/task-event-links", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteTaskEventLink(linkId: string) {
+    return request<void>(`/task-event-links/${encodeURIComponent(linkId)}`, {
+      method: "DELETE",
+    });
+  },
+
+  listTasks(includeArchived = true) {
+    return request<TaskResponse[]>(
+      `/tasks?includeArchived=${includeArchived ? "true" : "false"}`,
+    );
+  },
+
+  createTask(payload: CreateTaskRequest) {
+    return request<TaskResponse>("/tasks", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateTask(taskId: string, payload: UpdateTaskRequest) {
+    return request<TaskResponse>(`/tasks/${encodeURIComponent(taskId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteTask(taskId: string) {
+    return request<void>(`/tasks/${encodeURIComponent(taskId)}`, {
+      method: "DELETE",
+    });
   },
 };

@@ -141,6 +141,33 @@ Nach lokaler Anmeldung stehen außerdem Kalender- und Ereignis-CRUD unter
 `/api/v1/calendars` bereit. Ereignisänderungen verwenden ETags und `If-Match`,
 damit ein veralteter Client keinen neueren Stand überschreibt.
 
+Aufgaben werden nach lokaler Anmeldung unter `/api/v1/tasks` verwaltet. Das
+Aufgabenmodell unterstützt Status, Priorität, Fälligkeit als reines Datum,
+optionale geplante Startzeit mit IANA-Zeitzone, ganzzahlige Dauerminuten, Tags,
+Bereich, Projekt- und Elternbezug sowie Archivierung und Soft-Delete. Die
+responsive Aufgabenoberfläche unterstützt Erstellen, Bearbeiten, Statuswechsel,
+Archivierung, bestätigtes Löschen sowie kombinierbare Suche und Filter.
+
+Der Kalender bietet Tages-, Wochen-, Monats- und Agendaansicht. Termine werden
+weiterhin ausschließlich über den gemeinsamen Kalenderkern gespeichert:
+Ganztagswerte bleiben reine Daten, Serienvorkommen sind flüchtige Projektionen
+der RRULE und Bearbeiten oder Löschen verwendet immer die stabile UID und den
+aktuellen ETag des zugrunde liegenden Ereignisses.
+
+Aufgaben und Termine können optional über `/api/v1/task-event-links`
+miteinander verknüpft und in beiden Editoren wieder getrennt werden. Die
+Beziehung speichert nur die besitzgeprüften Referenzen: Status und Fälligkeit
+bleiben an der Aufgabe, Start und Ende am Kalenderereignis. Abschluss,
+Löschung oder Änderung eines Objekts verändert das andere nicht automatisch.
+
+Das Organisations-Dashboard lädt über den geschützten, rein lesenden Endpunkt
+`/api/v1/dashboard` aktive Aufgaben, Termine aus allen eigenen Kalendern und
+aktuelle Projektanker direkt aus PostgreSQL. Heutige und überfällige Daten
+werden anhand der Profilzeitzone bestimmt. Die responsive Übersicht zeigt
+Leer- und Fehlerzustände, Überschneidungen, fehlende Fälligkeiten sowie
+Schnellaktionen, die ausschließlich die bestehenden Aufgaben- und
+Termin-Formulare öffnen.
+
 Der CalDAV-Server liegt unabhängig von der REST-API unter `/caldav/`. Sein
 Zugang wird getrennt von der Browser-Anmeldung gesetzt und widerrufen:
 
@@ -182,9 +209,11 @@ npm run web:dev
 ```
 
 Die Oberfläche ist unter `http://127.0.0.1:5173` erreichbar. Sie verwendet
-einen lokalen API-Proxy, zeigt Kalender und Termine auf Desktop und Smartphone
-an und kann Termine anlegen sowie bearbeiten. Ein Produktions-Build erzeugt
-zusätzlich Manifest und Offline-App-Shell:
+einen lokalen API-Proxy, zeigt Aufgaben, Kalender und Termine auf Desktop und
+Smartphone an und kann Aufgaben vollständig anlegen, bearbeiten, abschließen,
+wieder öffnen, archivieren und löschen. Suche und kombinierbare Aufgabenfilter
+bleiben flüchtiger UI-Zustand. Ein Produktions-Build erzeugt zusätzlich
+Manifest und Offline-App-Shell:
 
 ```bash
 npm run build --workspace @lifeos/web

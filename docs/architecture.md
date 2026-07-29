@@ -32,6 +32,12 @@ versionierte REST-API über denselben Ursprung beziehungsweise einen lokalen
 `/api`-Proxy an; Kalenderänderungen landen dadurch im gemeinsamen Kern und
 werden auch über CalDAV sichtbar.
 
+Aufgaben verwenden dieselbe Shell und die geschützte `/api/v1/tasks`-API.
+Erstellen, Bearbeiten, Statuswechsel, Archivierung und Soft-Delete werden
+serverseitig gespeichert. Suche und kombinierbare Filter werden für die lokal
+geladene Aufgabenliste im React-Zustand berechnet und weder persistiert noch
+vom Service Worker gecacht.
+
 Vite erzeugt ein Web-App-Manifest und einen Service Worker. Der Service Worker
 cached ausschließlich die statische App-Shell. REST-Antworten und persönliche
 Kalenderdaten sind von Laufzeit-Caching ausgeschlossen. Die Oberfläche nutzt
@@ -97,6 +103,66 @@ Erinnerungsminuten werden verlustarm gespeichert und erst in der CalDAV-
 Schicht in iCalendar übersetzt. Löschungen setzen Markierungen statt Daten
 physisch zu entfernen; dadurch können spätere Sync-Reports Löschungen melden.
 
+Die React-Kalenderansichten sind ausschließlich eine flüchtige Projektion
+dieser Ereignisse. Tages-, Wochen-, Monats- und Agendaansicht erzeugen weder
+eigene Ereignisdatensätze noch neue UIDs. Unterstützte RRULE-Vorkommen werden
+für den sichtbaren Zeitraum berechnet; Bearbeiten und Löschen adressiert stets
+das führende Serienereignis mit dessen stabiler UID und aktuellem ETag.
+Aufgabenstatus oder spätere Aufgabenverknüpfungen werden nicht in diese
+Kalenderprojektion kopiert.
+
+## Aufgaben-Kernmodell
+
+Aufgaben sind ein eigenes Fachmodul und werden nicht als Kalenderereignisse
+modelliert. Sie tragen immer den Besitzer aus der serverseitig geprüften
+Sitzung. Status (`open`, `in_progress`, `blocked`, `done`, `cancelled`),
+Priorität, Bereich, Tags und ganzzahlige Dauerminuten bleiben Aufgabenlogik.
+Eine Fälligkeit ist ein reines `DATE`; eine optionale geplante Startzeit ist
+ein `TIMESTAMPTZ` zusammen mit der fachlichen IANA-Zeitzone.
+
+Elternaufgaben und Projektanker verwenden zusammengesetzte Fremdschlüssel mit
+der Benutzer-ID. Dadurch können Beziehungen nicht auf Datensätze eines anderen
+Besitzers zeigen. Die Services verhindern zusätzlich Hierarchiezyklen und
+setzen den Abschlusszeitpunkt passend zum Status. Archivierung ist umkehrbar,
+während Löschen eine datenschutzgerechte Löschmarkierung setzt. Jede
+schreibende Änderung erzeugt ein wertfreies Audit-Ereignis.
+
+Der `Project`-Datensatz ist in Phase 0.2 nur ein stabiler, besitzgebundener
+Anker für die optionale Aufgabenrelation. Projekt-CRUD, Ziele und Meilensteine
+gehören weiterhin in Roadmap 0.4 und werden nicht vorweggenommen.
+
+## Aufgaben-Termin-Beziehung
+
+Aufgabe, geplante Bearbeitungszeit und tatsächlich stattfindender Termin
+bleiben getrennte Fachkonzepte. Eine Aufgabenfälligkeit und die optionale
+Aufgaben-Startplanung gehören zum Aufgabenmodell. Beginn und Ende eines
+Termins oder eines ausdrücklich angelegten Zeitblocks gehören weiterhin zum
+Kalenderkern.
+
+`TaskEventLink` speichert ausschließlich die Beziehung zwischen beiden
+Objekten und den serverseitig geprüften Besitzer. Zusammengesetzte
+Fremdschlüssel verhindern Beziehungen über Benutzergrenzen; ein eindeutiger
+Schlüssel macht wiederholtes Verknüpfen idempotent. Es werden weder
+Aufgabenstatus noch Terminzeiten kopiert. Soft-Deletes bleiben als nicht
+verfügbare Beziehungspartner sichtbar. Das Ändern, Abschließen oder Löschen
+eines Objekts löst keine unbestätigte Änderung am anderen Objekt aus.
+
+## Organisations-Dashboard
+
+Das Dashboard ist eine rein lesende Projektion der vorhandenen Fachmodule und
+keine eigene Datenquelle. Der geschützte Endpunkt `/api/v1/dashboard` liest
+aktive Aufgaben, Ereignisse aus allen eigenen Kalendern und aktuelle
+Projektanker besitzgebunden aus PostgreSQL. Er speichert keine Kennzahlen und
+führt keine ungefragten Schreibaktionen aus.
+
+Der Snapshot enthält Erstellungszeitpunkt und Profilzeitzone. Die gemeinsame
+Weboberfläche leitet daraus heutige und nächste Termine, überfällige und hoch
+priorisierte Aufgaben, Bereichszähler sowie Hinweise auf zeitliche
+Überschneidungen und fehlende Fälligkeiten ab. Wiederkehrende Termine werden
+wie in den Kalenderansichten nur flüchtig für den sichtbaren Zeitraum
+projiziert. Schnellaktionen öffnen die bestehenden Formulare; erst deren
+bestätigtes Speichern verändert das jeweilige Fachmodell.
+
 ## CalDAV
 
 Das Life OS soll selbst als CalDAV-Server auftreten. Dadurch kann die
@@ -133,9 +199,14 @@ Integration und darf die lokale Kernfunktion nicht voraussetzen.
   `packages/database/prisma.config.ts` und verbindet den generierten Client
   über den PostgreSQL-Treiberadapter.
 - Persönliche Datensätze tragen einen Besitzerbezug. Ereignisse sichern die
-  Kombination aus Kalender und Benutzer zusätzlich per Fremdschlüssel ab.
+  Kombination aus Kalender und Benutzer zusätzlich per Fremdschlüssel ab;
+  Aufgaben sichern Eltern- und Projektbezüge entsprechend ab.
+  Aufgaben-Termin-Beziehungen prüfen Aufgabe und Ereignis mit demselben
+  Besitzerbezug.
 - Absolute Zeitpunkte liegen als `TIMESTAMPTZ`, ganztägige Kalenderwerte als
   reine `DATE`-Spalten vor; die fachliche Zeitzone wird getrennt gespeichert.
+  Aufgabenfälligkeiten sind ebenfalls reine `DATE`-Werte, geplante
+  Aufgabenstarts verwenden `TIMESTAMPTZ` plus IANA-Zeitzone.
 - CalDAV-UIDs, Kalender-IDs und ETags bleiben stabil.
 - Vor potenziell verlustbehafteten Migrationen werden Backups erstellt.
 - API-Breaking-Changes werden über eine neue Version oder Übergangsphase
