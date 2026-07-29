@@ -1,7 +1,10 @@
 import type {
   CalendarEventResponse,
   CalendarResponse,
+  CreateTaskRequest,
   ProfileResponse,
+  TaskResponse,
+  UpdateTaskRequest,
 } from "@lifeos/contracts";
 import { useCallback, useEffect, useState } from "react";
 
@@ -10,6 +13,7 @@ import { CalendarWorkspace } from "./components/CalendarWorkspace";
 import { Dashboard } from "./components/Dashboard";
 import { Login } from "./components/Login";
 import { Shell, type View } from "./components/Shell";
+import { TaskWorkspace } from "./components/TaskWorkspace";
 
 type SessionState = "checking" | "anonymous" | "authenticated";
 
@@ -29,13 +33,34 @@ export const App = () => {
     null,
   );
   const [events, setEvents] = useState<CalendarEventResponse[]>([]);
+  const [tasks, setTasks] = useState<TaskResponse[]>([]);
   const [view, setView] = useState<View>("dashboard");
   const [loginPending, setLoginPending] = useState(false);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [tasksLoading, setTasksLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [taskError, setTaskError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [taskSuccess, setTaskSuccess] = useState<string | null>(null);
+
+  const loadTasks = useCallback(async () => {
+    setTasksLoading(true);
+    setTaskError(null);
+    try {
+      setTasks(await api.listTasks(true));
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401) {
+        setSession("anonymous");
+      } else {
+        setTaskError(errorMessage(error));
+      }
+      setTasks([]);
+    } finally {
+      setTasksLoading(false);
+    }
+  }, []);
 
   const loadEvents = useCallback(async (calendarId: string) => {
     setEventsLoading(true);
@@ -55,12 +80,14 @@ export const App = () => {
   }, []);
 
   const loadAuthenticatedData = useCallback(async () => {
-    const [loadedProfile, loadedCalendars] = await Promise.all([
+    const [loadedProfile, loadedCalendars, loadedTasks] = await Promise.all([
       api.getProfile(),
       api.listCalendars(),
+      api.listTasks(true),
     ]);
     setProfile(loadedProfile);
     setCalendars(loadedCalendars);
+    setTasks(loadedTasks);
     const selected =
       loadedCalendars.find((calendar) => calendar.isPrimary) ??
       loadedCalendars[0];
@@ -104,6 +131,7 @@ export const App = () => {
     setProfile(null);
     setCalendars([]);
     setEvents([]);
+    setTasks([]);
     setSelectedCalendarId(null);
     setLoginError(null);
   };
@@ -144,6 +172,62 @@ export const App = () => {
     }
   };
 
+  const saveTask = async (
+    task: TaskResponse | null,
+    payload: CreateTaskRequest | UpdateTaskRequest,
+  ) => {
+    setSaving(true);
+    setTaskError(null);
+    setTaskSuccess(null);
+    try {
+      if (task) {
+        await api.updateTask(task.id, payload);
+        setTaskSuccess("Die Aufgabe wurde aktualisiert.");
+      } else {
+        await api.createTask(payload as CreateTaskRequest);
+        setTaskSuccess("Die Aufgabe wurde angelegt.");
+      }
+      await loadTasks();
+    } catch (error) {
+      setTaskError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateTask = async (taskId: string, payload: UpdateTaskRequest) => {
+    setSaving(true);
+    setTaskError(null);
+    setTaskSuccess(null);
+    try {
+      await api.updateTask(taskId, payload);
+      setTaskSuccess("Die Aufgabe wurde aktualisiert.");
+      await loadTasks();
+    } catch (error) {
+      setTaskError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    setSaving(true);
+    setTaskError(null);
+    setTaskSuccess(null);
+    try {
+      await api.deleteTask(taskId);
+      setTaskSuccess("Die Aufgabe wurde gelöscht.");
+      await loadTasks();
+    } catch (error) {
+      setTaskError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (session === "checking") {
     return (
       <main className="boot-screen" role="status">
@@ -173,6 +257,19 @@ export const App = () => {
           calendars={calendars}
           events={events}
           onOpenCalendar={() => setView("calendar")}
+        />
+      ) : view === "tasks" ? (
+        <TaskWorkspace
+          tasks={tasks}
+          timezone={profile.settings.timezone}
+          loading={tasksLoading}
+          saving={saving}
+          error={taskError}
+          success={taskSuccess}
+          onReload={() => void loadTasks()}
+          onSave={saveTask}
+          onUpdate={updateTask}
+          onDelete={deleteTask}
         />
       ) : (
         <CalendarWorkspace

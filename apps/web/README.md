@@ -6,6 +6,10 @@ aktuell folgende Abläufe ab:
 
 - Anmeldung am lokalen persönlichen Profil,
 - ruhige Startübersicht mit lokalem Kalenderstatus,
+- responsive Aufgabenliste mit Suche sowie Status-, Prioritäts-, Bereichs- und
+  Fälligkeitsfiltern,
+- Aufgaben anlegen, bearbeiten, abschließen, wieder öffnen, archivieren,
+  wiederherstellen und nach ausdrücklicher Bestätigung soft löschen,
 - Kalenderauswahl und Terminliste,
 - Anlegen und Bearbeiten zeitgebundener sowie ganztägiger Termine,
 - Zeitzone, Ort, Beschreibung, Erinnerung und einfache RRULE-Eingabe,
@@ -37,8 +41,9 @@ Bereitstellung muss ein lokaler Webserver `/api` zur LifeOS-API weiterleiten.
 Die statische App-Shell bleibt nach dem ersten Laden offline aufrufbar. API-
 Antworten und persönliche Kalenderdaten werden bewusst nicht im Service-Worker,
 `localStorage` oder `sessionStorage` gespeichert. Ohne erreichbare lokale API
-kann die Shell deshalb keine Kalenderdaten laden. Die Sitzung bleibt in einem
-vom Backend gesetzten `HttpOnly`-Cookie.
+kann die Shell deshalb keine Aufgaben oder Kalenderdaten laden. Aufgabenfilter,
+Suche und geöffnete Editoren sind ausschließlich flüchtiger React-Zustand. Die
+Sitzung bleibt in einem vom Backend gesetzten `HttpOnly`-Cookie.
 
 Die Oberfläche lädt keine externen Schriftarten oder anderen notwendigen
 Assets. Manifest-Icons liegen versioniert unter `public/icons/`.
@@ -53,7 +58,9 @@ npm run test:e2e --workspace @lifeos/web
 npm run build --workspace @lifeos/web
 ```
 
-Die Unit-Tests prüfen API-Client, Laden, Erfolg, Leerzustand und Fehlerfall. Die
-Playwright-Tests laufen in Chrome für Desktop und Smartphone. Sie prüfen unter
-anderem Termin-Erstellung und -Bearbeitung, fehlende Browserpersistenz,
-horizontalen Überlauf sowie Manifest, Service Worker und Offline-App-Shell.
+Die Unit-Tests prüfen API-Client, Laden, Aufgaben-CRUD, kombinierte Filter,
+Leerzustände und Fehlerfälle. Die Playwright-Tests laufen in Chrome für Desktop
+und Smartphone. Sie prüfen Aufgaben-Erstellung, Neuladen, Suche, Filter,
+Bearbeitung, Abschluss, Wiederöffnung, Archivierung, Löschung,
+Termin-Erstellung und -Bearbeitung, fehlende Browserpersistenz, horizontalen
+Überlauf sowie Manifest, Service Worker und Offline-App-Shell.

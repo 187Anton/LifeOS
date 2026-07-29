@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
-import { CalendarIcon, HomeIcon, LogOutIcon } from "./Icons";
+import { CalendarIcon, HomeIcon, LogOutIcon, TaskIcon } from "./Icons";
 
-export type View = "dashboard" | "calendar";
+export type View = "dashboard" | "tasks" | "calendar";
 
 interface ShellProps {
   children: ReactNode;
@@ -39,6 +39,14 @@ export const Shell = ({
         >
           <HomeIcon />
           <span>Übersicht</span>
+        </button>
+        <button
+          className={view === "tasks" ? "nav-item active" : "nav-item"}
+          onClick={() => onViewChange("tasks")}
+          aria-current={view === "tasks" ? "page" : undefined}
+        >
+          <TaskIcon />
+          <span>Aufgaben</span>
         </button>
         <button
           className={view === "calendar" ? "nav-item active" : "nav-item"}
@@ -97,6 +105,14 @@ export const Shell = ({
       >
         <HomeIcon />
         <span>Übersicht</span>
+      </button>
+      <button
+        className={view === "tasks" ? "active" : ""}
+        onClick={() => onViewChange("tasks")}
+        aria-current={view === "tasks" ? "page" : undefined}
+      >
+        <TaskIcon />
+        <span>Aufgaben</span>
       </button>
       <button
         className={view === "calendar" ? "active" : ""}

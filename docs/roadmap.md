@@ -146,6 +146,12 @@ stellt dafür nur einen besitzgesicherten Relationsanker bereit.
 - Nach Status, Priorität und Fälligkeit filtern und sortieren.
 - Mobile Bedienung und verständliche leere Zustände ergänzen.
 
+Umsetzungsnachweis: Issue #33 ergänzt die gemeinsame React-PWA um responsive
+Aufgaben-Navigation, vollständiges Erstellen und Bearbeiten, Statusaktionen,
+Archivierung, bestätigtes Soft-Delete sowie kombinierbare Suche und Filter.
+Unit- und Playwright-Tests prüfen den zentralen Ablauf auf Desktop und
+Smartphone einschließlich Neuladen und fehlender Browserpersistenz.
+
 ### 0.2.3 Kalenderansichten
 
 - Tages-, Wochen- und Monatsansicht ergänzen.

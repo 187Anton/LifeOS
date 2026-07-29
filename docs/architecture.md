@@ -32,6 +32,12 @@ versionierte REST-API über denselben Ursprung beziehungsweise einen lokalen
 `/api`-Proxy an; Kalenderänderungen landen dadurch im gemeinsamen Kern und
 werden auch über CalDAV sichtbar.
 
+Aufgaben verwenden dieselbe Shell und die geschützte `/api/v1/tasks`-API.
+Erstellen, Bearbeiten, Statuswechsel, Archivierung und Soft-Delete werden
+serverseitig gespeichert. Suche und kombinierbare Filter werden für die lokal
+geladene Aufgabenliste im React-Zustand berechnet und weder persistiert noch
+vom Service Worker gecacht.
+
 Vite erzeugt ein Web-App-Manifest und einen Service Worker. Der Service Worker
 cached ausschließlich die statische App-Shell. REST-Antworten und persönliche
 Kalenderdaten sind von Laufzeit-Caching ausgeschlossen. Die Oberfläche nutzt
