@@ -173,3 +173,22 @@ export interface CreateTaskEventLinkRequest {
   calendarId: string;
   eventUid: string;
 }
+
+export interface DashboardEventResponse extends CalendarEventResponse {
+  calendarId: string;
+  calendarName: string;
+}
+
+export interface DashboardProjectResponse {
+  id: string;
+  title: string;
+  openTaskCount: number;
+}
+
+export interface DashboardResponse {
+  generatedAt: string;
+  timezone: string;
+  tasks: TaskResponse[];
+  events: DashboardEventResponse[];
+  projects: DashboardProjectResponse[];
+}

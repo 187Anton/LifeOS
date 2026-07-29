@@ -115,6 +115,12 @@ besitzgebundene Beziehung verknüpft. Die Beziehung kopiert keine Fachdaten:
 Aufgabenstatus und Fälligkeit bleiben im Aufgabenmodell, Start und Ende im
 Kalenderkern. Änderungen eines Objekts verändern das andere nicht automatisch.
 
+Das Organisations-Dashboard ist eine rein lesende, besitzgebundene Projektion
+vorhandener Aufgaben-, Kalender- und Projektdaten. Es speichert keine
+Kennzahlen, verwendet die Profilzeitzone für „heute“ und „überfällig“ und
+öffnet bei Schnellaktionen nur bestehende Formulare; Schreiben bleibt eine
+getrennte, bestätigte Fachaktion.
+
 Die lokale Erreichbarkeit muss dokumentiert werden. `localhost` auf dem
 iPhone zeigt auf das iPhone selbst; für lokale Synchronisation wird die
 Netzwerkadresse oder ein lokaler DNS-Name des Entwicklungsrechners benötigt.
@@ -422,4 +428,8 @@ gemeldet.
   Unit-, UI- und CalDAV-Integrationstests festgehalten.
 - **2026-07-29:** Besitzgebundene Aufgaben-Termin-Beziehungen ohne kopierte
   Fachdaten oder automatische Seiteneffekte nach API-, Datenbank- und UI-Tests
+  festgehalten.
+- **2026-07-29:** Organisations-Dashboard als rein lesende,
+  besitzgebundene und zeitzonenkorrekte Projektion ohne eigene Datenquelle oder
+  ungefragte Schreibaktionen nach API-, Datenbank-, Unit- und E2E-Tests
   festgehalten.

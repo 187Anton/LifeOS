@@ -4,6 +4,7 @@ import type {
   CalendarResponse,
   CreateTaskEventLinkRequest,
   CreateTaskRequest,
+  DashboardResponse,
   ProfileResponse,
   SessionResponse,
   TaskResponse,
@@ -90,6 +91,10 @@ export const api = {
 
   getProfile() {
     return request<ProfileResponse>("/profile");
+  },
+
+  getDashboard() {
+    return request<DashboardResponse>("/dashboard");
   },
 
   listCalendars() {

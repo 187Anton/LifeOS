@@ -160,6 +160,14 @@ Beziehung speichert nur die besitzgeprüften Referenzen: Status und Fälligkeit
 bleiben an der Aufgabe, Start und Ende am Kalenderereignis. Abschluss,
 Löschung oder Änderung eines Objekts verändert das andere nicht automatisch.
 
+Das Organisations-Dashboard lädt über den geschützten, rein lesenden Endpunkt
+`/api/v1/dashboard` aktive Aufgaben, Termine aus allen eigenen Kalendern und
+aktuelle Projektanker direkt aus PostgreSQL. Heutige und überfällige Daten
+werden anhand der Profilzeitzone bestimmt. Die responsive Übersicht zeigt
+Leer- und Fehlerzustände, Überschneidungen, fehlende Fälligkeiten sowie
+Schnellaktionen, die ausschließlich die bestehenden Aufgaben- und
+Termin-Formulare öffnen.
+
 Der CalDAV-Server liegt unabhängig von der REST-API unter `/caldav/`. Sein
 Zugang wird getrennt von der Browser-Anmeldung gesetzt und widerrufen:
 

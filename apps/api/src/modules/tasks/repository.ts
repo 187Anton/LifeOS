@@ -71,7 +71,7 @@ type TaskRecord = {
   updatedAt: Date;
 };
 
-const mapTask = (task: TaskRecord): TaskResponse => ({
+export const mapTask = (task: TaskRecord): TaskResponse => ({
   id: task.id,
   ownerId: task.userId,
   title: task.title,

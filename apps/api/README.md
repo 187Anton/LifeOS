@@ -123,6 +123,7 @@ unset CALDAV_TEST_PASSWORD
 | `GET/PATCH/DELETE /api/v1/tasks/:taskId`           | Aufgabe lesen, ändern oder soft löschen          |
 | `GET/POST /api/v1/task-event-links`                | Aufgaben-Termin-Beziehungen lesen oder anlegen   |
 | `DELETE /api/v1/task-event-links/:linkId`          | Aufgaben-Termin-Beziehung entfernen              |
+| `GET /api/v1/dashboard`                            | rein lesenden Organisations-Snapshot laden       |
 | `/.well-known/caldav`                              | CalDAV-Discovery auf `/caldav/`                  |
 | `/caldav/…`                                        | WebDAV-/CalDAV-Ressourcen                        |
 
@@ -207,6 +208,22 @@ nicht, und das Löschen eines Termins löscht die Aufgabe nicht. Soft gelöschte
 Objekte werden in bestehenden Beziehungen als nicht verfügbar angezeigt,
 damit die Beziehung nachvollziehbar entfernt werden kann.
 
+## Dashboard-Vertrag
+
+`GET /dashboard` verwendet ausschließlich den Besitzer aus der geprüften
+Sitzung und führt keine schreibende Aktion aus. Der Snapshot enthält aktive,
+nicht archivierte Aufgaben, nicht gelöschte Ereignisse aus allen eigenen,
+nicht gelöschten Kalendern sowie Projektanker mit offenen Aufgaben. Er nennt
+den Erstellungszeitpunkt und die gespeicherte Profilzeitzone, damit der Client
+„heute“ und „überfällig“ reproduzierbar bestimmen kann. Nicht wiederkehrende
+Ereignisse werden bereits in der Datenbank auf den sichtbaren Zeitraum von
+heute bis 30 Tage im Voraus begrenzt; Serienwurzeln bleiben für die flüchtige
+Projektion erhalten.
+
+Der Endpunkt erfindet oder ergänzt keine Termine und Aufgaben. Persönliche
+Inhalte werden nicht protokolliert; der bestehende Anfrage-Logger speichert nur
+Anfrage-ID, Routenmetadaten, Status und Dauer.
+
 Beispiel:
 
 ```bash
@@ -257,6 +274,8 @@ weitergegeben.
   Datenbanktransaktionen und HTTP-Verträge.
 - `modules/task-event-links/` kapselt besitzgebundene, idempotente Beziehungen
   zwischen Aufgaben- und Kalenderkern.
+- `modules/dashboard/` bündelt den besitzgebundenen, rein lesenden
+  Organisations-Snapshot ohne eigene Fachdaten oder Schreiblogik.
 - `modules/caldav/` übersetzt den gemeinsamen Kalenderkern in WebDAV-XML und
   RFC-5545-iCalendar; Zugang, Parser und Transport bleiben von der REST-API
   getrennt.

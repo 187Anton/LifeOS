@@ -183,6 +183,14 @@ Soft-Delete und ausbleibende Seiteneffekte.
 - Dashboard vollständig aus lokalen Daten berechnen.
 - Ladezeit und verständliche Fehlerzustände testen.
 
+Umsetzungsnachweis: Issue #36 ergänzt einen geschützten, rein lesenden
+Dashboard-Snapshot aus PostgreSQL und eine responsive Übersicht. Profilzeitzone
+und Snapshot-Zeitpunkt führen die Bestimmung von „heute“ und „überfällig“;
+Serientermine bleiben flüchtige Projektionen. Unit-, API-, Datenbank- und
+Playwright-Tests prüfen echte gespeicherte Daten, Besitzgrenzen,
+Schnellaktionen, Aktualisierung, Leer- und Fehlerzustände sowie Desktop und
+Smartphone.
+
 Abschlusskriterium: Ein typischer Tag kann vollständig über Aufgaben,
 Kalender und Dashboard geplant werden.
 

@@ -147,6 +147,22 @@ Aufgabenstatus noch Terminzeiten kopiert. Soft-Deletes bleiben als nicht
 verfügbare Beziehungspartner sichtbar. Das Ändern, Abschließen oder Löschen
 eines Objekts löst keine unbestätigte Änderung am anderen Objekt aus.
 
+## Organisations-Dashboard
+
+Das Dashboard ist eine rein lesende Projektion der vorhandenen Fachmodule und
+keine eigene Datenquelle. Der geschützte Endpunkt `/api/v1/dashboard` liest
+aktive Aufgaben, Ereignisse aus allen eigenen Kalendern und aktuelle
+Projektanker besitzgebunden aus PostgreSQL. Er speichert keine Kennzahlen und
+führt keine ungefragten Schreibaktionen aus.
+
+Der Snapshot enthält Erstellungszeitpunkt und Profilzeitzone. Die gemeinsame
+Weboberfläche leitet daraus heutige und nächste Termine, überfällige und hoch
+priorisierte Aufgaben, Bereichszähler sowie Hinweise auf zeitliche
+Überschneidungen und fehlende Fälligkeiten ab. Wiederkehrende Termine werden
+wie in den Kalenderansichten nur flüchtig für den sichtbaren Zeitraum
+projiziert. Schnellaktionen öffnen die bestehenden Formulare; erst deren
+bestätigtes Speichern verändert das jeweilige Fachmodell.
+
 ## CalDAV
 
 Das Life OS soll selbst als CalDAV-Server auftreten. Dadurch kann die

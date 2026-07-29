@@ -9,7 +9,7 @@ import type {
   TaskStatus,
   UpdateTaskRequest,
 } from "@lifeos/contracts";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   compareTasks,
@@ -43,6 +43,8 @@ interface TaskWorkspaceProps {
   saving: boolean;
   error: string | null;
   success: string | null;
+  createRequested: boolean;
+  onCreateRequestHandled: () => void;
   onReload: () => void;
   onSave: (
     task: TaskResponse | null,
@@ -64,6 +66,8 @@ export const TaskWorkspace = ({
   saving,
   error,
   success,
+  createRequested,
+  onCreateRequestHandled,
   onReload,
   onSave,
   onUpdate,
@@ -72,7 +76,7 @@ export const TaskWorkspace = ({
   onUnlink,
 }: TaskWorkspaceProps) => {
   const [editorTask, setEditorTask] = useState<TaskResponse | null | undefined>(
-    undefined,
+    createRequested ? null : undefined,
   );
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<TaskStatus | "all">("all");
@@ -80,6 +84,10 @@ export const TaskWorkspace = ({
   const [area, setArea] = useState<TaskArea | "all">("all");
   const [due, setDue] = useState<DueFilter>("all");
   const [showArchived, setShowArchived] = useState(false);
+
+  useEffect(() => {
+    if (createRequested) onCreateRequestHandled();
+  }, [createRequested, onCreateRequestHandled]);
 
   const filteredTasks = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase("de-DE");

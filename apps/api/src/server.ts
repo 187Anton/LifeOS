@@ -10,6 +10,9 @@ import { createCalDavRouter } from "./modules/caldav/router.js";
 import { PrismaCalendarRepository } from "./modules/calendar/repository.js";
 import { createCalendarRouter } from "./modules/calendar/router.js";
 import { CalendarService } from "./modules/calendar/service.js";
+import { PrismaDashboardRepository } from "./modules/dashboard/repository.js";
+import { createDashboardRouter } from "./modules/dashboard/router.js";
+import { DashboardService } from "./modules/dashboard/service.js";
 import { PrismaProfileRepository } from "./modules/profile/repository.js";
 import { createProfileRouter } from "./modules/profile/router.js";
 import {
@@ -35,6 +38,9 @@ const main = async (): Promise<void> => {
   const tasks = new TaskService(new PrismaTaskRepository(database));
   const taskEventLinks = new TaskEventLinkService(
     new PrismaTaskEventLinkRepository(database),
+  );
+  const dashboard = new DashboardService(
+    new PrismaDashboardRepository(database),
   );
   const calDavRepository = new PrismaCalDavRepository(database);
   const authentication = new AuthenticationService(
@@ -69,6 +75,10 @@ const main = async (): Promise<void> => {
       createTaskEventLinkRouter({
         authentication,
         links: taskEventLinks,
+      }),
+      createDashboardRouter({
+        authentication,
+        dashboard,
       }),
     ],
   });
