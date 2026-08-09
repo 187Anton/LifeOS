@@ -122,6 +122,7 @@ const installApi = ({
     timeEntries: [] as Record<string, unknown>[],
     history: [] as Record<string, unknown>[],
   };
+  const availabilityState: Record<string, unknown>[] = [];
   let conflictReturned = false;
   const fetchMock = vi.fn(
     (request: string | URL | Request, init?: RequestInit) => {
@@ -137,6 +138,117 @@ const installApi = ({
         return json(studyState);
       if (path.startsWith("/api/v1/work") && method === "GET")
         return json(workState);
+      if (path.startsWith("/api/v1/planning?") && method === "GET") {
+        const url = new URL(path, "http://lifeos.local");
+        const date = url.searchParams.get("from") ?? "2032-06-14";
+        const start = `${date}T07:00:00.000Z`;
+        const overlap = `${date}T07:30:00.000Z`;
+        const end = `${date}T08:30:00.000Z`;
+        return json({
+          generatedAt: new Date().toISOString(),
+          timezone: profile.settings.timezone,
+          range: {
+            from: date,
+            to: url.searchParams.get("to") ?? date,
+          },
+          items: [
+            {
+              id: "calendar:1",
+              sourceId: "event-1",
+              area: "calendar",
+              kind: "fixed_event",
+              title: "Gemeinsamer Termin A",
+              date,
+              startsAt: start,
+              endsAt: `${date}T08:00:00.000Z`,
+              timezone: profile.settings.timezone,
+              durationMinutes: 60,
+              priority: "medium",
+              overdue: false,
+              sourceUpdatedAt: start,
+            },
+            {
+              id: "calendar:2",
+              sourceId: "event-2",
+              area: "calendar",
+              kind: "fixed_event",
+              title: "Gemeinsamer Termin B",
+              date,
+              startsAt: overlap,
+              endsAt: end,
+              timezone: profile.settings.timezone,
+              durationMinutes: 60,
+              priority: "medium",
+              overdue: false,
+              sourceUpdatedAt: start,
+            },
+            {
+              id: "study:1",
+              sourceId: "study-1",
+              area: "study",
+              kind: "deadline",
+              title: "Synthetische Prüfung",
+              date,
+              startsAt: null,
+              endsAt: null,
+              timezone: profile.settings.timezone,
+              durationMinutes: null,
+              priority: "high",
+              overdue: false,
+              sourceUpdatedAt: start,
+            },
+            {
+              id: "work:1",
+              sourceId: "work-1",
+              area: "work",
+              kind: "planned_task",
+              title: "Geplanter Praxisblock",
+              date,
+              startsAt: `${date}T09:00:00.000Z`,
+              endsAt: `${date}T11:00:00.000Z`,
+              timezone: profile.settings.timezone,
+              durationMinutes: 120,
+              priority: "medium",
+              overdue: false,
+              sourceUpdatedAt: start,
+            },
+          ],
+          warnings: [
+            {
+              id: "overlap:1",
+              kind: "overlap",
+              severity: "critical",
+              date,
+              itemIds: ["calendar:1", "calendar:2"],
+              message:
+                "Zwei feste Termine überschneiden sich. Es wurde nichts automatisch verschoben.",
+            },
+          ],
+          availabilityWindows: availabilityState,
+        });
+      }
+      if (path === "/api/v1/planning/availability" && method === "POST") {
+        const payload = requestBody(init);
+        const created = {
+          id: `availability-${availabilityState.length + 1}`,
+          ownerId: profile.id,
+          ...payload,
+          label: payload.label ?? null,
+          createdAt: "2032-01-01T00:00:00.000Z",
+          updatedAt: "2032-01-01T00:00:00.000Z",
+        };
+        availabilityState.push(created);
+        return json(created, 201);
+      }
+      if (
+        path.startsWith("/api/v1/planning/availability/") &&
+        method === "DELETE"
+      ) {
+        const id = path.split("/").at(-1);
+        const index = availabilityState.findIndex((item) => item.id === id);
+        if (index >= 0) availabilityState.splice(index, 1);
+        return new Response(null, { status: 204 });
+      }
       if (path === "/api/v1/work/contexts" && method === "POST") {
         const payload = requestBody(init);
         const created = {
@@ -743,6 +855,47 @@ describe("LifeOS-Weboberfläche", () => {
     expect(await screen.findByText("Geplanter Fokusblock")).toBeVisible();
     expect(screen.getByText("1 h 30 min")).toBeVisible();
     expect(screen.getByText("0 h 0 min")).toBeVisible();
+  });
+
+  it("zeigt gemeinsame Woche, Konflikte, Filter und persönliche Verfügbarkeit", async () => {
+    installApi();
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Planung" })[0]!);
+    expect(
+      await screen.findByRole("heading", {
+        name: "Woche und Agenda aus deinen Quelldaten",
+      }),
+    ).toBeVisible();
+    expect(screen.getByText("Gemeinsamer Termin A")).toBeVisible();
+    expect(screen.getByText("Synthetische Prüfung")).toBeVisible();
+    expect(
+      screen.getByText(/Zwei feste Termine überschneiden sich/),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("checkbox", { name: "Studium" }));
+    expect(screen.queryByText("Synthetische Prüfung")).not.toBeInTheDocument();
+    expect(screen.getByText("Gemeinsamer Termin A")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Agenda" }));
+    expect(
+      screen.getByRole("region", { name: "Gemeinsame Agenda" }),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: /Fenster hinzufügen/ }),
+    );
+    await user.selectOptions(screen.getByLabelText("Wochentag"), "1");
+    await user.clear(screen.getByLabelText("Von"));
+    await user.type(screen.getByLabelText("Von"), "09:00");
+    await user.clear(screen.getByLabelText("Bis"));
+    await user.type(screen.getByLabelText("Bis"), "12:00");
+    await user.type(screen.getByLabelText("Bezeichnung"), "Fokuszeit");
+    await user.click(
+      screen.getByRole("button", { name: "Verfügbarkeit speichern" }),
+    );
+    expect(await screen.findByText(/09:00–12:00 · Fokuszeit/)).toBeVisible();
   });
 
   it("zeigt bei nicht erreichbarer API die Anmeldung mit Fehlerhinweis", async () => {

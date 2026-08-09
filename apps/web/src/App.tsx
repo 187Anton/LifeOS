@@ -23,6 +23,8 @@ import type {
   UpdateWorkProjectRequest,
   UpdateWorkTimeEntryRequest,
   WorkOverviewResponse,
+  CreateAvailabilityWindowRequest,
+  PlanningResponse,
 } from "@lifeos/contracts";
 import { useCallback, useEffect, useState } from "react";
 
@@ -34,6 +36,8 @@ import { Shell, type View } from "./components/Shell";
 import { TaskWorkspace } from "./components/TaskWorkspace";
 import { StudyWorkspace } from "./components/StudyWorkspace";
 import { WorkWorkspace } from "./components/WorkWorkspace";
+import { PlanningWorkspace } from "./components/PlanningWorkspace";
+import { weekRange, type DateRange } from "./planning";
 
 type SessionState = "checking" | "anonymous" | "authenticated";
 
@@ -60,6 +64,10 @@ export const App = () => {
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [study, setStudy] = useState<StudyOverviewResponse | null>(null);
   const [work, setWork] = useState<WorkOverviewResponse | null>(null);
+  const [planning, setPlanning] = useState<PlanningResponse | null>(null);
+  const [planningRange, setPlanningRange] = useState<DateRange>(() =>
+    weekRange("Europe/Berlin", 1),
+  );
   const [view, setView] = useState<View>("dashboard");
   const [createRequest, setCreateRequest] = useState<"task" | "event" | null>(
     null,
@@ -80,6 +88,9 @@ export const App = () => {
   const [workLoading, setWorkLoading] = useState(false);
   const [workError, setWorkError] = useState<string | null>(null);
   const [workSuccess, setWorkSuccess] = useState<string | null>(null);
+  const [planningLoading, setPlanningLoading] = useState(false);
+  const [planningError, setPlanningError] = useState<string | null>(null);
+  const [planningSuccess, setPlanningSuccess] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [taskSuccess, setTaskSuccess] = useState<string | null>(null);
 
@@ -165,6 +176,20 @@ export const App = () => {
     }
   }, []);
 
+  const loadPlanning = useCallback(async (range: DateRange) => {
+    setPlanningLoading(true);
+    setPlanningError(null);
+    try {
+      setPlanning(await api.getPlanning(range.from, range.to));
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401)
+        setSession("anonymous");
+      else setPlanningError(errorMessage(error));
+    } finally {
+      setPlanningLoading(false);
+    }
+  }, []);
+
   const loadAuthenticatedData = useCallback(async () => {
     const [loadedProfile, loadedCalendars, loadedTasks, loadedLinks] =
       await Promise.all([
@@ -181,6 +206,11 @@ export const App = () => {
       loadedCalendars.find((calendar) => calendar.isPrimary) ??
       loadedCalendars[0];
     setSelectedCalendarId(selected?.id ?? null);
+    const currentPlanningRange = weekRange(
+      loadedProfile.settings.timezone,
+      loadedProfile.settings.weekStartsOn,
+    );
+    setPlanningRange(currentPlanningRange);
     if (!selected) setEvents([]);
     setSession("authenticated");
     await Promise.all([
@@ -188,8 +218,9 @@ export const App = () => {
       loadDashboard(),
       loadStudy(),
       loadWork(),
+      loadPlanning(currentPlanningRange),
     ]);
-  }, [loadDashboard, loadEvents, loadStudy, loadWork]);
+  }, [loadDashboard, loadEvents, loadPlanning, loadStudy, loadWork]);
 
   useEffect(() => {
     // Der initiale API-Aufruf synchronisiert React mit der lokalen Sitzung.
@@ -230,6 +261,7 @@ export const App = () => {
     setDashboard(null);
     setStudy(null);
     setWork(null);
+    setPlanning(null);
     setSelectedCalendarId(null);
     setLoginError(null);
   };
@@ -263,7 +295,11 @@ export const App = () => {
         await api.createEvent(selectedCalendarId, payload);
         setSuccess("Der Termin wurde angelegt.");
       }
-      await Promise.all([loadEvents(selectedCalendarId), loadDashboard()]);
+      await Promise.all([
+        loadEvents(selectedCalendarId),
+        loadDashboard(),
+        loadPlanning(planningRange),
+      ]);
     } catch (error) {
       if (
         error instanceof ApiClientError &&
@@ -295,6 +331,7 @@ export const App = () => {
         loadEvents(selectedCalendarId),
         loadTaskEventLinks(),
         loadDashboard(),
+        loadPlanning(planningRange),
       ]);
     } catch (error) {
       if (
@@ -329,7 +366,11 @@ export const App = () => {
         await api.createTask(payload as CreateTaskRequest);
         setTaskSuccess("Die Aufgabe wurde angelegt.");
       }
-      await Promise.all([loadTasks(), loadDashboard()]);
+      await Promise.all([
+        loadTasks(),
+        loadDashboard(),
+        loadPlanning(planningRange),
+      ]);
     } catch (error) {
       setTaskError(errorMessage(error));
       throw error;
@@ -345,7 +386,11 @@ export const App = () => {
     try {
       await api.updateTask(taskId, payload);
       setTaskSuccess("Die Aufgabe wurde aktualisiert.");
-      await Promise.all([loadTasks(), loadDashboard()]);
+      await Promise.all([
+        loadTasks(),
+        loadDashboard(),
+        loadPlanning(planningRange),
+      ]);
     } catch (error) {
       setTaskError(errorMessage(error));
       throw error;
@@ -361,7 +406,12 @@ export const App = () => {
     try {
       await api.deleteTask(taskId);
       setTaskSuccess("Die Aufgabe wurde gelöscht.");
-      await Promise.all([loadTasks(), loadTaskEventLinks(), loadDashboard()]);
+      await Promise.all([
+        loadTasks(),
+        loadTaskEventLinks(),
+        loadDashboard(),
+        loadPlanning(planningRange),
+      ]);
     } catch (error) {
       setTaskError(errorMessage(error));
       throw error;
@@ -422,7 +472,7 @@ export const App = () => {
     try {
       await operation();
       setStudySuccess(message);
-      await loadStudy();
+      await Promise.all([loadStudy(), loadPlanning(planningRange)]);
     } catch (error) {
       setStudyError(errorMessage(error));
       throw error;
@@ -441,13 +491,37 @@ export const App = () => {
     try {
       await operation();
       setWorkSuccess(message);
-      await loadWork();
+      await Promise.all([loadWork(), loadPlanning(planningRange)]);
     } catch (error) {
       setWorkError(errorMessage(error));
       throw error;
     } finally {
       setSaving(false);
     }
+  };
+
+  const changePlanning = async (
+    operation: () => Promise<unknown>,
+    message: string,
+  ) => {
+    setSaving(true);
+    setPlanningError(null);
+    setPlanningSuccess(null);
+    try {
+      await operation();
+      setPlanningSuccess(message);
+      await loadPlanning(planningRange);
+    } catch (error) {
+      setPlanningError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const changePlanningRange = (range: DateRange) => {
+    setPlanningRange(range);
+    void loadPlanning(range);
   };
 
   if (session === "checking") {
@@ -483,6 +557,7 @@ export const App = () => {
           onOpenTasks={() => setView("tasks")}
           onOpenCalendar={() => setView("calendar")}
           onOpenStudy={() => setView("study")}
+          onOpenPlanning={() => setView("planning")}
           studyEntries={study?.entries ?? []}
           onCreateTask={() => {
             setCreateRequest("task");
@@ -615,6 +690,31 @@ export const App = () => {
             changeWork(
               () => api.updateWorkTimeEntry(id, value),
               "Die Arbeitszeit wurde aktualisiert.",
+            )
+          }
+        />
+      ) : view === "planning" ? (
+        <PlanningWorkspace
+          planning={planning}
+          range={planningRange}
+          timezone={profile.settings.timezone}
+          weekStartsOn={profile.settings.weekStartsOn}
+          loading={planningLoading}
+          saving={saving}
+          error={planningError}
+          success={planningSuccess}
+          onReload={() => void loadPlanning(planningRange)}
+          onRangeChange={changePlanningRange}
+          onCreateAvailability={(value: CreateAvailabilityWindowRequest) =>
+            changePlanning(
+              () => api.createAvailability(value),
+              "Die persönliche Verfügbarkeit wurde gespeichert.",
+            )
+          }
+          onDeleteAvailability={(id: string) =>
+            changePlanning(
+              () => api.deleteAvailability(id),
+              "Die persönliche Verfügbarkeit wurde entfernt.",
             )
           }
         />

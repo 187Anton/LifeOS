@@ -30,6 +30,7 @@ model User {
   workProjects     WorkProject[]
   workTaskLinks    WorkTaskLink[]
   workTimeEntries  WorkTimeEntry[]
+  availabilityWindows AvailabilityWindow[]
   auditEvents      AuditEvent[]
 }
 
@@ -420,6 +421,22 @@ model WorkTimeEntry {
   @@index([contextId])
   @@index([projectId])
   @@index([taskId])
+}
+
+model AvailabilityWindow {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  weekday     Int
+  startMinute Int
+  endMinute   Int
+  timezone    String   @db.VarChar(100)
+  label       String?  @db.VarChar(200)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekday, startMinute, endMinute])
+  @@index([userId, weekday])
 }
 
 model AuditEvent {

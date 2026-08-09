@@ -129,6 +129,8 @@ unset CALDAV_TEST_PASSWORD
 | `POST/PATCH /api/v1/work/projects/:id?`            | Arbeitsprojekte, Ziele und Fristen verwalten     |
 | `POST/DELETE /api/v1/work/task-links/:id?`         | vorhandene Arbeitsaufgaben zuordnen              |
 | `POST/PATCH /api/v1/work/time-entries/:id?`        | geplante oder tatsächliche Zeit verwalten        |
+| `GET /api/v1/planning`                             | gemeinsame Planung nach Zeitraum/Bereich laden   |
+| `POST/PATCH/DELETE /api/v1/planning/availability`  | persönliche Verfügbarkeit verwalten              |
 | `/.well-known/caldav`                              | CalDAV-Discovery auf `/caldav/`                  |
 | `/caldav/…`                                        | WebDAV-/CalDAV-Ressourcen                        |
 
@@ -243,6 +245,21 @@ weist die aus den Zeitpunkten berechnete `durationMinutes` aus. Fristen bleiben
 reine Kalendertage. Audit-Metadaten enthalten nur geänderte Feldnamen und keine
 Organisationen, Ziele, Notizen oder Zeitwerte.
 
+## Vertrag der gemeinsamen Planung
+
+`GET /planning` benötigt `from` und `to` als reine Datumswerte und akzeptiert
+optional eine kommagetrennte Bereichsauswahl. Der Zeitraum ist auf 63 Tage
+begrenzt. Die Antwort unterscheidet feste Termine, Fristen, geplante Aufgaben,
+tatsächliche Zeit und persönliche Verfügbarkeit. Warnungen nennen eine
+regelbasierte Ursache und die betroffenen Projektions-IDs; sie schreiben oder
+verschieben keine Quelldaten.
+
+Verfügbarkeitsfenster speichern Wochentag, Minuten seit Tagesbeginn und eine
+IANA-Zeitzone. Überlappende Fenster desselben Besitzers werden abgelehnt.
+Zeitraum-, Überfälligkeits- und DST-Berechnungen verwenden die gespeicherte
+Profilzeitzone. Audit-Ereignisse der Verfügbarkeitsverwaltung enthalten nur
+geänderte Feldnamen.
+
 Beispiel:
 
 ```bash
@@ -297,6 +314,8 @@ weitergegeben.
   Organisations-Snapshot ohne eigene Fachdaten oder Schreiblogik.
 - `modules/work/` kapselt Arbeitskontexte, berufliche Projekte,
   Aufgabenbeziehungen sowie geplante und tatsächliche Zeit mit Besitzprüfung.
+- `modules/planning/` projiziert vorhandene Fachobjekte besitzgebunden und
+  erkennt Konflikte beziehungsweise Überlastung mit transparenten Regeln.
 - `modules/caldav/` übersetzt den gemeinsamen Kalenderkern in WebDAV-XML und
   RFC-5545-iCalendar; Zugang, Parser und Transport bleiben von der REST-API
   getrennt.

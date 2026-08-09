@@ -235,6 +235,15 @@ Zeiterfassungsintegrationen bleiben bewusst außerhalb dieser Phase.
 - Konflikte und Überschneidungen sichtbar machen.
 - Berechnungen mit festen Zeitzonen und dokumentierten Regeln testen.
 
+Umsetzungsnachweis: Issue #44 ergänzt den geschützten Endpunkt
+`/api/v1/planning`, eine gemeinsame Wochen- und Agendaansicht sowie
+besitzgebundene wöchentliche Verfügbarkeitsfenster. Die Planung projiziert
+Kalender, Aufgaben, Studium und Arbeit ohne Kopie der Quelldaten. Transparente
+Regeln melden überlappende feste Termine, überfällige Fristen, mehr geplante
+Zeit als Verfügbarkeit, fehlende Verfügbarkeitsdaten und mehrere hohe
+Prioritäten im selben Zeitraum. Benutzerzeitzone und DST-Tagesgrenzen werden
+automatisiert geprüft; es gibt keine automatische Terminverschiebung.
+
 Abschlusskriterium: Studium und Arbeit können getrennt erfasst, gemeinsam
 angezeigt und zeitlich nachvollziehbar ausgewertet werden.
 

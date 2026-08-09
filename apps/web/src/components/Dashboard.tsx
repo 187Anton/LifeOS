@@ -14,6 +14,7 @@ import {
   CalendarIcon,
   ClockIcon,
   PlusIcon,
+  PlanIcon,
   TaskIcon,
 } from "./Icons";
 
@@ -26,6 +27,7 @@ interface DashboardProps {
   onOpenTasks: () => void;
   onOpenCalendar: () => void;
   onOpenStudy: () => void;
+  onOpenPlanning: () => void;
   studyEntries: StudyEntryResponse[];
   onCreateTask: () => void;
   onCreateEvent: () => void;
@@ -84,6 +86,7 @@ export const Dashboard = ({
   onOpenTasks,
   onOpenCalendar,
   onOpenStudy,
+  onOpenPlanning,
   studyEntries,
   onCreateTask,
   onCreateEvent,
@@ -342,8 +345,15 @@ export const Dashboard = ({
             </article>
 
             <article className="feature-card dashboard-notices">
-              <p className="eyebrow">HINWEISE</p>
-              <h2>Planungsqualität</h2>
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">HINWEISE</p>
+                  <h2>Planungsqualität</h2>
+                </div>
+                <button className="text-button" onClick={onOpenPlanning}>
+                  Planung öffnen <PlanIcon />
+                </button>
+              </div>
               <ul>
                 <li>
                   {dashboard.conflictCount

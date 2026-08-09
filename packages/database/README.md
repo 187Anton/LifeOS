@@ -33,6 +33,9 @@ Entwicklungsdaten.
 - `TaskEventLink` speichert ausschließlich die besitzgebundene Beziehung
   zwischen Aufgabe und Kalenderereignis. Eine zusammengesetzte Eindeutigkeit
   verhindert Duplikate; Fachdaten werden nicht kopiert.
+- `AvailabilityWindow` speichert wöchentliche persönliche Verfügbarkeit als
+  Wochentag, Start- und Endminute sowie IANA-Zeitzone. Gültigkeitsbedingungen
+  und Besitzbezug werden zusätzlich in PostgreSQL erzwungen.
 - `AuditEvent` hält nachvollziehbare Änderungen mit Benutzer- und
   Entitätsbezug fest; Secrets gehören nicht in `metadata`.
 
