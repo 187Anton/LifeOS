@@ -219,9 +219,11 @@ npm run web:dev
 ```
 
 Die Oberfläche ist unter `http://127.0.0.1:5173` erreichbar. Sie verwendet
-einen lokalen API-Proxy, zeigt Aufgaben, Kalender und Termine auf Desktop und
-Smartphone an und kann Aufgaben vollständig anlegen, bearbeiten, abschließen,
-wieder öffnen, archivieren und löschen. Suche und kombinierbare Aufgabenfilter
+einen lokalen API-Proxy und zeigt Aufgaben, Kalender, Studium sowie Arbeit und
+Praxis auf Desktop und Smartphone an. Arbeitskontexte, Projekte, Ziele,
+Fristen und getrennte geplante beziehungsweise tatsächliche Zeitblöcke werden
+lokal verwaltet; Arbeitsaufgaben bleiben dabei im gemeinsamen Aufgabenmodell.
+Suche und kombinierbare Aufgaben-, Arbeitsbereichs-, Status- und Zeitraumfilter
 bleiben flüchtiger UI-Zustand. Ein Produktions-Build erzeugt zusätzlich
 Manifest und Offline-App-Shell:
 

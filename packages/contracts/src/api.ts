@@ -305,3 +305,131 @@ export interface CreateStudyEntryRequest {
 export interface UpdateStudyEntryRequest extends Partial<CreateStudyEntryRequest> {
   archived?: boolean;
 }
+
+export type WorkStatus = StudyStatus;
+export type WorkTimeKind = "planned" | "actual";
+
+interface WorkRecordResponse {
+  id: string;
+  ownerId: string;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkContextResponse extends WorkRecordResponse {
+  title: string;
+  role: string;
+  organization: string | null;
+  startsOn: string | null;
+  endsOn: string | null;
+  timezone: string;
+  status: WorkStatus;
+  notes: string | null;
+}
+
+export interface WorkProjectResponse extends WorkRecordResponse {
+  contextId: string;
+  title: string;
+  status: WorkStatus;
+  goal: string | null;
+  deadlineDate: string | null;
+  calendarEventId: string | null;
+  notes: string | null;
+}
+
+export interface WorkTaskLinkResponse {
+  id: string;
+  ownerId: string;
+  contextId: string;
+  projectId: string | null;
+  taskId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkTimeEntryResponse extends WorkRecordResponse {
+  contextId: string;
+  projectId: string | null;
+  taskId: string | null;
+  kind: WorkTimeKind;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  timezone: string;
+  durationMinutes: number;
+  notes: string | null;
+}
+
+export interface WorkAuditResponse {
+  id: string;
+  action:
+    | "work.context.created"
+    | "work.context.updated"
+    | "work.project.created"
+    | "work.project.updated"
+    | "work.task-linked"
+    | "work.task-unlinked"
+    | "work.time.created"
+    | "work.time.updated";
+  entityType: "WorkContext" | "WorkProject" | "WorkTaskLink" | "WorkTimeEntry";
+  entityId: string | null;
+  changedFields: string[];
+  occurredAt: string;
+}
+
+export interface WorkOverviewResponse {
+  contexts: WorkContextResponse[];
+  projects: WorkProjectResponse[];
+  taskLinks: WorkTaskLinkResponse[];
+  timeEntries: WorkTimeEntryResponse[];
+  history: WorkAuditResponse[];
+}
+
+export interface CreateWorkContextRequest {
+  title: string;
+  role: string;
+  organization?: string | null;
+  startsOn?: string | null;
+  endsOn?: string | null;
+  timezone: string;
+  status?: WorkStatus;
+  notes?: string | null;
+}
+export interface UpdateWorkContextRequest extends Partial<CreateWorkContextRequest> {
+  archived?: boolean;
+}
+
+export interface CreateWorkProjectRequest {
+  contextId: string;
+  title: string;
+  status?: WorkStatus;
+  goal?: string | null;
+  deadlineDate?: string | null;
+  calendarEventId?: string | null;
+  notes?: string | null;
+}
+export interface UpdateWorkProjectRequest extends Partial<CreateWorkProjectRequest> {
+  archived?: boolean;
+}
+
+export interface CreateWorkTaskLinkRequest {
+  contextId: string;
+  projectId?: string | null;
+  taskId: string;
+}
+
+export interface CreateWorkTimeEntryRequest {
+  contextId: string;
+  projectId?: string | null;
+  taskId?: string | null;
+  kind: WorkTimeKind;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  timezone: string;
+  notes?: string | null;
+}
+export interface UpdateWorkTimeEntryRequest extends Partial<CreateWorkTimeEntryRequest> {
+  archived?: boolean;
+}

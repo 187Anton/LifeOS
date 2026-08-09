@@ -16,6 +16,14 @@ import type {
   UpdateStudyEntryRequest,
   UpdateStudyModuleRequest,
   UpdateStudyProgramRequest,
+  CreateWorkContextRequest,
+  CreateWorkProjectRequest,
+  CreateWorkTaskLinkRequest,
+  CreateWorkTimeEntryRequest,
+  UpdateWorkContextRequest,
+  UpdateWorkProjectRequest,
+  UpdateWorkTimeEntryRequest,
+  WorkOverviewResponse,
   UpdateTaskRequest,
 } from "@lifeos/contracts";
 
@@ -226,6 +234,58 @@ export const api = {
   },
   updateStudyEntry(id: string, payload: UpdateStudyEntryRequest) {
     return request(`/study/entries/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  getWork(includeArchived = true) {
+    return request<WorkOverviewResponse>(
+      `/work?includeArchived=${includeArchived ? "true" : "false"}`,
+    );
+  },
+  createWorkContext(payload: CreateWorkContextRequest) {
+    return request("/work/contexts", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateWorkContext(id: string, payload: UpdateWorkContextRequest) {
+    return request(`/work/contexts/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createWorkProject(payload: CreateWorkProjectRequest) {
+    return request("/work/projects", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateWorkProject(id: string, payload: UpdateWorkProjectRequest) {
+    return request(`/work/projects/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createWorkTaskLink(payload: CreateWorkTaskLinkRequest) {
+    return request("/work/task-links", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteWorkTaskLink(id: string) {
+    return request<void>(`/work/task-links/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+  },
+  createWorkTimeEntry(payload: CreateWorkTimeEntryRequest) {
+    return request("/work/time-entries", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateWorkTimeEntry(id: string, payload: UpdateWorkTimeEntryRequest) {
+    return request(`/work/time-entries/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     });

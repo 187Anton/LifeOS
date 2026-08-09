@@ -115,6 +115,13 @@ const installApi = ({
     modules: [] as Record<string, unknown>[],
     entries: [] as Record<string, unknown>[],
   };
+  const workState = {
+    contexts: [] as Record<string, unknown>[],
+    projects: [] as Record<string, unknown>[],
+    taskLinks: [] as Record<string, unknown>[],
+    timeEntries: [] as Record<string, unknown>[],
+    history: [] as Record<string, unknown>[],
+  };
   let conflictReturned = false;
   const fetchMock = vi.fn(
     (request: string | URL | Request, init?: RequestInit) => {
@@ -128,6 +135,63 @@ const installApi = ({
       if (path === "/api/v1/profile") return json(profile);
       if (path.startsWith("/api/v1/study") && method === "GET")
         return json(studyState);
+      if (path.startsWith("/api/v1/work") && method === "GET")
+        return json(workState);
+      if (path === "/api/v1/work/contexts" && method === "POST") {
+        const payload = requestBody(init);
+        const created = {
+          id: `arbeit-${workState.contexts.length + 1}`,
+          ownerId: profile.id,
+          ...payload,
+          organization: payload.organization ?? null,
+          startsOn: payload.startsOn ?? null,
+          endsOn: payload.endsOn ?? null,
+          notes: payload.notes ?? null,
+          archivedAt: null,
+          createdAt: "2032-01-01T00:00:00.000Z",
+          updatedAt: "2032-01-01T00:00:00.000Z",
+        };
+        workState.contexts.push(created);
+        return json(created, 201);
+      }
+      if (path === "/api/v1/work/projects" && method === "POST") {
+        const payload = requestBody(init);
+        const created = {
+          id: `arbeitsprojekt-${workState.projects.length + 1}`,
+          ownerId: profile.id,
+          ...payload,
+          goal: payload.goal ?? null,
+          deadlineDate: payload.deadlineDate ?? null,
+          calendarEventId: null,
+          notes: payload.notes ?? null,
+          archivedAt: null,
+          createdAt: "2032-01-01T00:00:00.000Z",
+          updatedAt: "2032-01-01T00:00:00.000Z",
+        };
+        workState.projects.push(created);
+        return json(created, 201);
+      }
+      if (path === "/api/v1/work/time-entries" && method === "POST") {
+        const payload = requestBody(init);
+        const durationMinutes =
+          (new Date(String(payload.endsAt)).getTime() -
+            new Date(String(payload.startsAt)).getTime()) /
+          60_000;
+        const created = {
+          id: `arbeitszeit-${workState.timeEntries.length + 1}`,
+          ownerId: profile.id,
+          ...payload,
+          projectId: payload.projectId ?? null,
+          taskId: payload.taskId ?? null,
+          notes: payload.notes ?? null,
+          durationMinutes,
+          archivedAt: null,
+          createdAt: "2032-01-01T00:00:00.000Z",
+          updatedAt: "2032-01-01T00:00:00.000Z",
+        };
+        workState.timeEntries.push(created);
+        return json(created, 201);
+      }
       if (path === "/api/v1/study/programs" && method === "POST") {
         const payload = requestBody(init);
         const created = {
@@ -626,6 +690,59 @@ describe("LifeOS-Weboberfläche", () => {
     expect(
       screen.getByRole("button", { name: /Erste Aufgabe anlegen/ }),
     ).toBeEnabled();
+  });
+
+  it("plant einen Arbeitsbereich mit Projekt und getrennten Zeitarten", async () => {
+    installApi();
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Arbeit" })[0]!);
+    await user.click(
+      screen.getByRole("button", { name: "Arbeitsbereich anlegen" }),
+    );
+    await user.type(
+      screen.getByLabelText("Arbeitsbereich"),
+      "Synthetische Praxis",
+    );
+    await user.type(
+      screen.getByLabelText("Position oder Rolle"),
+      "Praxisrolle",
+    );
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(
+      await screen.findByRole("heading", { name: "Synthetische Praxis" }),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: /Projekt hinzufügen/ }),
+    );
+    await user.type(
+      screen.getByLabelText("Projekt oder Praxisbereich"),
+      "Synthetisches Arbeitsprojekt",
+    );
+    await user.type(
+      screen.getByLabelText("Ziel"),
+      "Nachvollziehbarer Testfortschritt",
+    );
+    await user.type(screen.getByLabelText("Frist"), "2032-06-30");
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(
+      await screen.findByText("Synthetisches Arbeitsprojekt"),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: /Zeit erfassen/ }));
+    await user.type(
+      screen.getByLabelText("Bezeichnung"),
+      "Geplanter Fokusblock",
+    );
+    await user.type(screen.getByLabelText("Beginn"), "2032-06-15T09:00");
+    await user.type(screen.getByLabelText("Ende"), "2032-06-15T10:30");
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByText("Geplanter Fokusblock")).toBeVisible();
+    expect(screen.getByText("1 h 30 min")).toBeVisible();
+    expect(screen.getByText("0 h 0 min")).toBeVisible();
   });
 
   it("zeigt bei nicht erreichbarer API die Anmeldung mit Fehlerhinweis", async () => {

@@ -90,6 +90,89 @@ test("erzwingt Besitz und eindeutige Zeitformen im Studienmodell", async (t) => 
   );
 });
 
+test("erzwingt Besitz und gültige Zeiträume im Arbeitsmodell", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalIds = [`work-db-owner-${suffix}`, `work-db-other-${suffix}`];
+  t.after(async () => {
+    await database.user.deleteMany({
+      where: { externalId: { in: externalIds } },
+    });
+    await database.$disconnect();
+  });
+  const [owner, other] = await Promise.all(
+    externalIds.map((externalId) =>
+      database.user.create({
+        data: {
+          externalId,
+          displayName: "Synthetische Arbeitsperson",
+          settings: { create: {} },
+        },
+      }),
+    ),
+  );
+  assert.ok(owner && other);
+  const context = await database.workContext.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetische Praxis",
+      role: "Testrolle",
+      timezone: "Europe/Berlin",
+    },
+  });
+  const project = await database.workProject.create({
+    data: {
+      userId: owner.id,
+      contextId: context.id,
+      title: "Synthetisches Projekt",
+      deadlineDate: new Date("2032-06-30T00:00:00.000Z"),
+    },
+  });
+  const task = await database.task.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetische Arbeitsaufgabe",
+      area: "work",
+    },
+  });
+  const entry = await database.workTimeEntry.create({
+    data: {
+      userId: owner.id,
+      contextId: context.id,
+      projectId: project.id,
+      taskId: task.id,
+      kind: "planned",
+      title: "Synthetischer Zeitblock",
+      startsAt: new Date("2032-06-15T07:00:00.000Z"),
+      endsAt: new Date("2032-06-15T08:30:00.000Z"),
+      timezone: "Europe/Berlin",
+    },
+  });
+  assert.equal(entry.kind, "planned");
+  await assert.rejects(() =>
+    database.workTimeEntry.create({
+      data: {
+        userId: owner.id,
+        contextId: context.id,
+        kind: "actual",
+        title: "Ungültiger Zeitblock",
+        startsAt: new Date("2032-06-15T09:00:00.000Z"),
+        endsAt: new Date("2032-06-15T08:00:00.000Z"),
+        timezone: "Europe/Berlin",
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.workProject.create({
+      data: {
+        userId: other.id,
+        contextId: context.id,
+        title: "Unzulässiges fremdes Projekt",
+      },
+    }),
+  );
+});
+
 test("speichert und liest ein Kalenderereignis mit stabilem Besitzerbezug", async (t) => {
   const database = createDatabaseClient();
   const suffix = randomUUID();
