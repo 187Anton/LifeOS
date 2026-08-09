@@ -116,6 +116,10 @@ const installApi = async (page: Page) => {
     const path = new URL(request.url()).pathname;
     const method = request.method();
 
+    if (path === "/api/v1/setup" && method === "GET") {
+      await route.fulfill({ json: { required: false } });
+      return;
+    }
     if (path === "/api/v1/profile" && method === "GET") {
       await route.fulfill({ json: profile });
       return;

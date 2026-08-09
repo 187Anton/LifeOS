@@ -39,6 +39,9 @@ import { PrismaTaskEventLinkRepository } from "./modules/task-event-links/reposi
 import { createTaskEventLinkRouter } from "./modules/task-event-links/router.js";
 import { TaskEventLinkService } from "./modules/task-event-links/service.js";
 import { createDatabaseReadinessProbe } from "./readiness.js";
+import { PrismaSetupRepository } from "./modules/setup/repository.js";
+import { createSetupRouter } from "./modules/setup/router.js";
+import { SetupService } from "./modules/setup/service.js";
 
 const main = async (): Promise<void> => {
   loadLocalEnvironment();
@@ -87,6 +90,7 @@ const main = async (): Promise<void> => {
         profile: new ProfileService(profileRepository),
         secureCookies: useSecureCookies(config.webOrigin),
       }),
+      createSetupRouter(new SetupService(new PrismaSetupRepository(database))),
       createCalendarRouter({
         authentication,
         calendars,

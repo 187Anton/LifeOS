@@ -17,7 +17,7 @@ tatsächlich ausgeführten Prüfungen dokumentiert ist.
 | M3 – Kalender- und CalDAV-Parität | abgeschlossen | 9. August 2026   |
 | M4 – Datenübernahme und Recovery  | abgeschlossen | 9. August 2026   |
 | M5 – Tauri-Sidecar                | abgeschlossen | 9. August 2026   |
-| M6 – Installation und Update      | offen         | –                |
+| M6 – Installation und Update      | teilweise     | 9. August 2026   |
 | M7 – Abschlussdokumentation       | offen         | –                |
 
 ## Nachweisvorlage
@@ -280,3 +280,50 @@ formuliert werden.
   Update- und Rollback-Gates. Nicht verfügbare Apple-Zertifikate oder ein
   fehlender sauberer Test-Mac werden als externe Blocker ausgewiesen und nicht
   als bestanden behauptet.
+
+## 9. August 2026 – M6: DMG, Ersteinrichtung, Update und Rollback
+
+- **Befund:** Tauri erzeugte die `.app`, sein kosmetischer DMG-Schritt wartete
+  in dieser Umgebung jedoch erfolglos auf ein Finder-AppleScript. Außerdem war
+  zunächst nur die Signatur einzelner Binärdateien vorhanden; die strikte
+  Prüfung des gesamten Bundles meldete fehlende signierte Ressourcen.
+- **Ursache oder Entscheidung:** Das funktionale DMG wird reproduzierbar mit
+  `hdiutil` aus der bereits geprüften App und einem Programme-Link erzeugt,
+  ohne den fehleranfälligen kosmetischen Finder-Schritt. Native Binärdateien
+  und Bundle werden explizit signiert: lokal ad-hoc, später über dieselbe
+  Schnittstelle mit einer gesetzten Developer-ID. Eine einmalige, nur über
+  Loopback erreichbare API richtet Profil, Einstellungen, Primärkalender und
+  beide getrennten Zugänge atomar ein.
+- **Änderungsumfang:** DMG-Build und -Verifier, konsistente lokale
+  Bundle-Signatur, isolierbarer Installations-Testpfad, einmalige
+  Ersteinrichtungs-API und responsive Oberfläche sowie Unit-, API- und
+  Browsertests. README und Desktop-/API-Dokumentation trennen installierte App
+  und Entwicklungsbetrieb.
+- **Verifikation:** Das ARM64-DMG bestand `hdiutil verify`, ließ sich
+  schreibgeschützt mounten und enthielt App sowie Programme-Link. Die daraus
+  kopierte App bestand `codesign --verify --deep --strict`, startete mit
+  ausschließlich `/usr/bin:/bin` im Suchpfad und zeigte auf leerer SQLite-Datei
+  die echte Ersteinrichtung. Die SQLite-API-Suite bestand 47 Fälle, die
+  PostgreSQL-API-Suite ebenfalls 47 Fälle. Zusätzlich bestanden 9
+  Datenbanktests, 28 Web-Unit-, 16 Browser-E2E-, 4 Desktop- und 12
+  Repository-Tests sowie Typprüfung, Linting, Format-, Build- und Secret-
+  Prüfung. Das finale DMG hat die SHA-256-Prüfsumme
+  `96563589782571789fe40d7a996b1141a21ef95fe50372300ed73964550abf73`.
+- **Datenvergleich:** Vor dem App-Austausch wurde ein Online-Backup erzeugt.
+  Update 0.1.0 → 0.1.1, Neustart und Rollback auf 0.1.0 erhielten Benutzer-ID,
+  Kalender-ID, Ereignis-UID und -ETag, `syncVersion` und `syncToken`. Der
+  Restore in eine neue Datenbank lieferte dieselben Werte; beide Dateien
+  bestanden `integrity_check`. Beim anschließenden Entfernen beider isolierten
+  App-Versionen blieben SQLite-Daten und Update-Backup erhalten; die
+  Nutzerdatenbank bestand danach erneut `integrity_check`.
+- **Risiken und Grenzen:** Der Test lief mit isolierten App- und Datenpfaden auf
+  dem Entwicklungs-Mac, nicht auf einem zweiten sauberen Gerät. Im
+  Schlüsselbund ist keine Developer-ID vorhanden; Notarisierung und
+  Gatekeeper-Downloadpfad sind daher nicht nachgewiesen. Intel-/Universal-Build,
+  automatische Updateverteilung, Backup-Oberfläche und physischer
+  Apple-Kalender-Test über LAN bleiben offen. Das DMG ist noch kein öffentlich
+  freigegebenes Release.
+- **Nächster Schritt:** M6 wird auf einem sauberen Apple-Silicon-Mac mit
+  Developer-ID und Notarisierung abgeschlossen. Danach kann M7 die finale
+  Release-Checkliste freigeben; bis dahin bleibt die Gesamtmigration lokal
+  nachgewiesen, aber nicht distributionsreif.

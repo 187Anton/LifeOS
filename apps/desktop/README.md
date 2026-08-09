@@ -41,10 +41,18 @@ Native `.app` bauen:
 npm run desktop:build:app
 ```
 
+Komprimiertes DMG bauen und die daraus kopierte App prüfen:
+
+```bash
+npm run desktop:build:dmg
+npm run desktop:verify:dmg
+```
+
 Das lokale, nicht versionierte Ergebnis liegt danach unter:
 
 ```text
 apps/desktop/src-tauri/target/release/bundle/macos/Anton Life OS.app
+apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.1.0_aarch64.dmg
 ```
 
 Der erste Download wird unter `apps/desktop/.cache/` wiederverwendet. Alle
@@ -70,15 +78,25 @@ Anfragekörper, Cookies oder Zugangsdaten.
 
 - M5 ist auf macOS ARM64 gebaut und gestartet worden. Intel- oder
   Universal-Builds sind noch nicht nachgewiesen.
-- Die `.app` ist lokal ad-hoc signiert, aber noch nicht mit einer Developer-ID
-  signiert oder von Apple notarisiert. DMG und sauberer Installations-/Update-
-  Test gehören zu M6.
+- M6 hat das DMG schreibgeschützt geprüft, die App daraus in ein isoliertes
+  Programme-Verzeichnis kopiert und den gebündelten Sidecar dort ohne globale
+  Laufzeit gestartet. Die Bundle-Signatur ist lokal ad-hoc konsistent, aber
+  noch nicht mit einer Developer-ID signiert oder von Apple notarisiert. Das
+  finale lokale DMG hat die SHA-256-Prüfsumme
+  `96563589782571789fe40d7a996b1141a21ef95fe50372300ed73964550abf73`.
 - Der dynamische Loopback-Link kann parallel in einem Browser geöffnet werden.
   Die Desktop-App bindet absichtlich noch nicht ins LAN; ein iPhone erreicht
   diesen M5-Prototyp deshalb nicht. Der physische Apple-Kalender-Test bleibt
   offen.
-- Ein neuer App-Datensatz enthält noch keinen vom Nutzer gesetzten Zugang. Die
-  terminalfreie Ersteinrichtung für Web- und CalDAV-Passwort ist ein offenes
-  M6-Gate.
-- Backup und Restore sind technisch nachgewiesen, aber noch nicht in die
-  Desktop-Oberfläche eingebunden.
+- Der erste App-Start bietet eine terminalfreie Ersteinrichtung für Profil,
+  App-Passwort und getrennten CalDAV-Zugang. Ein isolierter Test bestätigte
+  Erststart, Neustart, Update von 0.1.0 auf 0.1.1 und Rollback auf 0.1.0 ohne
+  Verlust stabiler IDs oder Synchronisationswerte.
+- Backup und Restore sind technisch auch im Updateablauf nachgewiesen, aber
+  noch nicht in die Desktop-Oberfläche eingebunden.
+- Das Entfernen der isolierten App-Kopien ließ SQLite-Daten und Update-Backup
+  unangetastet; die erhaltene Datenbank bestand anschließend erneut ihre
+  Integritätsprüfung.
+- Ein zweiter sauberer unterstützter Mac, Developer-ID, Notarisierung und ein
+  Intel-/Universal-Build bleiben externe Release-Gates; M6 ist deshalb noch
+  nicht vollständig freigegeben.

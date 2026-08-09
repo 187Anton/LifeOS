@@ -18,6 +18,24 @@ use tauri_plugin_shell::{
 };
 
 const LOOPBACK_HOST: &str = "127.0.0.1";
+const TEST_ROOT_ENVIRONMENT: &str = "LIFEOS_TEST_ROOT";
+
+struct WritablePaths {
+    local_data: PathBuf,
+    config: PathBuf,
+    logs: PathBuf,
+}
+
+fn test_writable_paths(root: &Path) -> Result<WritablePaths, Box<dyn std::error::Error>> {
+    if !root.is_absolute() {
+        return Err("LIFEOS_TEST_ROOT muss ein absoluter Pfad sein.".into());
+    }
+    Ok(WritablePaths {
+        local_data: root.join("app-data"),
+        config: root.join("config"),
+        logs: root.join("logs"),
+    })
+}
 
 fn create_private_directory(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(path)?;
@@ -111,12 +129,20 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .setup(move |app| {
             let setup_result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                let local_data = app.path().app_local_data_dir()?;
+                let paths = match std::env::var_os(TEST_ROOT_ENVIRONMENT) {
+                    Some(root) => test_writable_paths(Path::new(&root))?,
+                    None => WritablePaths {
+                        local_data: app.path().app_local_data_dir()?,
+                        config: app.path().app_config_dir()?,
+                        logs: app.path().app_log_dir()?,
+                    },
+                };
+                let local_data = paths.local_data;
                 let data_directory = local_data.join("data");
                 let documents_directory = local_data.join("documents");
                 let backups_directory = local_data.join("backups");
-                let config_directory = app.path().app_config_dir()?;
-                let log_directory = app.path().app_log_dir()?;
+                let config_directory = paths.config;
+                let log_directory = paths.logs;
                 let log_path = log_directory.join("lifeos-api.log");
                 create_private_directory(&local_data)?;
                 create_private_directory(&data_directory)?;
@@ -253,6 +279,16 @@ mod tests {
             resource_path(root, "server/server.js"),
             root.join("server/server.js")
         );
+    }
+
+    #[test]
+    fn trennt_installationstestdaten_von_echten_app_daten() {
+        let root = Path::new("/tmp/lifeos-installation-test");
+        let paths = test_writable_paths(root).expect("Testpfade fehlen");
+        assert_eq!(paths.local_data, root.join("app-data"));
+        assert_eq!(paths.config, root.join("config"));
+        assert_eq!(paths.logs, root.join("logs"));
+        assert!(test_writable_paths(Path::new("relativ")).is_err());
     }
 
     #[test]

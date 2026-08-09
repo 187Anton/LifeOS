@@ -26,8 +26,9 @@ npm run api:start
 
 Relative SQLite-Pfade werden abgelehnt, damit Desktop-App und Hilfsbefehle
 nicht versehentlich unterschiedliche Dateien öffnen. Das Setzen eines echten
-lokalen Passworts und CalDAV-Zugangs erfolgt weiterhin über die getrennten
-Bootstrap-Befehle.
+lokalen Passworts und CalDAV-Zugangs erfolgt im Entwicklungsbetrieb über die
+getrennten Bootstrap-Befehle. Die Mac-App verwendet stattdessen die einmalige
+lokale Ersteinrichtung unter `GET/POST /api/v1/setup`.
 
 Der SQLite-Migrationslauf aktiviert WAL; der API-Client verwendet eine
 Sperrwartezeit von fünf Sekunden. Freigegeben ist genau ein schreibender
@@ -55,6 +56,12 @@ Die Desktop-Vorbereitung und der geprüfte Sidecar-Start sind über
 Details zu Laufzeitprüfsummen, App-Pfaden und noch offenen Distributions-Gates
 stehen in [`apps/desktop/README.md`](../desktop/README.md) und im
 [`Migrationsprotokoll`](../../docs/mac-desktop-migration-log.md).
+
+Der Einrichtungsendpunkt akzeptiert ausschließlich direkte Loopback-Zugriffe.
+Er legt Profil, Einstellungen, Primärkalender und beide gehashten Zugänge in
+einer Transaktion an und antwortet nach erfolgreichem Abschluss auf weitere
+Einrichtungsversuche mit HTTP 409. Die Passwörter werden weder geloggt noch in
+Audit-Metadaten geschrieben.
 
 Die API bindet standardmäßig nur an `127.0.0.1:3000`. Ein Start mit fehlender
 oder ungültiger Konfiguration endet verständlich und ohne Ausgabe von
@@ -154,6 +161,7 @@ unset CALDAV_TEST_PASSWORD
 | `GET /api/v1/health`                               | HTTP-Prozess ist erreichbar                        |
 | `GET /api/v1/readiness`                            | API und konfigurierte Datenbank sind einsatzbereit |
 | `POST /api/v1/session`                             | lokale Sitzung über Passwort anlegen               |
+| `GET/POST /api/v1/setup`                           | lokale Ersteinrichtung prüfen oder abschließen     |
 | `DELETE /api/v1/session`                           | aktuelle Sitzung widerrufen                        |
 | `GET /api/v1/profile`                              | persönliches Profil und Einstellungen lesen        |
 | `PATCH /api/v1/settings`                           | Basiseinstellungen teilweise ändern                |

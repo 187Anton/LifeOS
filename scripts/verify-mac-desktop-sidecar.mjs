@@ -9,15 +9,19 @@ import BetterSqlite3 from "better-sqlite3";
 
 const repositoryRoot = process.cwd();
 const desktopRoot = path.join(repositoryRoot, "apps/desktop/src-tauri");
-const resources = path.join(desktopRoot, "resources");
+const packagedApp = process.env.LIFEOS_DESKTOP_APP_PATH?.trim();
+if (packagedApp && !path.isAbsolute(packagedApp)) {
+  throw new Error("LIFEOS_DESKTOP_APP_PATH muss absolut sein.");
+}
+const resources = packagedApp
+  ? path.join(packagedApp, "Contents/Resources")
+  : path.join(desktopRoot, "resources");
 const manifest = JSON.parse(
   await readFile(path.join(resources, "runtime-manifest.json"), "utf8"),
 );
-const nodeBinary = path.join(
-  desktopRoot,
-  "binaries",
-  `lifeos-node-${manifest.targetTriple}`,
-);
+const nodeBinary = packagedApp
+  ? path.join(packagedApp, "Contents/MacOS/lifeos-node")
+  : path.join(desktopRoot, "binaries", `lifeos-node-${manifest.targetTriple}`);
 const serverEntry = path.join(resources, "server/server.js");
 
 const reservePort = async () => {

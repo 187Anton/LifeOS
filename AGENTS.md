@@ -145,6 +145,13 @@ Der erste Betrieb erfolgt vollständig lokal:
   Protokolle mit Modus `0600` angelegt. Genau ein Sidecar darf schreibend auf
   die SQLite-Datei zugreifen und muss beim Beenden der App geordnet beendet
   werden.
+- Die erstmalige Mac-App-Einrichtung erfolgt ausschließlich über den nur an
+  Loopback erreichbaren Einrichtungsendpunkt. Profil, Einstellungen,
+  Primärkalender, lokales Passwort und separater CalDAV-Zugang werden atomar
+  angelegt; Klartextzugänge dürfen weder in Logs noch im Audit erscheinen.
+- Lokale DMG-Nachweise verwenden eine konsistent ad-hoc signierte App.
+  Öffentliche Release-Artefakte benötigen zusätzlich Developer-ID,
+  Apple-Notarisierung und einen Test auf einem sauberen unterstützten Mac.
 - PostgreSQL wird in der lokalen Compose-Umgebung nur an `127.0.0.1`
   gebunden. `npm run env:check`, `npm run db:start`, `npm run db:check` und
   `npm run db:stop` sind die verbindlichen lokalen Datenbankbefehle;
@@ -480,3 +487,7 @@ gemeldet.
   Laufzeit, dynamischem gemeinsamem Loopback-Ursprung, automatischen
   SQLite-Migrationen, privaten Dateirechten und geordnetem Sidecar-Lifecycle
   nach erfolgreichem M5-App- und Prozessnachweis festgehalten.
+- **2026-08-09:** Terminalfreie atomare Ersteinrichtung, reproduzierbares
+  ARM64-DMG, konsistente lokale Bundle-Signatur und datenerhaltenden
+  Update-/Rollback-Ablauf nach lokalem M6-Nachweis festgehalten; Developer-ID,
+  Notarisierung und sauberer zweiter Mac bleiben Release-Gates.

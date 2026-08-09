@@ -83,7 +83,37 @@ compose.yaml lokale PostgreSQL-Infrastruktur
 scripts/ Wiederholbare Repository- und GitHub-Einrichtung
 ```
 
-## Lokaler Start
+## Installierte Mac-App auf Apple Silicon
+
+Der lokale M6-Nachweis erzeugt ein komprimiertes ARM64-DMG. Die daraus
+kopierte App startet ohne Docker, Homebrew oder separat installiertes Node.js.
+Beim ersten Start führt eine lokale Oberfläche durch Anzeigename, App-Passwort
+und getrenntes CalDAV-Passwort; eine Terminal-Einrichtung ist für die App nicht
+erforderlich.
+
+Für einen lokalen Entwickler-Build werden einmalig Node.js 22, Rust Stable und
+die Xcode Command Line Tools benötigt:
+
+```bash
+npm install
+npm run desktop:build:dmg
+npm run desktop:verify:dmg
+```
+
+Das geprüfte, nicht versionierte Ergebnis liegt unter
+`apps/desktop/src-tauri/target/release/bundle/dmg/`. Im DMG wird die App in den
+Programme-Ordner gezogen und anschließend von dort gestartet. Persönliche
+Daten liegen außerhalb des App-Bundles im anwendungsspezifischen macOS-
+Datenverzeichnis und bleiben bei einem App-Austausch erhalten.
+
+Das aktuelle Artefakt ist noch kein öffentlich freigegebenes Download-Release:
+Es ist lokal ad-hoc signiert, aber mangels verfügbarer Developer-ID nicht von
+Apple notarisiert. Auch der verpflichtende Gegencheck auf einem zweiten
+sauberen Mac und ein Intel-/Universal-Build sind noch offene Release-Gates.
+Die Details und der lokale Update-/Rollback-Nachweis stehen im
+[Migrationsprotokoll](docs/mac-desktop-migration-log.md).
+
+## Browser- und Entwicklungsbetrieb
 
 Voraussetzungen:
 
@@ -188,8 +218,9 @@ Leer- und Fehlerzustände, Überschneidungen, fehlende Fälligkeiten sowie
 Schnellaktionen, die ausschließlich die bestehenden Aufgaben- und
 Termin-Formulare öffnen.
 
-Der CalDAV-Server liegt unabhängig von der REST-API unter `/caldav/`. Sein
-Zugang wird getrennt von der Browser-Anmeldung gesetzt und widerrufen:
+Im Entwicklungsbetrieb liegt der CalDAV-Server unabhängig von der REST-API
+unter `/caldav/`. Sein Zugang wird getrennt von der Browser-Anmeldung gesetzt
+und widerrufen:
 
 ```bash
 read -s LIFEOS_CALDAV_PASSWORD
@@ -211,8 +242,10 @@ HTTP Basic Auth und darf nicht ohne TLS oder Reverse Proxy ins öffentliche
 Internet gestellt werden. Details stehen in
 [apps/api/README.md](apps/api/README.md).
 
-Vor dem ersten geschützten Profilzugriff wird einmalig ein lokales Passwort
-gesetzt. Es wird nicht in `.env` oder im Frontend gespeichert:
+Im Browser- und Entwicklungsbetrieb wird vor dem ersten geschützten
+Profilzugriff einmalig ein lokales Passwort gesetzt. Die installierte Mac-App
+erledigt diesen Schritt stattdessen über ihre Ersteinrichtungsoberfläche. Das
+Passwort wird nicht in `.env` oder im Frontend gespeichert:
 
 ```bash
 read -s LIFEOS_BOOTSTRAP_PASSWORD
@@ -313,10 +346,11 @@ läuft damit ohne Docker und behält synthetische Daten nach einem Neustart. M3
 und M4 weisen Kalender-/CalDAV-Parität, vollständigen PostgreSQL-Import sowie
 Backup und Restore von SQLite und Dokumenten nach. M5 ergänzt eine tatsächlich
 gebaute und gestartete Tauri-`.app` für macOS ARM64 mit gebündeltem Node-
-Sidecar; zur Laufzeit sind weder Docker noch ein globales Node.js nötig. Das
-ist noch kein freigegebenes Installationspaket: DMG, Developer-ID-Signierung,
-Notarisierung, Update, terminalfreie Ersteinrichtung und sauberer Mac-Test sind
-M6-Gates. Buildweg, App-Pfade und Grenzen stehen in
+Sidecar; zur Laufzeit sind weder Docker noch ein globales Node.js nötig. M6
+ergänzt das geprüfte DMG, die terminalfreie Ersteinrichtung sowie einen
+datenerhaltenden Update-, Rollback- und Restore-Nachweis. Noch offen sind
+Developer-ID-Signierung, Notarisierung und der Gegencheck auf einem zweiten
+sauberen Mac. Buildweg, App-Pfade und Grenzen stehen in
 [`apps/desktop/README.md`](apps/desktop/README.md). Weitere Datenregeln stehen in
 [`packages/database/README.md`](packages/database/README.md) und im
 [`Migrationsprotokoll`](docs/mac-desktop-migration-log.md).

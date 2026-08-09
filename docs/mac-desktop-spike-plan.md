@@ -56,7 +56,7 @@ wurde.
 | M3    | Kalender und CalDAV besitzen SQLite-Parität.                           | CRUD, Zeitzone, Ganztag, RRULE, Erinnerung, ETag-Konflikt und Sync sind geprüft.             | abgeschlossen |
 | M4    | PostgreSQL-Übernahme sowie SQLite-Backup und -Restore sind sicher.     | Automatisierter Datenvergleich und Recovery-Test erhalten alle stabilen Identitäten.         | abgeschlossen |
 | M5    | Tauri startet und beendet einen reproduzierbar gebauten Sidecar.       | Mac-App, Browser und CalDAV verwenden denselben Kern ohne Docker und globales Node.js.       | abgeschlossen |
-| M6    | Installation und Update sind auf einem sauberen Mac nachgewiesen.      | DMG, Erststart, Neustart, Update, Backup und Restore sind dokumentiert erfolgreich.          | offen         |
+| M6    | Installation und Update sind auf einem sauberen Mac nachgewiesen.      | DMG, Erststart, Neustart, Update, Backup und Restore sind dokumentiert erfolgreich.          | teilweise     |
 | M7    | Betriebs- und Produktdokumentation entsprechen dem geprüften Endstand. | Abschlussprüfung bestätigt alle Erfolgskriterien und keine offenen kritischen Gates.         | offen         |
 
 Der aktuelle Nachweisstand wird in
@@ -458,6 +458,44 @@ Akzeptanzkriterien:
 - ein App-Update erhält Datenbank, Dokumente und CalDAV-Identitäten;
 - die README trennt Entwicklerbetrieb, Browserbetrieb und installierte App;
 - nicht geprüfte Release-Gates werden nicht als fertig bezeichnet.
+
+Lokaler Nachweis:
+
+- Ein reproduzierbarer ARM64-Build erzeugt ein komprimiertes DMG mit `.app`
+  und Programme-Link. Prüfsumme, schreibgeschütztes Mounten, Kopie in ein
+  isoliertes Programme-Verzeichnis und die vollständige Code-Signaturstruktur
+  wurden bestätigt. Das finale lokale Artefakt hat die SHA-256-Prüfsumme
+  `96563589782571789fe40d7a996b1141a21ef95fe50372300ed73964550abf73`.
+- Die aus dem DMG kopierte App zeigte auf einer leeren isolierten SQLite-Datei
+  die terminalfreie Ersteinrichtung. Profil, Einstellungen, Primärkalender,
+  App-Passwort und getrennter CalDAV-Zugang wurden atomar angelegt; ein
+  weiterer Einrichtungsversuch wurde abgewiesen.
+- Vor dem Update wurde ein geprüftes Backup erstellt. Der App-Austausch von
+  0.1.0 auf eine separat gebaute 0.1.1 und der Rollback auf 0.1.0 erhielten
+  Benutzer- und Kalender-ID, Ereignis-UID und -ETag, Sync-Version und
+  Sync-Token. Der Restore in neue Ziele lieferte dieselben Werte und bestand
+  die SQLite-Integritätsprüfung.
+- Das Entfernen beider isolierten App-Kopien ließ Nutzerdaten und Update-Backup
+  bestehen; die erhaltene SQLite-Datei bestand danach erneut ihre
+  Integritätsprüfung.
+- Die Fachparität wurde mit jeweils 47 API-Tests auf SQLite und PostgreSQL
+  bestätigt. Außerdem bestanden 9 Datenbank-, 28 Web-Unit-, 16 Browser-E2E-,
+  4 Desktop- und 12 Repository-Tests sowie Typprüfung, Linting, Format-,
+  Build- und Secret-Prüfung.
+
+Noch offene Freigabe-Gates:
+
+- Ein zweiter sauberer unterstützter Mac steht in dieser Umgebung nicht zur
+  Verfügung; der Nachweis erfolgte stattdessen in vollständig isolierten
+  App-, Daten- und Laufzeitpfaden auf dem Entwicklungs-Mac.
+- Im Schlüsselbund ist keine Developer-ID-Signatur vorhanden. Das Bundle ist
+  für den lokalen Test konsistent ad-hoc signiert, aber nicht notarisiert.
+- Intel-/Universal-Build und der physische Apple-Kalender-Zugriff über eine
+  bewusst abgesicherte LAN-Bindung sind nicht geprüft.
+
+M6 bleibt bis zum Gegencheck auf einem sauberen Mac sowie Developer-ID-
+Signierung und Notarisierung teilweise offen. Diese externen Gates ändern den
+lokal erfolgreichen Daten-, Update- und Rollback-Nachweis nicht.
 
 ## Reihenfolge und Stop-Gates
 
