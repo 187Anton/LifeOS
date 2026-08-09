@@ -1,12 +1,19 @@
 import type {
   CalendarEventResponse,
   CalendarResponse,
+  CreateStudyEntryRequest,
+  CreateStudyModuleRequest,
+  CreateStudyProgramRequest,
   CreateTaskEventLinkRequest,
   CreateTaskRequest,
   DashboardResponse,
   ProfileResponse,
   TaskResponse,
   TaskEventLinkResponse,
+  StudyOverviewResponse,
+  UpdateStudyEntryRequest,
+  UpdateStudyModuleRequest,
+  UpdateStudyProgramRequest,
   UpdateTaskRequest,
 } from "@lifeos/contracts";
 import { useCallback, useEffect, useState } from "react";
@@ -17,6 +24,7 @@ import { Dashboard } from "./components/Dashboard";
 import { Login } from "./components/Login";
 import { Shell, type View } from "./components/Shell";
 import { TaskWorkspace } from "./components/TaskWorkspace";
+import { StudyWorkspace } from "./components/StudyWorkspace";
 
 type SessionState = "checking" | "anonymous" | "authenticated";
 
@@ -41,6 +49,7 @@ export const App = () => {
     [],
   );
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
+  const [study, setStudy] = useState<StudyOverviewResponse | null>(null);
   const [view, setView] = useState<View>("dashboard");
   const [createRequest, setCreateRequest] = useState<"task" | "event" | null>(
     null,
@@ -55,6 +64,9 @@ export const App = () => {
   const [taskError, setTaskError] = useState<string | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [studyLoading, setStudyLoading] = useState(false);
+  const [studyError, setStudyError] = useState<string | null>(null);
+  const [studySuccess, setStudySuccess] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [taskSuccess, setTaskSuccess] = useState<string | null>(null);
 
@@ -112,6 +124,20 @@ export const App = () => {
     }
   }, []);
 
+  const loadStudy = useCallback(async () => {
+    setStudyLoading(true);
+    setStudyError(null);
+    try {
+      setStudy(await api.getStudy(true));
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401)
+        setSession("anonymous");
+      else setStudyError(errorMessage(error));
+    } finally {
+      setStudyLoading(false);
+    }
+  }, []);
+
   const loadAuthenticatedData = useCallback(async () => {
     const [loadedProfile, loadedCalendars, loadedTasks, loadedLinks] =
       await Promise.all([
@@ -133,8 +159,9 @@ export const App = () => {
     await Promise.all([
       selected ? loadEvents(selected.id) : Promise.resolve(),
       loadDashboard(),
+      loadStudy(),
     ]);
-  }, [loadDashboard, loadEvents]);
+  }, [loadDashboard, loadEvents, loadStudy]);
 
   useEffect(() => {
     // Der initiale API-Aufruf synchronisiert React mit der lokalen Sitzung.
@@ -173,6 +200,7 @@ export const App = () => {
     setTasks([]);
     setTaskEventLinks([]);
     setDashboard(null);
+    setStudy(null);
     setSelectedCalendarId(null);
     setLoginError(null);
   };
@@ -355,6 +383,25 @@ export const App = () => {
     }
   };
 
+  const changeStudy = async (
+    operation: () => Promise<unknown>,
+    message: string,
+  ) => {
+    setSaving(true);
+    setStudyError(null);
+    setStudySuccess(null);
+    try {
+      await operation();
+      setStudySuccess(message);
+      await loadStudy();
+    } catch (error) {
+      setStudyError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (session === "checking") {
     return (
       <main className="boot-screen" role="status">
@@ -387,6 +434,8 @@ export const App = () => {
           onReload={() => void loadDashboard()}
           onOpenTasks={() => setView("tasks")}
           onOpenCalendar={() => setView("calendar")}
+          onOpenStudy={() => setView("study")}
+          studyEntries={study?.entries ?? []}
           onCreateTask={() => {
             setCreateRequest("task");
             setView("tasks");
@@ -416,11 +465,58 @@ export const App = () => {
           onLink={createTaskEventLink}
           onUnlink={deleteTaskEventLink}
         />
+      ) : view === "study" ? (
+        <StudyWorkspace
+          overview={study}
+          timezone={profile.settings.timezone}
+          loading={studyLoading}
+          saving={saving}
+          error={studyError}
+          success={studySuccess}
+          onReload={() => void loadStudy()}
+          onCreateProgram={(value: CreateStudyProgramRequest) =>
+            changeStudy(
+              () => api.createStudyProgram(value),
+              "Der Studienabschnitt wurde angelegt.",
+            )
+          }
+          onCreateModule={(value: CreateStudyModuleRequest) =>
+            changeStudy(
+              () => api.createStudyModule(value),
+              "Das Modul wurde angelegt.",
+            )
+          }
+          onCreateEntry={(value: CreateStudyEntryRequest) =>
+            changeStudy(
+              () => api.createStudyEntry(value),
+              "Der Studieneintrag wurde angelegt.",
+            )
+          }
+          onUpdateProgram={(id: string, value: UpdateStudyProgramRequest) =>
+            changeStudy(
+              () => api.updateStudyProgram(id, value),
+              "Der Studienabschnitt wurde aktualisiert.",
+            )
+          }
+          onUpdateModule={(id: string, value: UpdateStudyModuleRequest) =>
+            changeStudy(
+              () => api.updateStudyModule(id, value),
+              "Das Modul wurde aktualisiert.",
+            )
+          }
+          onUpdateEntry={(id: string, value: UpdateStudyEntryRequest) =>
+            changeStudy(
+              () => api.updateStudyEntry(id, value),
+              "Der Studieneintrag wurde aktualisiert.",
+            )
+          }
+        />
       ) : (
         <CalendarWorkspace
           calendars={calendars}
           selectedCalendarId={selectedCalendarId}
           events={events}
+          studyEntries={study?.entries ?? []}
           tasks={tasks}
           links={taskEventLinks}
           initialView={profile.settings.defaultCalendarView}

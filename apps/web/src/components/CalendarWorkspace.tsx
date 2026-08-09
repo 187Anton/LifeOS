@@ -2,6 +2,7 @@ import type {
   CalendarEventResponse,
   CalendarResponse,
   CreateTaskEventLinkRequest,
+  StudyEntryResponse,
   TaskEventLinkResponse,
   TaskResponse,
 } from "@lifeos/contracts";
@@ -26,6 +27,7 @@ interface CalendarWorkspaceProps {
   calendars: CalendarResponse[];
   selectedCalendarId: string | null;
   events: CalendarEventResponse[];
+  studyEntries: StudyEntryResponse[];
   tasks: TaskResponse[];
   links: TaskEventLinkResponse[];
   initialView: CalendarView;
@@ -61,6 +63,18 @@ const dateLabel = (date: string, long = false): string =>
     month: "short",
     timeZone: "UTC",
   }).format(new Date(`${date}T12:00:00.000Z`));
+
+const timestampDate = (value: string, timezone: string): string => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(value));
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+};
 
 const OccurrenceCard = ({
   occurrence,
@@ -231,6 +245,7 @@ export const CalendarWorkspace = ({
   calendars,
   selectedCalendarId,
   events,
+  studyEntries,
   tasks,
   links,
   initialView,
@@ -264,6 +279,28 @@ export const CalendarWorkspace = ({
   const occurrences = useMemo(
     () => occurrencesInRange(events, range, timezone),
     [events, range, timezone],
+  );
+  const visibleStudyEntries = useMemo(
+    () =>
+      studyEntries
+        .filter(
+          (entry) =>
+            !entry.archivedAt &&
+            !["completed", "cancelled"].includes(entry.status),
+        )
+        .map((entry) => ({
+          entry,
+          date:
+            entry.dueDate ??
+            (entry.startsAt ? timestampDate(entry.startsAt, timezone) : null),
+        }))
+        .filter((value): value is { entry: StudyEntryResponse; date: string } =>
+          Boolean(
+            value.date && value.date >= range.start && value.date < range.end,
+          ),
+        )
+        .sort((left, right) => left.date.localeCompare(right.date)),
+    [range.end, range.start, studyEntries, timezone],
   );
 
   const save = async (payload: EventPayload) => {
@@ -442,6 +479,48 @@ export const CalendarWorkspace = ({
               onEdit={setEditorEvent}
             />
           )}
+
+          <section
+            className="study-deadlines"
+            aria-labelledby="study-deadlines-title"
+          >
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">STUDIUM · NUR ANZEIGE</p>
+                <h2 id="study-deadlines-title">
+                  Prüfungen, Abgaben und Lernzeiten
+                </h2>
+              </div>
+              <span>{visibleStudyEntries.length} sichtbar</span>
+            </div>
+            {visibleStudyEntries.length ? (
+              <div className="study-deadline-list">
+                {visibleStudyEntries.map(({ entry, date }) => (
+                  <article className="study-deadline-card" key={entry.id}>
+                    <strong>{dateLabel(date, true)}</strong>
+                    <span>{entry.title}</span>
+                    <small>
+                      {entry.kind === "exam"
+                        ? "Prüfung"
+                        : entry.kind === "submission"
+                          ? "Abgabe"
+                          : entry.kind === "lecture"
+                            ? "Lehrveranstaltung"
+                            : "Lernzeit"}
+                      {entry.startsAt
+                        ? ` · ${new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: entry.timezone ?? timezone }).format(new Date(entry.startsAt))}`
+                        : " · ganztägig"}
+                    </small>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="muted-copy">
+                Keine Studienfristen in diesem Zeitraum. Kalenderdaten werden
+                nicht automatisch verändert.
+              </p>
+            )}
+          </section>
         </section>
 
         {editorEvent !== undefined ? (

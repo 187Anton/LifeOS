@@ -23,6 +23,9 @@ model User {
   projects         Project[]
   tasks            Task[]
   taskEventLinks   TaskEventLink[]
+  studyPrograms    StudyProgram[]
+  studyModules     StudyModule[]
+  studyEntries     StudyEntry[]
   auditEvents      AuditEvent[]
 }
 
@@ -114,6 +117,7 @@ model CalendarEvent {
   updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
   calendar        Calendar        @relation(fields: [calendarId, userId], references: [id, userId], onDelete: Cascade)
   taskLinks       TaskEventLink[]
+  studyEntries    StudyEntry[]
 
   @@unique([id, userId])
   @@unique([calendarId, uid])
@@ -187,6 +191,7 @@ model Task {
   parentTask               Task?           @relation("TaskHierarchy", fields: [parentTaskId, userId], references: [id, userId], onDelete: Restrict)
   subtasks                 Task[]          @relation("TaskHierarchy")
   eventLinks               TaskEventLink[]
+  studyEntries             StudyEntry[]
 
   @@unique([id, userId])
   @@index([userId, deletedAt, archivedAt])
@@ -210,6 +215,95 @@ model TaskEventLink {
   @@unique([userId, taskId, calendarEventId])
   @@index([userId, taskId])
   @@index([userId, calendarEventId])
+}
+
+enum StudyStatus {
+  planned
+  active
+  completed
+  paused
+  cancelled
+}
+
+enum StudyEntryKind {
+  lecture
+  exam
+  submission
+  learning
+}
+
+model StudyProgram {
+  id          String        @id @default(uuid()) @db.Uuid
+  userId      String        @db.Uuid
+  title       String        @db.VarChar(500)
+  institution String        @db.VarChar(500)
+  periodLabel String        @db.VarChar(200)
+  status      StudyStatus   @default(planned)
+  notes       String?
+  archivedAt  DateTime?     @db.Timestamptz(3)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  modules     StudyModule[]
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt])
+}
+
+model StudyModule {
+  id                 String        @id @default(uuid()) @db.Uuid
+  userId             String        @db.Uuid
+  programId          String        @db.Uuid
+  code               String?       @db.VarChar(100)
+  title              String        @db.VarChar(500)
+  status             StudyStatus   @default(planned)
+  credits            Decimal?      @db.Decimal(6, 2)
+  grade              String?       @db.VarChar(100)
+  notes              String?
+  documentReferences String[]      @default([])
+  archivedAt         DateTime?     @db.Timestamptz(3)
+  createdAt          DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime      @updatedAt @db.Timestamptz(3)
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program            StudyProgram  @relation(fields: [programId, userId], references: [id, userId], onDelete: Restrict)
+  entries            StudyEntry[]
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt])
+  @@index([programId])
+}
+
+model StudyEntry {
+  id              String         @id @default(uuid()) @db.Uuid
+  userId          String         @db.Uuid
+  moduleId        String         @db.Uuid
+  kind            StudyEntryKind
+  title           String         @db.VarChar(500)
+  status          StudyStatus    @default(planned)
+  dueDate         DateTime?      @db.Date
+  startsAt        DateTime?      @db.Timestamptz(3)
+  endsAt          DateTime?      @db.Timestamptz(3)
+  timezone        String?        @db.VarChar(100)
+  credits         Decimal?       @db.Decimal(6, 2)
+  grade           String?        @db.VarChar(100)
+  notes           String?
+  taskId          String?        @db.Uuid
+  calendarEventId String?        @db.Uuid
+  archivedAt      DateTime?      @db.Timestamptz(3)
+  createdAt       DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @db.Timestamptz(3)
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module          StudyModule    @relation(fields: [moduleId, userId], references: [id, userId], onDelete: Restrict)
+  task            Task?          @relation(fields: [taskId, userId], references: [id, userId], onDelete: Restrict)
+  calendarEvent   CalendarEvent? @relation(fields: [calendarEventId, userId], references: [id, userId], onDelete: Restrict)
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt])
+  @@index([moduleId])
+  @@index([taskId])
+  @@index([calendarEventId])
+  @@index([userId, dueDate])
+  @@index([userId, startsAt])
 }
 
 model AuditEvent {

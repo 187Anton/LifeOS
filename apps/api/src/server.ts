@@ -22,6 +22,9 @@ import {
 import { PrismaTaskRepository } from "./modules/tasks/repository.js";
 import { createTaskRouter } from "./modules/tasks/router.js";
 import { TaskService } from "./modules/tasks/service.js";
+import { PrismaStudyRepository } from "./modules/study/repository.js";
+import { createStudyRouter } from "./modules/study/router.js";
+import { StudyService } from "./modules/study/service.js";
 import { PrismaTaskEventLinkRepository } from "./modules/task-event-links/repository.js";
 import { createTaskEventLinkRouter } from "./modules/task-event-links/router.js";
 import { TaskEventLinkService } from "./modules/task-event-links/service.js";
@@ -36,6 +39,7 @@ const main = async (): Promise<void> => {
   const calendarRepository = new PrismaCalendarRepository(database);
   const calendars = new CalendarService(calendarRepository);
   const tasks = new TaskService(new PrismaTaskRepository(database));
+  const study = new StudyService(new PrismaStudyRepository(database));
   const taskEventLinks = new TaskEventLinkService(
     new PrismaTaskEventLinkRepository(database),
   );
@@ -80,6 +84,7 @@ const main = async (): Promise<void> => {
         authentication,
         dashboard,
       }),
+      createStudyRouter({ authentication, study }),
     ],
   });
   let runningServer: Awaited<ReturnType<typeof startApiServer>>;

@@ -113,3 +113,10 @@ export const LogOutIcon = (props: IconProps) => (
     <path d="M10 17l5-5-5-5M15 12H3M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" />
   </Icon>
 );
+
+export const StudyIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="m3 10 9-5 9 5-9 5-9-5Z" />
+    <path d="M7 12.5V17c3 2 7 2 10 0v-4.5M21 10v6" />
+  </Icon>
+);
