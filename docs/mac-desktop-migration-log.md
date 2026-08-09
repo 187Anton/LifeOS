@@ -12,7 +12,7 @@ tatsächlich ausgeführten Prüfungen dokumentiert ist.
 | Paket                             | Status        | Letzter Nachweis |
 | --------------------------------- | ------------- | ---------------- |
 | M0 – Ziel und Ausführungsplan     | abgeschlossen | 9. August 2026   |
-| M1 – SQLite-Schema und Migration  | offen         | –                |
+| M1 – SQLite-Schema und Migration  | abgeschlossen | 9. August 2026   |
 | M2 – API ohne Docker              | offen         | –                |
 | M3 – Kalender- und CalDAV-Parität | offen         | –                |
 | M4 – Datenübernahme und Recovery  | offen         | –                |
@@ -60,3 +60,44 @@ formuliert werden.
 - **Nächster Schritt:** M1 als eigenes Arbeitspaket planen und das
   repräsentative SQLite-Schema ausschließlich mit synthetischen Daten
   implementieren.
+
+## 9. August 2026 – M1: SQLite-Schema und Migration
+
+- **Befund:** Das PostgreSQL-Prisma-Schema enthält nicht direkt übertragbare
+  Nativtypen, reine `DATE`-Felder und primitive Arrays. Prisma 7.8 validiert und
+  generiert ein getrenntes SQLite-Schema. `prisma migrate deploy` scheitert in
+  der geprüften lokalen Umgebung jedoch selbst bei einem Minimalmodell vor der
+  SQL-Anwendung mit einem unspezifischen Schema-Engine-Fehler; das identische
+  SQL lässt sich direkt fehlerfrei anwenden.
+- **Ursache oder Entscheidung:** SQLite erhält einen eigenen Schema- und
+  Migrationspfad. Reine Tage werden als kanonische `YYYY-MM-DD`-Strings und
+  Erinnerungen als geprüftes JSON gespeichert. Ein kleiner
+  `better-sqlite3`-Runner wendet ausschließlich sortierte versionierte
+  SQL-Dateien transaktional an, speichert deren SHA-256-Prüfsumme und prüft
+  anschließend Fremdschlüssel und Datenbankintegrität.
+- **Änderungsumfang:** Repräsentative Modelle für Benutzer, Einstellungen,
+  Zugangsdaten, Sitzung, CalDAV-Zugang, Kalender, Kalenderereignisse und Audit;
+  eine SQLite-Grundmigration; ein synthetischer PostgreSQL-Export; wiederholbarer
+  Import; getrennte Prisma-Konfiguration und drei Integrationstests. Das
+  PostgreSQL-Schema und sämtliche vorhandenen PostgreSQL-Migrationen wurden
+  nicht verändert.
+- **Verifikation:** `db:sqlite:validate`, `db:sqlite:generate`,
+  `db:sqlite:migrate`, zweimaliger `db:sqlite:seed`, TypeScript-Prüfung und drei
+  SQLite-Integrationstests wurden erfolgreich ausgeführt. Zusätzlich bestanden
+  Formatprüfung, Secret-Scan, Compose-Prüfung, vollständige Typprüfung, Linting,
+  API- und Web-Build sowie 102 Tests: 12 Repository-, 39 API-, 26 Web-Unit-, 16
+  Browser-E2E- und neun Datenbanktests.
+- **Datenvergleich:** Ein zeitgebundener und ein ganztägiger Termin behalten ID,
+  UID, ETag, Sequenz, Sync-Version, Kalender-Sync-Token, IANA-Zeitzone,
+  Erinnerungen und Zeitform. Wiederholte Migration und wiederholter Seed ändern
+  den ersten Snapshot nicht.
+- **Risiken und Grenzen:** Die API verwendet noch PostgreSQL. ETag-Konkurrenz,
+  kompletter CalDAV-Roundtrip, WAL-/Sperrverhalten, Backup, Sidecar und DMG sind
+  noch nicht bewiesen. Der Prisma-Schema-Engine-Fehler wird nicht als gelöste
+  Upstream-Ursache dargestellt. `npm audit --omit=dev` meldete sechs bereits im
+  Ausgangs-Lockfile vorhandene transitive Tooling-Advisories; keiner der
+  gemeldeten Pfade führt über den neuen SQLite-Adapter. Ihre Aktualisierung ist
+  ein getrenntes Sicherheitsarbeitspaket.
+- **Nächster Schritt:** M2 bindet den SQLite-Client hinter der zentralen
+  Datenbankschnittstelle an und prüft das gebaute Express-Backend ohne Docker,
+  ohne den `/api/v1`-Vertrag zu ändern.

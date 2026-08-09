@@ -51,7 +51,7 @@ wurde.
 | Paket | Ergebnis                                                               | Freigabe-Gate                                                                                | Status        |
 | ----- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------- |
 | M0    | Ziel, Baseline, Risiken und Nachweisformat sind dokumentiert.          | Dokumentprüfung und Repository-Tests sind erfolgreich.                                       | abgeschlossen |
-| M1    | Repräsentatives SQLite-Schema und versionierte Migration existieren.   | Schema, Seed, Wiederholung und Datenregeln sind automatisiert geprüft.                       | offen         |
+| M1    | Repräsentatives SQLite-Schema und versionierte Migration existieren.   | Schema, Seed, Wiederholung und Datenregeln sind automatisiert geprüft.                       | abgeschlossen |
 | M2    | Das gebaute Express-Backend läuft ohne Docker auf SQLite.              | Anmeldung, Einstellungen, Kalender-CRUD und Neustart bestehen den unveränderten API-Vertrag. | offen         |
 | M3    | Kalender und CalDAV besitzen SQLite-Parität.                           | CRUD, Zeitzone, Ganztag, RRULE, Erinnerung, ETag-Konflikt und Sync sind geprüft.             | offen         |
 | M4    | PostgreSQL-Übernahme sowie SQLite-Backup und -Restore sind sicher.     | Automatisierter Datenvergleich und Recovery-Test erhalten alle stabilen Identitäten.         | offen         |
@@ -129,9 +129,10 @@ temporäres, nicht versioniertes Prüfschema bestätigt:
 - PostgreSQL-Nativtypen wie `@db.Date` werden vom SQLite-Connector abgelehnt.
   Dasselbe gilt für die vorhandenen Attribute für `UUID`, `TIMESTAMPTZ`,
   `VARCHAR`, `CHAR`, `TEXT` und `DECIMAL`.
-- `@prisma/adapter-better-sqlite3` und `better-sqlite3` sind noch nicht
-  installiert. Der vorhandene Client wird ausschließlich mit
-  `@prisma/adapter-pg` erzeugt und gestartet.
+- Im Ausgangsstand waren `@prisma/adapter-better-sqlite3` und `better-sqlite3`
+  nicht installiert. M1 ergänzt beide in festgelegten Versionen ausschließlich
+  für den getrennten SQLite-Pfad; der vorhandene PostgreSQL-Client bleibt
+  unverändert.
 
 Prisma unterstützt SQLite in dieser Version damit grundsätzlich. Das aktuelle
 Schema und die PostgreSQL-Migrationen sind jedoch nicht direkt portierbar.
@@ -240,6 +241,27 @@ Akzeptanzkriterien:
 - Ungültige Besitzbezüge, gemischte Zeitformen und ungültige Ganztagsgrenzen
   werden von Datenbank oder validierter Fachgrenze abgelehnt.
 - PostgreSQL-Schema und vorhandene Migrationen bleiben unverändert.
+
+Bestätigter Nachweis:
+
+- Das getrennte Schema validiert und generiert mit Prisma 7.8.
+- Eine leere Datei entsteht über die versionierte Migration
+  `20260809190000_sqlite_foundation`; der Runner protokolliert deren
+  SHA-256-Prüfsumme und lehnt nachträgliche Änderungen ab.
+- Ein synthetischer PostgreSQL-Export mit zeitgebundenem und ganztägigem Termin
+  wird zweimal ohne Änderung der vorhandenen Datensätze importiert.
+- Drei Integrationstests vergleichen IDs, UIDs, ETags, Sequenzen,
+  Sync-Versionen, Sync-Token, UTC-Zeitpunkte, IANA-Zeitzone und reine
+  `YYYY-MM-DD`-Werte. Sie prüfen außerdem Fremdschlüssel, gemischte Zeitformen,
+  Erinnerungsgrenzen und genau einen aktiven Primärkalender.
+- `prisma migrate deploy` scheitert mit Prisma 7.8 lokal auch bei einem
+  Minimalmodell vor der SQL-Anwendung mit einem unspezifischen
+  Schema-Engine-Fehler. Der SQLite-Pfad verwendet deshalb einen kleinen
+  transaktionalen Runner für die versionierten SQL-Dateien; Prisma bleibt für
+  Validierung, Client-Generierung und Datenzugriff zuständig.
+
+M1 beweist noch nicht die vollständige API-, CalDAV- oder Sidecar-Parität.
+Diese Nachweise bleiben M2, M3 und M5 vorbehalten.
 
 ### M2 – API ohne Docker auf SQLite starten
 

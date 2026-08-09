@@ -276,6 +276,10 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 | Versionierte Migrationen anwenden             | `npm run db:migrate`         |
 | Synthetische Seed-Daten anlegen               | `npm run db:seed`            |
 | Datenbank-Integrationstest ausführen          | `npm run db:test`            |
+| SQLite-Spike-Schema prüfen                    | `npm run db:sqlite:validate` |
+| SQLite-Spike-Migration anwenden               | `npm run db:sqlite:migrate`  |
+| SQLite-Spike synthetisch befüllen             | `npm run db:sqlite:seed`     |
+| SQLite-Migrationsgate prüfen                  | `npm run db:sqlite:test`     |
 | Lokales PostgreSQL-Backup erstellen           | `npm run db:backup`          |
 | Backup sicher in neue Datenbank restaurieren  | `npm run db:restore -- …`    |
 | Migration, Backup und Restore isoliert prüfen | `npm run db:verify:recovery` |
@@ -293,6 +297,11 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 | Versionierte Dateien auf Secrets prüfen       | `npm run security:secrets`   |
 | Formatierung prüfen                           | `npm run format:check`       |
 | Repository- und vorhandene Workspace-Tests    | `npm test`                   |
+
+Die SQLite-Befehle sind aktuell ein isolierter Migrationsnachweis und stellen
+die API noch nicht um. Details, Datenregeln und Grenzen stehen in
+[`packages/database/README.md`](packages/database/README.md) und im
+[`Migrationsprotokoll`](docs/mac-desktop-migration-log.md).
 
 Details zu Web- und PWA-Prüfungen stehen in
 [apps/web/README.md](apps/web/README.md). Details zu Schemaänderungen,

@@ -165,6 +165,11 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
   Schemaänderungen werden zuerst als `--create-only`-Migration geprüft und
   anschließend mit `npm run db:migrate` angewendet; `db push` ist kein
   regulärer LifeOS-Ablauf.
+- Der Mac-App-Spike verwendet einen getrennten SQLite-Schema- und
+  Migrationspfad. `npm run db:sqlite:migrate` wendet ausschließlich
+  versionierte, prüfsummengeschützte SQL-Dateien an; reine Kalendertage bleiben
+  kanonische `YYYY-MM-DD`-Strings. PostgreSQL-Schema und vorhandene Migrationen
+  werden nicht umgeschrieben.
 - Kalenderzeitpunkte werden als `TIMESTAMPTZ` plus fachliche IANA-Zeitzone,
   ganztägige Ereignisse ausschließlich als `DATE`-Werte gespeichert. Ein
   Datenbank-Constraint muss beide Formen eindeutig voneinander trennen.
@@ -433,3 +438,7 @@ gemeldet.
   besitzgebundene und zeitzonenkorrekte Projektion ohne eigene Datenquelle oder
   ungefragte Schreibaktionen nach API-, Datenbank-, Unit- und E2E-Tests
   festgehalten.
+- **2026-08-09:** Getrennten SQLite-Schema- und Migrationspfad mit
+  prüfsummengeschütztem Runner, reinen `YYYY-MM-DD`-Ganztagswerten,
+  synthetischem Datenvergleich und unverändertem PostgreSQL-Pfad nach
+  erfolgreichem M1-Integrationstest festgehalten.
