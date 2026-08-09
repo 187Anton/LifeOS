@@ -6,13 +6,28 @@ Sie verwendet Express 5 und stellt versionierte REST-Endpunkte unter
 
 ## Lokal starten
 
-Voraussetzungen sind eine `.env` nach dem Muster der `.env.example` und eine
-erreichbare lokale PostgreSQL-Datenbank:
+Voraussetzung ist eine `.env` nach dem Muster der `.env.example`. Die API kann
+mit einer erreichbaren PostgreSQL-Datenbank oder einer zuvor migrierten,
+absolut adressierten SQLite-Datei starten:
 
 ```bash
 npm run db:start
 npm run api:start
 ```
+
+Der bestätigte SQLite-Prüfweg benötigt keinen Docker-Container:
+
+```bash
+export SQLITE_DATABASE_URL="file:/absoluter/pfad/lifeos.sqlite"
+export DATABASE_URL="$SQLITE_DATABASE_URL"
+npm run db:sqlite:migrate
+npm run api:start
+```
+
+Relative SQLite-Pfade werden abgelehnt, damit Desktop-App und Hilfsbefehle
+nicht versehentlich unterschiedliche Dateien öffnen. Das Setzen eines echten
+lokalen Passworts und CalDAV-Zugangs erfolgt weiterhin über die getrennten
+Bootstrap-Befehle.
 
 Die API bindet standardmäßig nur an `127.0.0.1:3000`. Ein Start mit fehlender
 oder ungültiger Konfiguration endet verständlich und ohne Ausgabe von
@@ -107,41 +122,41 @@ unset CALDAV_TEST_PASSWORD
 
 ## Betriebsendpunkte
 
-| Endpunkt                                           | Bedeutung                                        |
-| -------------------------------------------------- | ------------------------------------------------ |
-| `GET /api/v1/health`                               | HTTP-Prozess ist erreichbar                      |
-| `GET /api/v1/readiness`                            | API und PostgreSQL-Verbindung sind einsatzbereit |
-| `POST /api/v1/session`                             | lokale Sitzung über Passwort anlegen             |
-| `DELETE /api/v1/session`                           | aktuelle Sitzung widerrufen                      |
-| `GET /api/v1/profile`                              | persönliches Profil und Einstellungen lesen      |
-| `PATCH /api/v1/settings`                           | Basiseinstellungen teilweise ändern              |
-| `GET/POST /api/v1/calendars`                       | Kalender auflisten oder anlegen                  |
-| `PATCH/DELETE /api/v1/calendars/:id`               | Kalender ändern oder soft löschen                |
-| `GET/POST /api/v1/calendars/:id/events`            | Ereignisse auflisten oder anlegen                |
-| `GET/PUT/DELETE /api/v1/calendars/:id/events/:uid` | Ereignis verwalten                               |
-| `GET/POST /api/v1/tasks`                           | Aufgaben filtern oder anlegen                    |
-| `GET/PATCH/DELETE /api/v1/tasks/:taskId`           | Aufgabe lesen, ändern oder soft löschen          |
-| `GET/POST /api/v1/task-event-links`                | Aufgaben-Termin-Beziehungen lesen oder anlegen   |
-| `DELETE /api/v1/task-event-links/:linkId`          | Aufgaben-Termin-Beziehung entfernen              |
-| `GET /api/v1/dashboard`                            | rein lesenden Organisations-Snapshot laden       |
-| `GET /api/v1/work`                                 | eigene Arbeitsdaten filtern und laden            |
-| `POST/PATCH /api/v1/work/contexts/:id?`            | Arbeitsbereiche anlegen oder ändern              |
-| `POST/PATCH /api/v1/work/projects/:id?`            | Arbeitsprojekte, Ziele und Fristen verwalten     |
-| `POST/DELETE /api/v1/work/task-links/:id?`         | vorhandene Arbeitsaufgaben zuordnen              |
-| `POST/PATCH /api/v1/work/time-entries/:id?`        | geplante oder tatsächliche Zeit verwalten        |
-| `GET /api/v1/planning`                             | gemeinsame Planung nach Zeitraum/Bereich laden   |
-| `POST/PATCH/DELETE /api/v1/planning/availability`  | persönliche Verfügbarkeit verwalten              |
-| `/.well-known/caldav`                              | CalDAV-Discovery auf `/caldav/`                  |
-| `/caldav/…`                                        | WebDAV-/CalDAV-Ressourcen                        |
+| Endpunkt                                           | Bedeutung                                          |
+| -------------------------------------------------- | -------------------------------------------------- |
+| `GET /api/v1/health`                               | HTTP-Prozess ist erreichbar                        |
+| `GET /api/v1/readiness`                            | API und konfigurierte Datenbank sind einsatzbereit |
+| `POST /api/v1/session`                             | lokale Sitzung über Passwort anlegen               |
+| `DELETE /api/v1/session`                           | aktuelle Sitzung widerrufen                        |
+| `GET /api/v1/profile`                              | persönliches Profil und Einstellungen lesen        |
+| `PATCH /api/v1/settings`                           | Basiseinstellungen teilweise ändern                |
+| `GET/POST /api/v1/calendars`                       | Kalender auflisten oder anlegen                    |
+| `PATCH/DELETE /api/v1/calendars/:id`               | Kalender ändern oder soft löschen                  |
+| `GET/POST /api/v1/calendars/:id/events`            | Ereignisse auflisten oder anlegen                  |
+| `GET/PUT/DELETE /api/v1/calendars/:id/events/:uid` | Ereignis verwalten                                 |
+| `GET/POST /api/v1/tasks`                           | Aufgaben filtern oder anlegen                      |
+| `GET/PATCH/DELETE /api/v1/tasks/:taskId`           | Aufgabe lesen, ändern oder soft löschen            |
+| `GET/POST /api/v1/task-event-links`                | Aufgaben-Termin-Beziehungen lesen oder anlegen     |
+| `DELETE /api/v1/task-event-links/:linkId`          | Aufgaben-Termin-Beziehung entfernen                |
+| `GET /api/v1/dashboard`                            | rein lesenden Organisations-Snapshot laden         |
+| `GET /api/v1/work`                                 | eigene Arbeitsdaten filtern und laden              |
+| `POST/PATCH /api/v1/work/contexts/:id?`            | Arbeitsbereiche anlegen oder ändern                |
+| `POST/PATCH /api/v1/work/projects/:id?`            | Arbeitsprojekte, Ziele und Fristen verwalten       |
+| `POST/DELETE /api/v1/work/task-links/:id?`         | vorhandene Arbeitsaufgaben zuordnen                |
+| `POST/PATCH /api/v1/work/time-entries/:id?`        | geplante oder tatsächliche Zeit verwalten          |
+| `GET /api/v1/planning`                             | gemeinsame Planung nach Zeitraum/Bereich laden     |
+| `POST/PATCH/DELETE /api/v1/planning/availability`  | persönliche Verfügbarkeit verwalten                |
+| `/.well-known/caldav`                              | CalDAV-Discovery auf `/caldav/`                    |
+| `/caldav/…`                                        | WebDAV-/CalDAV-Ressourcen                          |
 
 Health greift absichtlich nicht auf die Datenbank zu. Readiness führt dagegen
 eine echte, ausschließlich lesende `SELECT 1`-Prüfung über den zentralen
-Prisma-Client aus. Bei nicht erreichbarer Datenbank bleibt Health grün und
-Readiness antwortet mit HTTP 503.
+Prisma-Client aus. Bei nicht erreichbarer PostgreSQL- oder SQLite-Datenbank
+bleibt Health grün und Readiness antwortet mit HTTP 503.
 
 Profil und Einstellungen benötigen die `HttpOnly`-Sitzung. Der Browser erhält
 das zufällige Sitzungstoken ausschließlich als `SameSite=Strict`-Cookie; in
-PostgreSQL liegt nur dessen SHA-256-Hash. Die Webentwicklung verwendet dieselbe
+der konfigurierten Datenbank liegt nur dessen SHA-256-Hash. Die Webentwicklung verwendet dieselbe
 Hostbezeichnung wie `WEB_ORIGIN` und später einen Same-Origin-Proxy, damit das
 Cookie nicht in JavaScript zugänglich werden muss.
 

@@ -170,6 +170,11 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
   versionierte, prüfsummengeschützte SQL-Dateien an; reine Kalendertage bleiben
   kanonische `YYYY-MM-DD`-Strings. PostgreSQL-Schema und vorhandene Migrationen
   werden nicht umgeschrieben.
+- Die zentrale Datenbankfabrik wählt SQLite nur für eine validierte absolute
+  `file:`-URL, sonst PostgreSQL. Reine Datumsfelder werden ausschließlich an
+  dieser Grenze abgebildet; API-, Kalender- und CalDAV-Verträge bleiben
+  providerunabhängig. `npm run test:sqlite:api` und
+  `npm run verify:sqlite:api-runtime` sind die verbindlichen M2-Nachweise.
 - Kalenderzeitpunkte werden als `TIMESTAMPTZ` plus fachliche IANA-Zeitzone,
   ganztägige Ereignisse ausschließlich als `DATE`-Werte gespeichert. Ein
   Datenbank-Constraint muss beide Formen eindeutig voneinander trennen.
@@ -442,3 +447,7 @@ gemeldet.
   prüfsummengeschütztem Runner, reinen `YYYY-MM-DD`-Ganztagswerten,
   synthetischem Datenvergleich und unverändertem PostgreSQL-Pfad nach
   erfolgreichem M1-Integrationstest festgehalten.
+- **2026-08-09:** Vollständigen SQLite-Fachmodellpfad, providerabhängige
+  zentrale Client-Fabrik, reine Datumsumwandlung an der Datenbankgrenze und
+  reproduzierbare API-/Neustartprüfungen nach erfolgreichem M2-Nachweis
+  festgehalten.

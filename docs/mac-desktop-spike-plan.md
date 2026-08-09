@@ -52,7 +52,7 @@ wurde.
 | ----- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------- |
 | M0    | Ziel, Baseline, Risiken und Nachweisformat sind dokumentiert.          | Dokumentprüfung und Repository-Tests sind erfolgreich.                                       | abgeschlossen |
 | M1    | Repräsentatives SQLite-Schema und versionierte Migration existieren.   | Schema, Seed, Wiederholung und Datenregeln sind automatisiert geprüft.                       | abgeschlossen |
-| M2    | Das gebaute Express-Backend läuft ohne Docker auf SQLite.              | Anmeldung, Einstellungen, Kalender-CRUD und Neustart bestehen den unveränderten API-Vertrag. | offen         |
+| M2    | Das gebaute Express-Backend läuft ohne Docker auf SQLite.              | Anmeldung, Einstellungen, Kalender-CRUD und Neustart bestehen den unveränderten API-Vertrag. | abgeschlossen |
 | M3    | Kalender und CalDAV besitzen SQLite-Parität.                           | CRUD, Zeitzone, Ganztag, RRULE, Erinnerung, ETag-Konflikt und Sync sind geprüft.             | offen         |
 | M4    | PostgreSQL-Übernahme sowie SQLite-Backup und -Restore sind sicher.     | Automatisierter Datenvergleich und Recovery-Test erhalten alle stabilen Identitäten.         | offen         |
 | M5    | Tauri startet und beendet einen reproduzierbar gebauten Sidecar.       | Mac-App, Browser und CalDAV verwenden denselben Kern ohne Docker und globales Node.js.       | offen         |
@@ -281,6 +281,29 @@ Akzeptanzkriterien:
   unveränderten `/api/v1`-Vertrag.
 - Der Browser-Entwicklungsbetrieb über Vite funktioniert weiterhin.
 - Neustart erhält Benutzer, Einstellungen und Termine.
+
+Bestätigter Nachweis:
+
+- Das SQLite-Schema umfasst alle 19 vorhandenen Fachmodelle. Die zentrale
+  Client-Fabrik wählt anhand einer absoluten `file:`-URL SQLite, ohne die
+  bestehende PostgreSQL-URL oder den öffentlichen `/api/v1`-Vertrag zu ändern.
+- Eine schmale Kompatibilitätsschicht bildet reine PostgreSQL-`DATE`-Werte an
+  der Datenbankgrenze auf kanonische `YYYY-MM-DD`-Strings ab. Alle
+  API-Repositories behalten ihre bisherigen Typen und Antworten.
+- `npm run test:sqlite:api` erstellt eine neue temporäre Datei, migriert sie
+  und führt alle 41 API-, Profil-, Aufgaben-, Studium-, Arbeit-, Kalender- und
+  CalDAV-Tests seriell erfolgreich aus.
+- `npm run verify:sqlite:api-runtime` baut das Express-Backend, startet
+  `node dist/server.js` ohne Docker, prüft Readiness, Anmeldung,
+  Einstellungsänderung, Kalender, Ganztag und Aufgabe, startet denselben Server
+  neu und liest alle gespeicherten Werte unverändert zurück.
+- Dieselben neun Datenbank- und 41 API-Tests bestanden weiterhin auf
+  PostgreSQL. Zusätzlich bestanden 26 Web-Unit- und 16 Browser-E2E-Tests. Der
+  bisherige Entwicklungs- und Vite-Browserweg bleibt damit nachgewiesen.
+
+M2 paketiert Node.js noch nicht in eine Mac-App und beweist weder das
+Sperrverhalten konkurrierender ETag-Schreibzugriffe noch SQLite-Backup und
+Restore. Diese Gates bleiben M3 bis M5 vorbehalten.
 
 ### M3 – Kalender- und CalDAV-Parität
 

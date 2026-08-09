@@ -83,80 +83,83 @@ export class PrismaDashboardRepository implements DashboardRepository {
     const startDate = new Date(`${today}T00:00:00.000Z`);
     const endDate = new Date(`${horizon}T00:00:00.000Z`);
 
-    const [tasks, events, projects] = await this.database.$transaction([
-      this.database.task.findMany({
-        where: {
-          userId,
-          deletedAt: null,
-          archivedAt: null,
-          status: { in: ["open", "in_progress", "blocked"] },
-        },
-        orderBy: [
-          { dueDate: { sort: "asc", nulls: "last" } },
-          { priority: "desc" },
-          { createdAt: "asc" },
-        ],
-      }),
-      this.database.calendarEvent.findMany({
-        where: {
-          userId,
-          deletedAt: null,
-          calendar: { deletedAt: null },
-          OR: [
-            { recurrenceRule: { not: null } },
-            {
-              isAllDay: false,
-              startsAt: { lt: endsAt },
-              endsAt: { gt: startsAt },
-            },
-            {
-              isAllDay: true,
-              startDate: { lt: endDate },
-              endDate: { gt: startDate },
-            },
-          ],
-        },
-        include: {
-          calendar: {
-            select: { externalId: true, name: true },
-          },
-        },
-        orderBy: [
-          { startDate: "asc" },
-          { startsAt: "asc" },
-          { createdAt: "asc" },
-        ],
-      }),
-      this.database.project.findMany({
-        where: {
-          userId,
-          archivedAt: null,
-          tasks: {
-            some: {
+    const [tasks, events, projects] = await this.database.$transaction(
+      async (transaction) =>
+        Promise.all([
+          transaction.task.findMany({
+            where: {
+              userId,
               deletedAt: null,
               archivedAt: null,
               status: { in: ["open", "in_progress", "blocked"] },
             },
-          },
-        },
-        select: {
-          id: true,
-          title: true,
-          _count: {
-            select: {
+            orderBy: [
+              { dueDate: { sort: "asc", nulls: "last" } },
+              { priority: "desc" },
+              { createdAt: "asc" },
+            ],
+          }),
+          transaction.calendarEvent.findMany({
+            where: {
+              userId,
+              deletedAt: null,
+              calendar: { deletedAt: null },
+              OR: [
+                { recurrenceRule: { not: null } },
+                {
+                  isAllDay: false,
+                  startsAt: { lt: endsAt },
+                  endsAt: { gt: startsAt },
+                },
+                {
+                  isAllDay: true,
+                  startDate: { lt: endDate },
+                  endDate: { gt: startDate },
+                },
+              ],
+            },
+            include: {
+              calendar: {
+                select: { externalId: true, name: true },
+              },
+            },
+            orderBy: [
+              { startDate: "asc" },
+              { startsAt: "asc" },
+              { createdAt: "asc" },
+            ],
+          }),
+          transaction.project.findMany({
+            where: {
+              userId,
+              archivedAt: null,
               tasks: {
-                where: {
+                some: {
                   deletedAt: null,
                   archivedAt: null,
                   status: { in: ["open", "in_progress", "blocked"] },
                 },
               },
             },
-          },
-        },
-        orderBy: { title: "asc" },
-      }),
-    ]);
+            select: {
+              id: true,
+              title: true,
+              _count: {
+                select: {
+                  tasks: {
+                    where: {
+                      deletedAt: null,
+                      archivedAt: null,
+                      status: { in: ["open", "in_progress", "blocked"] },
+                    },
+                  },
+                },
+              },
+            },
+            orderBy: { title: "asc" },
+          }),
+        ]),
+    );
 
     return {
       generatedAt: generatedAt.toISOString(),

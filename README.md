@@ -11,8 +11,9 @@ Fachlogik wird schrittweise ergänzt.
 - modularer Monolith statt Microservices
 - React und TypeScript für die Weboberfläche
 - Node.js und TypeScript für die API
-- PostgreSQL als relationale Datenbank
-- Docker Compose für die lokale Infrastruktur
+- PostgreSQL als bisherige Entwicklungsdatenbank; SQLite als nachgewiesener
+  lokaler Zielpfad der Mac-App-Migration
+- Docker Compose für den bisherigen PostgreSQL-Entwicklungsbetrieb
 - eine responsive Weboberfläche mit installierbarer PWA-App-Shell
 - CalDAV-Server ab dem Fundament, damit Termine ohne installierte LifeOS-App
   in Apple Kalender sichtbar werden können
@@ -70,7 +71,7 @@ web/ responsive React-Weboberfläche und PWA-App-Shell
 
 packages/
 contracts/ Gemeinsame API- und Datenverträge
-database/ PostgreSQL-/Prisma-Modell
+database/ PostgreSQL-/SQLite-Schemata und zentrale Prisma-Schnittstelle
 
 docs/
 architecture.md Architekturentscheidungen
@@ -134,7 +135,8 @@ npm run api:start
 
 Sie bindet standardmäßig nur an `127.0.0.1:3000`. Der Health-Endpunkt unter
 `/api/v1/health` prüft den HTTP-Prozess, während `/api/v1/readiness` zusätzlich
-eine echte PostgreSQL-Verbindung prüft. Details und Fehlervertrag stehen in
+die konfigurierte PostgreSQL- oder SQLite-Verbindung prüft. Details und
+Fehlervertrag stehen in
 [apps/api/README.md](apps/api/README.md).
 
 Nach lokaler Anmeldung stehen außerdem Kalender- und Ereignis-CRUD unter
@@ -180,7 +182,7 @@ Löschung oder Änderung eines Objekts verändert das andere nicht automatisch.
 
 Das Organisations-Dashboard lädt über den geschützten, rein lesenden Endpunkt
 `/api/v1/dashboard` aktive Aufgaben, Termine aus allen eigenen Kalendern und
-aktuelle Projektanker direkt aus PostgreSQL. Heutige und überfällige Daten
+aktuelle Projektanker aus der konfigurierten lokalen Datenbank. Heutige und
 werden anhand der Profilzeitzone bestimmt. Die responsive Übersicht zeigt
 Leer- und Fehlerzustände, Überschneidungen, fehlende Fälligkeiten sowie
 Schnellaktionen, die ausschließlich die bestehenden Aufgaben- und
@@ -265,41 +267,45 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 
 ### Aktuell verfügbare Befehle
 
-| Aufgabe                                       | Befehl                       |
-| --------------------------------------------- | ---------------------------- |
-| Abhängigkeiten installieren                   | `npm ci`                     |
-| Docker und lokale Konfiguration prüfen        | `npm run env:check`          |
-| Datenbank starten und Verbindung prüfen       | `npm run db:start`           |
-| Datenbankstatus und SQL-Verbindung prüfen     | `npm run db:check`           |
-| Lokale Dienste ohne Datenverlust stoppen      | `npm run db:stop`            |
-| Prisma-Schema prüfen                          | `npm run db:validate`        |
-| Versionierte Migrationen anwenden             | `npm run db:migrate`         |
-| Synthetische Seed-Daten anlegen               | `npm run db:seed`            |
-| Datenbank-Integrationstest ausführen          | `npm run db:test`            |
-| SQLite-Spike-Schema prüfen                    | `npm run db:sqlite:validate` |
-| SQLite-Spike-Migration anwenden               | `npm run db:sqlite:migrate`  |
-| SQLite-Spike synthetisch befüllen             | `npm run db:sqlite:seed`     |
-| SQLite-Migrationsgate prüfen                  | `npm run db:sqlite:test`     |
-| Lokales PostgreSQL-Backup erstellen           | `npm run db:backup`          |
-| Backup sicher in neue Datenbank restaurieren  | `npm run db:restore -- …`    |
-| Migration, Backup und Restore isoliert prüfen | `npm run db:verify:recovery` |
-| API lokal starten                             | `npm run api:start`          |
-| API im Watch-Modus starten                    | `npm run api:dev`            |
-| Weboberfläche lokal starten                   | `npm run web:dev`            |
-| Gebaute Weboberfläche lokal prüfen            | `npm run web:preview`        |
-| Lokales Passwort setzen/Sitzungen widerrufen  | `npm run auth:bootstrap`     |
-| Getrennten CalDAV-Zugang setzen               | `npm run caldav:bootstrap`   |
-| Getrennten CalDAV-Zugang widerrufen           | `npm run caldav:revoke`      |
-| Workspaces linten                             | `npm run lint`               |
-| Workspaces typprüfen                          | `npm run typecheck`          |
-| Anwendungen und Packages bauen                | `npm run build`              |
-| Compose-Konfiguration ohne Start prüfen       | `npm run repo:check`         |
-| Versionierte Dateien auf Secrets prüfen       | `npm run security:secrets`   |
-| Formatierung prüfen                           | `npm run format:check`       |
-| Repository- und vorhandene Workspace-Tests    | `npm test`                   |
+| Aufgabe                                       | Befehl                              |
+| --------------------------------------------- | ----------------------------------- |
+| Abhängigkeiten installieren                   | `npm ci`                            |
+| Docker und lokale Konfiguration prüfen        | `npm run env:check`                 |
+| Datenbank starten und Verbindung prüfen       | `npm run db:start`                  |
+| Datenbankstatus und SQL-Verbindung prüfen     | `npm run db:check`                  |
+| Lokale Dienste ohne Datenverlust stoppen      | `npm run db:stop`                   |
+| Prisma-Schema prüfen                          | `npm run db:validate`               |
+| Versionierte Migrationen anwenden             | `npm run db:migrate`                |
+| Synthetische Seed-Daten anlegen               | `npm run db:seed`                   |
+| Datenbank-Integrationstest ausführen          | `npm run db:test`                   |
+| SQLite-Spike-Schema prüfen                    | `npm run db:sqlite:validate`        |
+| SQLite-Spike-Migration anwenden               | `npm run db:sqlite:migrate`         |
+| SQLite-Spike synthetisch befüllen             | `npm run db:sqlite:seed`            |
+| SQLite-Migrationsgate prüfen                  | `npm run db:sqlite:test`            |
+| Vollständige API auf SQLite prüfen            | `npm run test:sqlite:api`           |
+| Gebaute SQLite-API mit Neustart prüfen        | `npm run verify:sqlite:api-runtime` |
+| Lokales PostgreSQL-Backup erstellen           | `npm run db:backup`                 |
+| Backup sicher in neue Datenbank restaurieren  | `npm run db:restore -- …`           |
+| Migration, Backup und Restore isoliert prüfen | `npm run db:verify:recovery`        |
+| API lokal starten                             | `npm run api:start`                 |
+| API im Watch-Modus starten                    | `npm run api:dev`                   |
+| Weboberfläche lokal starten                   | `npm run web:dev`                   |
+| Gebaute Weboberfläche lokal prüfen            | `npm run web:preview`               |
+| Lokales Passwort setzen/Sitzungen widerrufen  | `npm run auth:bootstrap`            |
+| Getrennten CalDAV-Zugang setzen               | `npm run caldav:bootstrap`          |
+| Getrennten CalDAV-Zugang widerrufen           | `npm run caldav:revoke`             |
+| Workspaces linten                             | `npm run lint`                      |
+| Workspaces typprüfen                          | `npm run typecheck`                 |
+| Anwendungen und Packages bauen                | `npm run build`                     |
+| Compose-Konfiguration ohne Start prüfen       | `npm run repo:check`                |
+| Versionierte Dateien auf Secrets prüfen       | `npm run security:secrets`          |
+| Formatierung prüfen                           | `npm run format:check`              |
+| Repository- und vorhandene Workspace-Tests    | `npm test`                          |
 
-Die SQLite-Befehle sind aktuell ein isolierter Migrationsnachweis und stellen
-die API noch nicht um. Details, Datenregeln und Grenzen stehen in
+Die SQLite-Befehle bilden seit M2 alle vorhandenen Fachmodelle ab. Die gebaute
+API läuft damit ohne Docker und behält synthetische Daten nach einem Neustart.
+Das ist noch keine installierte Mac-App: Sidecar, Backup, DMG und Update folgen
+in den weiteren Migrationspaketen. Details, Datenregeln und Grenzen stehen in
 [`packages/database/README.md`](packages/database/README.md) und im
 [`Migrationsprotokoll`](docs/mac-desktop-migration-log.md).
 

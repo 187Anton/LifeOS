@@ -3,7 +3,8 @@
 Dieses Workspace-Paket enthält das produktive Prisma-7-PostgreSQL-Schema, die
 zugehörigen versionierten Migrationen, den zentralen Prisma-Client und
 ausschließlich synthetische Entwicklungsdaten. Zusätzlich gibt es einen klar
-getrennten, repräsentativen SQLite-Migrationspfad für die Mac-App-Migration.
+getrennten vollständigen SQLite-Schema- und Migrationspfad für die
+Mac-App-Migration.
 
 ## Datenmodell des Fundaments
 
@@ -107,11 +108,11 @@ setzt ihn aus der temporären Variable `LIFEOS_CALDAV_PASSWORD`;
 Der Seed muss ausdrücklich ausgeführt werden. Prisma 7 startet ihn nicht mehr
 automatisch zusammen mit einer Migration.
 
-## Repräsentativer SQLite-Migrationspfad
+## SQLite-Migrations- und API-Pfad
 
-Der M1-Spike bildet Benutzer, Einstellungen, Web- und CalDAV-Zugang, Sitzungen,
-Kalender, Kalenderereignisse und Audit-Ereignisse ab. Er ersetzt noch nicht den
-PostgreSQL-Betrieb der API. PostgreSQL-Schema und vorhandene Migrationen bleiben
+Seit M2 bildet SQLite alle vorhandenen Fachmodelle ab. Eine absolute `file:`-URL
+in `DATABASE_URL` wählt den SQLite-Client; eine PostgreSQL-URL behält den
+bisherigen Adapter. PostgreSQL-Schema und vorhandene Migrationen bleiben
 unverändert.
 
 Eine isolierte SQLite-Datei wird so geprüft:
@@ -123,6 +124,8 @@ npm run db:sqlite:generate
 npm run db:sqlite:migrate
 npm run db:sqlite:seed
 npm run db:sqlite:test
+npm run test:sqlite:api
+npm run verify:sqlite:api-runtime
 unset SQLITE_DATABASE_URL
 ```
 
@@ -131,7 +134,7 @@ Ohne gesetzte Variable verwenden die lokalen Befehle die ignorierte Datei
 Dateien. Der Seed liest ausschließlich den versionierten synthetischen Export
 unter `prisma/sqlite/fixtures/` und ist wiederholbar.
 
-Für SQLite gelten im bestätigten M1-Umfang:
+Für SQLite gelten im bestätigten M2-Umfang:
 
 - reine Kalendertage werden als kanonische `YYYY-MM-DD`-Strings gespeichert;
 - absolute Zeitpunkte verwendet der Prisma-Adapter als ISO-8601-UTC-Werte,
@@ -143,6 +146,13 @@ Für SQLite gelten im bestätigten M1-Umfang:
 - jede SQL-Datei liegt in einem versionierten Migrationsverzeichnis. Der lokale
   Runner speichert eine SHA-256-Prüfsumme und lehnt nachträglich veränderte,
   bereits angewendete Migrationen ab.
+- reine Datumsfelder werden nur an der zentralen Datenbankgrenze zwischen
+  `Date` und `YYYY-MM-DD` umgewandelt; `/api/v1` bleibt unverändert;
+- schützende Referenzen verwenden in SQLite aufgeschobenes `NO ACTION`, damit
+  eine atomare Besitzerlöschung alle eigenen Datensätze entfernen kann, eine
+  isolierte Löschung referenzierter Fachdaten aber weiterhin scheitert;
+- `test:sqlite:api` öffnet bewusst nur seriell schreibende Test-Clients. Der
+  vorgesehene Desktopbetrieb erlaubt ebenfalls nur einen schreibenden Sidecar.
 
 Prisma 7.8 validiert und generiert den getrennten SQLite-Client. Ein
 reproduzierter Schema-Engine-Fehler verhindert in der geprüften lokalen

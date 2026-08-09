@@ -48,6 +48,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const firstMigration = await migrateSqliteDatabase(databaseUrl);
   assert.deepEqual(firstMigration.appliedNow, [
     "20260809190000_sqlite_foundation",
+    "20260809203000_product_modules",
   ]);
 
   const database = createSqliteDatabaseClient(databaseUrl);
@@ -56,9 +57,11 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const migrationRows = await database.$queryRawUnsafe<
     Array<{ name: string; checksum: string }>
   >('SELECT "name", "checksum" FROM "_lifeos_migrations"');
-  assert.equal(migrationRows.length, 1);
+  assert.equal(migrationRows.length, 2);
   assert.equal(migrationRows[0]?.name, "20260809190000_sqlite_foundation");
   assert.match(migrationRows[0]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[1]?.name, "20260809203000_product_modules");
+  assert.match(migrationRows[1]?.checksum ?? "", /^[0-9a-f]{64}$/);
 
   const foreignKeys = await database.$queryRawUnsafe<
     Array<{ foreign_keys: bigint }>

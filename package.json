@@ -2,6 +2,7 @@
   "name": "anton-life-os",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Lokales, persönliches Life OS für Studium, Arbeit, Projekte und Alltag.",
   "workspaces": [
     "apps/*",
@@ -26,6 +27,8 @@
     "db:sqlite:migrate": "npm run db:sqlite:migrate --workspace @lifeos/database",
     "db:sqlite:seed": "npm run db:sqlite:seed --workspace @lifeos/database",
     "db:sqlite:test": "npm run db:sqlite:test --workspace @lifeos/database",
+    "test:sqlite:api": "bash scripts/test-sqlite-api.sh",
+    "verify:sqlite:api-runtime": "env DATABASE_URL=postgresql://unused:unused@127.0.0.1:5432/unused npm run db:generate && npm run db:sqlite:generate && npm run build --workspace @lifeos/api && node --import tsx scripts/verify-sqlite-api-runtime.ts",
     "db:backup": "bash scripts/backup-database.sh",
     "db:restore": "bash scripts/restore-database.sh",
     "db:verify:recovery": "bash scripts/verify-database-recovery.sh",

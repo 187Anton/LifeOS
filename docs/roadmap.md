@@ -132,9 +132,11 @@ gemeinsame React-Weboberfläche, den separaten Browserbetrieb oder den
 vorhandenen API-/CalDAV-Kern aufzugeben. Dieses Querschnittsziel hat vor den
 noch nicht begonnenen Produktphasen 0.4 und 0.5 Priorität.
 
-Der aktuelle Stand ist eine technische Spike-Planung, kein fertiger
-Installationsweg. Die detaillierte Bestandsaufnahme, Entscheidungen, Risiken
-und Akzeptanzkriterien stehen in
+Der aktuelle Stand umfasst die abgeschlossenen Pakete M0 bis M2: Planung,
+vollständiges SQLite-Schema sowie die gebaute Express-API ohne Docker sind
+automatisiert nachgewiesen. Ein fertiger Mac-Installationsweg ist das noch
+nicht. Die detaillierte Bestandsaufnahme, Entscheidungen, Risiken und
+Akzeptanzkriterien stehen in
 [`docs/mac-desktop-spike-plan.md`](mac-desktop-spike-plan.md). Der Fortschritt
 und die tatsächlich ausgeführten Nachweise werden fortlaufend in
 [`docs/mac-desktop-migration-log.md`](mac-desktop-migration-log.md)

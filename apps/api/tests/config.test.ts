@@ -20,12 +20,39 @@ test("liest eine gültige lokale API-Konfiguration", () => {
     nodeEnv: "test",
     host: "127.0.0.1",
     port: 3000,
+    databaseProvider: "postgresql",
     databaseUrl: validEnvironment.DATABASE_URL,
     webOrigin: validEnvironment.WEB_ORIGIN,
     logLevel: "warn",
     shutdownTimeoutMs: 5000,
     sessionTtlHours: 24,
   });
+});
+
+test("akzeptiert eine absolute lokale SQLite-Datei", () => {
+  const databaseUrl = "file:/private/tmp/lifeos-api-test.sqlite";
+  const config = parseConfig({
+    ...validEnvironment,
+    DATABASE_URL: databaseUrl,
+  });
+
+  assert.equal(config.databaseProvider, "sqlite");
+  assert.equal(config.databaseUrl, databaseUrl);
+});
+
+test("weist relative SQLite-Pfade zurück", () => {
+  assert.throws(
+    () =>
+      parseConfig({
+        ...validEnvironment,
+        DATABASE_URL: "file:./lifeos.sqlite",
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof ConfigurationError);
+      assert.deepEqual(error.fields, ["DATABASE_URL"]);
+      return true;
+    },
+  );
 });
 
 test("meldet fehlende Pflichtwerte ohne deren Inhalte auszugeben", () => {

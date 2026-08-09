@@ -10,17 +10,28 @@ datasource db {
 }
 
 model User {
-  id               String            @id @default(uuid())
-  externalId       String            @unique
-  displayName      String
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  settings         UserSettings?
-  credential       UserCredential?
-  calDavCredential CalDavCredential?
-  sessions         UserSession[]
-  calendars        Calendar[]
-  auditEvents      AuditEvent[]
+  id                  String               @id @default(uuid())
+  externalId          String               @unique
+  displayName         String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  settings            UserSettings?
+  credential          UserCredential?
+  calDavCredential    CalDavCredential?
+  sessions            UserSession[]
+  calendars           Calendar[]
+  projects            Project[]
+  tasks               Task[]
+  taskEventLinks      TaskEventLink[]
+  studyPrograms       StudyProgram[]
+  studyModules        StudyModule[]
+  studyEntries        StudyEntry[]
+  workContexts        WorkContext[]
+  workProjects        WorkProject[]
+  workTaskLinks       WorkTaskLink[]
+  workTimeEntries     WorkTimeEntry[]
+  availabilityWindows AvailabilityWindow[]
+  auditEvents         AuditEvent[]
 }
 
 model UserSettings {
@@ -88,7 +99,7 @@ model Calendar {
 }
 
 model CalendarEvent {
-  id              String    @id @default(uuid())
+  id              String          @id @default(uuid())
   userId          String
   calendarId      String
   uid             String
@@ -99,17 +110,20 @@ model CalendarEvent {
   endsAt          DateTime?
   startDate       String?
   endDate         String?
-  timezone        String    @default("Europe/Berlin")
-  isAllDay        Boolean   @default(false)
+  timezone        String          @default("Europe/Berlin")
+  isAllDay        Boolean         @default(false)
   recurrenceRule  String?
-  reminderMinutes Json      @default("[]")
+  reminderMinutes Json            @default("[]")
   etag            String
-  sequence        Int       @default(0)
-  syncVersion     Int       @default(0)
+  sequence        Int             @default(0)
+  syncVersion     Int             @default(0)
   deletedAt       DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  calendar        Calendar  @relation(fields: [calendarId, userId], references: [id, userId], onDelete: Cascade)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  calendar        Calendar        @relation(fields: [calendarId, userId], references: [id, userId], onDelete: Cascade)
+  taskLinks       TaskEventLink[]
+  studyEntries    StudyEntry[]
+  workProjects    WorkProject[]
 
   @@unique([id, userId])
   @@unique([calendarId, uid])
@@ -118,6 +132,311 @@ model CalendarEvent {
   @@index([calendarId, startDate])
   @@index([calendarId, deletedAt])
   @@index([calendarId, syncVersion])
+}
+
+enum TaskStatus {
+  open
+  in_progress
+  blocked
+  done
+  cancelled
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+  critical
+}
+
+enum TaskArea {
+  study
+  work
+  projects
+  finance
+  fitness
+  personal
+}
+
+model Project {
+  id         String    @id @default(uuid())
+  userId     String
+  title      String
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks      Task[]
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt])
+}
+
+model Task {
+  id                       String          @id @default(uuid())
+  userId                   String
+  title                    String
+  description              String?
+  status                   TaskStatus      @default(open)
+  priority                 TaskPriority    @default(medium)
+  dueDate                  String?
+  scheduledStartAt         DateTime?
+  scheduledStartTimezone   String?
+  estimatedDurationMinutes Int?
+  tags                     Json            @default("[]")
+  area                     TaskArea        @default(personal)
+  projectId                String?
+  parentTaskId             String?
+  completedAt              DateTime?
+  archivedAt               DateTime?
+  deletedAt                DateTime?
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+  user                     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project                  Project?        @relation(fields: [projectId, userId], references: [id, userId], onDelete: NoAction)
+  parentTask               Task?           @relation("TaskHierarchy", fields: [parentTaskId, userId], references: [id, userId], onDelete: NoAction)
+  subtasks                 Task[]          @relation("TaskHierarchy")
+  eventLinks               TaskEventLink[]
+  studyEntries             StudyEntry[]
+  workTaskLinks            WorkTaskLink[]
+  workTimeEntries          WorkTimeEntry[]
+
+  @@unique([id, userId])
+  @@index([userId, deletedAt, archivedAt])
+  @@index([userId, status, dueDate])
+  @@index([userId, priority, dueDate])
+  @@index([userId, area, dueDate])
+  @@index([parentTaskId])
+  @@index([projectId])
+}
+
+model TaskEventLink {
+  id              String        @id @default(uuid())
+  userId          String
+  taskId          String
+  calendarEventId String
+  createdAt       DateTime      @default(now())
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task            Task          @relation(fields: [taskId, userId], references: [id, userId], onDelete: Cascade)
+  calendarEvent   CalendarEvent @relation(fields: [calendarEventId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([userId, taskId, calendarEventId])
+  @@index([userId, taskId])
+  @@index([userId, calendarEventId])
+}
+
+enum StudyStatus {
+  planned
+  active
+  completed
+  paused
+  cancelled
+}
+
+enum StudyEntryKind {
+  lecture
+  exam
+  submission
+  learning
+}
+
+model StudyProgram {
+  id          String        @id @default(uuid())
+  userId      String
+  title       String
+  institution String
+  periodLabel String
+  status      StudyStatus   @default(planned)
+  notes       String?
+  archivedAt  DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  modules     StudyModule[]
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt])
+}
+
+model StudyModule {
+  id                 String       @id @default(uuid())
+  userId             String
+  programId          String
+  code               String?
+  title              String
+  status             StudyStatus  @default(planned)
+  credits            Decimal?
+  grade              String?
+  notes              String?
+  documentReferences Json         @default("[]")
+  archivedAt         DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program            StudyProgram @relation(fields: [programId, userId], references: [id, userId], onDelete: NoAction)
+  entries            StudyEntry[]
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt])
+  @@index([programId])
+}
+
+model StudyEntry {
+  id              String         @id @default(uuid())
+  userId          String
+  moduleId        String
+  kind            StudyEntryKind
+  title           String
+  status          StudyStatus    @default(planned)
+  dueDate         String?
+  startsAt        DateTime?
+  endsAt          DateTime?
+  timezone        String?
+  credits         Decimal?
+  grade           String?
+  notes           String?
+  taskId          String?
+  calendarEventId String?
+  archivedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module          StudyModule    @relation(fields: [moduleId, userId], references: [id, userId], onDelete: NoAction)
+  task            Task?          @relation(fields: [taskId, userId], references: [id, userId], onDelete: NoAction)
+  calendarEvent   CalendarEvent? @relation(fields: [calendarEventId, userId], references: [id, userId], onDelete: NoAction)
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt])
+  @@index([moduleId])
+  @@index([taskId])
+  @@index([calendarEventId])
+  @@index([userId, dueDate])
+  @@index([userId, startsAt])
+}
+
+enum WorkStatus {
+  planned
+  active
+  completed
+  paused
+  cancelled
+}
+
+enum WorkTimeKind {
+  planned
+  actual
+}
+
+model WorkContext {
+  id           String          @id @default(uuid())
+  userId       String
+  title        String
+  role         String
+  organization String?
+  startsOn     String?
+  endsOn       String?
+  timezone     String          @default("Europe/Berlin")
+  status       WorkStatus      @default(planned)
+  notes        String?
+  archivedAt   DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects     WorkProject[]
+  taskLinks    WorkTaskLink[]
+  timeEntries  WorkTimeEntry[]
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt])
+  @@index([userId, status, startsOn])
+}
+
+model WorkProject {
+  id              String          @id @default(uuid())
+  userId          String
+  contextId       String
+  title           String
+  status          WorkStatus      @default(planned)
+  goal            String?
+  deadlineDate    String?
+  calendarEventId String?
+  notes           String?
+  archivedAt      DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  context         WorkContext     @relation(fields: [contextId, userId], references: [id, userId], onDelete: NoAction)
+  calendarEvent   CalendarEvent?  @relation(fields: [calendarEventId, userId], references: [id, userId], onDelete: NoAction)
+  taskLinks       WorkTaskLink[]
+  timeEntries     WorkTimeEntry[]
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt])
+  @@index([contextId])
+  @@index([userId, status, deadlineDate])
+  @@index([calendarEventId])
+}
+
+model WorkTaskLink {
+  id        String       @id @default(uuid())
+  userId    String
+  contextId String
+  projectId String?
+  taskId    String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  context   WorkContext  @relation(fields: [contextId, userId], references: [id, userId], onDelete: Cascade)
+  project   WorkProject? @relation(fields: [projectId, userId], references: [id, userId], onDelete: Cascade)
+  task      Task         @relation(fields: [taskId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([userId, taskId])
+  @@index([userId, contextId])
+  @@index([projectId])
+}
+
+model WorkTimeEntry {
+  id         String       @id @default(uuid())
+  userId     String
+  contextId  String
+  projectId  String?
+  taskId     String?
+  kind       WorkTimeKind
+  title      String
+  startsAt   DateTime
+  endsAt     DateTime
+  timezone   String
+  notes      String?
+  archivedAt DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  context    WorkContext  @relation(fields: [contextId, userId], references: [id, userId], onDelete: NoAction)
+  project    WorkProject? @relation(fields: [projectId, userId], references: [id, userId], onDelete: NoAction)
+  task       Task?        @relation(fields: [taskId, userId], references: [id, userId], onDelete: NoAction)
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt])
+  @@index([userId, kind, startsAt])
+  @@index([contextId])
+  @@index([projectId])
+  @@index([taskId])
+}
+
+model AvailabilityWindow {
+  id          String   @id @default(uuid())
+  userId      String
+  weekday     Int
+  startMinute Int
+  endMinute   Int
+  timezone    String
+  label       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekday, startMinute, endMinute])
+  @@index([userId, weekday])
 }
 
 model AuditEvent {

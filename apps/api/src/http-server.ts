@@ -38,6 +38,7 @@ export const startApiServer = async ({
     host: config.host,
     port: config.port,
     nodeEnv: config.nodeEnv,
+    databaseProvider: config.databaseProvider,
   });
 
   let shutdownPromise: Promise<void> | undefined;
