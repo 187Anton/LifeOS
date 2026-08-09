@@ -135,7 +135,10 @@ noch nicht begonnenen Produktphasen 0.4 und 0.5 Priorität.
 Der aktuelle Stand ist eine technische Spike-Planung, kein fertiger
 Installationsweg. Die detaillierte Bestandsaufnahme, Entscheidungen, Risiken
 und Akzeptanzkriterien stehen in
-[`docs/mac-desktop-spike-plan.md`](mac-desktop-spike-plan.md).
+[`docs/mac-desktop-spike-plan.md`](mac-desktop-spike-plan.md). Der Fortschritt
+und die tatsächlich ausgeführten Nachweise werden fortlaufend in
+[`docs/mac-desktop-migration-log.md`](mac-desktop-migration-log.md)
+dokumentiert.
 
 ### D1 SQLite- und lokale Betriebsprüfung
 

@@ -15,6 +15,84 @@ Kalenderkern und CalDAV erhalten. Er führt keine Cloud, keine Microservices und
 keine externe KI ein. Bestehende PostgreSQL-Migrationen werden weder geändert
 noch gelöscht.
 
+## Verbindliches Migrationsziel
+
+Die Migration ist erfolgreich, wenn LifeOS als installierte Mac-App mit einer
+lokalen SQLite-Datenbank ohne Docker und ohne separat installiertes Node.js
+startet und dabei die bestehenden fachlichen Verträge und persönlichen Daten
+erhält.
+
+Der Erfolg ist erst erreicht, wenn alle folgenden Punkte nachgewiesen sind:
+
+- Anmeldung, Einstellungen, Kalender, CalDAV und der separate Browserbetrieb
+  verwenden weiterhin denselben versionierten `/api/v1`-Vertrag.
+- Eine PostgreSQL-Quelle wird ausschließlich lesend in eine neue SQLite-Datei
+  übertragen. IDs, UIDs, ETags, Sync-Werte, Zeitformen und Besitzbezüge stimmen
+  nach einem automatisierten Datenvergleich überein.
+- Kalender-CRUD, Ganztag, Zeitzonen, Wiederholungen, Erinnerungen und ein
+  konkurrierender ETag-Konflikt funktionieren auch mit SQLite.
+- Backup und Wiederherstellung sind mit synthetischen Daten geprüft; weder die
+  aktive Quelldatenbank noch die aktive SQLite-Datei werden ungeprüft
+  überschrieben.
+- Die gebaute Mac-App startet auf einem sauberen unterstützten Mac, übersteht
+  Neustart und Update ohne Datenverlust und benötigt keine Entwicklungswerkzeuge.
+- README, Roadmap, Architekturentscheidung und das fortlaufende
+  Migrationsprotokoll beschreiben nur tatsächlich nachgewiesene Ergebnisse.
+- Kein kritisches Stop-Gate ist offen. Nicht kritische Restpunkte sind mit
+  Risiko, Verantwortlichkeit und nächstem Prüfschritt dokumentiert.
+
+## Ausführungsplan und Status
+
+Jedes Paket wird auf einem eigenen zweckbezogenen Branch aus `develop`
+umgesetzt. Das nächste Paket beginnt erst, wenn das Gate des vorherigen Pakets
+erfüllt oder eine ausdrücklich dokumentierte Architekturentscheidung getroffen
+wurde.
+
+| Paket | Ergebnis                                                               | Freigabe-Gate                                                                                | Status        |
+| ----- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------- |
+| M0    | Ziel, Baseline, Risiken und Nachweisformat sind dokumentiert.          | Dokumentprüfung und Repository-Tests sind erfolgreich.                                       | abgeschlossen |
+| M1    | Repräsentatives SQLite-Schema und versionierte Migration existieren.   | Schema, Seed, Wiederholung und Datenregeln sind automatisiert geprüft.                       | offen         |
+| M2    | Das gebaute Express-Backend läuft ohne Docker auf SQLite.              | Anmeldung, Einstellungen, Kalender-CRUD und Neustart bestehen den unveränderten API-Vertrag. | offen         |
+| M3    | Kalender und CalDAV besitzen SQLite-Parität.                           | CRUD, Zeitzone, Ganztag, RRULE, Erinnerung, ETag-Konflikt und Sync sind geprüft.             | offen         |
+| M4    | PostgreSQL-Übernahme sowie SQLite-Backup und -Restore sind sicher.     | Automatisierter Datenvergleich und Recovery-Test erhalten alle stabilen Identitäten.         | offen         |
+| M5    | Tauri startet und beendet einen reproduzierbar gebauten Sidecar.       | Mac-App, Browser und CalDAV verwenden denselben Kern ohne Docker und globales Node.js.       | offen         |
+| M6    | Installation und Update sind auf einem sauberen Mac nachgewiesen.      | DMG, Erststart, Neustart, Update, Backup und Restore sind dokumentiert erfolgreich.          | offen         |
+| M7    | Betriebs- und Produktdokumentation entsprechen dem geprüften Endstand. | Abschlussprüfung bestätigt alle Erfolgskriterien und keine offenen kritischen Gates.         | offen         |
+
+Der aktuelle Nachweisstand wird in
+[`docs/mac-desktop-migration-log.md`](mac-desktop-migration-log.md) geführt.
+„Offen“ bedeutet dabei nicht fehlgeschlagen, sondern noch nicht durch Tests
+belegt.
+
+## Dokumentations- und Nachweisregel
+
+Nach jedem Paket erhält das Migrationsprotokoll einen datierten Eintrag mit:
+
+1. **Befund:** reproduzierbarer Ausgangsstand und beobachtetes Ergebnis;
+2. **Ursache oder Entscheidung:** technische Begründung und verworfene
+   Alternative, sofern relevant;
+3. **Änderungsumfang:** betroffene Dateien, Migrationen und Verträge;
+4. **Verifikation:** tatsächlich ausgeführte Befehle und deren Ergebnis;
+5. **Datenvergleich:** geprüfte Mengen und stabile Identitäten;
+6. **Risiken und Grenzen:** offene Punkte ohne Erfolgsbehauptung;
+7. **Nächster Schritt:** freigegebenes Folgepaket oder ausgelöstes Stop-Gate.
+
+Dauerhafte Architektur- und Betriebsregeln werden nach erfolgreichem Nachweis
+zusätzlich in `AGENTS.md`, im Leitfaden und gegebenenfalls in der README
+festgehalten. Ein Testergebnis allein ersetzt diese Dokumentation nicht.
+
+## Schutz- und Rückfallprinzip
+
+- Der PostgreSQL-Bestand bleibt bis zum vollständigen M4-Daten- und
+  Recovery-Nachweis unverändert erhalten.
+- Jeder Import schreibt in eine neue SQLite-Datei und veröffentlicht sie erst
+  nach Integritätsprüfung und Datenvergleich als verwendbares Ziel.
+- Vor Update- oder Formatwechseln wird ein geprüftes Backup erzeugt. Restore
+  erfolgt immer zuerst in ein neues Ziel.
+- Beim Scheitern eines Stop-Gates bleibt der zuletzt nachgewiesene Betriebsweg
+  gültig. Eine größere Neuschreibung, Cloud-Lösung oder Löschung alter
+  Migrationen benötigt eine neue ausdrückliche Entscheidung.
+
 ## Befund
 
 ### Bestehender Anwendungskern
