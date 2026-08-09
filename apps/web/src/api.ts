@@ -5,10 +5,17 @@ import type {
   CreateTaskEventLinkRequest,
   CreateTaskRequest,
   DashboardResponse,
+  CreateStudyEntryRequest,
+  CreateStudyModuleRequest,
+  CreateStudyProgramRequest,
   ProfileResponse,
   SessionResponse,
   TaskResponse,
   TaskEventLinkResponse,
+  StudyOverviewResponse,
+  UpdateStudyEntryRequest,
+  UpdateStudyModuleRequest,
+  UpdateStudyProgramRequest,
   UpdateTaskRequest,
 } from "@lifeos/contracts";
 
@@ -180,6 +187,47 @@ export const api = {
   deleteTask(taskId: string) {
     return request<void>(`/tasks/${encodeURIComponent(taskId)}`, {
       method: "DELETE",
+    });
+  },
+  getStudy(includeArchived = true) {
+    return request<StudyOverviewResponse>(
+      `/study?includeArchived=${includeArchived ? "true" : "false"}`,
+    );
+  },
+  createStudyProgram(payload: CreateStudyProgramRequest) {
+    return request("/study/programs", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateStudyProgram(id: string, payload: UpdateStudyProgramRequest) {
+    return request(`/study/programs/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createStudyModule(payload: CreateStudyModuleRequest) {
+    return request("/study/modules", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateStudyModule(id: string, payload: UpdateStudyModuleRequest) {
+    return request(`/study/modules/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createStudyEntry(payload: CreateStudyEntryRequest) {
+    return request("/study/entries", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateStudyEntry(id: string, payload: UpdateStudyEntryRequest) {
+    return request(`/study/entries/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
     });
   },
 };

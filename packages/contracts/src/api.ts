@@ -192,3 +192,116 @@ export interface DashboardResponse {
   events: DashboardEventResponse[];
   projects: DashboardProjectResponse[];
 }
+
+export type StudyStatus =
+  "planned" | "active" | "completed" | "paused" | "cancelled";
+export type StudyEntryKind = "lecture" | "exam" | "submission" | "learning";
+
+interface StudyRecordResponse {
+  id: string;
+  ownerId: string;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StudyProgramResponse extends StudyRecordResponse {
+  title: string;
+  institution: string;
+  periodLabel: string;
+  status: StudyStatus;
+  notes: string | null;
+}
+
+export interface StudyModuleResponse extends StudyRecordResponse {
+  programId: string;
+  code: string | null;
+  title: string;
+  status: StudyStatus;
+  credits: number | null;
+  grade: string | null;
+  notes: string | null;
+  documentReferences: string[];
+}
+
+export interface StudyEntryResponse extends StudyRecordResponse {
+  moduleId: string;
+  kind: StudyEntryKind;
+  title: string;
+  status: StudyStatus;
+  dueDate: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  timezone: string | null;
+  credits: number | null;
+  grade: string | null;
+  notes: string | null;
+  taskId: string | null;
+  calendarEventId: string | null;
+}
+
+export interface StudyOverviewResponse {
+  programs: StudyProgramResponse[];
+  modules: StudyModuleResponse[];
+  entries: StudyEntryResponse[];
+  history: StudyAuditResponse[];
+}
+
+export interface StudyAuditResponse {
+  id: string;
+  action:
+    | "study.program.created"
+    | "study.program.updated"
+    | "study.module.created"
+    | "study.module.updated"
+    | "study.entry.created"
+    | "study.entry.updated";
+  entityType: "StudyProgram" | "StudyModule" | "StudyEntry";
+  entityId: string | null;
+  changedFields: string[];
+  occurredAt: string;
+}
+
+export interface CreateStudyProgramRequest {
+  title: string;
+  institution: string;
+  periodLabel: string;
+  status?: StudyStatus;
+  notes?: string | null;
+}
+export interface UpdateStudyProgramRequest extends Partial<CreateStudyProgramRequest> {
+  archived?: boolean;
+}
+
+export interface CreateStudyModuleRequest {
+  programId: string;
+  code?: string | null;
+  title: string;
+  status?: StudyStatus;
+  credits?: number | null;
+  grade?: string | null;
+  notes?: string | null;
+  documentReferences?: string[];
+}
+export interface UpdateStudyModuleRequest extends Partial<CreateStudyModuleRequest> {
+  archived?: boolean;
+}
+
+export interface CreateStudyEntryRequest {
+  moduleId: string;
+  kind: StudyEntryKind;
+  title: string;
+  status?: StudyStatus;
+  dueDate?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  timezone?: string | null;
+  credits?: number | null;
+  grade?: string | null;
+  notes?: string | null;
+  taskId?: string | null;
+  calendarEventId?: string | null;
+}
+export interface UpdateStudyEntryRequest extends Partial<CreateStudyEntryRequest> {
+  archived?: boolean;
+}

@@ -204,6 +204,15 @@ Ziel: Studien- und Arbeitsinformationen nachvollziehbar verwalten.
 - Prüfungen, Abgaben und Fristen erfassen.
 - Lernfortschritt und Status pro Modul anzeigen.
 
+Umsetzungsnachweis: Issue #45 ergänzt ein bewusst schlankes Studienmodell für
+Studienabschnitte, Module sowie Lehrveranstaltungen, Prüfungen, Abgaben und
+Lernzeiten. Reine Prüfungstage und Abgabefristen bleiben `DATE`-Werte;
+zeitgebundene Einträge verwenden `TIMESTAMPTZ` plus IANA-Zeitzone. Optionale
+Aufgaben- und Kalenderbezüge referenzieren die vorhandenen Fachobjekte ohne
+Kopie oder automatische Änderung. Besitzprüfung, Audit-Ereignisse,
+Archivierung, API und responsive Oberfläche werden durch Datenbank-, API-,
+Unit- und End-to-End-Tests abgesichert.
+
 ### 0.3.2 Arbeit und Praxis
 
 - Arbeitgeber, Praxisphasen und Arbeitstage erfassen.

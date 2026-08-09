@@ -82,6 +82,11 @@ const installApi = async (page: Page) => {
   const events: Array<Record<string, unknown>> = [{ ...initialEvent }];
   const tasks: Array<Record<string, unknown>> = [{ ...initialTask }];
   const links: Array<Record<string, unknown>> = [];
+  const study = {
+    programs: [] as Array<Record<string, unknown>>,
+    modules: [] as Array<Record<string, unknown>>,
+    entries: [] as Array<Record<string, unknown>>,
+  };
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -89,6 +94,63 @@ const installApi = async (page: Page) => {
 
     if (path === "/api/v1/profile" && method === "GET") {
       await route.fulfill({ json: profile });
+      return;
+    }
+    if (path === "/api/v1/study" && method === "GET") {
+      await route.fulfill({ json: study });
+      return;
+    }
+    if (path === "/api/v1/study/programs" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const created = {
+        id: `study-${study.programs.length + 1}`,
+        ownerId: profile.id,
+        ...payload,
+        notes: payload.notes ?? null,
+        archivedAt: null,
+        createdAt: "2032-01-01T00:00:00.000Z",
+        updatedAt: "2032-01-01T00:00:00.000Z",
+      };
+      study.programs.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    if (path === "/api/v1/study/modules" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const created = {
+        id: `module-${study.modules.length + 1}`,
+        ownerId: profile.id,
+        ...payload,
+        code: payload.code ?? null,
+        grade: null,
+        notes: payload.notes ?? null,
+        archivedAt: null,
+        createdAt: "2032-01-01T00:00:00.000Z",
+        updatedAt: "2032-01-01T00:00:00.000Z",
+      };
+      study.modules.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    if (path === "/api/v1/study/entries" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const created = {
+        id: `entry-${study.entries.length + 1}`,
+        ownerId: profile.id,
+        ...payload,
+        startsAt: payload.startsAt ?? null,
+        endsAt: payload.endsAt ?? null,
+        timezone: payload.timezone ?? null,
+        credits: null,
+        grade: null,
+        taskId: null,
+        calendarEventId: null,
+        archivedAt: null,
+        createdAt: "2032-01-01T00:00:00.000Z",
+        updatedAt: "2032-01-01T00:00:00.000Z",
+      };
+      study.entries.push(created);
+      await route.fulfill({ status: 201, json: created });
       return;
     }
     if (path === "/api/v1/calendars" && method === "GET") {
@@ -347,6 +409,41 @@ test("zeigt die lokale Übersicht und speichert Termine ohne Browserpersistenz",
       session: Object.keys(sessionStorage),
     })),
   ).toEqual({ local: [], session: [] });
+});
+
+test("plant einen Studienabschnitt mit Modul und Prüfung", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Studium" }).first().click();
+  await page.getByRole("button", { name: "Abschnitt anlegen" }).click();
+  await page
+    .getByLabel("Studiengang oder Ausbildungsbereich")
+    .fill("Synthetische Informatik");
+  await page
+    .getByLabel("Hochschule oder Bildungseinrichtung")
+    .fill("Lokale Testhochschule");
+  await page
+    .getByLabel("Semester oder Studienabschnitt")
+    .fill("Sommersemester 2032");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Synthetische Informatik")).toBeVisible();
+  await page.getByRole("button", { name: "Modul hinzufügen" }).click();
+  await page.getByLabel("Modul oder Kurs").fill("Nachvollziehbare Systeme");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await page.getByRole("button", { name: "Eintrag hinzufügen" }).click();
+  await page.getByLabel("Bezeichnung").fill("Synthetische Prüfung");
+  await page.getByLabel("Kalendertag").fill(today);
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Synthetische Prüfung")).toBeVisible();
+  await page.getByRole("button", { name: "Übersicht" }).first().click();
+  await expect(
+    page.getByRole("heading", { name: "Nächste Prüfungen und Abgaben" }),
+  ).toBeVisible();
+  await expect(page.getByText("Synthetische Prüfung")).toBeVisible();
+  await page.getByRole("button", { name: "Kalender" }).first().click();
+  await expect(
+    page.getByRole("heading", { name: "Prüfungen, Abgaben und Lernzeiten" }),
+  ).toBeVisible();
+  await expect(page.getByText("Synthetische Prüfung")).toBeVisible();
 });
 
 test("bleibt auf Desktop und Smartphone ohne horizontalen Überlauf bedienbar", async ({

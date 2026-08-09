@@ -15,6 +15,81 @@ loadEnvironment({
   quiet: true,
 });
 
+test("erzwingt Besitz und eindeutige Zeitformen im Studienmodell", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalIds = [
+    `study-database-owner-${suffix}`,
+    `study-database-other-${suffix}`,
+  ];
+  t.after(async () => {
+    await database.user.deleteMany({
+      where: { externalId: { in: externalIds } },
+    });
+    await database.$disconnect();
+  });
+  const [owner, other] = await Promise.all(
+    externalIds.map((externalId) =>
+      database.user.create({
+        data: {
+          externalId,
+          displayName: "Synthetische Studienperson",
+          settings: { create: {} },
+        },
+      }),
+    ),
+  );
+  assert.ok(owner && other);
+  const program = await database.studyProgram.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetische Informatik",
+      institution: "Lokale Testhochschule",
+      periodLabel: "Sommersemester 2032",
+    },
+  });
+  const module = await database.studyModule.create({
+    data: {
+      userId: owner.id,
+      programId: program.id,
+      title: "Nachvollziehbare Systeme",
+      credits: 6.5,
+    },
+  });
+  const exam = await database.studyEntry.create({
+    data: {
+      userId: owner.id,
+      moduleId: module.id,
+      kind: "exam",
+      title: "Synthetische Prüfung",
+      dueDate: new Date("2032-07-15T00:00:00.000Z"),
+    },
+  });
+  assert.equal(exam.dueDate?.toISOString(), "2032-07-15T00:00:00.000Z");
+  assert.equal(exam.startsAt, null);
+  await assert.rejects(() =>
+    database.studyEntry.create({
+      data: {
+        userId: owner.id,
+        moduleId: module.id,
+        kind: "lecture",
+        title: "Lehrveranstaltung ohne Zeitzone",
+        startsAt: new Date("2032-07-15T08:00:00.000Z"),
+        endsAt: new Date("2032-07-15T09:00:00.000Z"),
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.studyModule.create({
+      data: {
+        userId: other.id,
+        programId: program.id,
+        title: "Unzulässiges fremdes Modul",
+      },
+    }),
+  );
+});
+
 test("speichert und liest ein Kalenderereignis mit stabilem Besitzerbezug", async (t) => {
   const database = createDatabaseClient();
   const suffix = randomUUID();

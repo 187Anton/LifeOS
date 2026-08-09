@@ -110,6 +110,11 @@ const installApi = ({
   const eventState = events.map((item) => ({ ...item }));
   const taskState = tasks.map((item) => ({ ...item }));
   const linkState = links.map((item) => structuredClone(item));
+  const studyState = {
+    programs: [] as Record<string, unknown>[],
+    modules: [] as Record<string, unknown>[],
+    entries: [] as Record<string, unknown>[],
+  };
   let conflictReturned = false;
   const fetchMock = vi.fn(
     (request: string | URL | Request, init?: RequestInit) => {
@@ -121,6 +126,40 @@ const installApi = ({
             : request.url;
       const method = init?.method ?? "GET";
       if (path === "/api/v1/profile") return json(profile);
+      if (path.startsWith("/api/v1/study") && method === "GET")
+        return json(studyState);
+      if (path === "/api/v1/study/programs" && method === "POST") {
+        const payload = requestBody(init);
+        const created = {
+          id: `studium-${studyState.programs.length + 1}`,
+          ownerId: profile.id,
+          ...payload,
+          notes: payload.notes ?? null,
+          archivedAt: null,
+          createdAt: "2026-08-09T10:00:00.000Z",
+          updatedAt: "2026-08-09T10:00:00.000Z",
+        };
+        studyState.programs.push(created);
+        return json(created, 201);
+      }
+      if (path === "/api/v1/study/modules" && method === "POST") {
+        const payload = requestBody(init);
+        const created = {
+          id: `modul-${studyState.modules.length + 1}`,
+          ownerId: profile.id,
+          ...payload,
+          code: payload.code ?? null,
+          credits: payload.credits ?? null,
+          grade: null,
+          notes: payload.notes ?? null,
+          documentReferences: payload.documentReferences ?? [],
+          archivedAt: null,
+          createdAt: "2026-08-09T10:00:00.000Z",
+          updatedAt: "2026-08-09T10:00:00.000Z",
+        };
+        studyState.modules.push(created);
+        return json(created, 201);
+      }
       if (path === "/api/v1/calendars") return json(calendars);
       if (path === "/api/v1/dashboard" && method === "GET") {
         if (dashboardError) {
@@ -347,6 +386,36 @@ describe("LifeOS-Weboberfläche", () => {
     expect(
       await screen.findByRole("region", { name: "Zeit bewusst einplanen" }),
     ).toBeVisible();
+  });
+
+  it("legt einen Studienabschnitt und ein Modul nachvollziehbar an", async () => {
+    installApi();
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Studium" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Abschnitt anlegen" }));
+    await user.type(
+      screen.getByLabelText("Studiengang oder Ausbildungsbereich"),
+      "Synthetischer Studiengang",
+    );
+    await user.type(
+      screen.getByLabelText("Hochschule oder Bildungseinrichtung"),
+      "Lokale Testhochschule",
+    );
+    await user.type(
+      screen.getByLabelText("Semester oder Studienabschnitt"),
+      "Sommersemester 2032",
+    );
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByText("Synthetischer Studiengang")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Modul hinzufügen" }));
+    await user.type(
+      screen.getByLabelText("Modul oder Kurs"),
+      "Nachvollziehbare Systeme",
+    );
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByText("Nachvollziehbare Systeme")).toBeVisible();
   });
 
   it("zeigt einen verständlichen Dashboard-Fehler mit Wiederholungsaktion", async () => {

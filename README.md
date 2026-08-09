@@ -148,6 +148,16 @@ Bereich, Projekt- und Elternbezug sowie Archivierung und Soft-Delete. Die
 responsive Aufgabenoberfläche unterstützt Erstellen, Bearbeiten, Statuswechsel,
 Archivierung, bestätigtes Löschen sowie kombinierbare Suche und Filter.
 
+Studienabschnitte, Module, Prüfungen, Abgaben, Lehrveranstaltungen und
+Lernzeiten werden nach lokaler Anmeldung unter `/api/v1/study` verwaltet. Die
+responsive Studienansicht erlaubt das Anlegen, Statuswechseln und Archivieren.
+Prüfungstage und Abgabefristen bleiben ohne bekannte Uhrzeit reine
+Kalendertage; zeitgebundene Lehr- und Lernblöcke besitzen eine IANA-Zeitzone.
+Optionale Aufgaben- und Kalenderbezüge werden besitzgeprüft und lösen keine
+automatische Änderung des referenzierten Objekts aus.
+Offene Prüfungen, Abgaben und Lernzeiten erscheinen zusätzlich rein lesend im
+Organisations-Dashboard und im sichtbaren Zeitraum der Kalenderansicht.
+
 Der Kalender bietet Tages-, Wochen-, Monats- und Agendaansicht. Termine werden
 weiterhin ausschließlich über den gemeinsamen Kalenderkern gespeichert:
 Ganztagswerte bleiben reine Daten, Serienvorkommen sind flüchtige Projektionen
