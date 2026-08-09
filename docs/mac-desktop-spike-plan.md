@@ -53,7 +53,7 @@ wurde.
 | M0    | Ziel, Baseline, Risiken und Nachweisformat sind dokumentiert.          | Dokumentprüfung und Repository-Tests sind erfolgreich.                                       | abgeschlossen |
 | M1    | Repräsentatives SQLite-Schema und versionierte Migration existieren.   | Schema, Seed, Wiederholung und Datenregeln sind automatisiert geprüft.                       | abgeschlossen |
 | M2    | Das gebaute Express-Backend läuft ohne Docker auf SQLite.              | Anmeldung, Einstellungen, Kalender-CRUD und Neustart bestehen den unveränderten API-Vertrag. | abgeschlossen |
-| M3    | Kalender und CalDAV besitzen SQLite-Parität.                           | CRUD, Zeitzone, Ganztag, RRULE, Erinnerung, ETag-Konflikt und Sync sind geprüft.             | offen         |
+| M3    | Kalender und CalDAV besitzen SQLite-Parität.                           | CRUD, Zeitzone, Ganztag, RRULE, Erinnerung, ETag-Konflikt und Sync sind geprüft.             | abgeschlossen |
 | M4    | PostgreSQL-Übernahme sowie SQLite-Backup und -Restore sind sicher.     | Automatisierter Datenvergleich und Recovery-Test erhalten alle stabilen Identitäten.         | offen         |
 | M5    | Tauri startet und beendet einen reproduzierbar gebauten Sidecar.       | Mac-App, Browser und CalDAV verwenden denselben Kern ohne Docker und globales Node.js.       | offen         |
 | M6    | Installation und Update sind auf einem sauberen Mac nachgewiesen.      | DMG, Erststart, Neustart, Update, Backup und Restore sind dokumentiert erfolgreich.          | offen         |
@@ -326,6 +326,27 @@ Akzeptanzkriterien:
 - Eine physische Apple-Kalender-Prüfung ist entweder erfolgreich dokumentiert
   oder ausdrücklich als offen markiert.
 
+Bestätigter Nachweis:
+
+- Der SQLite-Migrationslauf aktiviert persistent WAL. Jede
+  Anwendungverbindung verwendet eine explizite Sperrwartezeit von fünf
+  Sekunden; beide Werte werden über eine neu geöffnete Verbindung geprüft.
+- Alle 42 API-Fälle laufen auf einer neuen SQLite-Datei erfolgreich. Darin
+  enthalten sind REST- und CalDAV-CRUD, Ganztag, Zeitzone, RRULE,
+  Erinnerungen, ETags, Sync-Token, Tombstones und Widerruf.
+- Zwei gleichzeitig gestartete Änderungen mit demselben alten ETag ergeben
+  genau einen Erfolg und einen `EtagConflictError`. Sequenz, Kalender-
+  `syncToken` und Update-Audit steigen nur für den Gewinner um eins.
+- Der erweiterte Neustartnachweis bestätigt unveränderte UID, ETag, Sequenz,
+  Sync-Version, Sync-Token, Zeitzone, Wiederholung, Erinnerung und
+  Ganztagsgrenzen. Dieselben 42 API-Fälle bestehen weiterhin auf PostgreSQL.
+- Der physische Apple-Kalender-Test ist ausdrücklich offen. Er wird erst mit
+  der LAN-fähigen App beziehungsweise dem Sidecar durchgeführt; es wird kein
+  Erfolg ohne erreichbare Apple-Kalender-Instanz behauptet.
+
+M3 beweist noch keinen PostgreSQL-Gesamtimport und kein SQLite-Backup oder
+Restore. Diese Daten- und Recovery-Gates sind Inhalt von M4.
+
 ### M4 – SQLite-Backup und sichere Wiederherstellung
 
 Umfang:
@@ -409,9 +430,10 @@ Neuschreibung oder eine Cloud-Datenbank wird nicht automatisch begonnen.
 
 - Die native `better-sqlite3`-Binärdatei muss zur Node-Version und zur
   Mac-Architektur des Sidecars passen.
-- SQLite erlaubt nur einen gleichzeitigen Schreiber. Für die persönliche lokale
-  Einzelplatzanwendung ist das plausibel, muss aber mit REST und CalDAV unter
-  konkurrierenden Zugriffen gemessen werden.
+- SQLite erlaubt nur einen gleichzeitigen Schreiber. Der freigegebene einzelne
+  Sidecar besteht den parallelen ETag-Test mit WAL und Sperrwartezeit; mehrere
+  unabhängige schreibende Prozesse bleiben ausdrücklich außerhalb des
+  Zielbetriebs.
 - Prisma-Enums werden bei SQLite auf Prisma-Ebene abgebildet. Kritische Regeln
   benötigen deshalb zusätzlich geprüfte Datenbank-Constraints oder eine
   validierte Schreibgrenze.

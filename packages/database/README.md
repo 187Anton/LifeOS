@@ -153,6 +153,10 @@ Für SQLite gelten im bestätigten M2-Umfang:
   isolierte Löschung referenzierter Fachdaten aber weiterhin scheitert;
 - `test:sqlite:api` öffnet bewusst nur seriell schreibende Test-Clients. Der
   vorgesehene Desktopbetrieb erlaubt ebenfalls nur einen schreibenden Sidecar.
+- Der Migrationslauf schaltet die Datei persistent auf WAL; jede
+  Anwendungsverbindung wartet bei einer belegten Schreibsperre höchstens 5000
+  Millisekunden. Die SQLite-Migrationstests lesen beide Werte aus einer neuen
+  Verbindung zurück.
 
 Prisma 7.8 validiert und generiert den getrennten SQLite-Client. Ein
 reproduzierter Schema-Engine-Fehler verhindert in der geprüften lokalen

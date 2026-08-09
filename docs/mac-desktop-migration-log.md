@@ -14,7 +14,7 @@ tatsächlich ausgeführten Prüfungen dokumentiert ist.
 | M0 – Ziel und Ausführungsplan     | abgeschlossen | 9. August 2026   |
 | M1 – SQLite-Schema und Migration  | abgeschlossen | 9. August 2026   |
 | M2 – API ohne Docker              | abgeschlossen | 9. August 2026   |
-| M3 – Kalender- und CalDAV-Parität | offen         | –                |
+| M3 – Kalender- und CalDAV-Parität | abgeschlossen | 9. August 2026   |
 | M4 – Datenübernahme und Recovery  | offen         | –                |
 | M5 – Tauri-Sidecar                | offen         | –                |
 | M6 – Installation und Update      | offen         | –                |
@@ -146,3 +146,41 @@ formuliert werden.
 - **Nächster Schritt:** M3 aktiviert und prüft die SQLite-Betriebsparameter und
   beweist REST-/CalDAV-Parität einschließlich konkurrierendem ETag-Konflikt und
   unverändertem Sync-Token des Verlierers.
+
+## 9. August 2026 – M3: Kalender- und CalDAV-Parität
+
+- **Befund:** M2 bestätigte die fachlichen Einzelabläufe, setzte WAL und eine
+  Sperrwartezeit aber noch nicht ausdrücklich und startete keine zwei
+  Änderungen mit demselben alten ETag gleichzeitig. Der physische
+  Apple-Kalender-Zugriff ist ohne laufende LAN-fähige App weiterhin nicht
+  verfügbar.
+- **Ursache oder Entscheidung:** Der versionierte SQLite-Start schaltet die
+  Datei vor Schemaänderungen persistent auf WAL. Jede `better-sqlite3`-
+  Verbindung erhält eine explizite Wartezeit von 5000 Millisekunden. Die
+  bestehende atomare ETag-Transaktion bleibt unverändert und wird durch einen
+  providerübergreifenden Konkurrenztest statt durch eine zweite
+  Kalenderimplementierung abgesichert.
+- **Änderungsumfang:** Gemeinsame SQLite-Betriebskonstante, WAL-Aktivierung im
+  Migrationsrunner, automatisierte Prüfung beider PRAGMAs, neuer paralleler
+  Kalender-Repositorytest sowie erweiterter Neustartvergleich für
+  Kalenderidentitäten und Synchronisationswerte.
+- **Verifikation:** Drei SQLite-Migrationsfälle bestätigten Migration,
+  Fremdschlüssel, `journal_mode=wal`, `busy_timeout=5000` und Integrität. Alle
+  42 API-, Kalender- und CalDAV-Fälle bestanden auf einer frisch migrierten
+  SQLite-Datei. Dieselben 42 Fälle bestanden auf PostgreSQL; der Container
+  wurde anschließend datenerhaltend gestoppt. Die gebaute SQLite-API bestand
+  erneut den zweimaligen Prozessstart.
+- **Datenvergleich:** Nach dem Neustart waren UID, ETag, Sequenz, Zeitzone,
+  RRULE, Erinnerung und exklusive Ganztagsgrenzen identisch; persistierte
+  `syncVersion` und Kalender-`syncToken` stimmten überein. Im Konkurrenzfall
+  erhöhte nur der Gewinner Sequenz, Sync-Token und Update-Audit um eins; der
+  Verlierer wurde als `EtagConflictError` zurückgerollt.
+- **Risiken und Grenzen:** Der automatisierte Zielbetrieb verwendet
+  entsprechend der Architektur genau einen schreibenden Sidecar. Verhalten
+  mehrerer unabhängiger schreibender Prozesse ist nicht freigegeben. Der
+  physische Apple-Kalender-Handtest ist ausdrücklich offen und wird in M5/M6
+  durchgeführt, sobald App und LAN-Betrieb real erreichbar sind. Import,
+  Backup und Restore sind noch nicht nachgewiesen.
+- **Nächster Schritt:** M4 implementiert einen ausschließlich lesenden
+  PostgreSQL-Export in eine neue SQLite-Datei sowie prüfsummengeschütztes
+  Online-Backup und Restore mit automatisiertem Identitätsvergleich.

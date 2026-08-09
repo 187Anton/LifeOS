@@ -175,6 +175,10 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
   dieser Grenze abgebildet; API-, Kalender- und CalDAV-Verträge bleiben
   providerunabhängig. `npm run test:sqlite:api` und
   `npm run verify:sqlite:api-runtime` sind die verbindlichen M2-Nachweise.
+- SQLite-Dateien werden beim Migrationslauf persistent auf WAL gesetzt;
+  Anwendungsverbindungen verwenden 5000 Millisekunden Sperrwartezeit. Es ist
+  nur ein schreibender API-/Sidecar-Prozess freigegeben. Ein ETag-Konflikt muss
+  die Änderung einschließlich Sync-Token und Audit vollständig zurückrollen.
 - Kalenderzeitpunkte werden als `TIMESTAMPTZ` plus fachliche IANA-Zeitzone,
   ganztägige Ereignisse ausschließlich als `DATE`-Werte gespeichert. Ein
   Datenbank-Constraint muss beide Formen eindeutig voneinander trennen.
@@ -451,3 +455,6 @@ gemeldet.
   zentrale Client-Fabrik, reine Datumsumwandlung an der Datenbankgrenze und
   reproduzierbare API-/Neustartprüfungen nach erfolgreichem M2-Nachweis
   festgehalten.
+- **2026-08-09:** SQLite-WAL, 5000 Millisekunden Sperrwartezeit, genau einen
+  schreibenden Sidecar und vollständigen Rollback des ETag-Verlierers nach
+  erfolgreichem M3-Konkurrenz- und Neustartnachweis festgehalten.

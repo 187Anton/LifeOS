@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 
 import BetterSqlite3 from "better-sqlite3";
 
+import { SQLITE_BUSY_TIMEOUT_MS } from "../../src/sqlite-settings.js";
+
 const sqliteDirectory = path.dirname(fileURLToPath(import.meta.url));
 const defaultDatabasePath = path.resolve(
   sqliteDirectory,
@@ -76,7 +78,14 @@ export const migrateSqliteDatabase = async (
 
   const database = new BetterSqlite3(databasePath);
   try {
+    database.pragma(`busy_timeout = ${SQLITE_BUSY_TIMEOUT_MS}`);
     database.pragma("foreign_keys = ON");
+    const journalMode = database.pragma("journal_mode = WAL", {
+      simple: true,
+    }) as string;
+    if (journalMode.toLowerCase() !== "wal") {
+      throw new Error("SQLite konnte nicht in den WAL-Modus wechseln.");
+    }
     database.exec(`
       CREATE TABLE IF NOT EXISTS "_lifeos_migrations" (
         "name" TEXT NOT NULL PRIMARY KEY,

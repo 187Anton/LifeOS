@@ -153,10 +153,20 @@ const main = async () => {
           isAllDay: true,
           startDate: "2032-08-09",
           endDate: "2032-08-10",
+          recurrenceRule: "FREQ=DAILY;COUNT=2",
+          reminderMinutes: [60],
         }),
       },
     );
     assert.equal(eventResponse.status, 201);
+    const createdEvent = (await eventResponse.json()) as {
+      uid: string;
+      etag: string;
+      sequence: number;
+      timezone: string;
+      recurrenceRule: string;
+      reminderMinutes: number[];
+    };
 
     const createdResponse = await fetch(`${first.baseUrl}/api/v1/tasks`, {
       method: "POST",
@@ -210,15 +220,26 @@ const main = async () => {
     assert.equal(eventsResponse.status, 200);
     const events = (await eventsResponse.json()) as Array<{
       uid: string;
+      etag: string;
+      sequence: number;
       startDate: string;
       endDate: string;
+      timezone: string;
+      recurrenceRule: string;
+      reminderMinutes: number[];
     }>;
     assert.ok(
       events.some(
         (event) =>
           event.uid === eventUid &&
+          event.etag === createdEvent.etag &&
+          event.sequence === createdEvent.sequence &&
           event.startDate === "2032-08-09" &&
-          event.endDate === "2032-08-10",
+          event.endDate === "2032-08-10" &&
+          event.timezone === createdEvent.timezone &&
+          event.recurrenceRule === createdEvent.recurrenceRule &&
+          JSON.stringify(event.reminderMinutes) ===
+            JSON.stringify(createdEvent.reminderMinutes),
       ),
     );
 
@@ -242,6 +263,20 @@ const main = async () => {
 
     await stopServer(running);
     running = undefined;
+
+    const verificationDatabase = createDatabaseClient(databaseUrl);
+    const persistedCalendar =
+      await verificationDatabase.calendar.findFirstOrThrow({
+        where: { externalId: calendar.id },
+      });
+    const persistedEvent =
+      await verificationDatabase.calendarEvent.findFirstOrThrow({
+        where: { calendarId: persistedCalendar.id, uid: eventUid },
+      });
+    assert.equal(persistedEvent.etag, createdEvent.etag);
+    assert.equal(persistedEvent.sequence, createdEvent.sequence);
+    assert.equal(persistedEvent.syncVersion, persistedCalendar.syncToken);
+    await verificationDatabase.$disconnect();
     console.info("SQLite-API-Neustartprüfung erfolgreich.");
   } finally {
     if (running && running.exitCode === null) {

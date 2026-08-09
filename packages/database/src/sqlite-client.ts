@@ -3,6 +3,9 @@ import path from "node:path";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
 import { PrismaClient } from "./generated/sqlite/client.js";
+import { SQLITE_BUSY_TIMEOUT_MS } from "./sqlite-settings.js";
+
+export { SQLITE_BUSY_TIMEOUT_MS } from "./sqlite-settings.js";
 
 export const createSqliteDatabaseClient = (
   databaseUrl = process.env.SQLITE_DATABASE_URL,
@@ -24,7 +27,7 @@ export const createSqliteDatabaseClient = (
   }
 
   const adapter = new PrismaBetterSqlite3(
-    { url },
+    { url, timeout: SQLITE_BUSY_TIMEOUT_MS },
     { timestampFormat: "iso8601" },
   );
 

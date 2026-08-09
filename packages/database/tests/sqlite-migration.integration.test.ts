@@ -12,7 +12,10 @@ import {
   readSqliteSeedFixture,
   seedSqliteDatabase,
 } from "../prisma/sqlite/seed.js";
-import { createSqliteDatabaseClient } from "../src/sqlite-client.js";
+import {
+  createSqliteDatabaseClient,
+  SQLITE_BUSY_TIMEOUT_MS,
+} from "../src/sqlite-client.js";
 
 const createIsolatedDatabase = async (t: test.TestContext) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "lifeos-sqlite-m1-"));
@@ -67,6 +70,15 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
     Array<{ foreign_keys: bigint }>
   >("PRAGMA foreign_keys");
   assert.equal(Number(foreignKeys[0]?.foreign_keys), 1);
+
+  const journalMode = await database.$queryRawUnsafe<
+    Array<{ journal_mode: string }>
+  >("PRAGMA journal_mode");
+  assert.equal(journalMode[0]?.journal_mode.toLowerCase(), "wal");
+  const busyTimeout = await database.$queryRawUnsafe<
+    Array<{ timeout: bigint }>
+  >("PRAGMA busy_timeout");
+  assert.equal(Number(busyTimeout[0]?.timeout), SQLITE_BUSY_TIMEOUT_MS);
 
   await seedSqliteDatabase(databaseUrl);
   const firstSeed = await readMigrationSnapshot(database);

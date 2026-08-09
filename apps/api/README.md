@@ -29,6 +29,12 @@ nicht versehentlich unterschiedliche Dateien öffnen. Das Setzen eines echten
 lokalen Passworts und CalDAV-Zugangs erfolgt weiterhin über die getrennten
 Bootstrap-Befehle.
 
+Der SQLite-Migrationslauf aktiviert WAL; der API-Client verwendet eine
+Sperrwartezeit von fünf Sekunden. Freigegeben ist genau ein schreibender
+API-/Sidecar-Prozess. Der automatisierte ETag-Konkurrenztest bestätigt, dass
+von zwei gleichzeitig gestarteten Änderungen mit demselben alten ETag nur eine
+gewinnt und die andere keine Synchronisationsversion verbraucht.
+
 Die API bindet standardmäßig nur an `127.0.0.1:3000`. Ein Start mit fehlender
 oder ungültiger Konfiguration endet verständlich und ohne Ausgabe von
 Konfigurationswerten.

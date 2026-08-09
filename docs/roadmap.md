@@ -159,6 +159,10 @@ konkret dokumentiert.
 
 ### D2 Kalender-, CalDAV- und Recovery-Parität
 
+Der Kalender- und CalDAV-Anteil ist mit M3 automatisiert abgeschlossen. Der
+Recovery-Anteil folgt in M4; der physische Apple-Kalender-Handtest bleibt bis
+zum LAN-fähigen App-Prototyp ausdrücklich offen.
+
 - REST und CalDAV gegen denselben SQLite-Kalenderkern prüfen.
 - Lesen, Erstellen, Ändern, Löschen, ETag-Konflikt, Sync-Token, Tombstones,
   Zeitzonen, Ganztag, Wiederholung und Erinnerung automatisiert testen.
