@@ -125,6 +125,77 @@ dokumentierten lokalen Demo und Apple-Kalender-Checkliste. Issue #17 und dessen
 CI-Lauf bilden das technische Gate für den anschließenden Pull Request von
 `develop` nach `main`.
 
+## Frühes Querschnittsziel: lokale Mac-App
+
+Ziel: LifeOS früh als installierbare lokale Mac-App ausrichten, ohne die
+gemeinsame React-Weboberfläche, den separaten Browserbetrieb oder den
+vorhandenen API-/CalDAV-Kern aufzugeben. Dieses Querschnittsziel hat vor den
+noch nicht begonnenen Produktphasen 0.4 und 0.5 Priorität.
+
+Der aktuelle Stand ist eine technische Spike-Planung, kein fertiger
+Installationsweg. Die detaillierte Bestandsaufnahme, Entscheidungen, Risiken
+und Akzeptanzkriterien stehen in
+[`docs/mac-desktop-spike-plan.md`](mac-desktop-spike-plan.md).
+
+### D1 SQLite- und lokale Betriebsprüfung
+
+- Prisma-7.8-Unterstützung für SQLite mit einem getrennten Schema- und
+  Migrationspfad prüfen.
+- Benutzer, Einstellungen, Kalender, zeitgebundenes Ereignis, Ganztag,
+  Zeitzone, Audit und stabile Synchronisationswerte repräsentativ migrieren.
+- PostgreSQL-spezifische Typen, Arrays, Enums, Constraints und Indizes bewusst
+  ersetzen; bestehende PostgreSQL-Migrationen nicht umschreiben.
+- Das gebaute Node-/Express-Backend ohne Docker gegen die lokale SQLite-Datei
+  starten und denselben `/api/v1`-Vertrag im Browser verwenden.
+
+Abschlusskriterium: Migration, Seed, API-Start, Neustart und Datenvergleich
+funktionieren mit synthetischen Daten ohne Docker; offene Abweichungen sind
+konkret dokumentiert.
+
+### D2 Kalender-, CalDAV- und Recovery-Parität
+
+- REST und CalDAV gegen denselben SQLite-Kalenderkern prüfen.
+- Lesen, Erstellen, Ändern, Löschen, ETag-Konflikt, Sync-Token, Tombstones,
+  Zeitzonen, Ganztag, Wiederholung und Erinnerung automatisiert testen.
+- SQLite-Backup über die Online Backup API samt Prüfsumme erstellen und immer
+  zuerst in ein neues Ziel wiederherstellen.
+- Datenbank und lokales Dokumentverzeichnis als gemeinsames Recovery-Paket
+  behandeln.
+
+Abschlusskriterium: Ein Recovery-Test erhält IDs, UIDs, ETags, Sync-Versionen,
+Zeitzonen, Ganztagsgrenzen und Dokumente; ein veralteter ETag überschreibt keine
+neueren Daten.
+
+### D3 Tauri- und Sidecar-Prototyp
+
+- Tauri 2 als Mac-Hülle für dieselbe gebaute React-Oberfläche anlegen.
+- Das vorhandene Node-/Express-Backend als reproduzierbaren Sidecar paketieren,
+  starten, auf Readiness prüfen und geordnet beenden.
+- Datenbank, Dokumente, Konfiguration, Backups und Logs in den vorgesehenen
+  anwendungsspezifischen macOS-Verzeichnissen speichern.
+- Portkonflikte, Sidecar-Absturz und fehlgeschlagenen Datenbankstart
+  verständlich anzeigen.
+- CalDAV erreichbar halten, solange die Mac-App beziehungsweise der lokale
+  Dienst läuft; LAN-Bindung für andere Apple-Geräte bleibt eine bewusste
+  Betriebsart.
+
+Abschlusskriterium: Der Prototyp startet auf dem zunächst unterstützten Mac die
+Weboberfläche und das lokale Backend ohne Docker und ohne global installiertes
+Node; der Browserbetrieb bleibt separat möglich.
+
+### D4 Installations- und Update-Nachweis
+
+- `.app` und `.dmg` reproduzierbar bauen und mit synthetischen Daten prüfen.
+- Erststart, Neustart, Backup, Restore, Update und Deinstallation testen.
+- Signierung, Notarisierung, unterstützte Mac-Architekturen und Updateverfahren
+  als geprüfte Release-Gates dokumentieren.
+- Docker nur noch als Entwicklungs-, Test- und Wartungswerkzeug dokumentieren;
+  die README erst nach einem tatsächlich erfolgreichen Ablauf umstellen.
+
+Abschlusskriterium: Ein sauberer unterstützter Mac installiert und startet
+LifeOS ohne Docker; ein Update erhält lokale Daten und CalDAV-Identitäten.
+Nicht geprüfte Release-Gates bleiben ausdrücklich offen.
+
 ## 0.2 Organisation
 
 Ziel: Aufgaben und Kalender im Alltag miteinander verbinden.
