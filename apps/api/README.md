@@ -124,6 +124,11 @@ unset CALDAV_TEST_PASSWORD
 | `GET/POST /api/v1/task-event-links`                | Aufgaben-Termin-Beziehungen lesen oder anlegen   |
 | `DELETE /api/v1/task-event-links/:linkId`          | Aufgaben-Termin-Beziehung entfernen              |
 | `GET /api/v1/dashboard`                            | rein lesenden Organisations-Snapshot laden       |
+| `GET /api/v1/work`                                 | eigene Arbeitsdaten filtern und laden            |
+| `POST/PATCH /api/v1/work/contexts/:id?`            | Arbeitsbereiche anlegen oder ändern              |
+| `POST/PATCH /api/v1/work/projects/:id?`            | Arbeitsprojekte, Ziele und Fristen verwalten     |
+| `POST/DELETE /api/v1/work/task-links/:id?`         | vorhandene Arbeitsaufgaben zuordnen              |
+| `POST/PATCH /api/v1/work/time-entries/:id?`        | geplante oder tatsächliche Zeit verwalten        |
 | `/.well-known/caldav`                              | CalDAV-Discovery auf `/caldav/`                  |
 | `/caldav/…`                                        | WebDAV-/CalDAV-Ressourcen                        |
 
@@ -224,6 +229,20 @@ Der Endpunkt erfindet oder ergänzt keine Termine und Aufgaben. Persönliche
 Inhalte werden nicht protokolliert; der bestehende Anfrage-Logger speichert nur
 Anfrage-ID, Routenmetadaten, Status und Dauer.
 
+## Arbeits- und Praxisvertrag
+
+`/work` verwendet ausschließlich den Besitzer der geprüften Sitzung. Kontexte,
+Projekte, Aufgabenbeziehungen und Zeitblöcke können nicht auf fremde oder
+archivierte Referenzen zeigen. Aufgaben werden nicht dupliziert, sondern aus
+dem bestehenden Aufgabenmodell mit Bereich `work` verknüpft. Filter nach
+Arbeitsbereich, Status und Zeitraum ändern nur die Antwortauswahl.
+
+Geplante und tatsächliche Zeit sind verschiedene Werte von `kind`. Beginn und
+Ende benötigen ISO-Zeitpunkte mit Offset sowie eine IANA-Zeitzone. Die Antwort
+weist die aus den Zeitpunkten berechnete `durationMinutes` aus. Fristen bleiben
+reine Kalendertage. Audit-Metadaten enthalten nur geänderte Feldnamen und keine
+Organisationen, Ziele, Notizen oder Zeitwerte.
+
 Beispiel:
 
 ```bash
@@ -276,6 +295,8 @@ weitergegeben.
   zwischen Aufgaben- und Kalenderkern.
 - `modules/dashboard/` bündelt den besitzgebundenen, rein lesenden
   Organisations-Snapshot ohne eigene Fachdaten oder Schreiblogik.
+- `modules/work/` kapselt Arbeitskontexte, berufliche Projekte,
+  Aufgabenbeziehungen sowie geplante und tatsächliche Zeit mit Besitzprüfung.
 - `modules/caldav/` übersetzt den gemeinsamen Kalenderkern in WebDAV-XML und
   RFC-5545-iCalendar; Zugang, Parser und Transport bleiben von der REST-API
   getrennt.

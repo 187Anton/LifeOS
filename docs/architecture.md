@@ -166,6 +166,27 @@ Dashboard und Kalenderansicht laden Studieneinträge als rein lesende
 Projektion aus dem Studien-API-Zustand. Sie erzeugen dabei weder zusätzliche
 `CalendarEvent`-Datensätze noch CalDAV-Ressourcen.
 
+## Arbeits- und Praxismodul
+
+`WorkContext` beschreibt einen persönlichen beruflichen Kontext mit Rolle,
+optionalem Organisationsnamen, Zeitraum und IANA-Zeitzone. `WorkProject`
+gehört eindeutig zu einem solchen Kontext und hält Status, Ziel, reine
+Datumsfrist sowie optional einen vorhandenen Kalenderbezug. Ein berufliches
+Projekt ist kein GitHub-Projekt und löst keine externe Integration aus.
+
+Arbeitsaufgaben bleiben im bestehenden `Task`-Modell mit dem Bereich `work`.
+`WorkTaskLink` speichert lediglich deren besitzgesicherte Zuordnung zu einem
+Arbeitskontext oder -projekt. `WorkTimeEntry` unterscheidet die Arten
+`planned` und `actual`; Beginn und Ende sind absolute `TIMESTAMPTZ`-Werte mit
+fachlicher IANA-Zeitzone. Die API leitet daraus eine klar benannte Dauer in
+Minuten ab, statt geplante und tatsächliche Werte zusammenzurechnen.
+
+Zusammengesetzte Fremdschlüssel und serverseitige Referenzprüfungen verhindern
+Beziehungen über Besitzer- oder Kontextgrenzen. Filter sind reine Abfragen
+beziehungsweise UI-Projektionen. Schreibende Änderungen protokollieren nur
+Aktion und Feldnamen, niemals Organisation, Notizen, Ziele oder Zeitwerte.
+Arbeitsdaten werden weder in Logs noch in Browser-Storage persistiert.
+
 ## Organisations-Dashboard
 
 Das Dashboard ist eine rein lesende Projektion der vorhandenen Fachmodule und

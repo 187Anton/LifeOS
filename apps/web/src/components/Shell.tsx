@@ -6,9 +6,10 @@ import {
   LogOutIcon,
   StudyIcon,
   TaskIcon,
+  WorkIcon,
 } from "./Icons";
 
-export type View = "dashboard" | "tasks" | "calendar" | "study";
+export type View = "dashboard" | "tasks" | "calendar" | "study" | "work";
 
 interface ShellProps {
   children: ReactNode;
@@ -61,6 +62,14 @@ export const Shell = ({
         >
           <StudyIcon />
           <span>Studium</span>
+        </button>
+        <button
+          className={view === "work" ? "nav-item active" : "nav-item"}
+          onClick={() => onViewChange("work")}
+          aria-current={view === "work" ? "page" : undefined}
+        >
+          <WorkIcon />
+          <span>Arbeit</span>
         </button>
         <button
           className={view === "calendar" ? "nav-item active" : "nav-item"}
@@ -135,6 +144,14 @@ export const Shell = ({
       >
         <StudyIcon />
         <span>Studium</span>
+      </button>
+      <button
+        className={view === "work" ? "active" : ""}
+        onClick={() => onViewChange("work")}
+        aria-current={view === "work" ? "page" : undefined}
+      >
+        <WorkIcon />
+        <span>Arbeit</span>
       </button>
       <button
         className={view === "calendar" ? "active" : ""}

@@ -215,9 +215,19 @@ Unit- und End-to-End-Tests abgesichert.
 
 ### 0.3.2 Arbeit und Praxis
 
-- Arbeitgeber, Praxisphasen und Arbeitstage erfassen.
-- Tagesberichte und Notizen speichern.
-- Arbeitszeit aus nachvollziehbaren Einträgen berechnen.
+- Berufliche Kontexte und optionale Organisationen flexibel erfassen.
+- Projekte, Ziele, Fristen, Notizen und vorhandene Arbeitsaufgaben zuordnen.
+- Geplante und tatsächliche Arbeitszeit getrennt und nachvollziehbar berechnen.
+
+Umsetzungsnachweis: Issue #43 ergänzt besitzgebundene Arbeitskontexte,
+berufliche Projekte mit Ziel und Frist, reine Verknüpfungen zum bestehenden
+Aufgabenmodell sowie geplante und tatsächliche Zeitblöcke. Zeitblöcke speichern
+`TIMESTAMPTZ` plus IANA-Zeitzone und geben ihre berechnete Dauer ausdrücklich
+in Minuten zurück. API- und Datenbankregeln verhindern fremde Referenzen;
+Audit-Metadaten enthalten nur geänderte Feldnamen. Die responsive Oberfläche
+bietet Bereichs-, Status- und Zeitraumfilter, ohne Filter oder persönliche
+Antworten im Browser zu persistieren. Arbeitgeber-, GitHub- und externe
+Zeiterfassungsintegrationen bleiben bewusst außerhalb dieser Phase.
 
 ### 0.3.3 Gemeinsame Zeitplanung
 

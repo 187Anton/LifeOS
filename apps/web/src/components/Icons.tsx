@@ -120,3 +120,10 @@ export const StudyIcon = (props: IconProps) => (
     <path d="M7 12.5V17c3 2 7 2 10 0v-4.5M21 10v6" />
   </Icon>
 );
+
+export const WorkIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="3" y="7" width="18" height="13" rx="2" />
+    <path d="M9 7V4h6v3M3 12h18M10 12v2h4v-2" />
+  </Icon>
+);

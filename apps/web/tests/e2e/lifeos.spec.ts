@@ -87,6 +87,13 @@ const installApi = async (page: Page) => {
     modules: [] as Array<Record<string, unknown>>,
     entries: [] as Array<Record<string, unknown>>,
   };
+  const work = {
+    contexts: [] as Array<Record<string, unknown>>,
+    projects: [] as Array<Record<string, unknown>>,
+    taskLinks: [] as Array<Record<string, unknown>>,
+    timeEntries: [] as Array<Record<string, unknown>>,
+    history: [] as Array<Record<string, unknown>>,
+  };
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -98,6 +105,86 @@ const installApi = async (page: Page) => {
     }
     if (path === "/api/v1/study" && method === "GET") {
       await route.fulfill({ json: study });
+      return;
+    }
+    if (path === "/api/v1/work" && method === "GET") {
+      await route.fulfill({ json: work });
+      return;
+    }
+    if (path === "/api/v1/work/contexts" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const created = {
+        id: `work-${work.contexts.length + 1}`,
+        ownerId: profile.id,
+        ...payload,
+        organization: payload.organization ?? null,
+        startsOn: payload.startsOn ?? null,
+        endsOn: payload.endsOn ?? null,
+        notes: payload.notes ?? null,
+        archivedAt: null,
+        createdAt: "2032-01-01T00:00:00.000Z",
+        updatedAt: "2032-01-01T00:00:00.000Z",
+      };
+      work.contexts.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    if (path === "/api/v1/work/projects" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const created = {
+        id: `work-project-${work.projects.length + 1}`,
+        ownerId: profile.id,
+        ...payload,
+        calendarEventId: null,
+        notes: payload.notes ?? null,
+        archivedAt: null,
+        createdAt: "2032-01-01T00:00:00.000Z",
+        updatedAt: "2032-01-01T00:00:00.000Z",
+      };
+      work.projects.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    if (path === "/api/v1/work/time-entries" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const created = {
+        id: `work-time-${work.timeEntries.length + 1}`,
+        ownerId: profile.id,
+        ...payload,
+        projectId: payload.projectId ?? null,
+        taskId: payload.taskId ?? null,
+        notes: payload.notes ?? null,
+        durationMinutes:
+          (new Date(String(payload.endsAt)).getTime() -
+            new Date(String(payload.startsAt)).getTime()) /
+          60_000,
+        archivedAt: null,
+        createdAt: "2032-01-01T00:00:00.000Z",
+        updatedAt: "2032-01-01T00:00:00.000Z",
+      };
+      work.timeEntries.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    if (path === "/api/v1/work/task-links" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const created = {
+        id: `work-link-${work.taskLinks.length + 1}`,
+        ownerId: profile.id,
+        ...payload,
+        projectId: payload.projectId ?? null,
+        createdAt: "2032-01-01T00:00:00.000Z",
+        updatedAt: "2032-01-01T00:00:00.000Z",
+      };
+      work.taskLinks.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    if (path.startsWith("/api/v1/work/task-links/") && method === "DELETE") {
+      const id = path.split("/").at(-1);
+      const index = work.taskLinks.findIndex((item) => item.id === id);
+      if (index >= 0) work.taskLinks.splice(index, 1);
+      await route.fulfill({ status: 204, body: "" });
       return;
     }
     if (path === "/api/v1/study/programs" && method === "POST") {
@@ -604,6 +691,82 @@ test("erstellt, filtert, bearbeitet und verwaltet Aufgaben ohne Browserpersisten
     page.locator(".task-card").filter({ hasText: "Unterlagen archivieren" }),
   ).toHaveCount(0);
 
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
+});
+
+test("verwaltet Praxisprojekt, Arbeitsaufgabe und getrennte Zeitwerte", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Aufgaben", exact: true })
+    .filter({ visible: true })
+    .click();
+  await page.getByRole("button", { name: /Neue Aufgabe/ }).click();
+  const taskEditor = page.locator(".task-editor");
+  await taskEditor.getByLabel("Titel").fill("Synthetische Arbeitsaufgabe");
+  await taskEditor.getByLabel("Bereich").selectOption("work");
+  await taskEditor.getByRole("button", { name: "Aufgabe anlegen" }).click();
+
+  await page
+    .getByRole("button", { name: "Arbeit", exact: true })
+    .filter({ visible: true })
+    .click();
+  await page.getByRole("button", { name: "Arbeitsbereich anlegen" }).click();
+  await page.getByLabel("Arbeitsbereich").fill("Synthetische Praxisphase");
+  await page.getByLabel("Position oder Rolle").fill("Praxisrolle");
+  await page.getByLabel("Beginn").fill("2032-01-01");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Synthetische Praxisphase" }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: /Projekt hinzufügen/ }).click();
+  await page
+    .getByLabel("Projekt oder Praxisbereich")
+    .fill("Synthetisches Verbesserungsprojekt");
+  await page.getByLabel("Ziel").fill("Nachvollziehbarer Testfortschritt");
+  await page.getByLabel("Frist").fill("2032-06-30");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(
+    page.getByText("Synthetisches Verbesserungsprojekt"),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: /Aufgabe zuordnen/ }).click();
+  await page
+    .getByLabel("Aufgabe")
+    .selectOption({ label: "Synthetische Arbeitsaufgabe" });
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Synthetische Arbeitsaufgabe")).toBeVisible();
+
+  await page.getByRole("button", { name: /Zeit erfassen/ }).click();
+  await page.getByLabel("Art").selectOption("planned");
+  await page.getByLabel("Bezeichnung").fill("Geplanter Praxisblock");
+  await page.getByLabel("Beginn").fill("2032-06-15T09:00");
+  await page.getByLabel("Ende").fill("2032-06-15T10:30");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Geplanter Praxisblock")).toBeVisible();
+
+  await page.getByRole("button", { name: /Zeit erfassen/ }).click();
+  await page.getByLabel("Art").selectOption("actual");
+  await page.getByLabel("Bezeichnung").fill("Tatsächlicher Praxisblock");
+  await page.getByLabel("Beginn").fill("2032-06-15T09:15");
+  await page.getByLabel("Ende").fill("2032-06-15T10:15");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Tatsächlicher Praxisblock")).toBeVisible();
+  await expect(page.getByText("1 h 30 min", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 h 0 min", { exact: true })).toBeVisible();
+
+  const filters = page.getByRole("region", { name: "Arbeitsdaten filtern" });
+  await filters.getByLabel("Status").selectOption("planned");
+  await expect(
+    page.getByText("Synthetisches Verbesserungsprojekt"),
+  ).toBeVisible();
   expect(
     await page.evaluate(() => ({
       local: Object.keys(localStorage),

@@ -15,6 +15,14 @@ import type {
   UpdateStudyModuleRequest,
   UpdateStudyProgramRequest,
   UpdateTaskRequest,
+  CreateWorkContextRequest,
+  CreateWorkProjectRequest,
+  CreateWorkTaskLinkRequest,
+  CreateWorkTimeEntryRequest,
+  UpdateWorkContextRequest,
+  UpdateWorkProjectRequest,
+  UpdateWorkTimeEntryRequest,
+  WorkOverviewResponse,
 } from "@lifeos/contracts";
 import { useCallback, useEffect, useState } from "react";
 
@@ -25,6 +33,7 @@ import { Login } from "./components/Login";
 import { Shell, type View } from "./components/Shell";
 import { TaskWorkspace } from "./components/TaskWorkspace";
 import { StudyWorkspace } from "./components/StudyWorkspace";
+import { WorkWorkspace } from "./components/WorkWorkspace";
 
 type SessionState = "checking" | "anonymous" | "authenticated";
 
@@ -50,6 +59,7 @@ export const App = () => {
   );
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [study, setStudy] = useState<StudyOverviewResponse | null>(null);
+  const [work, setWork] = useState<WorkOverviewResponse | null>(null);
   const [view, setView] = useState<View>("dashboard");
   const [createRequest, setCreateRequest] = useState<"task" | "event" | null>(
     null,
@@ -67,6 +77,9 @@ export const App = () => {
   const [studyLoading, setStudyLoading] = useState(false);
   const [studyError, setStudyError] = useState<string | null>(null);
   const [studySuccess, setStudySuccess] = useState<string | null>(null);
+  const [workLoading, setWorkLoading] = useState(false);
+  const [workError, setWorkError] = useState<string | null>(null);
+  const [workSuccess, setWorkSuccess] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [taskSuccess, setTaskSuccess] = useState<string | null>(null);
 
@@ -138,6 +151,20 @@ export const App = () => {
     }
   }, []);
 
+  const loadWork = useCallback(async () => {
+    setWorkLoading(true);
+    setWorkError(null);
+    try {
+      setWork(await api.getWork(true));
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401)
+        setSession("anonymous");
+      else setWorkError(errorMessage(error));
+    } finally {
+      setWorkLoading(false);
+    }
+  }, []);
+
   const loadAuthenticatedData = useCallback(async () => {
     const [loadedProfile, loadedCalendars, loadedTasks, loadedLinks] =
       await Promise.all([
@@ -160,8 +187,9 @@ export const App = () => {
       selected ? loadEvents(selected.id) : Promise.resolve(),
       loadDashboard(),
       loadStudy(),
+      loadWork(),
     ]);
-  }, [loadDashboard, loadEvents, loadStudy]);
+  }, [loadDashboard, loadEvents, loadStudy, loadWork]);
 
   useEffect(() => {
     // Der initiale API-Aufruf synchronisiert React mit der lokalen Sitzung.
@@ -201,6 +229,7 @@ export const App = () => {
     setTaskEventLinks([]);
     setDashboard(null);
     setStudy(null);
+    setWork(null);
     setSelectedCalendarId(null);
     setLoginError(null);
   };
@@ -402,6 +431,25 @@ export const App = () => {
     }
   };
 
+  const changeWork = async (
+    operation: () => Promise<unknown>,
+    message: string,
+  ) => {
+    setSaving(true);
+    setWorkError(null);
+    setWorkSuccess(null);
+    try {
+      await operation();
+      setWorkSuccess(message);
+      await loadWork();
+    } catch (error) {
+      setWorkError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (session === "checking") {
     return (
       <main className="boot-screen" role="status">
@@ -508,6 +556,65 @@ export const App = () => {
             changeStudy(
               () => api.updateStudyEntry(id, value),
               "Der Studieneintrag wurde aktualisiert.",
+            )
+          }
+        />
+      ) : view === "work" ? (
+        <WorkWorkspace
+          overview={work}
+          tasks={tasks}
+          timezone={profile.settings.timezone}
+          loading={workLoading}
+          saving={saving}
+          error={workError}
+          success={workSuccess}
+          onReload={() => void loadWork()}
+          onCreateContext={(value: CreateWorkContextRequest) =>
+            changeWork(
+              () => api.createWorkContext(value),
+              "Der Arbeitsbereich wurde angelegt.",
+            )
+          }
+          onUpdateContext={(id: string, value: UpdateWorkContextRequest) =>
+            changeWork(
+              () => api.updateWorkContext(id, value),
+              "Der Arbeitsbereich wurde aktualisiert.",
+            )
+          }
+          onCreateProject={(value: CreateWorkProjectRequest) =>
+            changeWork(
+              () => api.createWorkProject(value),
+              "Das Arbeitsprojekt wurde angelegt.",
+            )
+          }
+          onUpdateProject={(id: string, value: UpdateWorkProjectRequest) =>
+            changeWork(
+              () => api.updateWorkProject(id, value),
+              "Das Arbeitsprojekt wurde aktualisiert.",
+            )
+          }
+          onCreateTaskLink={(value: CreateWorkTaskLinkRequest) =>
+            changeWork(
+              () => api.createWorkTaskLink(value),
+              "Die Arbeitsaufgabe wurde zugeordnet.",
+            )
+          }
+          onDeleteTaskLink={(id: string) =>
+            changeWork(
+              () => api.deleteWorkTaskLink(id),
+              "Die Aufgabenzuordnung wurde entfernt.",
+            )
+          }
+          onCreateTimeEntry={(value: CreateWorkTimeEntryRequest) =>
+            changeWork(
+              () => api.createWorkTimeEntry(value),
+              "Die Arbeitszeit wurde erfasst.",
+            )
+          }
+          onUpdateTimeEntry={(id: string, value: UpdateWorkTimeEntryRequest) =>
+            changeWork(
+              () => api.updateWorkTimeEntry(id, value),
+              "Die Arbeitszeit wurde aktualisiert.",
             )
           }
         />
