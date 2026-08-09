@@ -1063,6 +1063,7 @@ test("zeigt eine kombinierte Studien- und Arbeitswoche mit erklärten Warnungen"
   await page.getByRole("button", { name: /Neuer Termin/ }).click();
   const eventEditor = page.locator(".event-editor");
   await eventEditor.getByLabel("Titel").fill("Überschneidender Pflichttermin");
+  await eventEditor.getByLabel("Zeitzone").fill("Europe/Berlin");
   const overlapStart = new Date(eventStartsAt);
   overlapStart.setMinutes(overlapStart.getMinutes() + 15);
   const overlapEnd = new Date(eventEndsAt);
