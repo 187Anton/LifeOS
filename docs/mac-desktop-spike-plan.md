@@ -54,7 +54,7 @@ wurde.
 | M1    | Repräsentatives SQLite-Schema und versionierte Migration existieren.   | Schema, Seed, Wiederholung und Datenregeln sind automatisiert geprüft.                       | abgeschlossen |
 | M2    | Das gebaute Express-Backend läuft ohne Docker auf SQLite.              | Anmeldung, Einstellungen, Kalender-CRUD und Neustart bestehen den unveränderten API-Vertrag. | abgeschlossen |
 | M3    | Kalender und CalDAV besitzen SQLite-Parität.                           | CRUD, Zeitzone, Ganztag, RRULE, Erinnerung, ETag-Konflikt und Sync sind geprüft.             | abgeschlossen |
-| M4    | PostgreSQL-Übernahme sowie SQLite-Backup und -Restore sind sicher.     | Automatisierter Datenvergleich und Recovery-Test erhalten alle stabilen Identitäten.         | offen         |
+| M4    | PostgreSQL-Übernahme sowie SQLite-Backup und -Restore sind sicher.     | Automatisierter Datenvergleich und Recovery-Test erhalten alle stabilen Identitäten.         | abgeschlossen |
 | M5    | Tauri startet und beendet einen reproduzierbar gebauten Sidecar.       | Mac-App, Browser und CalDAV verwenden denselben Kern ohne Docker und globales Node.js.       | offen         |
 | M6    | Installation und Update sind auf einem sauberen Mac nachgewiesen.      | DMG, Erststart, Neustart, Update, Backup und Restore sind dokumentiert erfolgreich.          | offen         |
 | M7    | Betriebs- und Produktdokumentation entsprechen dem geprüften Endstand. | Abschlussprüfung bestätigt alle Erfolgskriterien und keine offenen kritischen Gates.         | offen         |
@@ -365,6 +365,33 @@ Akzeptanzkriterien:
 - Restore überschreibt niemals ungeprüft die aktive Datei.
 - Wiederhergestellte IDs, UIDs, ETags, Sync-Werte, Zeitformen und Dokumente
   entsprechen dem Ausgangsstand.
+
+Bestätigter Nachweis:
+
+- Der Import liest PostgreSQL in einer `REPEATABLE READ`-Transaktion, die vor
+  der ersten Fachabfrage auf `READ ONLY` gesetzt wird. Er schreibt in eine
+  zufällig benannte SQLite-Stagingdatei und lehnt ein vorhandenes Ziel ab.
+- Alle 19 Fachmodelle werden in Abhängigkeitsreihenfolge übertragen und
+  anschließend kanonisch feldweise verglichen. Fremdschlüssel,
+  `integrity_check` und ein unveränderter zweiter PostgreSQL-Snapshot sind
+  zusätzliche Veröffentlichungsgates.
+- Das SQLite-Backup verwendet die Online Backup API bei geöffneter
+  Anwendungsverbindung. Datenbank und reguläre Dokumentdateien erhalten
+  SHA-256-Prüfsummen in einem versionierten Manifest; symbolische Links und
+  unsichere Pfade werden abgelehnt.
+- Restore prüft Manifest, Dateigrößen, Prüfsummen und Datenbankintegrität,
+  migriert ausschließlich eine Stagingkopie und veröffentlicht nur in neue
+  Datenbank- und Dokumentziele.
+- `npm run db:sqlite:verify:recovery` füllt alle Modelle und zwei Dokumente
+  synthetisch, importiert, sichert und restauriert sie. IDs, UID, ETag,
+  Sync-Version, reine Datumswerte, JSON-Listen und Dokumentinhalte bleiben
+  erhalten; eine nach dem Backup geschriebene Auditzeile ist erwartungsgemäß
+  nicht im wiederhergestellten Backup enthalten. Manipulationen und vorhandene
+  Ziele werden abgelehnt.
+
+M4 verschlüsselt Backups nicht. Sie enthalten persönliche Daten, müssen mit
+Dateirechten geschützt und vertraulich behandelt werden. Sidecar und App-
+Verzeichnisse werden erst in M5 verbunden.
 
 ### M5 – Reproduzierbarer Tauri-Sidecar-Prototyp
 

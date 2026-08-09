@@ -15,7 +15,7 @@ tatsächlich ausgeführten Prüfungen dokumentiert ist.
 | M1 – SQLite-Schema und Migration  | abgeschlossen | 9. August 2026   |
 | M2 – API ohne Docker              | abgeschlossen | 9. August 2026   |
 | M3 – Kalender- und CalDAV-Parität | abgeschlossen | 9. August 2026   |
-| M4 – Datenübernahme und Recovery  | offen         | –                |
+| M4 – Datenübernahme und Recovery  | abgeschlossen | 9. August 2026   |
 | M5 – Tauri-Sidecar                | offen         | –                |
 | M6 – Installation und Update      | offen         | –                |
 | M7 – Abschlussdokumentation       | offen         | –                |
@@ -184,3 +184,44 @@ formuliert werden.
 - **Nächster Schritt:** M4 implementiert einen ausschließlich lesenden
   PostgreSQL-Export in eine neue SQLite-Datei sowie prüfsummengeschütztes
   Online-Backup und Restore mit automatisiertem Identitätsvergleich.
+
+## 9. August 2026 – M4: Datenübernahme und Recovery
+
+- **Befund:** PostgreSQL-Backup und Restore waren bereits sicher, für den
+  SQLite-Zielbetrieb fehlten aber ein vollständiger Import aller Fachmodelle,
+  ein Online-Backup und die gemeinsame Wiederherstellung von Datenbank und
+  Dokumentverzeichnis. Ein direkter Schreibzugriff auf die Zieladresse hätte
+  bei einem späten Vergleichsfehler eine unvollständige Datei sichtbar lassen
+  können.
+- **Ursache oder Entscheidung:** Quelle, Staging und Veröffentlichung werden
+  strikt getrennt. PostgreSQL wird unter `REPEATABLE READ` und `READ ONLY`
+  gelesen. Import, Backup und Restore arbeiten mit zufälligen Stagingzielen und
+  verweigern vorhandene Endziele. Eine Datei gilt erst nach vollständigem
+  Daten-, Fremdschlüssel-, Integritäts- und Prüfsummenvergleich als nutzbar.
+- **Änderungsumfang:** Vollständiger Importer für 19 Modelle; kanonischer
+  Feldvergleich; SQLite Online Backup; versioniertes Manifest mit SHA-256 für
+  Datenbank und Dokumente; traversal- und symlink-sichere Dokumentkopie;
+  Restore mit Migration in neue Ziele; CLI-Befehle und ein isolierter
+  synthetischer Recovery-Test.
+- **Verifikation:** `npm run db:sqlite:verify:recovery` lief auf der isolierten
+  PostgreSQL-Testdatenbank erfolgreich. Der Test legte für jedes Fachmodell
+  mindestens einen Datensatz und zwei Dokumente an, importierte in eine neue
+  SQLite-Datei, sicherte sie bei geöffneter Anwendungsverbindung und
+  restaurierte sie in neue Ziele. Manipuliertes Manifest, veränderte
+  Datenbankdatei, vorhandenes Importziel und vorhandenes Restore-Ziel wurden
+  abgelehnt. PostgreSQL wurde anschließend datenerhaltend gestoppt.
+- **Datenvergleich:** Der Import verglich jeden skalaren Wert aller 19 Modelle,
+  einschließlich UUIDs, UTC-Zeitpunkten, reinen Tagen, Decimal-, Enum-, JSON-
+  und Arraywerten. Der Restore erhielt Benutzer-ID, Ereignis-UID und -ETag,
+  Sync-Version, Aufgabenfälligkeit, Dokumentreferenz und beide
+  Dokumentinhalte. Eine erst nach dem Backup erzeugte Auditzeile fehlte im
+  Restore und bestätigte damit den konsistenten Sicherungszeitpunkt.
+- **Risiken und Grenzen:** Backups sind nicht verschlüsselt und enthalten
+  persönliche Daten; sie benötigen restriktive Dateirechte und vertrauliche
+  Aufbewahrung. Der Import bricht ab, wenn sich die Quelle zwischen Export und
+  Abschlussvergleich ändert; für einen echten Umzug soll der schreibende
+  PostgreSQL-Betrieb daher pausiert werden. Automatische App-Pfade und
+  Updateintegration folgen in M5/M6.
+- **Nächster Schritt:** M5 bündelt Weboberfläche und gebautes Express-Backend
+  als Tauri-Sidecar, übergibt die App-Datenpfade und prüft Start, Readiness,
+  Browserzugriff sowie geordnetes Beenden ohne globales Node.js.

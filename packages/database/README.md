@@ -165,6 +165,49 @@ SQLite. Deshalb wendet `db:sqlite:migrate` die geprüften SQL-Dateien mit
 `better-sqlite3` transaktional an und führt danach `foreign_key_check` sowie
 `integrity_check` aus. `prisma db push` bleibt ausdrücklich ausgeschlossen.
 
+## PostgreSQL-Import und SQLite-Recovery
+
+Der M4-Import benötigt eine PostgreSQL-Quelle in `DATABASE_URL` und eine noch
+nicht vorhandene absolute SQLite-Zieldatei in `SQLITE_DATABASE_URL`:
+
+```bash
+export DATABASE_URL="postgresql://…"
+export SQLITE_DATABASE_URL="file:/absoluter/neuer/pfad/lifeos.sqlite"
+npm run db:sqlite:import
+```
+
+Der Import liest PostgreSQL in einer schreibgeschützten konsistenten
+Transaktion, überträgt alle 19 Modelle in eine Stagingdatei und veröffentlicht
+das Ziel erst nach vollständigem Feld-, Fremdschlüssel- und
+Integritätsvergleich. Ein vorhandenes Ziel wird nie überschrieben. Für den
+echten Umzug soll der bisherige schreibende Betrieb pausiert werden; ändert
+sich die Quelle während des Laufs, wird das Ziel nicht veröffentlicht.
+
+Backup und Restore umfassen SQLite und das lokale Dokumentverzeichnis:
+
+```bash
+export SQLITE_DATABASE_URL="file:/absoluter/pfad/lifeos.sqlite"
+export STORAGE_PATH="/absoluter/pfad/documents"
+npm run db:sqlite:backup -- /absoluter/neuer/pfad/backup-20320809
+
+export SQLITE_DATABASE_URL="file:/absoluter/neuer/pfad/restored.sqlite"
+export STORAGE_PATH="/absoluter/neuer/pfad/restored-documents"
+npm run db:sqlite:restore -- /absoluter/pfad/backup-20320809
+```
+
+Das Backup nutzt die SQLite Online Backup API und enthält `manifest.json`,
+dessen Prüfsumme, die Datenbank sowie Dokumente mit einzelnen SHA-256-Werten.
+Restore akzeptiert nur neue Ziele, prüft alle Dateien, wendet Migrationen auf
+eine Stagingkopie an und veröffentlicht erst danach. Symbolische Links und
+unsichere Dokumentpfade werden abgelehnt. Backups sind nicht verschlüsselt und
+müssen wie persönliche Daten vertraulich behandelt werden.
+
+Der isolierte Gesamtnachweis lautet:
+
+```bash
+npm run db:sqlite:verify:recovery
+```
+
 ## Neue Schemaänderung entwickeln
 
 Eine neue Migration wird zunächst ohne Anwendung erzeugt:

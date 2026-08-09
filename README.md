@@ -284,6 +284,10 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 | SQLite-Migrationsgate prüfen                  | `npm run db:sqlite:test`            |
 | Vollständige API auf SQLite prüfen            | `npm run test:sqlite:api`           |
 | Gebaute SQLite-API mit Neustart prüfen        | `npm run verify:sqlite:api-runtime` |
+| PostgreSQL vollständig nach SQLite übertragen | `npm run db:sqlite:import`          |
+| SQLite und Dokumente sichern                  | `npm run db:sqlite:backup -- …`     |
+| SQLite-Backup in neue Ziele restaurieren      | `npm run db:sqlite:restore -- …`    |
+| SQLite-Import und Recovery isoliert prüfen    | `npm run db:sqlite:verify:recovery` |
 | Lokales PostgreSQL-Backup erstellen           | `npm run db:backup`                 |
 | Backup sicher in neue Datenbank restaurieren  | `npm run db:restore -- …`           |
 | Migration, Backup und Restore isoliert prüfen | `npm run db:verify:recovery`        |
@@ -302,10 +306,12 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 | Formatierung prüfen                           | `npm run format:check`              |
 | Repository- und vorhandene Workspace-Tests    | `npm test`                          |
 
-Die SQLite-Befehle bilden seit M2 alle vorhandenen Fachmodelle ab. Die gebaute
-API läuft damit ohne Docker und behält synthetische Daten nach einem Neustart.
-Das ist noch keine installierte Mac-App: Sidecar, Backup, DMG und Update folgen
-in den weiteren Migrationspaketen. Details, Datenregeln und Grenzen stehen in
+Die SQLite-Befehle bilden alle vorhandenen Fachmodelle ab. Die gebaute API
+läuft damit ohne Docker und behält synthetische Daten nach einem Neustart. M3
+und M4 weisen Kalender-/CalDAV-Parität, vollständigen PostgreSQL-Import sowie
+Backup und Restore von SQLite und Dokumenten nach. Das ist noch keine
+installierte Mac-App: Sidecar, DMG und Update folgen in den weiteren
+Migrationspaketen. Details, Datenregeln und Grenzen stehen in
 [`packages/database/README.md`](packages/database/README.md) und im
 [`Migrationsprotokoll`](docs/mac-desktop-migration-log.md).
 

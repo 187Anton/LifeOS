@@ -179,6 +179,11 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
   Anwendungsverbindungen verwenden 5000 Millisekunden Sperrwartezeit. Es ist
   nur ein schreibender API-/Sidecar-Prozess freigegeben. Ein ETag-Konflikt muss
   die Änderung einschließlich Sync-Token und Audit vollständig zurückrollen.
+- Der PostgreSQL-zu-SQLite-Import liest die Quelle konsistent und
+  schreibgeschützt, vergleicht alle 19 Modelle und veröffentlicht nur eine neue
+  geprüfte Zieldatei. SQLite-Backup und Restore umfassen Datenbank und
+  Dokumente, verwenden SHA-256-Manifeste und schreiben niemals über aktive
+  Ziele. Backups sind unverschlüsselt und vertraulich zu behandeln.
 - Kalenderzeitpunkte werden als `TIMESTAMPTZ` plus fachliche IANA-Zeitzone,
   ganztägige Ereignisse ausschließlich als `DATE`-Werte gespeichert. Ein
   Datenbank-Constraint muss beide Formen eindeutig voneinander trennen.
@@ -458,3 +463,7 @@ gemeldet.
 - **2026-08-09:** SQLite-WAL, 5000 Millisekunden Sperrwartezeit, genau einen
   schreibenden Sidecar und vollständigen Rollback des ETag-Verlierers nach
   erfolgreichem M3-Konkurrenz- und Neustartnachweis festgehalten.
+- **2026-08-09:** Schreibgeschützten vollständigen PostgreSQL-Import in eine
+  neue SQLite-Datei sowie Online-Backup und Restore von Datenbank und
+  Dokumenten mit Staging, SHA-256 und Integritätsvergleich nach erfolgreichem
+  M4-Recovery-Nachweis festgehalten.
