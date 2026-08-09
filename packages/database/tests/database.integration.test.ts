@@ -173,6 +173,55 @@ test("erzwingt Besitz und gültige Zeiträume im Arbeitsmodell", async (t) => {
   );
 });
 
+test("erzwingt gültige persönliche Verfügbarkeitsfenster", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalId = `availability-db-owner-${suffix}`;
+  t.after(async () => {
+    await database.user.deleteMany({ where: { externalId } });
+    await database.$disconnect();
+  });
+  const owner = await database.user.create({
+    data: {
+      externalId,
+      displayName: "Synthetische Planungsperson",
+      settings: { create: {} },
+    },
+  });
+  const window = await database.availabilityWindow.create({
+    data: {
+      userId: owner.id,
+      weekday: 1,
+      startMinute: 9 * 60,
+      endMinute: 17 * 60,
+      timezone: "Europe/Berlin",
+    },
+  });
+  assert.equal(window.endMinute - window.startMinute, 8 * 60);
+  await assert.rejects(() =>
+    database.availabilityWindow.create({
+      data: {
+        userId: owner.id,
+        weekday: 7,
+        startMinute: 9 * 60,
+        endMinute: 17 * 60,
+        timezone: "Europe/Berlin",
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.availabilityWindow.create({
+      data: {
+        userId: owner.id,
+        weekday: 2,
+        startMinute: 17 * 60,
+        endMinute: 9 * 60,
+        timezone: "Europe/Berlin",
+      },
+    }),
+  );
+});
+
 test("speichert und liest ein Kalenderereignis mit stabilem Besitzerbezug", async (t) => {
   const database = createDatabaseClient();
   const suffix = randomUUID();

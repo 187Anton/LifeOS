@@ -187,6 +187,29 @@ beziehungsweise UI-Projektionen. Schreibende Änderungen protokollieren nur
 Aktion und Feldnamen, niemals Organisation, Notizen, Ziele oder Zeitwerte.
 Arbeitsdaten werden weder in Logs noch in Browser-Storage persistiert.
 
+## Gemeinsame Zeitplanung
+
+Die gemeinsame Planung ist eine besitzgebundene, rein lesende Projektion der
+vorhandenen Kalender-, Aufgaben-, Studien- und Arbeitsdaten. Der Endpunkt
+`/api/v1/planning` speichert keine zusammengeführten Einträge und dupliziert
+keine Fristen oder Termine. Bereichs- und Zeitraumfilter begrenzen nur die
+Antwort beziehungsweise Darstellung. Änderungen bleiben am jeweiligen
+Quellobjekt und erscheinen beim nächsten Laden automatisch in der Planung.
+
+`AvailabilityWindow` ist die einzige eigene Planungsentität. Sie beschreibt
+eine wöchentlich wiederkehrende persönliche Verfügbarkeit mit Wochentag,
+Start- und Endminute sowie IANA-Zeitzone. Die Projektion erzeugt daraus nur für
+den angefragten Zeitraum flüchtige Zeitfenster. Tagesgrenzen und lokale
+Zeitpunkte werden zeitzonenbewusst berechnet, damit Sommer- und Winterzeit
+nicht als starre 24-Stunden-Tage behandelt werden.
+
+Konflikte und Überlastung sind erklärbare Regeln: zwei überlappende feste
+Termine, eine offene Frist in der Vergangenheit, mehr geplante Minuten als
+verfügbare Minuten, fehlende Verfügbarkeit oder mehrere hohe Prioritäten am
+gleichen Tag. Die API liefert Ursache und betroffene Projektions-IDs, verändert
+aber keine Quelldaten und löst Konflikte nicht automatisch. Logs enthalten
+weder Titel noch kombinierte private, Studien- oder Arbeitsinhalte.
+
 ## Organisations-Dashboard
 
 Das Dashboard ist eine rein lesende Projektion der vorhandenen Fachmodule und

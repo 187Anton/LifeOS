@@ -24,6 +24,10 @@ import type {
   UpdateWorkProjectRequest,
   UpdateWorkTimeEntryRequest,
   WorkOverviewResponse,
+  CreateAvailabilityWindowRequest,
+  PlanningArea,
+  PlanningResponse,
+  UpdateAvailabilityWindowRequest,
   UpdateTaskRequest,
 } from "@lifeos/contracts";
 
@@ -288,6 +292,28 @@ export const api = {
     return request(`/work/time-entries/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
+    });
+  },
+  getPlanning(from: string, to: string, areas?: PlanningArea[]) {
+    const query = new URLSearchParams({ from, to });
+    if (areas?.length) query.set("areas", areas.join(","));
+    return request<PlanningResponse>(`/planning?${query.toString()}`);
+  },
+  createAvailability(payload: CreateAvailabilityWindowRequest) {
+    return request("/planning/availability", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateAvailability(id: string, payload: UpdateAvailabilityWindowRequest) {
+    return request(`/planning/availability/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteAvailability(id: string) {
+    return request<void>(`/planning/availability/${encodeURIComponent(id)}`, {
+      method: "DELETE",
     });
   },
 };

@@ -127,3 +127,10 @@ export const WorkIcon = (props: IconProps) => (
     <path d="M9 7V4h6v3M3 12h18M10 12v2h4v-2" />
   </Icon>
 );
+
+export const PlanIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 5h16v15H4zM8 3v4M16 3v4M4 10h16" />
+    <path d="m8 15 2 2 5-5" />
+  </Icon>
+);

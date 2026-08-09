@@ -433,3 +433,68 @@ export interface CreateWorkTimeEntryRequest {
 export interface UpdateWorkTimeEntryRequest extends Partial<CreateWorkTimeEntryRequest> {
   archived?: boolean;
 }
+
+export type PlanningArea =
+  "calendar" | "study" | "work" | "tasks" | "availability";
+export type PlanningItemKind =
+  "fixed_event" | "deadline" | "planned_task" | "actual_time" | "availability";
+export type PlanningPriority = "low" | "medium" | "high" | "critical";
+
+export interface AvailabilityWindowResponse {
+  id: string;
+  ownerId: string;
+  weekday: number;
+  startMinute: number;
+  endMinute: number;
+  timezone: string;
+  label: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface CreateAvailabilityWindowRequest {
+  weekday: number;
+  startMinute: number;
+  endMinute: number;
+  timezone: string;
+  label?: string | null;
+}
+export interface UpdateAvailabilityWindowRequest extends Partial<CreateAvailabilityWindowRequest> {}
+
+export interface PlanningItemResponse {
+  id: string;
+  sourceId: string;
+  area: PlanningArea;
+  kind: PlanningItemKind;
+  title: string;
+  date: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  timezone: string;
+  durationMinutes: number | null;
+  priority: PlanningPriority;
+  overdue: boolean;
+  sourceUpdatedAt: string | null;
+}
+
+export interface PlanningWarningResponse {
+  id: string;
+  kind:
+    | "overlap"
+    | "overdue"
+    | "capacity"
+    | "high_priority_cluster"
+    | "missing_data";
+  severity: "info" | "warning" | "critical";
+  date: string;
+  itemIds: string[];
+  message: string;
+}
+
+export interface PlanningResponse {
+  generatedAt: string;
+  timezone: string;
+  range: { from: string; to: string };
+  items: PlanningItemResponse[];
+  warnings: PlanningWarningResponse[];
+  availabilityWindows: AvailabilityWindowResponse[];
+}

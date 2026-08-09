@@ -193,6 +193,199 @@ p {
   background: var(--surface);
   color: var(--muted);
 }
+.planning-toolbar {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+.planning-navigation,
+.planning-mode,
+.planning-area-filters,
+.availability-form,
+.availability-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.planning-navigation strong {
+  min-width: 210px;
+  text-align: center;
+}
+.planning-mode button {
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+}
+.planning-mode button.active {
+  color: white;
+  border-color: var(--forest);
+  background: var(--forest);
+}
+.planning-area-filters {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.planning-area-filters legend {
+  padding: 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.planning-area-filters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.planning-warnings,
+.availability-panel {
+  margin-bottom: 1rem;
+  padding: 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+.planning-warnings ul,
+.availability-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.8rem 0;
+  padding: 0;
+  list-style: none;
+}
+.planning-warnings li {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.3fr) 1fr;
+  gap: 0.7rem;
+  padding: 0.75rem;
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: #fff;
+}
+.planning-warnings li.critical {
+  border-left-color: var(--danger);
+}
+.planning-clear {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  padding: 0.8rem 1rem;
+  border-radius: 12px;
+  background: var(--sage);
+}
+.planning-clear svg {
+  width: 22px;
+}
+.planning-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(145px, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+.planning-agenda {
+  display: grid;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+.planning-day {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.planning-day > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.7rem;
+  color: var(--muted);
+  background: #ede9df;
+  font-size: 0.76rem;
+}
+.planning-day-items {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.6rem;
+}
+.planning-item {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.65rem;
+  border-left: 4px solid var(--forest-soft);
+  border-radius: 9px;
+  background: #fff;
+}
+.planning-item.study {
+  border-left-color: #7067a8;
+}
+.planning-item.work {
+  border-left-color: #2d7180;
+}
+.planning-item.tasks {
+  border-left-color: var(--accent);
+}
+.planning-item.availability {
+  border-left-color: #6f9b72;
+  background: #f1f7f1;
+}
+.planning-item.actual_time {
+  border-left-style: dashed;
+  opacity: 0.82;
+}
+.planning-item.overdue {
+  border-left-color: var(--danger);
+  background: #fff5f3;
+}
+.planning-item-time,
+.planning-item small,
+.availability-list small {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+.agenda-day .planning-item {
+  grid-template-columns: minmax(100px, 0.25fr) 1fr;
+  align-items: center;
+}
+.availability-form {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+.availability-form label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.availability-form input,
+.availability-form select {
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.availability-list li {
+  justify-content: space-between;
+  padding: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+.availability-list span {
+  display: grid;
+  gap: 0.2rem;
+}
+.planning-privacy {
+  margin-top: 1rem;
+}
 
 .study-history {
   margin-top: 1rem;
@@ -285,6 +478,23 @@ p {
     flex-direction: column;
   }
   .work-filters {
+    grid-template-columns: 1fr;
+  }
+  .planning-navigation,
+  .planning-navigation button,
+  .availability-form label,
+  .availability-form .form-actions {
+    width: 100%;
+  }
+  .planning-navigation strong {
+    order: -1;
+    width: 100%;
+  }
+  .planning-week {
+    grid-template-columns: 1fr;
+  }
+  .agenda-day .planning-item,
+  .planning-warnings li {
     grid-template-columns: 1fr;
   }
 }
@@ -1789,6 +1999,9 @@ input[readonly] {
 }
 
 @media (max-width: 1080px) {
+  .planning-week {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1871,7 +2084,7 @@ input[readonly] {
     bottom: 0;
     left: 0;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     border-top: 1px solid var(--line);
     background: rgba(255, 253, 248, 0.96);
     backdrop-filter: blur(12px);

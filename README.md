@@ -158,6 +158,14 @@ automatische Änderung des referenzierten Objekts aus.
 Offene Prüfungen, Abgaben und Lernzeiten erscheinen zusätzlich rein lesend im
 Organisations-Dashboard und im sichtbaren Zeitraum der Kalenderansicht.
 
+Die gemeinsame Planung unter `/api/v1/planning` führt Kalendertermine,
+Aufgabenfristen, Studium, Arbeit, geplante und tatsächliche Zeit sowie die
+persönliche Verfügbarkeit als rein lesende Wochen- oder Agendasicht zusammen.
+Regelbasierte Hinweise erklären Überschneidungen, überfällige Fristen,
+Kapazitätsüberschreitungen und Häufungen hoher Prioritäten. Filter verändern
+nur die Darstellung; Termine und Quelldaten werden weder kopiert noch
+automatisch verschoben.
+
 Der Kalender bietet Tages-, Wochen-, Monats- und Agendaansicht. Termine werden
 weiterhin ausschließlich über den gemeinsamen Kalenderkern gespeichert:
 Ganztagswerte bleiben reine Daten, Serienvorkommen sind flüchtige Projektionen
@@ -223,6 +231,9 @@ einen lokalen API-Proxy und zeigt Aufgaben, Kalender, Studium sowie Arbeit und
 Praxis auf Desktop und Smartphone an. Arbeitskontexte, Projekte, Ziele,
 Fristen und getrennte geplante beziehungsweise tatsächliche Zeitblöcke werden
 lokal verwaltet; Arbeitsaufgaben bleiben dabei im gemeinsamen Aufgabenmodell.
+Eine gemeinsame Wochen- und Agendaansicht verbindet diese Daten mit Aufgaben
+und Kalender, zeigt Konflikte sowie nachvollziehbare Überlastungsursachen und
+verwaltet optionale wöchentliche Verfügbarkeitsfenster.
 Suche und kombinierbare Aufgaben-, Arbeitsbereichs-, Status- und Zeitraumfilter
 bleiben flüchtiger UI-Zustand. Ein Produktions-Build erzeugt zusätzlich
 Manifest und Offline-App-Shell:

@@ -36,8 +36,24 @@ const berlinDate = (value: Date): string => {
     parts.find((item) => item.type === type)?.value ?? "";
   return `${part("year")}-${part("month")}-${part("day")}`;
 };
+const berlinDateTimeInput = (value: Date): string => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(value);
+  const part = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
+};
 const today = berlinDate(new Date());
 const tomorrow = berlinDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
+const stringValue = (value: unknown): string =>
+  typeof value === "string" ? value : "";
 
 const initialEvent = {
   uid: "termin-1",
@@ -94,6 +110,7 @@ const installApi = async (page: Page) => {
     timeEntries: [] as Array<Record<string, unknown>>,
     history: [] as Array<Record<string, unknown>>,
   };
+  const availability: Array<Record<string, unknown>> = [];
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -109,6 +126,219 @@ const installApi = async (page: Page) => {
     }
     if (path === "/api/v1/work" && method === "GET") {
       await route.fulfill({ json: work });
+      return;
+    }
+    if (path === "/api/v1/planning" && method === "GET") {
+      const url = new URL(request.url());
+      const from = url.searchParams.get("from") ?? today;
+      const to = url.searchParams.get("to") ?? from;
+      const inRange = (date: string) => date >= from && date <= to;
+      const items: Array<Record<string, unknown>> = [];
+      for (const value of events) {
+        const date = value.isAllDay
+          ? stringValue(value.startDate)
+          : berlinDate(new Date(stringValue(value.startsAt)));
+        if (!inRange(date)) continue;
+        items.push({
+          id: `calendar:${stringValue(value.uid)}`,
+          sourceId: value.uid,
+          area: "calendar",
+          kind: "fixed_event",
+          title: value.title,
+          date,
+          startsAt: value.startsAt,
+          endsAt: value.endsAt,
+          timezone: profile.settings.timezone,
+          durationMinutes:
+            value.startsAt && value.endsAt
+              ? (new Date(stringValue(value.endsAt)).getTime() -
+                  new Date(stringValue(value.startsAt)).getTime()) /
+                60_000
+              : null,
+          priority: "medium",
+          overdue: false,
+          sourceUpdatedAt: value.updatedAt,
+        });
+      }
+      for (const value of study.entries) {
+        const date = value.dueDate
+          ? stringValue(value.dueDate)
+          : berlinDate(new Date(stringValue(value.startsAt)));
+        if (!inRange(date)) continue;
+        items.push({
+          id: `study:${stringValue(value.id)}`,
+          sourceId: value.id,
+          area: "study",
+          kind: value.dueDate
+            ? "deadline"
+            : value.kind === "learning"
+              ? "planned_task"
+              : "fixed_event",
+          title: value.title,
+          date,
+          startsAt: value.startsAt ?? null,
+          endsAt: value.endsAt ?? null,
+          timezone: profile.settings.timezone,
+          durationMinutes:
+            value.startsAt && value.endsAt
+              ? (new Date(stringValue(value.endsAt)).getTime() -
+                  new Date(stringValue(value.startsAt)).getTime()) /
+                60_000
+              : null,
+          priority: value.kind === "exam" ? "high" : "medium",
+          overdue: false,
+          sourceUpdatedAt: value.updatedAt,
+        });
+      }
+      for (const value of work.projects) {
+        const date = stringValue(value.deadlineDate);
+        if (!date || !inRange(date)) continue;
+        items.push({
+          id: `work-project:${stringValue(value.id)}`,
+          sourceId: value.id,
+          area: "work",
+          kind: "deadline",
+          title: value.title,
+          date,
+          startsAt: null,
+          endsAt: null,
+          timezone: profile.settings.timezone,
+          durationMinutes: null,
+          priority: "high",
+          overdue: false,
+          sourceUpdatedAt: value.updatedAt,
+        });
+      }
+      for (const value of work.timeEntries) {
+        const date = berlinDate(new Date(stringValue(value.startsAt)));
+        if (!inRange(date)) continue;
+        items.push({
+          id: `work-time:${stringValue(value.id)}`,
+          sourceId: value.id,
+          area: "work",
+          kind: value.kind === "planned" ? "planned_task" : "actual_time",
+          title: value.title,
+          date,
+          startsAt: value.startsAt,
+          endsAt: value.endsAt,
+          timezone: profile.settings.timezone,
+          durationMinutes: value.durationMinutes,
+          priority: "medium",
+          overdue: false,
+          sourceUpdatedAt: value.updatedAt,
+        });
+      }
+      const dates: string[] = [];
+      for (let date = from; date <= to;) {
+        dates.push(date);
+        const next = new Date(`${date}T00:00:00.000Z`);
+        next.setUTCDate(next.getUTCDate() + 1);
+        date = next.toISOString().slice(0, 10);
+      }
+      for (const date of dates) {
+        const weekday = new Date(`${date}T00:00:00.000Z`).getUTCDay();
+        for (const value of availability.filter(
+          (item) => item.weekday === weekday,
+        )) {
+          const startMinute = Number(value.startMinute);
+          const endMinute = Number(value.endMinute);
+          items.push({
+            id: `availability:${stringValue(value.id)}:${date}`,
+            sourceId: value.id,
+            area: "availability",
+            kind: "availability",
+            title: value.label ?? "Persönliche Verfügbarkeit",
+            date,
+            startsAt: `${date}T${String(Math.floor(startMinute / 60)).padStart(2, "0")}:${String(startMinute % 60).padStart(2, "0")}:00.000Z`,
+            endsAt: `${date}T${String(Math.floor(endMinute / 60)).padStart(2, "0")}:${String(endMinute % 60).padStart(2, "0")}:00.000Z`,
+            timezone: profile.settings.timezone,
+            durationMinutes: endMinute - startMinute,
+            priority: "low",
+            overdue: false,
+            sourceUpdatedAt: value.updatedAt,
+          });
+        }
+      }
+      const warnings: Array<Record<string, unknown>> = [];
+      const fixed = items.filter(
+        (item) => item.kind === "fixed_event" && item.startsAt && item.endsAt,
+      );
+      for (let first = 0; first < fixed.length; first += 1) {
+        for (let second = first + 1; second < fixed.length; second += 1) {
+          const left = fixed[first]!;
+          const right = fixed[second]!;
+          if (
+            new Date(String(left.startsAt)).getTime() <
+              new Date(String(right.endsAt)).getTime() &&
+            new Date(String(right.startsAt)).getTime() <
+              new Date(String(left.endsAt)).getTime()
+          )
+            warnings.push({
+              id: `overlap:${stringValue(left.id)}:${stringValue(right.id)}`,
+              kind: "overlap",
+              severity: "critical",
+              date: left.date,
+              itemIds: [left.id, right.id],
+              message:
+                "Zwei feste Termine überschneiden sich. Es wurde nichts automatisch verschoben.",
+            });
+        }
+      }
+      for (const date of dates) {
+        const planned = items.filter(
+          (item) => item.date === date && item.kind === "planned_task",
+        );
+        const plannedMinutes = planned.reduce(
+          (sum, item) => sum + Number(item.durationMinutes ?? 0),
+          0,
+        );
+        const availableMinutes = items
+          .filter((item) => item.date === date && item.kind === "availability")
+          .reduce((sum, item) => sum + Number(item.durationMinutes ?? 0), 0);
+        if (plannedMinutes > availableMinutes && availableMinutes > 0)
+          warnings.push({
+            id: `capacity:${date}`,
+            kind: "capacity",
+            severity: "warning",
+            date,
+            itemIds: planned.map((item) => item.id),
+            message: `Die geplante Zeit überschreitet die Verfügbarkeit um ${plannedMinutes - availableMinutes} Minuten.`,
+          });
+      }
+      await route.fulfill({
+        json: {
+          generatedAt: new Date().toISOString(),
+          timezone: profile.settings.timezone,
+          range: { from, to },
+          items,
+          warnings,
+          availabilityWindows: availability,
+        },
+      });
+      return;
+    }
+    if (path === "/api/v1/planning/availability" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const created = {
+        id: `availability-${availability.length + 1}`,
+        ownerId: profile.id,
+        ...payload,
+        label: payload.label ?? null,
+        createdAt: "2032-01-01T00:00:00.000Z",
+        updatedAt: "2032-01-01T00:00:00.000Z",
+      };
+      availability.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    if (
+      path.startsWith("/api/v1/planning/availability/") &&
+      method === "DELETE"
+    ) {
+      const id = path.split("/").at(-1);
+      const index = availability.findIndex((item) => item.id === id);
+      if (index >= 0) availability.splice(index, 1);
+      await route.fulfill({ status: 204, body: "" });
       return;
     }
     if (path === "/api/v1/work/contexts" && method === "POST") {
@@ -742,7 +972,9 @@ test("verwaltet Praxisprojekt, Arbeitsaufgabe und getrennte Zeitwerte", async ({
     .getByLabel("Aufgabe")
     .selectOption({ label: "Synthetische Arbeitsaufgabe" });
   await page.getByRole("button", { name: "Speichern" }).click();
-  await expect(page.getByText("Synthetische Arbeitsaufgabe")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Synthetische Arbeitsaufgabe" }),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: /Zeit erfassen/ }).click();
   await page.getByLabel("Art").selectOption("planned");
@@ -767,6 +999,118 @@ test("verwaltet Praxisprojekt, Arbeitsaufgabe und getrennte Zeitwerte", async ({
   await expect(
     page.getByText("Synthetisches Verbesserungsprojekt"),
   ).toBeVisible();
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
+});
+
+test("zeigt eine kombinierte Studien- und Arbeitswoche mit erklärten Warnungen", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Studium" }).first().click();
+  await page.getByRole("button", { name: "Abschnitt anlegen" }).click();
+  await page
+    .getByLabel("Studiengang oder Ausbildungsbereich")
+    .fill("Synthetische Informatik");
+  await page
+    .getByLabel("Hochschule oder Bildungseinrichtung")
+    .fill("Lokale Testhochschule");
+  await page.getByLabel("Semester oder Studienabschnitt").fill("Testwoche");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await page.getByRole("button", { name: "Modul hinzufügen" }).click();
+  await page.getByLabel("Modul oder Kurs").fill("Transparente Planung");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await page.getByRole("button", { name: "Eintrag hinzufügen" }).click();
+  await page.getByLabel("Bezeichnung").fill("Synthetische Prüfung");
+  await page.getByLabel("Kalendertag").fill(today);
+  await page.getByRole("button", { name: "Speichern" }).click();
+
+  await page
+    .getByRole("button", { name: "Arbeit", exact: true })
+    .filter({ visible: true })
+    .click();
+  await page.getByRole("button", { name: "Arbeitsbereich anlegen" }).click();
+  await page.getByLabel("Arbeitsbereich").fill("Synthetische Praxisphase");
+  await page.getByLabel("Position oder Rolle").fill("Praxisrolle");
+  await page.getByLabel("Beginn").fill(today);
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await page.getByRole("button", { name: /Projekt hinzufügen/ }).click();
+  await page
+    .getByLabel("Projekt oder Praxisbereich")
+    .fill("Synthetisches Wochenprojekt");
+  await page.getByLabel("Frist").fill(today);
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await page.getByRole("button", { name: /Zeit erfassen/ }).click();
+  await page.getByLabel("Art").selectOption("planned");
+  await page.getByLabel("Bezeichnung").fill("Geplanter Praxisblock");
+  const plannedStart = new Date(eventStartsAt);
+  plannedStart.setMinutes(plannedStart.getMinutes() + 10);
+  const plannedEnd = new Date(plannedStart);
+  plannedEnd.setHours(plannedEnd.getHours() + 2);
+  await page.getByLabel("Beginn").fill(berlinDateTimeInput(plannedStart));
+  await page.getByLabel("Ende").fill(berlinDateTimeInput(plannedEnd));
+  await page.getByRole("button", { name: "Speichern" }).click();
+
+  await page
+    .getByRole("button", { name: "Kalender", exact: true })
+    .filter({ visible: true })
+    .click();
+  await page.getByRole("button", { name: /Neuer Termin/ }).click();
+  const eventEditor = page.locator(".event-editor");
+  await eventEditor.getByLabel("Titel").fill("Überschneidender Pflichttermin");
+  const overlapStart = new Date(eventStartsAt);
+  overlapStart.setMinutes(overlapStart.getMinutes() + 15);
+  const overlapEnd = new Date(eventEndsAt);
+  overlapEnd.setMinutes(overlapEnd.getMinutes() + 15);
+  await eventEditor
+    .getByLabel("Beginn", { exact: true })
+    .fill(berlinDateTimeInput(overlapStart));
+  await eventEditor
+    .getByLabel("Ende", { exact: true })
+    .fill(berlinDateTimeInput(overlapEnd));
+  await eventEditor.getByRole("button", { name: "Termin anlegen" }).click();
+
+  await page
+    .getByRole("button", { name: "Planung", exact: true })
+    .filter({ visible: true })
+    .click();
+  await expect(
+    page.getByRole("region", { name: "Gemeinsame Wochenansicht" }),
+  ).toBeVisible();
+  await expect(page.getByText("Synthetische Prüfung")).toBeVisible();
+  await expect(page.getByText("Synthetisches Wochenprojekt")).toBeVisible();
+  await expect(page.getByText("Geplanter Praxisblock")).toBeVisible();
+  await expect(
+    page.getByText(/Zwei feste Termine überschneiden sich/),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Fenster hinzufügen" }).click();
+  const availabilityForm = page.locator(".availability-form");
+  await availabilityForm
+    .getByLabel("Wochentag")
+    .selectOption(String(new Date(`${today}T00:00:00.000Z`).getUTCDay()));
+  await availabilityForm.getByLabel("Von").fill("09:00");
+  await availabilityForm.getByLabel("Bis").fill("10:00");
+  await availabilityForm.getByLabel("Bezeichnung").fill("Fokuszeit");
+  await availabilityForm
+    .getByRole("button", { name: "Verfügbarkeit speichern" })
+    .click();
+  await expect(
+    page.getByText(/geplante Zeit überschreitet die Verfügbarkeit/),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Agenda", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "Gemeinsame Agenda" }),
+  ).toBeVisible();
+  await page.getByLabel("Arbeit").uncheck();
+  await expect(page.getByText("Geplanter Praxisblock")).toHaveCount(0);
+  await expect(page.getByText("Synthetische Prüfung")).toBeVisible();
   expect(
     await page.evaluate(() => ({
       local: Object.keys(localStorage),
