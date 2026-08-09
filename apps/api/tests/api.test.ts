@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { Router, type Express } from "express";
@@ -214,4 +217,48 @@ test("verbirgt unerwartete Fehler und protokolliert weder Body noch Header", asy
   assert.ok(
     logger.records.some((record) => record.event === "http.request.failed"),
   );
+});
+
+test("liefert die gebaute Weboberfläche am selben lokalen Ursprung aus", async (t) => {
+  const webDistPath = await mkdtemp(path.join(os.tmpdir(), "lifeos-web-dist-"));
+  await writeFile(
+    path.join(webDistPath, "index.html"),
+    "<!doctype html><title>LifeOS Desktop</title>",
+  );
+  await writeFile(path.join(webDistPath, "app.js"), "console.info('lifeos');");
+  t.after(() => rm(webDistPath, { recursive: true, force: true }));
+
+  const application = createApplication({
+    logger: new CapturingLogger(),
+    readinessProbe: { check: async () => undefined },
+    webOrigin: "http://127.0.0.1:3000",
+    webDistPath,
+  });
+  const { server, baseUrl } = await listen(application);
+  t.after(() => close(server));
+
+  const root = await fetch(baseUrl, { headers: { accept: "text/html" } });
+  assert.equal(root.status, 200);
+  assert.match(await root.text(), /LifeOS Desktop/);
+
+  const clientRoute = await fetch(`${baseUrl}/kalender`, {
+    headers: { accept: "text/html" },
+  });
+  assert.equal(clientRoute.status, 200);
+  assert.match(await clientRoute.text(), /LifeOS Desktop/);
+
+  const asset = await fetch(`${baseUrl}/app.js`);
+  assert.equal(asset.status, 200);
+  assert.match(await asset.text(), /lifeos/);
+
+  const missingApi = await fetch(`${baseUrl}/api/v1/nicht-vorhanden`, {
+    headers: { accept: "text/html" },
+  });
+  assert.equal(missingApi.status, 404);
+  assert.match(missingApi.headers.get("content-type") ?? "", /json/);
+
+  const missingAsset = await fetch(`${baseUrl}/fehlt.js`, {
+    headers: { accept: "text/html" },
+  });
+  assert.equal(missingAsset.status, 404);
 });

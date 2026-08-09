@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Anton Life OS",
+  "version": "0.1.0",
+  "identifier": "de.anton.lifeos",
+  "build": {
+    "frontendDist": "../frontend-placeholder"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "category": "Productivity",
+    "targets": ["app"],
+    "icon": ["../../web/public/icons/lifeos-512.png"],
+    "externalBin": ["binaries/lifeos-node"],
+    "resources": {
+      "resources/": ""
+    },
+    "macOS": {
+      "minimumSystemVersion": "12.0"
+    }
+  }
+}

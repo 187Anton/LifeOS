@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, readdir } from "node:fs/promises";
+import { chmod, mkdir, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -139,22 +139,10 @@ export const migrateSqliteDatabase = async (
     if (integrity !== "ok") {
       throw new Error(`SQLite integrity_check fehlgeschlagen: ${integrity}`);
     }
+    await chmod(databasePath, 0o600);
 
     return { databasePath, appliedNow };
   } finally {
     database.close();
   }
 };
-
-const invokedAsScript = process.argv[1]
-  ? path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-  : false;
-
-if (invokedAsScript) {
-  const result = await migrateSqliteDatabase();
-  console.info(
-    result.appliedNow.length > 0
-      ? `SQLite-Migrationen angewendet: ${result.appliedNow.join(", ")}`
-      : "SQLite-Schema ist bereits aktuell.",
-  );
-}

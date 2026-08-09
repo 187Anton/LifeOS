@@ -1,7 +1,11 @@
-import { createDatabaseClient } from "@lifeos/database";
+import { createDatabaseClient, migrateSqliteDatabase } from "@lifeos/database";
 
 import { createApplication } from "./application.js";
-import { loadLocalEnvironment, parseConfig } from "./config.js";
+import {
+  loadLocalEnvironment,
+  parseConfig,
+  useSecureCookies,
+} from "./config.js";
 import { startApiServer } from "./http-server.js";
 import { JsonLogger } from "./logger.js";
 import { CalDavAuthenticationService } from "./modules/caldav/authentication.js";
@@ -40,6 +44,12 @@ const main = async (): Promise<void> => {
   loadLocalEnvironment();
   const config = parseConfig();
   const logger = new JsonLogger(config.logLevel);
+  if (config.databaseProvider === "sqlite") {
+    await migrateSqliteDatabase(
+      config.databaseUrl,
+      config.sqliteMigrationsPath,
+    );
+  }
   const database = createDatabaseClient(config.databaseUrl);
   const profileRepository = new PrismaProfileRepository(database);
   const calendarRepository = new PrismaCalendarRepository(database);
@@ -63,6 +73,7 @@ const main = async (): Promise<void> => {
     logger,
     readinessProbe: createDatabaseReadinessProbe(database),
     webOrigin: config.webOrigin,
+    ...(config.webDistPath ? { webDistPath: config.webDistPath } : {}),
     rootRouters: [
       createCalDavRouter({
         authentication: new CalDavAuthenticationService(calDavRepository),
@@ -74,7 +85,7 @@ const main = async (): Promise<void> => {
       createProfileRouter({
         authentication,
         profile: new ProfileService(profileRepository),
-        secureCookies: config.nodeEnv === "production",
+        secureCookies: useSecureCookies(config.webOrigin),
       }),
       createCalendarRouter({
         authentication,
@@ -120,7 +131,7 @@ const main = async (): Promise<void> => {
   process.once("SIGTERM", handleSignal);
 };
 
-await main().catch((error: unknown) => {
+void main().catch((error: unknown) => {
   const logger = new JsonLogger("error", process.stderr);
   const errorCode =
     error &&

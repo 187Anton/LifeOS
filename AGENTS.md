@@ -136,6 +136,15 @@ expliziter Freigabe und mit sicherer Speicherung verwendet werden.
 Der erste Betrieb erfolgt vollständig lokal:
 
 - PostgreSQL und die Anwendung laufen per Docker Compose oder lokal
+- Die verifizierte lokale Mac-App verwendet Tauri 2 als dünne native Hülle,
+  SQLite als App-Datenbank und das bestehende Express-Backend mit einer
+  gebündelten, prüfsummengeschützten offiziellen Node.js-22-Laufzeit als
+  Sidecar. Weboberfläche und API verwenden denselben dynamischen
+  `127.0.0.1`-Port; SQLite-Migrationen laufen vor der Readiness-Prüfung.
+- App-Datenverzeichnisse werden mit Modus `0700`, SQLite-Datei und lokale
+  Protokolle mit Modus `0600` angelegt. Genau ein Sidecar darf schreibend auf
+  die SQLite-Datei zugreifen und muss beim Beenden der App geordnet beendet
+  werden.
 - PostgreSQL wird in der lokalen Compose-Umgebung nur an `127.0.0.1`
   gebunden. `npm run env:check`, `npm run db:start`, `npm run db:check` und
   `npm run db:stop` sind die verbindlichen lokalen Datenbankbefehle;
@@ -467,3 +476,7 @@ gemeldet.
   neue SQLite-Datei sowie Online-Backup und Restore von Datenbank und
   Dokumenten mit Staging, SHA-256 und Integritätsvergleich nach erfolgreichem
   M4-Recovery-Nachweis festgehalten.
+- **2026-08-09:** Tauri-2-Mac-App mit gebündelter offizieller Node.js-22-
+  Laufzeit, dynamischem gemeinsamem Loopback-Ursprung, automatischen
+  SQLite-Migrationen, privaten Dateirechten und geordnetem Sidecar-Lifecycle
+  nach erfolgreichem M5-App- und Prozessnachweis festgehalten.

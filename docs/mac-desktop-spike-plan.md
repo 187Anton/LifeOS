@@ -55,7 +55,7 @@ wurde.
 | M2    | Das gebaute Express-Backend läuft ohne Docker auf SQLite.              | Anmeldung, Einstellungen, Kalender-CRUD und Neustart bestehen den unveränderten API-Vertrag. | abgeschlossen |
 | M3    | Kalender und CalDAV besitzen SQLite-Parität.                           | CRUD, Zeitzone, Ganztag, RRULE, Erinnerung, ETag-Konflikt und Sync sind geprüft.             | abgeschlossen |
 | M4    | PostgreSQL-Übernahme sowie SQLite-Backup und -Restore sind sicher.     | Automatisierter Datenvergleich und Recovery-Test erhalten alle stabilen Identitäten.         | abgeschlossen |
-| M5    | Tauri startet und beendet einen reproduzierbar gebauten Sidecar.       | Mac-App, Browser und CalDAV verwenden denselben Kern ohne Docker und globales Node.js.       | offen         |
+| M5    | Tauri startet und beendet einen reproduzierbar gebauten Sidecar.       | Mac-App, Browser und CalDAV verwenden denselben Kern ohne Docker und globales Node.js.       | abgeschlossen |
 | M6    | Installation und Update sind auf einem sauberen Mac nachgewiesen.      | DMG, Erststart, Neustart, Update, Backup und Restore sind dokumentiert erfolgreich.          | offen         |
 | M7    | Betriebs- und Produktdokumentation entsprechen dem geprüften Endstand. | Abschlussprüfung bestätigt alle Erfolgskriterien und keine offenen kritischen Gates.         | offen         |
 
@@ -414,6 +414,31 @@ Akzeptanzkriterien:
   beschädigte Datenbank;
 - separater Browserzugriff verwendet denselben API-Vertrag;
 - CalDAV ist erreichbar, solange App beziehungsweise lokaler Dienst läuft.
+
+Bestätigter Nachweis:
+
+- Tauri 2.11 baut auf macOS ARM64 eine native `Anton Life OS.app`. Tauri
+  ermittelt App-Daten-, Konfigurations- und Logpfade selbst und startet genau
+  einen Sidecar auf einem zuvor freien dynamischen Loopback-Port.
+- Der Build bindet das offizielle Node-22.23.2-Archiv ein, vergleicht dessen
+  fest gepinnte SHA-256-Prüfsumme und akzeptiert nur macOS-Systembibliotheken.
+  Der Sidecar-Test startet dasselbe Server-Bundle zweimal mit einem `PATH`
+  ohne Homebrew, prüft Weboberfläche, Readiness, CalDAV-Authentifizierungsgrenze,
+  WAL, Migrationen, Dateirechte und geordneten `SIGTERM`-Shutdown.
+- Express liefert die gebaute React-Oberfläche im Desktopbetrieb am selben
+  Ursprung wie `/api/v1` und `/caldav/`. Unbekannte API- und Assetpfade bleiben
+  echte 404-Antworten und werden nicht als Single-Page-App maskiert.
+- Die gebaute `.app` wurde tatsächlich gestartet. Das Tauri-Fenster und ein
+  separater Browser zeigten dieselbe lokale Anmeldeseite. Beim Beenden blieben
+  weder Tauri- noch Node-Prozess zurück; die SQLite-Datei blieb integer.
+- App-Verzeichnisse werden mit `0700`, Datenbank und strukturiertes lokales Log
+  mit `0600` angelegt. Startfehler und unerwartetes Sidecar-Ende erzeugen einen
+  nativen Fehlerdialog, ohne vorhandene Daten zu löschen.
+
+M5 ist noch kein Installationsrelease. Das geprüfte Bundle ist ARM64 und nur
+ad-hoc signiert. DMG, Developer-ID-Signierung, Notarisierung, sauberer Mac,
+Update, terminalfreie Ersteinrichtung, Backup-Oberfläche und physischer
+Apple-Kalender-Zugriff bleiben M6 vorbehalten.
 
 ### M6 – DMG-, Update- und Installationsnachweis
 

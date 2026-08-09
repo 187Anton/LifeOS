@@ -16,7 +16,7 @@ tatsächlich ausgeführten Prüfungen dokumentiert ist.
 | M2 – API ohne Docker              | abgeschlossen | 9. August 2026   |
 | M3 – Kalender- und CalDAV-Parität | abgeschlossen | 9. August 2026   |
 | M4 – Datenübernahme und Recovery  | abgeschlossen | 9. August 2026   |
-| M5 – Tauri-Sidecar                | offen         | –                |
+| M5 – Tauri-Sidecar                | abgeschlossen | 9. August 2026   |
 | M6 – Installation und Update      | offen         | –                |
 | M7 – Abschlussdokumentation       | offen         | –                |
 
@@ -225,3 +225,58 @@ formuliert werden.
 - **Nächster Schritt:** M5 bündelt Weboberfläche und gebautes Express-Backend
   als Tauri-Sidecar, übergibt die App-Datenpfade und prüft Start, Readiness,
   Browserzugriff sowie geordnetes Beenden ohne globales Node.js.
+
+## 9. August 2026 – M5: Tauri-App mit gebündeltem Sidecar
+
+- **Befund:** Die bestehende Weboberfläche und API waren einzeln lokal
+  lauffähig, aber noch keine installierbare Anwendung. Ein Tauri-Prozess muss
+  einen freien Loopback-Port wählen, private App-Pfade übergeben, den
+  API-Prozess überwachen und erst nach erfolgreicher Readiness die Oberfläche
+  öffnen. Ein auf dem Entwicklungsrechner vorhandenes Node.js darf dabei keine
+  versteckte Laufzeitvoraussetzung sein.
+- **Ursache oder Entscheidung:** Tauri 2 bleibt eine dünne native Hülle. Es
+  startet das gebaute Express-Backend mit einer fest versionierten offiziellen
+  Node.js-22-Laufzeit als Sidecar. Express liefert die gebaute React-App und
+  `/api/v1` über denselben dynamischen `127.0.0.1`-Port aus; dadurch gilt auch
+  für das Sitzungs-Cookie dieselbe Herkunft. SQLite-Migrationen laufen vor dem
+  Serverstart automatisch.
+- **Änderungsumfang:** Neue Desktop-Workspace-App, Rust-Lifecycle für freien
+  Port, Readiness, Startfehler, Protokoll und geordnetes Beenden; reproduzierbar
+  vorbereitete ARM64-Sidecars mit SHA-256-Prüfung und Prüfung der dynamischen
+  Systembibliotheken; gebündelte Web-, API- und Migrationsressourcen;
+  Desktop-Build und automatisierter Sidecar-Prüflauf. Die API kann ihre
+  Web-Assets optional selbst ausliefern und unterscheidet sichere Cookies nach
+  der tatsächlichen HTTPS-Herkunft.
+- **Verifikation:** Die ARM64-`.app` wurde gebaut und außerhalb des Terminals
+  gestartet. Sie zeigte die echte LifeOS-Anmeldung, meldete API-Readiness und
+  verwendete eine automatisch migrierte SQLite-Datei. Der automatisierte
+  Prüflauf startete den gebündelten Server zweimal ohne Homebrew-Node im
+  Suchpfad, prüfte Webzugriff, Readiness, CalDAV-Authentifizierungsgrenze, WAL,
+  Migrationen, Integrität und private Dateirechte. Beim Beenden protokollierte
+  die API `server.shutdown.completed`; danach blieb kein Desktop- oder
+  Sidecar-Prozess zurück. Rusts drei Lifecycle-Tests, sämtliche 46 API- und
+  CalDAV-Fälle auf SQLite und PostgreSQL, neun Datenbanktests, 26 Web-Unit- und
+  16 Browser-E2E-Tests sowie Typprüfung, Linting, Build, Repository- und
+  Secret-Prüfung bestanden.
+- **Datenvergleich:** Beide Sidecar-Starts verwendeten dieselbe SQLite-Datei
+  und denselben Migrationsstand. WAL, Fremdschlüssel- und Integritätsprüfung
+  blieben gültig. Der Lauf erzeugte ausschließlich leere synthetische
+  App-Daten; persönliche Bestandsdaten wurden nicht importiert oder verändert.
+- **Risiken und Grenzen:** Die erzeugte App ist nur ad-hoc signiert. Developer
+  ID, Apple-Notarisierung, DMG, terminalfreie Ersteinrichtung, Update und
+  Rollback sowie ein Test auf einem sauberen unterstützten Mac sind M6-Gates.
+  Der aktuelle Desktop-Prototyp bindet absichtlich nur an Loopback; ein
+  physischer Apple-Kalender-Test über LAN ist daher weiterhin offen. Das
+  Desktop-Paket unterstützt aktuell die verifizierte ARM64-Zielarchitektur;
+  der vorbereitete x64-Prüfsummenpfad ist noch nicht auf Intel gebaut.
+  `npm audit --omit=dev` meldet sechs bekannte Advisorys (fünf moderat, eines
+  hoch) ausschließlich über die im Arbeitsbereich installierten Prisma-CLI-
+  und PWA-Buildketten; diese Pakete werden nicht als Abhängigkeiten neben der
+  gebündelten Produktions-App ausgeliefert. Abhängigkeitsupdates bleiben ein
+  eigenes Sicherheitsarbeitspaket und dürfen nicht mit `npm audit fix`
+  ungeprüft in diese Migration gezogen werden.
+- **Nächster Schritt:** M6 erzeugt und prüft ein DMG, ergänzt die
+  terminalfreie Ersteinrichtung und dokumentiert Signatur-, Notarisierungs-,
+  Update- und Rollback-Gates. Nicht verfügbare Apple-Zertifikate oder ein
+  fehlender sauberer Test-Mac werden als externe Blocker ausgewiesen und nicht
+  als bestanden behauptet.

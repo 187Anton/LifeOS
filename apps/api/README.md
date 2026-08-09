@@ -35,6 +35,27 @@ API-/Sidecar-Prozess. Der automatisierte ETag-Konkurrenztest bestätigt, dass
 von zwei gleichzeitig gestarteten Änderungen mit demselben alten ETag nur eine
 gewinnt und die andere keine Synchronisationsversion verbraucht.
 
+## Gebündelter Mac-App-Betrieb
+
+Die Tauri-App startet die gebaute API mit einer fest gebündelten
+Node.js-22-Laufzeit. Sie übergibt absolute Pfade für SQLite, Migrationen,
+Web-Assets und Dokumente. Vor dem Öffnen der Oberfläche wendet die API alle
+noch fehlenden SQLite-Migrationen an und besteht ihre Readiness-Prüfung.
+
+Im Desktop-Betrieb liefert Express die gebaute React-Oberfläche und die API
+über denselben dynamisch gewählten `127.0.0.1`-Port aus. Das Sitzungs-Cookie
+bleibt `HttpOnly`, `SameSite=Strict` und auf HTTPS-Herkünften zusätzlich
+`Secure`; für den ausschließlich lokalen HTTP-Loopback der App wird `Secure`
+nicht gesetzt, weil der Browser das Cookie sonst nicht zurücksenden würde.
+Persönliche Antworten werden dadurch weiterhin weder in Web Storage noch im
+Service-Worker-Cache persistiert.
+
+Die Desktop-Vorbereitung und der geprüfte Sidecar-Start sind über
+`npm run desktop:prepare` und `npm run desktop:verify:sidecar` reproduzierbar.
+Details zu Laufzeitprüfsummen, App-Pfaden und noch offenen Distributions-Gates
+stehen in [`apps/desktop/README.md`](../desktop/README.md) und im
+[`Migrationsprotokoll`](../../docs/mac-desktop-migration-log.md).
+
 Die API bindet standardmäßig nur an `127.0.0.1:3000`. Ein Start mit fehlender
 oder ungültiger Konfiguration endet verständlich und ohne Ausgabe von
 Konfigurationswerten.

@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ConfigurationError, parseConfig } from "../src/config.js";
+import {
+  ConfigurationError,
+  parseConfig,
+  useSecureCookies,
+} from "../src/config.js";
 
 const validEnvironment = {
   NODE_ENV: "test",
@@ -38,6 +42,43 @@ test("akzeptiert eine absolute lokale SQLite-Datei", () => {
 
   assert.equal(config.databaseProvider, "sqlite");
   assert.equal(config.databaseUrl, databaseUrl);
+});
+
+test("akzeptiert absolute Ressourcenpfade der Desktop-App", () => {
+  const config = parseConfig({
+    ...validEnvironment,
+    WEB_DIST_PATH: "/Applications/LifeOS.app/Contents/Resources/web",
+    SQLITE_MIGRATIONS_PATH:
+      "/Applications/LifeOS.app/Contents/Resources/sqlite-migrations",
+  });
+
+  assert.equal(
+    config.webDistPath,
+    "/Applications/LifeOS.app/Contents/Resources/web",
+  );
+  assert.equal(
+    config.sqliteMigrationsPath,
+    "/Applications/LifeOS.app/Contents/Resources/sqlite-migrations",
+  );
+});
+
+test("weist relative Desktop-Ressourcenpfade zurück", () => {
+  assert.throws(
+    () =>
+      parseConfig({
+        ...validEnvironment,
+        WEB_DIST_PATH: "apps/web/dist",
+        SQLITE_MIGRATIONS_PATH: "packages/database/prisma/sqlite/migrations",
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof ConfigurationError);
+      assert.deepEqual(error.fields, [
+        "SQLITE_MIGRATIONS_PATH",
+        "WEB_DIST_PATH",
+      ]);
+      return true;
+    },
+  );
 });
 
 test("weist relative SQLite-Pfade zurück", () => {
@@ -85,4 +126,9 @@ test("weist ungültige Ports und Origins verständlich zurück", () => {
       return true;
     },
   );
+});
+
+test("setzt sichere Cookies nur an einem HTTPS-Ursprung", () => {
+  assert.equal(useSecureCookies("http://127.0.0.1:3000"), false);
+  assert.equal(useSecureCookies("https://lifeos.example.test"), true);
 });

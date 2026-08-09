@@ -132,10 +132,11 @@ gemeinsame React-Weboberfläche, den separaten Browserbetrieb oder den
 vorhandenen API-/CalDAV-Kern aufzugeben. Dieses Querschnittsziel hat vor den
 noch nicht begonnenen Produktphasen 0.4 und 0.5 Priorität.
 
-Der aktuelle Stand umfasst die abgeschlossenen Pakete M0 bis M2: Planung,
-vollständiges SQLite-Schema sowie die gebaute Express-API ohne Docker sind
-automatisiert nachgewiesen. Ein fertiger Mac-Installationsweg ist das noch
-nicht. Die detaillierte Bestandsaufnahme, Entscheidungen, Risiken und
+Der aktuelle Stand umfasst die abgeschlossenen Pakete M0 bis M5: Planung,
+vollständiges SQLite-Schema, API-/CalDAV-Parität, Import und Recovery sowie
+eine gebaute und gestartete Tauri-`.app` für macOS ARM64 sind nachgewiesen. Ein
+freigegebener Mac-Installations- und Updateweg ist das noch nicht. Die
+detaillierte Bestandsaufnahme, Entscheidungen, Risiken und
 Akzeptanzkriterien stehen in
 [`docs/mac-desktop-spike-plan.md`](mac-desktop-spike-plan.md). Der Fortschritt
 und die tatsächlich ausgeführten Nachweise werden fortlaufend in
@@ -176,6 +177,12 @@ Zeitzonen, Ganztagsgrenzen und Dokumente; ein veralteter ETag überschreibt kein
 neueren Daten.
 
 ### D3 Tauri- und Sidecar-Prototyp
+
+Dieser Prototyp ist mit M5 auf macOS ARM64 abgeschlossen. Die App bündelt eine
+per SHA-256 geprüfte offizielle Node-22-Laufzeit, wartet vor dem Fensterstart
+auf die SQLite-Readiness und verwendet für Web, API und CalDAV denselben
+dynamischen Loopback-Ursprung. Daten, Dokumente, Backups und Logs liegen in den
+anwendungsspezifischen macOS-Verzeichnissen mit privaten Dateirechten.
 
 - Tauri 2 als Mac-Hülle für dieselbe gebaute React-Oberfläche anlegen.
 - Das vorhandene Node-/Express-Backend als reproduzierbaren Sidecar paketieren,

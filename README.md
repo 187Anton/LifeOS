@@ -284,6 +284,8 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 | SQLite-Migrationsgate prüfen                  | `npm run db:sqlite:test`            |
 | Vollständige API auf SQLite prüfen            | `npm run test:sqlite:api`           |
 | Gebaute SQLite-API mit Neustart prüfen        | `npm run verify:sqlite:api-runtime` |
+| Gebündelten Mac-Sidecar prüfen                | `npm run desktop:verify:sidecar`    |
+| Native Mac-App lokal bauen                    | `npm run desktop:build:app`         |
 | PostgreSQL vollständig nach SQLite übertragen | `npm run db:sqlite:import`          |
 | SQLite und Dokumente sichern                  | `npm run db:sqlite:backup -- …`     |
 | SQLite-Backup in neue Ziele restaurieren      | `npm run db:sqlite:restore -- …`    |
@@ -309,9 +311,13 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 Die SQLite-Befehle bilden alle vorhandenen Fachmodelle ab. Die gebaute API
 läuft damit ohne Docker und behält synthetische Daten nach einem Neustart. M3
 und M4 weisen Kalender-/CalDAV-Parität, vollständigen PostgreSQL-Import sowie
-Backup und Restore von SQLite und Dokumenten nach. Das ist noch keine
-installierte Mac-App: Sidecar, DMG und Update folgen in den weiteren
-Migrationspaketen. Details, Datenregeln und Grenzen stehen in
+Backup und Restore von SQLite und Dokumenten nach. M5 ergänzt eine tatsächlich
+gebaute und gestartete Tauri-`.app` für macOS ARM64 mit gebündeltem Node-
+Sidecar; zur Laufzeit sind weder Docker noch ein globales Node.js nötig. Das
+ist noch kein freigegebenes Installationspaket: DMG, Developer-ID-Signierung,
+Notarisierung, Update, terminalfreie Ersteinrichtung und sauberer Mac-Test sind
+M6-Gates. Buildweg, App-Pfade und Grenzen stehen in
+[`apps/desktop/README.md`](apps/desktop/README.md). Weitere Datenregeln stehen in
 [`packages/database/README.md`](packages/database/README.md) und im
 [`Migrationsprotokoll`](docs/mac-desktop-migration-log.md).
 

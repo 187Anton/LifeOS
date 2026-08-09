@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import express, { type Express, type Router } from "express";
 
 import type { Logger } from "./logger.js";
@@ -10,6 +12,7 @@ interface ApplicationDependencies {
   logger: Logger;
   readinessProbe: ReadinessProbe;
   webOrigin: string;
+  webDistPath?: string | undefined;
   moduleRouters?: Router[];
   rootRouters?: Router[];
 }
@@ -18,6 +21,7 @@ export const createApplication = ({
   logger,
   readinessProbe,
   webOrigin,
+  webDistPath,
   moduleRouters = [],
   rootRouters = [],
 }: ApplicationDependencies): Express => {
@@ -54,6 +58,30 @@ export const createApplication = ({
 
   for (const router of moduleRouters) {
     application.use("/api/v1", router);
+  }
+
+  if (webDistPath) {
+    application.use(
+      express.static(webDistPath, {
+        dotfiles: "deny",
+        fallthrough: true,
+        index: false,
+      }),
+    );
+    application.get(/.*/, (request, response, next) => {
+      if (
+        request.path.startsWith("/api/") ||
+        request.path.startsWith("/caldav/") ||
+        path.extname(request.path) !== "" ||
+        !request.accepts("html")
+      ) {
+        next();
+        return;
+      }
+      response.sendFile(path.join(webDistPath, "index.html"), (error) => {
+        if (error) next(error);
+      });
+    });
   }
 
   application.use(notFoundHandler);

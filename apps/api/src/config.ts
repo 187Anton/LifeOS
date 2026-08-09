@@ -31,6 +31,24 @@ const environmentSchema = z.strictObject({
   API_PORT: z.coerce.number().int().min(1).max(65_535),
   DATABASE_URL: z.union([postgresUrl, sqliteUrl]),
   WEB_ORIGIN: z.url(),
+  WEB_DIST_PATH: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .refine(
+      (value) => value === undefined || path.isAbsolute(value),
+      "muss ein absoluter Verzeichnispfad sein",
+    ),
+  SQLITE_MIGRATIONS_PATH: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .refine(
+      (value) => value === undefined || path.isAbsolute(value),
+      "muss ein absoluter Verzeichnispfad sein",
+    ),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   SHUTDOWN_TIMEOUT_MS: z.coerce
     .number()
@@ -48,6 +66,8 @@ export interface ApiConfig {
   databaseProvider: "postgresql" | "sqlite";
   databaseUrl: string;
   webOrigin: string;
+  webDistPath?: string;
+  sqliteMigrationsPath?: string;
   logLevel: "debug" | "info" | "warn" | "error";
   shutdownTimeoutMs: number;
   sessionTtlHours: number;
@@ -68,6 +88,9 @@ export const loadLocalEnvironment = (): void => {
   });
 };
 
+export const useSecureCookies = (webOrigin: string): boolean =>
+  new URL(webOrigin).protocol === "https:";
+
 export const parseConfig = (
   environment: NodeJS.ProcessEnv = process.env,
 ): ApiConfig => {
@@ -77,6 +100,8 @@ export const parseConfig = (
     API_PORT: environment.API_PORT,
     DATABASE_URL: environment.DATABASE_URL,
     WEB_ORIGIN: environment.WEB_ORIGIN,
+    WEB_DIST_PATH: environment.WEB_DIST_PATH,
+    SQLITE_MIGRATIONS_PATH: environment.SQLITE_MIGRATIONS_PATH,
     LOG_LEVEL: environment.LOG_LEVEL,
     SHUTDOWN_TIMEOUT_MS: environment.SHUTDOWN_TIMEOUT_MS,
     SESSION_TTL_HOURS: environment.SESSION_TTL_HOURS,
@@ -102,6 +127,12 @@ export const parseConfig = (
       : "postgresql",
     databaseUrl: result.data.DATABASE_URL,
     webOrigin: result.data.WEB_ORIGIN,
+    ...(result.data.WEB_DIST_PATH
+      ? { webDistPath: result.data.WEB_DIST_PATH }
+      : {}),
+    ...(result.data.SQLITE_MIGRATIONS_PATH
+      ? { sqliteMigrationsPath: result.data.SQLITE_MIGRATIONS_PATH }
+      : {}),
     logLevel: result.data.LOG_LEVEL,
     shutdownTimeoutMs: result.data.SHUTDOWN_TIMEOUT_MS,
     sessionTtlHours: result.data.SESSION_TTL_HOURS,
