@@ -66,6 +66,21 @@ export interface SessionResponse {
   expiresAt: string;
 }
 
+export interface SetupStatusResponse {
+  required: boolean;
+}
+
+export interface CompleteSetupRequest {
+  displayName: string;
+  password: string;
+  calDavPassword: string;
+  timezone: string;
+}
+
+export interface CompleteSetupResponse {
+  status: "configured";
+}
+
 export interface CalendarResponse {
   id: string;
   name: string;

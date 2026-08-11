@@ -32,6 +32,7 @@ import { api, ApiClientError, type EventPayload } from "./api";
 import { CalendarWorkspace } from "./components/CalendarWorkspace";
 import { Dashboard } from "./components/Dashboard";
 import { Login } from "./components/Login";
+import { Setup, type SetupPayload } from "./components/Setup";
 import { Shell, type View } from "./components/Shell";
 import { TaskWorkspace } from "./components/TaskWorkspace";
 import { StudyWorkspace } from "./components/StudyWorkspace";
@@ -51,6 +52,7 @@ const errorMessage = (error: unknown): string => {
 
 export const App = () => {
   const [session, setSession] = useState<SessionState>("checking");
+  const [setupRequired, setSetupRequired] = useState(false);
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [calendars, setCalendars] = useState<CalendarResponse[]>([]);
   const [selectedCalendarId, setSelectedCalendarId] = useState<string | null>(
@@ -77,6 +79,8 @@ export const App = () => {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [setupPending, setSetupPending] = useState(false);
+  const [setupError, setSetupError] = useState<string | null>(null);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [calendarWarning, setCalendarWarning] = useState<string | null>(null);
   const [taskError, setTaskError] = useState<string | null>(null);
@@ -223,15 +227,39 @@ export const App = () => {
   }, [loadDashboard, loadEvents, loadPlanning, loadStudy, loadWork]);
 
   useEffect(() => {
-    // Der initiale API-Aufruf synchronisiert React mit der lokalen Sitzung.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadAuthenticatedData().catch((error: unknown) => {
-      setSession("anonymous");
-      if (!(error instanceof ApiClientError && error.status === 401)) {
-        setLoginError(errorMessage(error));
-      }
-    });
+    // Der initiale API-Aufruf klärt zuerst die einmalige lokale Einrichtung.
+    void api
+      .getSetupStatus()
+      .then(async ({ required }) => {
+        if (required) {
+          setSetupRequired(true);
+          setSession("anonymous");
+          return;
+        }
+        await loadAuthenticatedData();
+      })
+      .catch((error: unknown) => {
+        setSession("anonymous");
+        if (!(error instanceof ApiClientError && error.status === 401)) {
+          setLoginError(errorMessage(error));
+        }
+      });
   }, [loadAuthenticatedData]);
+
+  const completeSetup = async (payload: SetupPayload) => {
+    setSetupPending(true);
+    setSetupError(null);
+    try {
+      await api.completeSetup(payload);
+      await api.createSession(payload.password);
+      setSetupRequired(false);
+      await loadAuthenticatedData();
+    } catch (error) {
+      setSetupError(errorMessage(error));
+    } finally {
+      setSetupPending(false);
+    }
+  };
 
   const login = async (password: string) => {
     setLoginPending(true);
@@ -533,6 +561,16 @@ export const App = () => {
         <span className="spinner" />
         <p>Life OS wird lokal verbunden …</p>
       </main>
+    );
+  }
+
+  if (setupRequired) {
+    return (
+      <Setup
+        error={setupError}
+        pending={setupPending}
+        onSetup={completeSetup}
+      />
     );
   }
 

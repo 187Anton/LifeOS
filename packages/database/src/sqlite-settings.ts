@@ -1,0 +1,1 @@
+export const SQLITE_BUSY_TIMEOUT_MS = 5_000;

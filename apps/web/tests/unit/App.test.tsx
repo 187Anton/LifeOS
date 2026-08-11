@@ -89,6 +89,7 @@ const installApi = ({
   links = [],
   deleteEventConflict = false,
   dashboardError = false,
+  setupRequired = false,
 }: {
   calendars?: (typeof calendar)[];
   events?: (typeof event)[];
@@ -106,6 +107,7 @@ const installApi = ({
   }>;
   deleteEventConflict?: boolean;
   dashboardError?: boolean;
+  setupRequired?: boolean;
 } = {}) => {
   const eventState = events.map((item) => ({ ...item }));
   const taskState = tasks.map((item) => ({ ...item }));
@@ -124,6 +126,7 @@ const installApi = ({
   };
   const availabilityState: Record<string, unknown>[] = [];
   let conflictReturned = false;
+  let setupIsRequired = setupRequired;
   const fetchMock = vi.fn(
     (request: string | URL | Request, init?: RequestInit) => {
       const path =
@@ -133,6 +136,20 @@ const installApi = ({
             ? request.href
             : request.url;
       const method = init?.method ?? "GET";
+      if (path === "/api/v1/setup" && method === "GET")
+        return json({ required: setupIsRequired });
+      if (path === "/api/v1/setup" && method === "POST") {
+        setupIsRequired = false;
+        return json({ status: "configured" }, 201);
+      }
+      if (path === "/api/v1/session" && method === "POST")
+        return json(
+          {
+            status: "authenticated",
+            expiresAt: "2032-01-01T00:00:00.000Z",
+          },
+          201,
+        );
       if (path === "/api/v1/profile") return json(profile);
       if (path.startsWith("/api/v1/study") && method === "GET")
         return json(studyState);
@@ -541,6 +558,82 @@ describe("LifeOS-Weboberfläche", () => {
     expect(
       screen.getByRole("button", { name: "Ruhiger Fokusblock bearbeiten" }),
     ).toBeVisible();
+  });
+
+  it("richtet den ersten lokalen App-Start ohne Terminal ein", async () => {
+    const { fetchMock } = installApi({ setupRequired: true });
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Lokal einrichten" }),
+    ).toBeVisible();
+    await user.type(screen.getByLabelText("Anzeigename"), "Anton Lokal");
+    await user.type(
+      screen.getByLabelText("App-Passwort"),
+      "synthetic-app-password-2032",
+    );
+    await user.type(
+      screen.getByLabelText("App-Passwort wiederholen"),
+      "synthetic-app-password-2032",
+    );
+    await user.type(
+      screen.getByLabelText("CalDAV-Passwort"),
+      "synthetic-caldav-password-2032",
+    );
+    await user.type(
+      screen.getByLabelText("CalDAV-Passwort wiederholen"),
+      "synthetic-caldav-password-2032",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Life OS einrichten" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: /Guten Tag, Anton/ }),
+    ).toBeVisible();
+    const setupRequest = fetchMock.mock.calls.find(
+      ([path, init]) => path === "/api/v1/setup" && init?.method === "POST",
+    );
+    expect(setupRequest).toBeDefined();
+    expect(requestBody(setupRequest?.[1])).toMatchObject({
+      displayName: "Anton Lokal",
+      password: "synthetic-app-password-2032",
+      calDavPassword: "synthetic-caldav-password-2032",
+    });
+  });
+
+  it("zeigt nach abgeschlossener Einrichtung die Anmeldung ohne Fehler", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: string | URL | Request) => {
+        const path =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url;
+        if (path === "/api/v1/setup") {
+          return json({ required: false });
+        }
+        return json(
+          {
+            error: {
+              code: "UNAUTHORIZED",
+              message: "Eine lokale Anmeldung ist erforderlich.",
+            },
+          },
+          401,
+        );
+      }),
+    );
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Lokal anmelden" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("öffnet über Dashboard-Schnellaktionen die vorhandenen Erstellformulare", async () => {

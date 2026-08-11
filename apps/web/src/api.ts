@@ -9,6 +9,9 @@ import type {
   CreateStudyModuleRequest,
   CreateStudyProgramRequest,
   ProfileResponse,
+  CompleteSetupRequest,
+  CompleteSetupResponse,
+  SetupStatusResponse,
   SessionResponse,
   TaskResponse,
   TaskEventLinkResponse,
@@ -97,6 +100,17 @@ const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
 };
 
 export const api = {
+  getSetupStatus() {
+    return request<SetupStatusResponse>("/setup");
+  },
+
+  completeSetup(payload: CompleteSetupRequest) {
+    return request<CompleteSetupResponse>("/setup", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
   createSession(password: string) {
     return request<SessionResponse>("/session", {
       method: "POST",

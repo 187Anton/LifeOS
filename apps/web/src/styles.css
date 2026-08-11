@@ -791,6 +791,20 @@ h3 {
   display: grid;
   gap: 0.75rem;
 }
+
+.setup-panel {
+  align-self: center;
+}
+
+.setup-panel form {
+  gap: 0.65rem;
+}
+
+.setup-panel .field-hint {
+  margin: -0.35rem 0 0.2rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
 .login-panel label,
 .field label {
   font-size: 0.86rem;

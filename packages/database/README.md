@@ -1,8 +1,10 @@
 # Datenbank
 
-Dieses Workspace-Paket enthält das Prisma-7-Schema, versionierte PostgreSQL-
-Migrationen, den zentralen Prisma-Client und ausschließlich synthetische
-Entwicklungsdaten.
+Dieses Workspace-Paket enthält das produktive Prisma-7-PostgreSQL-Schema, die
+zugehörigen versionierten Migrationen, den zentralen Prisma-Client und
+ausschließlich synthetische Entwicklungsdaten. Zusätzlich gibt es einen klar
+getrennten vollständigen SQLite-Schema- und Migrationspfad für die
+Mac-App-Migration.
 
 ## Datenmodell des Fundaments
 
@@ -105,6 +107,106 @@ setzt ihn aus der temporären Variable `LIFEOS_CALDAV_PASSWORD`;
 
 Der Seed muss ausdrücklich ausgeführt werden. Prisma 7 startet ihn nicht mehr
 automatisch zusammen mit einer Migration.
+
+## SQLite-Migrations- und API-Pfad
+
+Seit M2 bildet SQLite alle vorhandenen Fachmodelle ab. Eine absolute `file:`-URL
+in `DATABASE_URL` wählt den SQLite-Client; eine PostgreSQL-URL behält den
+bisherigen Adapter. PostgreSQL-Schema und vorhandene Migrationen bleiben
+unverändert.
+
+Eine isolierte SQLite-Datei wird so geprüft:
+
+```bash
+export SQLITE_DATABASE_URL="file:/absoluter/pfad/lifeos.sqlite"
+npm run db:sqlite:validate
+npm run db:sqlite:generate
+npm run db:sqlite:migrate
+npm run db:sqlite:seed
+npm run db:sqlite:test
+npm run test:sqlite:api
+npm run verify:sqlite:api-runtime
+unset SQLITE_DATABASE_URL
+```
+
+Ohne gesetzte Variable verwenden die lokalen Befehle die ignorierte Datei
+`data/sqlite-development.sqlite`. Tests erzeugen immer eigene temporäre
+Dateien. Der Seed liest ausschließlich den versionierten synthetischen Export
+unter `prisma/sqlite/fixtures/` und ist wiederholbar.
+
+Für SQLite gelten im bestätigten M2-Umfang:
+
+- reine Kalendertage werden als kanonische `YYYY-MM-DD`-Strings gespeichert;
+- absolute Zeitpunkte verwendet der Prisma-Adapter als ISO-8601-UTC-Werte,
+  während die fachliche IANA-Zeitzone separat bleibt;
+- Erinnerungslisten liegen als valides JSON vor und werden durch Constraint und
+  Trigger auf höchstens zehn Werte zwischen 0 und 10080 Minuten begrenzt;
+- Besitzgrenzen, genau ein aktiver Primärkalender sowie Zeitform, Sequenz und
+  Sync-Version werden zusätzlich in SQLite erzwungen;
+- jede SQL-Datei liegt in einem versionierten Migrationsverzeichnis. Der lokale
+  Runner speichert eine SHA-256-Prüfsumme und lehnt nachträglich veränderte,
+  bereits angewendete Migrationen ab.
+- reine Datumsfelder werden nur an der zentralen Datenbankgrenze zwischen
+  `Date` und `YYYY-MM-DD` umgewandelt; `/api/v1` bleibt unverändert;
+- schützende Referenzen verwenden in SQLite aufgeschobenes `NO ACTION`, damit
+  eine atomare Besitzerlöschung alle eigenen Datensätze entfernen kann, eine
+  isolierte Löschung referenzierter Fachdaten aber weiterhin scheitert;
+- `test:sqlite:api` öffnet bewusst nur seriell schreibende Test-Clients. Der
+  vorgesehene Desktopbetrieb erlaubt ebenfalls nur einen schreibenden Sidecar.
+- Der Migrationslauf schaltet die Datei persistent auf WAL; jede
+  Anwendungsverbindung wartet bei einer belegten Schreibsperre höchstens 5000
+  Millisekunden. Die SQLite-Migrationstests lesen beide Werte aus einer neuen
+  Verbindung zurück.
+
+Prisma 7.8 validiert und generiert den getrennten SQLite-Client. Ein
+reproduzierter Schema-Engine-Fehler verhindert in der geprüften lokalen
+Umgebung jedoch selbst bei einem Minimalmodell `prisma migrate deploy` für
+SQLite. Deshalb wendet `db:sqlite:migrate` die geprüften SQL-Dateien mit
+`better-sqlite3` transaktional an und führt danach `foreign_key_check` sowie
+`integrity_check` aus. `prisma db push` bleibt ausdrücklich ausgeschlossen.
+
+## PostgreSQL-Import und SQLite-Recovery
+
+Der M4-Import benötigt eine PostgreSQL-Quelle in `DATABASE_URL` und eine noch
+nicht vorhandene absolute SQLite-Zieldatei in `SQLITE_DATABASE_URL`:
+
+```bash
+export DATABASE_URL="postgresql://…"
+export SQLITE_DATABASE_URL="file:/absoluter/neuer/pfad/lifeos.sqlite"
+npm run db:sqlite:import
+```
+
+Der Import liest PostgreSQL in einer schreibgeschützten konsistenten
+Transaktion, überträgt alle 19 Modelle in eine Stagingdatei und veröffentlicht
+das Ziel erst nach vollständigem Feld-, Fremdschlüssel- und
+Integritätsvergleich. Ein vorhandenes Ziel wird nie überschrieben. Für den
+echten Umzug soll der bisherige schreibende Betrieb pausiert werden; ändert
+sich die Quelle während des Laufs, wird das Ziel nicht veröffentlicht.
+
+Backup und Restore umfassen SQLite und das lokale Dokumentverzeichnis:
+
+```bash
+export SQLITE_DATABASE_URL="file:/absoluter/pfad/lifeos.sqlite"
+export STORAGE_PATH="/absoluter/pfad/documents"
+npm run db:sqlite:backup -- /absoluter/neuer/pfad/backup-20320809
+
+export SQLITE_DATABASE_URL="file:/absoluter/neuer/pfad/restored.sqlite"
+export STORAGE_PATH="/absoluter/neuer/pfad/restored-documents"
+npm run db:sqlite:restore -- /absoluter/pfad/backup-20320809
+```
+
+Das Backup nutzt die SQLite Online Backup API und enthält `manifest.json`,
+dessen Prüfsumme, die Datenbank sowie Dokumente mit einzelnen SHA-256-Werten.
+Restore akzeptiert nur neue Ziele, prüft alle Dateien, wendet Migrationen auf
+eine Stagingkopie an und veröffentlicht erst danach. Symbolische Links und
+unsichere Dokumentpfade werden abgelehnt. Backups sind nicht verschlüsselt und
+müssen wie persönliche Daten vertraulich behandelt werden.
+
+Der isolierte Gesamtnachweis lautet:
+
+```bash
+npm run db:sqlite:verify:recovery
+```
 
 ## Neue Schemaänderung entwickeln
 

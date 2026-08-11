@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { DatabaseClient } from "@lifeos/database";
 import type { TaskEventLinkResponse } from "@lifeos/contracts";
 
@@ -131,17 +133,17 @@ export class PrismaTaskEventLinkRepository implements TaskEventLinkRepository {
         taskId: task.id,
         calendarEventId: calendarEvent.id,
       };
-      const insertion = await transaction.taskEventLink.createMany({
-        data: linkIdentity,
-        skipDuplicates: true,
-      });
-      const link = await transaction.taskEventLink.findUniqueOrThrow({
+      const candidateId = randomUUID();
+      const link = await transaction.taskEventLink.upsert({
         where: {
           userId_taskId_calendarEventId: linkIdentity,
         },
+        create: { id: candidateId, ...linkIdentity },
+        update: {},
         include: linkInclude,
       });
-      if (insertion.count === 1) {
+      const created = link.id === candidateId;
+      if (created) {
         await transaction.auditEvent.create({
           data: {
             userId,
@@ -158,7 +160,7 @@ export class PrismaTaskEventLinkRepository implements TaskEventLinkRepository {
       }
       return {
         link: mapLink(link as LinkRecord),
-        created: insertion.count === 1,
+        created,
       };
     });
   }

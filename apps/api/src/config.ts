@@ -13,14 +13,42 @@ const postgresUrl = z
     "muss eine PostgreSQL-Verbindungs-URL sein",
   );
 
+const sqliteUrl = z
+  .string()
+  .trim()
+  .min(1)
+  .refine((value) => value.startsWith("file:"), "muss mit file: beginnen")
+  .refine((value) => {
+    const filePath = decodeURIComponent(value.slice("file:".length));
+    return path.isAbsolute(filePath);
+  }, "muss einen absoluten SQLite-Dateipfad enthalten");
+
 const environmentSchema = z.strictObject({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
   API_HOST: z.string().trim().min(1).default("127.0.0.1"),
   API_PORT: z.coerce.number().int().min(1).max(65_535),
-  DATABASE_URL: postgresUrl,
+  DATABASE_URL: z.union([postgresUrl, sqliteUrl]),
   WEB_ORIGIN: z.url(),
+  WEB_DIST_PATH: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .refine(
+      (value) => value === undefined || path.isAbsolute(value),
+      "muss ein absoluter Verzeichnispfad sein",
+    ),
+  SQLITE_MIGRATIONS_PATH: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .refine(
+      (value) => value === undefined || path.isAbsolute(value),
+      "muss ein absoluter Verzeichnispfad sein",
+    ),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   SHUTDOWN_TIMEOUT_MS: z.coerce
     .number()
@@ -35,8 +63,11 @@ export interface ApiConfig {
   nodeEnv: "development" | "test" | "production";
   host: string;
   port: number;
+  databaseProvider: "postgresql" | "sqlite";
   databaseUrl: string;
   webOrigin: string;
+  webDistPath?: string;
+  sqliteMigrationsPath?: string;
   logLevel: "debug" | "info" | "warn" | "error";
   shutdownTimeoutMs: number;
   sessionTtlHours: number;
@@ -57,6 +88,9 @@ export const loadLocalEnvironment = (): void => {
   });
 };
 
+export const useSecureCookies = (webOrigin: string): boolean =>
+  new URL(webOrigin).protocol === "https:";
+
 export const parseConfig = (
   environment: NodeJS.ProcessEnv = process.env,
 ): ApiConfig => {
@@ -66,6 +100,8 @@ export const parseConfig = (
     API_PORT: environment.API_PORT,
     DATABASE_URL: environment.DATABASE_URL,
     WEB_ORIGIN: environment.WEB_ORIGIN,
+    WEB_DIST_PATH: environment.WEB_DIST_PATH,
+    SQLITE_MIGRATIONS_PATH: environment.SQLITE_MIGRATIONS_PATH,
     LOG_LEVEL: environment.LOG_LEVEL,
     SHUTDOWN_TIMEOUT_MS: environment.SHUTDOWN_TIMEOUT_MS,
     SESSION_TTL_HOURS: environment.SESSION_TTL_HOURS,
@@ -86,8 +122,17 @@ export const parseConfig = (
     nodeEnv: result.data.NODE_ENV,
     host: result.data.API_HOST,
     port: result.data.API_PORT,
+    databaseProvider: result.data.DATABASE_URL.startsWith("file:")
+      ? "sqlite"
+      : "postgresql",
     databaseUrl: result.data.DATABASE_URL,
     webOrigin: result.data.WEB_ORIGIN,
+    ...(result.data.WEB_DIST_PATH
+      ? { webDistPath: result.data.WEB_DIST_PATH }
+      : {}),
+    ...(result.data.SQLITE_MIGRATIONS_PATH
+      ? { sqliteMigrationsPath: result.data.SQLITE_MIGRATIONS_PATH }
+      : {}),
     logLevel: result.data.LOG_LEVEL,
     shutdownTimeoutMs: result.data.SHUTDOWN_TIMEOUT_MS,
     sessionTtlHours: result.data.SESSION_TTL_HOURS,
