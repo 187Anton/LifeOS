@@ -242,7 +242,7 @@ const installApi = async (page: Page) => {
       for (const date of dates) {
         const weekday = new Date(`${date}T00:00:00.000Z`).getUTCDay();
         for (const value of availability.filter(
-          (item) => item.weekday === weekday,
+          (item) => Number(item.weekday) === weekday,
         )) {
           const startMinute = Number(value.startMinute);
           const endMinute = Number(value.endMinute);
