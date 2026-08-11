@@ -5,3 +5,5 @@ coverage
 data
 *.docx
 
+# Lokale Arbeitskopien von parallelen Entwicklungszweigen
+.worktrees/

@@ -221,6 +221,30 @@ und Laufzeitpfaden erfolgreich geprüft. M6 ist damit lokal erfolgreich; die
 öffentliche Produktfreigabe mit Developer-ID, Notarisierung und Zweit-Mac-Test
 ist ausdrücklich auf ein späteres Arbeitspaket verschoben.
 
+### D5 Installierbares lokales Release
+
+Ziel: den geprüften lokalen Mac-App-Pfad als verständlich installierbares,
+versioniertes Release bereitzustellen, ohne den Local-First-Betrieb, den
+Browserbetrieb oder die gemeinsame Weboberfläche aufzugeben.
+
+- Reproduzierbares Release-Artefakt mit Anwendung, Docker-Compose-Konfiguration
+  und verständlichen Startskripten erzeugen.
+- Unterstützte Betriebssysteme und notwendige Voraussetzungen im Release und
+  in der README eindeutig nennen.
+- Einen README-Button erst auf ein tatsächlich veröffentlichtes und geprüftes
+  GitHub-Release verlinken.
+- Nach dem lokalen Start einen Installationsbutton für die vorhandene PWA
+  anbieten und browserspezifische Alternativen dokumentieren.
+- Installation, Update, Neustart, Backup und Deinstallation mit synthetischen
+  Daten prüfen; normale Updates dürfen lokale Daten nicht löschen.
+- Die öffentliche Mac-Freigabe mit Developer-ID, Notarisierung, unterstützten
+  Architekturen und Gegencheck auf einem zweiten sauberen Mac als eigene,
+  nachweisbare Release-Gates behandeln.
+
+Abschlusskriterium: Ein unterstützter Rechner kann LifeOS anhand des
+Release-Artefakts und der README reproduzierbar lokal starten, als PWA
+installieren, aktualisieren und ohne Verlust der lokalen Daten neu starten.
+
 ## 0.2 Organisation
 
 Ziel: Aufgaben und Kalender im Alltag miteinander verbinden.
