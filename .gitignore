@@ -48,3 +48,6 @@ apps/desktop/src-tauri/resources/
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
 apps/api/dist-desktop/
+
+# Lokale Arbeitskopien von parallelen Entwicklungszweigen
+.worktrees/

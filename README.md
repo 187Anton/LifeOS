@@ -15,6 +15,7 @@ Fachlogik wird schrittweise ergänzt.
   lokaler Zielpfad der Mac-App-Migration
 - Docker Compose für den bisherigen PostgreSQL-Entwicklungsbetrieb
 - eine responsive Weboberfläche mit installierbarer PWA-App-Shell
+- ein einfach installierbares lokales Release als Veröffentlichungsziel
 - CalDAV-Server ab dem Fundament, damit Termine ohne installierte LifeOS-App
   in Apple Kalender sichtbar werden können
 - lokale Speicherung und synthetische Beispieldaten
@@ -61,6 +62,24 @@ Quellcode als Programmierportfolio eingesehen werden können. LifeOS wird unter
 der [MIT-Lizenz](LICENSE) veröffentlicht. Persönliche Daten, lokale Dateien,
 Secrets und Backups gehören nicht in dieses Repository. Abhängigkeiten und
 externe Assets bleiben unter ihren jeweiligen Lizenzen.
+
+## Projektziel: installierbares lokales Release
+
+LifeOS soll ohne manuelles Zusammensuchen einzelner Komponenten als
+versioniertes lokales Release installiert werden können. Die erste
+Ausbaustufe soll:
+
+- ein geprüftes Download-Artefakt über GitHub Releases bereitstellen,
+- Anwendung und Docker-Compose-Konfiguration mit verständlichen Startskripten
+  bündeln,
+- nach dem Start die lokale LifeOS-Weboberfläche öffnen,
+- dort einen Installationsbutton für die bereits vorhandene PWA anbieten und
+- persönliche Daten, PostgreSQL, API und CalDAV weiterhin lokal betreiben.
+
+Sobald das erste geprüfte Installationspaket veröffentlicht ist, führt ein
+gut sichtbarer Button in dieser README auf das jeweils aktuelle GitHub-Release.
+Ein eigenständiger nativer `.dmg`-, `.exe`- oder Linux-Installer ist eine
+spätere Ausbaustufe und soll keine zweite Benutzeroberfläche einführen.
 
 ## Repository-Struktur
 
