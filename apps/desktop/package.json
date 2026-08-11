@@ -1,0 +1,13 @@
+{
+  "name": "@lifeos/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bundle:app": "tauri build --bundles app",
+    "bundle:dmg": "bash ../../scripts/build-mac-dmg.sh"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4"
+  }
+}

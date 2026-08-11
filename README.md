@@ -11,8 +11,9 @@ Fachlogik wird schrittweise ergänzt.
 - modularer Monolith statt Microservices
 - React und TypeScript für die Weboberfläche
 - Node.js und TypeScript für die API
-- PostgreSQL als relationale Datenbank
-- Docker Compose für die lokale Infrastruktur
+- PostgreSQL als bisherige Entwicklungsdatenbank; SQLite als nachgewiesener
+  lokaler Zielpfad der Mac-App-Migration
+- Docker Compose für den bisherigen PostgreSQL-Entwicklungsbetrieb
 - eine responsive Weboberfläche mit installierbarer PWA-App-Shell
 - CalDAV-Server ab dem Fundament, damit Termine ohne installierte LifeOS-App
   in Apple Kalender sichtbar werden können
@@ -70,7 +71,7 @@ web/ responsive React-Weboberfläche und PWA-App-Shell
 
 packages/
 contracts/ Gemeinsame API- und Datenverträge
-database/ PostgreSQL-/Prisma-Modell
+database/ PostgreSQL-/SQLite-Schemata und zentrale Prisma-Schnittstelle
 
 docs/
 architecture.md Architekturentscheidungen
@@ -82,7 +83,38 @@ compose.yaml lokale PostgreSQL-Infrastruktur
 scripts/ Wiederholbare Repository- und GitHub-Einrichtung
 ```
 
-## Lokaler Start
+## Installierte Mac-App auf Apple Silicon
+
+Der lokale M6-Nachweis erzeugt ein komprimiertes ARM64-DMG. Die daraus
+kopierte App startet ohne Docker, Homebrew oder separat installiertes Node.js.
+Beim ersten Start führt eine lokale Oberfläche durch Anzeigename, App-Passwort
+und getrenntes CalDAV-Passwort; eine Terminal-Einrichtung ist für die App nicht
+erforderlich.
+
+Für einen lokalen Entwickler-Build werden einmalig Node.js 22, Rust Stable und
+die Xcode Command Line Tools benötigt:
+
+```bash
+npm install
+npm run desktop:build:dmg
+npm run desktop:verify:dmg
+```
+
+Das geprüfte, nicht versionierte Ergebnis liegt unter
+`apps/desktop/src-tauri/target/release/bundle/dmg/`. Im DMG wird die App in den
+Programme-Ordner gezogen und anschließend von dort gestartet. Persönliche
+Daten liegen außerhalb des App-Bundles im anwendungsspezifischen macOS-
+Datenverzeichnis und bleiben bei einem App-Austausch erhalten.
+
+Das aktuelle Artefakt ist noch kein öffentlich freigegebenes Download-Release:
+Es ist lokal ad-hoc signiert, aber mangels verfügbarer Developer-ID nicht von
+Apple notarisiert. Auch der verpflichtende Gegencheck auf einem zweiten
+sauberen Mac und ein Intel-/Universal-Build sind noch offene Release-Gates.
+Die Details und der lokale Update-/Rollback-Nachweis stehen im
+[Migrationsprotokoll](docs/mac-desktop-migration-log.md). M6 ist damit lokal
+erfolgreich; die öffentliche Produktfreigabe ist ausdrücklich aufgeschoben.
+
+## Browser- und Entwicklungsbetrieb
 
 Voraussetzungen:
 
@@ -134,7 +166,8 @@ npm run api:start
 
 Sie bindet standardmäßig nur an `127.0.0.1:3000`. Der Health-Endpunkt unter
 `/api/v1/health` prüft den HTTP-Prozess, während `/api/v1/readiness` zusätzlich
-eine echte PostgreSQL-Verbindung prüft. Details und Fehlervertrag stehen in
+die konfigurierte PostgreSQL- oder SQLite-Verbindung prüft. Details und
+Fehlervertrag stehen in
 [apps/api/README.md](apps/api/README.md).
 
 Nach lokaler Anmeldung stehen außerdem Kalender- und Ereignis-CRUD unter
@@ -147,6 +180,24 @@ optionale geplante Startzeit mit IANA-Zeitzone, ganzzahlige Dauerminuten, Tags,
 Bereich, Projekt- und Elternbezug sowie Archivierung und Soft-Delete. Die
 responsive Aufgabenoberfläche unterstützt Erstellen, Bearbeiten, Statuswechsel,
 Archivierung, bestätigtes Löschen sowie kombinierbare Suche und Filter.
+
+Studienabschnitte, Module, Prüfungen, Abgaben, Lehrveranstaltungen und
+Lernzeiten werden nach lokaler Anmeldung unter `/api/v1/study` verwaltet. Die
+responsive Studienansicht erlaubt das Anlegen, Statuswechseln und Archivieren.
+Prüfungstage und Abgabefristen bleiben ohne bekannte Uhrzeit reine
+Kalendertage; zeitgebundene Lehr- und Lernblöcke besitzen eine IANA-Zeitzone.
+Optionale Aufgaben- und Kalenderbezüge werden besitzgeprüft und lösen keine
+automatische Änderung des referenzierten Objekts aus.
+Offene Prüfungen, Abgaben und Lernzeiten erscheinen zusätzlich rein lesend im
+Organisations-Dashboard und im sichtbaren Zeitraum der Kalenderansicht.
+
+Die gemeinsame Planung unter `/api/v1/planning` führt Kalendertermine,
+Aufgabenfristen, Studium, Arbeit, geplante und tatsächliche Zeit sowie die
+persönliche Verfügbarkeit als rein lesende Wochen- oder Agendasicht zusammen.
+Regelbasierte Hinweise erklären Überschneidungen, überfällige Fristen,
+Kapazitätsüberschreitungen und Häufungen hoher Prioritäten. Filter verändern
+nur die Darstellung; Termine und Quelldaten werden weder kopiert noch
+automatisch verschoben.
 
 Der Kalender bietet Tages-, Wochen-, Monats- und Agendaansicht. Termine werden
 weiterhin ausschließlich über den gemeinsamen Kalenderkern gespeichert:
@@ -162,14 +213,15 @@ Löschung oder Änderung eines Objekts verändert das andere nicht automatisch.
 
 Das Organisations-Dashboard lädt über den geschützten, rein lesenden Endpunkt
 `/api/v1/dashboard` aktive Aufgaben, Termine aus allen eigenen Kalendern und
-aktuelle Projektanker direkt aus PostgreSQL. Heutige und überfällige Daten
+aktuelle Projektanker aus der konfigurierten lokalen Datenbank. Heutige und
 werden anhand der Profilzeitzone bestimmt. Die responsive Übersicht zeigt
 Leer- und Fehlerzustände, Überschneidungen, fehlende Fälligkeiten sowie
 Schnellaktionen, die ausschließlich die bestehenden Aufgaben- und
 Termin-Formulare öffnen.
 
-Der CalDAV-Server liegt unabhängig von der REST-API unter `/caldav/`. Sein
-Zugang wird getrennt von der Browser-Anmeldung gesetzt und widerrufen:
+Im Entwicklungsbetrieb liegt der CalDAV-Server unabhängig von der REST-API
+unter `/caldav/`. Sein Zugang wird getrennt von der Browser-Anmeldung gesetzt
+und widerrufen:
 
 ```bash
 read -s LIFEOS_CALDAV_PASSWORD
@@ -191,8 +243,10 @@ HTTP Basic Auth und darf nicht ohne TLS oder Reverse Proxy ins öffentliche
 Internet gestellt werden. Details stehen in
 [apps/api/README.md](apps/api/README.md).
 
-Vor dem ersten geschützten Profilzugriff wird einmalig ein lokales Passwort
-gesetzt. Es wird nicht in `.env` oder im Frontend gespeichert:
+Im Browser- und Entwicklungsbetrieb wird vor dem ersten geschützten
+Profilzugriff einmalig ein lokales Passwort gesetzt. Die installierte Mac-App
+erledigt diesen Schritt stattdessen über ihre Ersteinrichtungsoberfläche. Das
+Passwort wird nicht in `.env` oder im Frontend gespeichert:
 
 ```bash
 read -s LIFEOS_BOOTSTRAP_PASSWORD
@@ -209,9 +263,14 @@ npm run web:dev
 ```
 
 Die Oberfläche ist unter `http://127.0.0.1:5173` erreichbar. Sie verwendet
-einen lokalen API-Proxy, zeigt Aufgaben, Kalender und Termine auf Desktop und
-Smartphone an und kann Aufgaben vollständig anlegen, bearbeiten, abschließen,
-wieder öffnen, archivieren und löschen. Suche und kombinierbare Aufgabenfilter
+einen lokalen API-Proxy und zeigt Aufgaben, Kalender, Studium sowie Arbeit und
+Praxis auf Desktop und Smartphone an. Arbeitskontexte, Projekte, Ziele,
+Fristen und getrennte geplante beziehungsweise tatsächliche Zeitblöcke werden
+lokal verwaltet; Arbeitsaufgaben bleiben dabei im gemeinsamen Aufgabenmodell.
+Eine gemeinsame Wochen- und Agendaansicht verbindet diese Daten mit Aufgaben
+und Kalender, zeigt Konflikte sowie nachvollziehbare Überlastungsursachen und
+verwaltet optionale wöchentliche Verfügbarkeitsfenster.
+Suche und kombinierbare Aufgaben-, Arbeitsbereichs-, Status- und Zeitraumfilter
 bleiben flüchtiger UI-Zustand. Ein Produktions-Build erzeugt zusätzlich
 Manifest und Offline-App-Shell:
 
@@ -242,34 +301,62 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 
 ### Aktuell verfügbare Befehle
 
-| Aufgabe                                       | Befehl                       |
-| --------------------------------------------- | ---------------------------- |
-| Abhängigkeiten installieren                   | `npm ci`                     |
-| Docker und lokale Konfiguration prüfen        | `npm run env:check`          |
-| Datenbank starten und Verbindung prüfen       | `npm run db:start`           |
-| Datenbankstatus und SQL-Verbindung prüfen     | `npm run db:check`           |
-| Lokale Dienste ohne Datenverlust stoppen      | `npm run db:stop`            |
-| Prisma-Schema prüfen                          | `npm run db:validate`        |
-| Versionierte Migrationen anwenden             | `npm run db:migrate`         |
-| Synthetische Seed-Daten anlegen               | `npm run db:seed`            |
-| Datenbank-Integrationstest ausführen          | `npm run db:test`            |
-| Lokales PostgreSQL-Backup erstellen           | `npm run db:backup`          |
-| Backup sicher in neue Datenbank restaurieren  | `npm run db:restore -- …`    |
-| Migration, Backup und Restore isoliert prüfen | `npm run db:verify:recovery` |
-| API lokal starten                             | `npm run api:start`          |
-| API im Watch-Modus starten                    | `npm run api:dev`            |
-| Weboberfläche lokal starten                   | `npm run web:dev`            |
-| Gebaute Weboberfläche lokal prüfen            | `npm run web:preview`        |
-| Lokales Passwort setzen/Sitzungen widerrufen  | `npm run auth:bootstrap`     |
-| Getrennten CalDAV-Zugang setzen               | `npm run caldav:bootstrap`   |
-| Getrennten CalDAV-Zugang widerrufen           | `npm run caldav:revoke`      |
-| Workspaces linten                             | `npm run lint`               |
-| Workspaces typprüfen                          | `npm run typecheck`          |
-| Anwendungen und Packages bauen                | `npm run build`              |
-| Compose-Konfiguration ohne Start prüfen       | `npm run repo:check`         |
-| Versionierte Dateien auf Secrets prüfen       | `npm run security:secrets`   |
-| Formatierung prüfen                           | `npm run format:check`       |
-| Repository- und vorhandene Workspace-Tests    | `npm test`                   |
+| Aufgabe                                       | Befehl                              |
+| --------------------------------------------- | ----------------------------------- |
+| Abhängigkeiten installieren                   | `npm ci`                            |
+| Docker und lokale Konfiguration prüfen        | `npm run env:check`                 |
+| Datenbank starten und Verbindung prüfen       | `npm run db:start`                  |
+| Datenbankstatus und SQL-Verbindung prüfen     | `npm run db:check`                  |
+| Lokale Dienste ohne Datenverlust stoppen      | `npm run db:stop`                   |
+| Prisma-Schema prüfen                          | `npm run db:validate`               |
+| Versionierte Migrationen anwenden             | `npm run db:migrate`                |
+| Synthetische Seed-Daten anlegen               | `npm run db:seed`                   |
+| Datenbank-Integrationstest ausführen          | `npm run db:test`                   |
+| SQLite-Spike-Schema prüfen                    | `npm run db:sqlite:validate`        |
+| SQLite-Spike-Migration anwenden               | `npm run db:sqlite:migrate`         |
+| SQLite-Spike synthetisch befüllen             | `npm run db:sqlite:seed`            |
+| SQLite-Migrationsgate prüfen                  | `npm run db:sqlite:test`            |
+| Vollständige API auf SQLite prüfen            | `npm run test:sqlite:api`           |
+| Gebaute SQLite-API mit Neustart prüfen        | `npm run verify:sqlite:api-runtime` |
+| Gebündelten Mac-Sidecar prüfen                | `npm run desktop:verify:sidecar`    |
+| Native Mac-App lokal bauen                    | `npm run desktop:build:app`         |
+| ARM64-DMG lokal bauen                         | `npm run desktop:build:dmg`         |
+| Lokales DMG und gebündelten Sidecar prüfen    | `npm run desktop:verify:dmg`        |
+| PostgreSQL vollständig nach SQLite übertragen | `npm run db:sqlite:import`          |
+| SQLite und Dokumente sichern                  | `npm run db:sqlite:backup -- …`     |
+| SQLite-Backup in neue Ziele restaurieren      | `npm run db:sqlite:restore -- …`    |
+| SQLite-Import und Recovery isoliert prüfen    | `npm run db:sqlite:verify:recovery` |
+| Lokales PostgreSQL-Backup erstellen           | `npm run db:backup`                 |
+| Backup sicher in neue Datenbank restaurieren  | `npm run db:restore -- …`           |
+| Migration, Backup und Restore isoliert prüfen | `npm run db:verify:recovery`        |
+| API lokal starten                             | `npm run api:start`                 |
+| API im Watch-Modus starten                    | `npm run api:dev`                   |
+| Weboberfläche lokal starten                   | `npm run web:dev`                   |
+| Gebaute Weboberfläche lokal prüfen            | `npm run web:preview`               |
+| Lokales Passwort setzen/Sitzungen widerrufen  | `npm run auth:bootstrap`            |
+| Getrennten CalDAV-Zugang setzen               | `npm run caldav:bootstrap`          |
+| Getrennten CalDAV-Zugang widerrufen           | `npm run caldav:revoke`             |
+| Workspaces linten                             | `npm run lint`                      |
+| Workspaces typprüfen                          | `npm run typecheck`                 |
+| Anwendungen und Packages bauen                | `npm run build`                     |
+| Compose-Konfiguration ohne Start prüfen       | `npm run repo:check`                |
+| Versionierte Dateien auf Secrets prüfen       | `npm run security:secrets`          |
+| Formatierung prüfen                           | `npm run format:check`              |
+| Repository- und vorhandene Workspace-Tests    | `npm test`                          |
+
+Die SQLite-Befehle bilden alle vorhandenen Fachmodelle ab. Die gebaute API
+läuft damit ohne Docker und behält synthetische Daten nach einem Neustart. M3
+und M4 weisen Kalender-/CalDAV-Parität, vollständigen PostgreSQL-Import sowie
+Backup und Restore von SQLite und Dokumenten nach. M5 ergänzt eine tatsächlich
+gebaute und gestartete Tauri-`.app` für macOS ARM64 mit gebündeltem Node-
+Sidecar; zur Laufzeit sind weder Docker noch ein globales Node.js nötig. M6
+ergänzt das geprüfte DMG, die terminalfreie Ersteinrichtung sowie einen
+datenerhaltenden Update-, Rollback- und Restore-Nachweis. Noch offen sind
+Developer-ID-Signierung, Notarisierung und der Gegencheck auf einem zweiten
+sauberen Mac. Buildweg, App-Pfade und Grenzen stehen in
+[`apps/desktop/README.md`](apps/desktop/README.md). Weitere Datenregeln stehen in
+[`packages/database/README.md`](packages/database/README.md) und im
+[`Migrationsprotokoll`](docs/mac-desktop-migration-log.md).
 
 Details zu Web- und PWA-Prüfungen stehen in
 [apps/web/README.md](apps/web/README.md). Details zu Schemaänderungen,

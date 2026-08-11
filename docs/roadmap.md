@@ -125,6 +125,102 @@ dokumentierten lokalen Demo und Apple-Kalender-Checkliste. Issue #17 und dessen
 CI-Lauf bilden das technische Gate für den anschließenden Pull Request von
 `develop` nach `main`.
 
+## Frühes Querschnittsziel: lokale Mac-App
+
+Ziel: LifeOS früh als installierbare lokale Mac-App ausrichten, ohne die
+gemeinsame React-Weboberfläche, den separaten Browserbetrieb oder den
+vorhandenen API-/CalDAV-Kern aufzugeben. Dieses Querschnittsziel hat vor den
+noch nicht begonnenen Produktphasen 0.4 und 0.5 Priorität.
+
+Der aktuelle Stand umfasst die abgeschlossenen Pakete M0 bis M5 sowie den
+lokalen Teil von M6: Planung, vollständiges SQLite-Schema, API-/CalDAV-Parität,
+Import und Recovery, eine gebaute und gestartete Tauri-`.app`, ein geprüftes
+ARM64-DMG sowie Ersteinrichtung, Update, Rollback, Backup, Restore und
+Deinstallation sind nachgewiesen. Ein öffentlich freigegebener
+Mac-Installationsweg ist das noch nicht, weil Developer-ID, Notarisierung und
+der Gegencheck auf einem zweiten sauberen Mac fehlen. Die detaillierte
+Bestandsaufnahme, Entscheidungen, Risiken und
+Akzeptanzkriterien stehen in
+[`docs/mac-desktop-spike-plan.md`](mac-desktop-spike-plan.md). Der Fortschritt
+und die tatsächlich ausgeführten Nachweise werden fortlaufend in
+[`docs/mac-desktop-migration-log.md`](mac-desktop-migration-log.md)
+dokumentiert.
+
+### D1 SQLite- und lokale Betriebsprüfung
+
+- Prisma-7.8-Unterstützung für SQLite mit einem getrennten Schema- und
+  Migrationspfad prüfen.
+- Benutzer, Einstellungen, Kalender, zeitgebundenes Ereignis, Ganztag,
+  Zeitzone, Audit und stabile Synchronisationswerte repräsentativ migrieren.
+- PostgreSQL-spezifische Typen, Arrays, Enums, Constraints und Indizes bewusst
+  ersetzen; bestehende PostgreSQL-Migrationen nicht umschreiben.
+- Das gebaute Node-/Express-Backend ohne Docker gegen die lokale SQLite-Datei
+  starten und denselben `/api/v1`-Vertrag im Browser verwenden.
+
+Abschlusskriterium: Migration, Seed, API-Start, Neustart und Datenvergleich
+funktionieren mit synthetischen Daten ohne Docker; offene Abweichungen sind
+konkret dokumentiert.
+
+### D2 Kalender-, CalDAV- und Recovery-Parität
+
+Kalender, CalDAV und der Recovery-Anteil sind mit M3 und M4 automatisiert
+abgeschlossen. Der physische Apple-Kalender-Handtest bleibt bis zum
+LAN-fähigen App-Prototyp ausdrücklich offen.
+
+- REST und CalDAV gegen denselben SQLite-Kalenderkern prüfen.
+- Lesen, Erstellen, Ändern, Löschen, ETag-Konflikt, Sync-Token, Tombstones,
+  Zeitzonen, Ganztag, Wiederholung und Erinnerung automatisiert testen.
+- SQLite-Backup über die Online Backup API samt Prüfsumme erstellen und immer
+  zuerst in ein neues Ziel wiederherstellen.
+- Datenbank und lokales Dokumentverzeichnis als gemeinsames Recovery-Paket
+  behandeln.
+
+Abschlusskriterium: Ein Recovery-Test erhält IDs, UIDs, ETags, Sync-Versionen,
+Zeitzonen, Ganztagsgrenzen und Dokumente; ein veralteter ETag überschreibt keine
+neueren Daten.
+
+### D3 Tauri- und Sidecar-Prototyp
+
+Dieser Prototyp ist mit M5 auf macOS ARM64 abgeschlossen. Die App bündelt eine
+per SHA-256 geprüfte offizielle Node-22-Laufzeit, wartet vor dem Fensterstart
+auf die SQLite-Readiness und verwendet für Web, API und CalDAV denselben
+dynamischen Loopback-Ursprung. Daten, Dokumente, Backups und Logs liegen in den
+anwendungsspezifischen macOS-Verzeichnissen mit privaten Dateirechten.
+
+- Tauri 2 als Mac-Hülle für dieselbe gebaute React-Oberfläche anlegen.
+- Das vorhandene Node-/Express-Backend als reproduzierbaren Sidecar paketieren,
+  starten, auf Readiness prüfen und geordnet beenden.
+- Datenbank, Dokumente, Konfiguration, Backups und Logs in den vorgesehenen
+  anwendungsspezifischen macOS-Verzeichnissen speichern.
+- Portkonflikte, Sidecar-Absturz und fehlgeschlagenen Datenbankstart
+  verständlich anzeigen.
+- CalDAV erreichbar halten, solange die Mac-App beziehungsweise der lokale
+  Dienst läuft; LAN-Bindung für andere Apple-Geräte bleibt eine bewusste
+  Betriebsart.
+
+Abschlusskriterium: Der Prototyp startet auf dem zunächst unterstützten Mac die
+Weboberfläche und das lokale Backend ohne Docker und ohne global installiertes
+Node; der Browserbetrieb bleibt separat möglich.
+
+### D4 Installations- und Update-Nachweis
+
+- `.app` und `.dmg` reproduzierbar bauen und mit synthetischen Daten prüfen.
+- Erststart, Neustart, Backup, Restore, Update und Deinstallation testen.
+- Signierung, Notarisierung, unterstützte Mac-Architekturen und Updateverfahren
+  als geprüfte Release-Gates dokumentieren.
+- Docker nur noch als Entwicklungs-, Test- und Wartungswerkzeug dokumentieren;
+  die README erst nach einem tatsächlich erfolgreichen Ablauf umstellen.
+
+Abschlusskriterium: Ein sauberer unterstützter Mac installiert und startet
+LifeOS ohne Docker; ein Update erhält lokale Daten und CalDAV-Identitäten.
+Nicht geprüfte Release-Gates bleiben ausdrücklich offen.
+
+Lokaler M6-Stand: Das DMG und sämtliche Datenhaltungsabläufe des
+Abschlusskriteriums sind auf dem Entwicklungs-Mac mit isolierten App-, Daten-
+und Laufzeitpfaden erfolgreich geprüft. M6 ist damit lokal erfolgreich; die
+öffentliche Produktfreigabe mit Developer-ID, Notarisierung und Zweit-Mac-Test
+ist ausdrücklich auf ein späteres Arbeitspaket verschoben.
+
 ## 0.2 Organisation
 
 Ziel: Aufgaben und Kalender im Alltag miteinander verbinden.
@@ -204,17 +300,45 @@ Ziel: Studien- und Arbeitsinformationen nachvollziehbar verwalten.
 - Prüfungen, Abgaben und Fristen erfassen.
 - Lernfortschritt und Status pro Modul anzeigen.
 
+Umsetzungsnachweis: Issue #45 ergänzt ein bewusst schlankes Studienmodell für
+Studienabschnitte, Module sowie Lehrveranstaltungen, Prüfungen, Abgaben und
+Lernzeiten. Reine Prüfungstage und Abgabefristen bleiben `DATE`-Werte;
+zeitgebundene Einträge verwenden `TIMESTAMPTZ` plus IANA-Zeitzone. Optionale
+Aufgaben- und Kalenderbezüge referenzieren die vorhandenen Fachobjekte ohne
+Kopie oder automatische Änderung. Besitzprüfung, Audit-Ereignisse,
+Archivierung, API und responsive Oberfläche werden durch Datenbank-, API-,
+Unit- und End-to-End-Tests abgesichert.
+
 ### 0.3.2 Arbeit und Praxis
 
-- Arbeitgeber, Praxisphasen und Arbeitstage erfassen.
-- Tagesberichte und Notizen speichern.
-- Arbeitszeit aus nachvollziehbaren Einträgen berechnen.
+- Berufliche Kontexte und optionale Organisationen flexibel erfassen.
+- Projekte, Ziele, Fristen, Notizen und vorhandene Arbeitsaufgaben zuordnen.
+- Geplante und tatsächliche Arbeitszeit getrennt und nachvollziehbar berechnen.
+
+Umsetzungsnachweis: Issue #43 ergänzt besitzgebundene Arbeitskontexte,
+berufliche Projekte mit Ziel und Frist, reine Verknüpfungen zum bestehenden
+Aufgabenmodell sowie geplante und tatsächliche Zeitblöcke. Zeitblöcke speichern
+`TIMESTAMPTZ` plus IANA-Zeitzone und geben ihre berechnete Dauer ausdrücklich
+in Minuten zurück. API- und Datenbankregeln verhindern fremde Referenzen;
+Audit-Metadaten enthalten nur geänderte Feldnamen. Die responsive Oberfläche
+bietet Bereichs-, Status- und Zeitraumfilter, ohne Filter oder persönliche
+Antworten im Browser zu persistieren. Arbeitgeber-, GitHub- und externe
+Zeiterfassungsintegrationen bleiben bewusst außerhalb dieser Phase.
 
 ### 0.3.3 Gemeinsame Zeitplanung
 
 - Studien- und Arbeitstermine in Kalenderansichten integrieren.
 - Konflikte und Überschneidungen sichtbar machen.
 - Berechnungen mit festen Zeitzonen und dokumentierten Regeln testen.
+
+Umsetzungsnachweis: Issue #44 ergänzt den geschützten Endpunkt
+`/api/v1/planning`, eine gemeinsame Wochen- und Agendaansicht sowie
+besitzgebundene wöchentliche Verfügbarkeitsfenster. Die Planung projiziert
+Kalender, Aufgaben, Studium und Arbeit ohne Kopie der Quelldaten. Transparente
+Regeln melden überlappende feste Termine, überfällige Fristen, mehr geplante
+Zeit als Verfügbarkeit, fehlende Verfügbarkeitsdaten und mehrere hohe
+Prioritäten im selben Zeitraum. Benutzerzeitzone und DST-Tagesgrenzen werden
+automatisiert geprüft; es gibt keine automatische Terminverschiebung.
 
 Abschlusskriterium: Studium und Arbeit können getrennt erfasst, gemeinsam
 angezeigt und zeitlich nachvollziehbar ausgewertet werden.

@@ -1,6 +1,7 @@
 import type {
   DashboardResponse,
   ProfileResponse,
+  StudyEntryResponse,
   TaskResponse,
 } from "@lifeos/contracts";
 import { useMemo } from "react";
@@ -13,6 +14,7 @@ import {
   CalendarIcon,
   ClockIcon,
   PlusIcon,
+  PlanIcon,
   TaskIcon,
 } from "./Icons";
 
@@ -24,6 +26,9 @@ interface DashboardProps {
   onReload: () => void;
   onOpenTasks: () => void;
   onOpenCalendar: () => void;
+  onOpenStudy: () => void;
+  onOpenPlanning: () => void;
+  studyEntries: StudyEntryResponse[];
   onCreateTask: () => void;
   onCreateEvent: () => void;
 }
@@ -80,12 +85,32 @@ export const Dashboard = ({
   onReload,
   onOpenTasks,
   onOpenCalendar,
+  onOpenStudy,
+  onOpenPlanning,
+  studyEntries,
   onCreateTask,
   onCreateEvent,
 }: DashboardProps) => {
   const dashboard = useMemo(
     () => (snapshot ? buildDashboardView(snapshot) : null),
     [snapshot],
+  );
+  const upcomingStudyEntries = useMemo(
+    () =>
+      studyEntries
+        .filter(
+          (entry) =>
+            !entry.archivedAt &&
+            !["completed", "cancelled"].includes(entry.status),
+        )
+        .filter((entry) => entry.dueDate || entry.startsAt)
+        .sort((left, right) =>
+          String(left.dueDate ?? left.startsAt).localeCompare(
+            String(right.dueDate ?? right.startsAt),
+          ),
+        )
+        .slice(0, 5),
+    [studyEntries],
   );
 
   return (
@@ -153,6 +178,58 @@ export const Dashboard = ({
           </section>
 
           <section className="dashboard-grid organisation-grid">
+            <article className="feature-card">
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">STUDIUM</p>
+                  <h2>Nächste Prüfungen und Abgaben</h2>
+                </div>
+                <button className="text-button" onClick={onOpenStudy}>
+                  Studium öffnen <ArrowIcon />
+                </button>
+              </div>
+              {upcomingStudyEntries.length ? (
+                <ol className="dashboard-list">
+                  {upcomingStudyEntries.map((entry) => (
+                    <li className="dashboard-list-item" key={entry.id}>
+                      <span className="dashboard-time">
+                        {entry.dueDate ??
+                          (entry.startsAt
+                            ? new Intl.DateTimeFormat("de-DE", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                timeZone: entry.timezone ?? snapshot.timezone,
+                              }).format(new Date(entry.startsAt))
+                            : "")}
+                      </span>
+                      <span>
+                        <strong>{entry.title}</strong>
+                        <small>
+                          {entry.kind === "exam"
+                            ? "Prüfung"
+                            : entry.kind === "submission"
+                              ? "Abgabe"
+                              : entry.kind === "lecture"
+                                ? "Lehrveranstaltung"
+                                : "Lernzeit"}
+                        </small>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <div className="empty-inline">
+                  <ClockIcon />
+                  <div>
+                    <h3>Keine Studienfristen</h3>
+                    <p>
+                      Es sind keine offenen Prüfungen, Abgaben oder Lernzeiten
+                      gespeichert.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </article>
             <article className="feature-card">
               <div className="section-heading">
                 <div>
@@ -268,8 +345,15 @@ export const Dashboard = ({
             </article>
 
             <article className="feature-card dashboard-notices">
-              <p className="eyebrow">HINWEISE</p>
-              <h2>Planungsqualität</h2>
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">HINWEISE</p>
+                  <h2>Planungsqualität</h2>
+                </div>
+                <button className="text-button" onClick={onOpenPlanning}>
+                  Planung öffnen <PlanIcon />
+                </button>
+              </div>
               <ul>
                 <li>
                   {dashboard.conflictCount

@@ -11,6 +11,7 @@
     "caldav:bootstrap": "tsx src/modules/caldav/bootstrap-credential.ts",
     "caldav:revoke": "tsx src/modules/caldav/revoke-credential.ts",
     "build": "tsup",
+    "build:desktop": "tsup --config tsup.desktop.config.ts",
     "lint": "eslint src tests",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"

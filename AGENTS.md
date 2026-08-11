@@ -136,6 +136,22 @@ expliziter Freigabe und mit sicherer Speicherung verwendet werden.
 Der erste Betrieb erfolgt vollständig lokal:
 
 - PostgreSQL und die Anwendung laufen per Docker Compose oder lokal
+- Die verifizierte lokale Mac-App verwendet Tauri 2 als dünne native Hülle,
+  SQLite als App-Datenbank und das bestehende Express-Backend mit einer
+  gebündelten, prüfsummengeschützten offiziellen Node.js-22-Laufzeit als
+  Sidecar. Weboberfläche und API verwenden denselben dynamischen
+  `127.0.0.1`-Port; SQLite-Migrationen laufen vor der Readiness-Prüfung.
+- App-Datenverzeichnisse werden mit Modus `0700`, SQLite-Datei und lokale
+  Protokolle mit Modus `0600` angelegt. Genau ein Sidecar darf schreibend auf
+  die SQLite-Datei zugreifen und muss beim Beenden der App geordnet beendet
+  werden.
+- Die erstmalige Mac-App-Einrichtung erfolgt ausschließlich über den nur an
+  Loopback erreichbaren Einrichtungsendpunkt. Profil, Einstellungen,
+  Primärkalender, lokales Passwort und separater CalDAV-Zugang werden atomar
+  angelegt; Klartextzugänge dürfen weder in Logs noch im Audit erscheinen.
+- Lokale DMG-Nachweise verwenden eine konsistent ad-hoc signierte App.
+  Öffentliche Release-Artefakte benötigen zusätzlich Developer-ID,
+  Apple-Notarisierung und einen Test auf einem sauberen unterstützten Mac.
 - PostgreSQL wird in der lokalen Compose-Umgebung nur an `127.0.0.1`
   gebunden. `npm run env:check`, `npm run db:start`, `npm run db:check` und
   `npm run db:stop` sind die verbindlichen lokalen Datenbankbefehle;
@@ -165,6 +181,25 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
   Schemaänderungen werden zuerst als `--create-only`-Migration geprüft und
   anschließend mit `npm run db:migrate` angewendet; `db push` ist kein
   regulärer LifeOS-Ablauf.
+- Der Mac-App-Spike verwendet einen getrennten SQLite-Schema- und
+  Migrationspfad. `npm run db:sqlite:migrate` wendet ausschließlich
+  versionierte, prüfsummengeschützte SQL-Dateien an; reine Kalendertage bleiben
+  kanonische `YYYY-MM-DD`-Strings. PostgreSQL-Schema und vorhandene Migrationen
+  werden nicht umgeschrieben.
+- Die zentrale Datenbankfabrik wählt SQLite nur für eine validierte absolute
+  `file:`-URL, sonst PostgreSQL. Reine Datumsfelder werden ausschließlich an
+  dieser Grenze abgebildet; API-, Kalender- und CalDAV-Verträge bleiben
+  providerunabhängig. `npm run test:sqlite:api` und
+  `npm run verify:sqlite:api-runtime` sind die verbindlichen M2-Nachweise.
+- SQLite-Dateien werden beim Migrationslauf persistent auf WAL gesetzt;
+  Anwendungsverbindungen verwenden 5000 Millisekunden Sperrwartezeit. Es ist
+  nur ein schreibender API-/Sidecar-Prozess freigegeben. Ein ETag-Konflikt muss
+  die Änderung einschließlich Sync-Token und Audit vollständig zurückrollen.
+- Der PostgreSQL-zu-SQLite-Import liest die Quelle konsistent und
+  schreibgeschützt, vergleicht alle 19 Modelle und veröffentlicht nur eine neue
+  geprüfte Zieldatei. SQLite-Backup und Restore umfassen Datenbank und
+  Dokumente, verwenden SHA-256-Manifeste und schreiben niemals über aktive
+  Ziele. Backups sind unverschlüsselt und vertraulich zu behandeln.
 - Kalenderzeitpunkte werden als `TIMESTAMPTZ` plus fachliche IANA-Zeitzone,
   ganztägige Ereignisse ausschließlich als `DATE`-Werte gespeichert. Ein
   Datenbank-Constraint muss beide Formen eindeutig voneinander trennen.
@@ -433,3 +468,26 @@ gemeldet.
   besitzgebundene und zeitzonenkorrekte Projektion ohne eigene Datenquelle oder
   ungefragte Schreibaktionen nach API-, Datenbank-, Unit- und E2E-Tests
   festgehalten.
+- **2026-08-09:** Getrennten SQLite-Schema- und Migrationspfad mit
+  prüfsummengeschütztem Runner, reinen `YYYY-MM-DD`-Ganztagswerten,
+  synthetischem Datenvergleich und unverändertem PostgreSQL-Pfad nach
+  erfolgreichem M1-Integrationstest festgehalten.
+- **2026-08-09:** Vollständigen SQLite-Fachmodellpfad, providerabhängige
+  zentrale Client-Fabrik, reine Datumsumwandlung an der Datenbankgrenze und
+  reproduzierbare API-/Neustartprüfungen nach erfolgreichem M2-Nachweis
+  festgehalten.
+- **2026-08-09:** SQLite-WAL, 5000 Millisekunden Sperrwartezeit, genau einen
+  schreibenden Sidecar und vollständigen Rollback des ETag-Verlierers nach
+  erfolgreichem M3-Konkurrenz- und Neustartnachweis festgehalten.
+- **2026-08-09:** Schreibgeschützten vollständigen PostgreSQL-Import in eine
+  neue SQLite-Datei sowie Online-Backup und Restore von Datenbank und
+  Dokumenten mit Staging, SHA-256 und Integritätsvergleich nach erfolgreichem
+  M4-Recovery-Nachweis festgehalten.
+- **2026-08-09:** Tauri-2-Mac-App mit gebündelter offizieller Node.js-22-
+  Laufzeit, dynamischem gemeinsamem Loopback-Ursprung, automatischen
+  SQLite-Migrationen, privaten Dateirechten und geordnetem Sidecar-Lifecycle
+  nach erfolgreichem M5-App- und Prozessnachweis festgehalten.
+- **2026-08-09:** Terminalfreie atomare Ersteinrichtung, reproduzierbares
+  ARM64-DMG, konsistente lokale Bundle-Signatur und datenerhaltenden
+  Update-/Rollback-Ablauf nach lokalem M6-Nachweis festgehalten; Developer-ID,
+  Notarisierung und sauberer zweiter Mac bleiben Release-Gates.

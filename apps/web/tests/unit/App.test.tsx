@@ -89,6 +89,7 @@ const installApi = ({
   links = [],
   deleteEventConflict = false,
   dashboardError = false,
+  setupRequired = false,
 }: {
   calendars?: (typeof calendar)[];
   events?: (typeof event)[];
@@ -106,11 +107,26 @@ const installApi = ({
   }>;
   deleteEventConflict?: boolean;
   dashboardError?: boolean;
+  setupRequired?: boolean;
 } = {}) => {
   const eventState = events.map((item) => ({ ...item }));
   const taskState = tasks.map((item) => ({ ...item }));
   const linkState = links.map((item) => structuredClone(item));
+  const studyState = {
+    programs: [] as Record<string, unknown>[],
+    modules: [] as Record<string, unknown>[],
+    entries: [] as Record<string, unknown>[],
+  };
+  const workState = {
+    contexts: [] as Record<string, unknown>[],
+    projects: [] as Record<string, unknown>[],
+    taskLinks: [] as Record<string, unknown>[],
+    timeEntries: [] as Record<string, unknown>[],
+    history: [] as Record<string, unknown>[],
+  };
+  const availabilityState: Record<string, unknown>[] = [];
   let conflictReturned = false;
+  let setupIsRequired = setupRequired;
   const fetchMock = vi.fn(
     (request: string | URL | Request, init?: RequestInit) => {
       const path =
@@ -120,7 +136,223 @@ const installApi = ({
             ? request.href
             : request.url;
       const method = init?.method ?? "GET";
+      if (path === "/api/v1/setup" && method === "GET")
+        return json({ required: setupIsRequired });
+      if (path === "/api/v1/setup" && method === "POST") {
+        setupIsRequired = false;
+        return json({ status: "configured" }, 201);
+      }
+      if (path === "/api/v1/session" && method === "POST")
+        return json(
+          {
+            status: "authenticated",
+            expiresAt: "2032-01-01T00:00:00.000Z",
+          },
+          201,
+        );
       if (path === "/api/v1/profile") return json(profile);
+      if (path.startsWith("/api/v1/study") && method === "GET")
+        return json(studyState);
+      if (path.startsWith("/api/v1/work") && method === "GET")
+        return json(workState);
+      if (path.startsWith("/api/v1/planning?") && method === "GET") {
+        const url = new URL(path, "http://lifeos.local");
+        const date = url.searchParams.get("from") ?? "2032-06-14";
+        const start = `${date}T07:00:00.000Z`;
+        const overlap = `${date}T07:30:00.000Z`;
+        const end = `${date}T08:30:00.000Z`;
+        return json({
+          generatedAt: new Date().toISOString(),
+          timezone: profile.settings.timezone,
+          range: {
+            from: date,
+            to: url.searchParams.get("to") ?? date,
+          },
+          items: [
+            {
+              id: "calendar:1",
+              sourceId: "event-1",
+              area: "calendar",
+              kind: "fixed_event",
+              title: "Gemeinsamer Termin A",
+              date,
+              startsAt: start,
+              endsAt: `${date}T08:00:00.000Z`,
+              timezone: profile.settings.timezone,
+              durationMinutes: 60,
+              priority: "medium",
+              overdue: false,
+              sourceUpdatedAt: start,
+            },
+            {
+              id: "calendar:2",
+              sourceId: "event-2",
+              area: "calendar",
+              kind: "fixed_event",
+              title: "Gemeinsamer Termin B",
+              date,
+              startsAt: overlap,
+              endsAt: end,
+              timezone: profile.settings.timezone,
+              durationMinutes: 60,
+              priority: "medium",
+              overdue: false,
+              sourceUpdatedAt: start,
+            },
+            {
+              id: "study:1",
+              sourceId: "study-1",
+              area: "study",
+              kind: "deadline",
+              title: "Synthetische Prüfung",
+              date,
+              startsAt: null,
+              endsAt: null,
+              timezone: profile.settings.timezone,
+              durationMinutes: null,
+              priority: "high",
+              overdue: false,
+              sourceUpdatedAt: start,
+            },
+            {
+              id: "work:1",
+              sourceId: "work-1",
+              area: "work",
+              kind: "planned_task",
+              title: "Geplanter Praxisblock",
+              date,
+              startsAt: `${date}T09:00:00.000Z`,
+              endsAt: `${date}T11:00:00.000Z`,
+              timezone: profile.settings.timezone,
+              durationMinutes: 120,
+              priority: "medium",
+              overdue: false,
+              sourceUpdatedAt: start,
+            },
+          ],
+          warnings: [
+            {
+              id: "overlap:1",
+              kind: "overlap",
+              severity: "critical",
+              date,
+              itemIds: ["calendar:1", "calendar:2"],
+              message:
+                "Zwei feste Termine überschneiden sich. Es wurde nichts automatisch verschoben.",
+            },
+          ],
+          availabilityWindows: availabilityState,
+        });
+      }
+      if (path === "/api/v1/planning/availability" && method === "POST") {
+        const payload = requestBody(init);
+        const created = {
+          id: `availability-${availabilityState.length + 1}`,
+          ownerId: profile.id,
+          ...payload,
+          label: payload.label ?? null,
+          createdAt: "2032-01-01T00:00:00.000Z",
+          updatedAt: "2032-01-01T00:00:00.000Z",
+        };
+        availabilityState.push(created);
+        return json(created, 201);
+      }
+      if (
+        path.startsWith("/api/v1/planning/availability/") &&
+        method === "DELETE"
+      ) {
+        const id = path.split("/").at(-1);
+        const index = availabilityState.findIndex((item) => item.id === id);
+        if (index >= 0) availabilityState.splice(index, 1);
+        return new Response(null, { status: 204 });
+      }
+      if (path === "/api/v1/work/contexts" && method === "POST") {
+        const payload = requestBody(init);
+        const created = {
+          id: `arbeit-${workState.contexts.length + 1}`,
+          ownerId: profile.id,
+          ...payload,
+          organization: payload.organization ?? null,
+          startsOn: payload.startsOn ?? null,
+          endsOn: payload.endsOn ?? null,
+          notes: payload.notes ?? null,
+          archivedAt: null,
+          createdAt: "2032-01-01T00:00:00.000Z",
+          updatedAt: "2032-01-01T00:00:00.000Z",
+        };
+        workState.contexts.push(created);
+        return json(created, 201);
+      }
+      if (path === "/api/v1/work/projects" && method === "POST") {
+        const payload = requestBody(init);
+        const created = {
+          id: `arbeitsprojekt-${workState.projects.length + 1}`,
+          ownerId: profile.id,
+          ...payload,
+          goal: payload.goal ?? null,
+          deadlineDate: payload.deadlineDate ?? null,
+          calendarEventId: null,
+          notes: payload.notes ?? null,
+          archivedAt: null,
+          createdAt: "2032-01-01T00:00:00.000Z",
+          updatedAt: "2032-01-01T00:00:00.000Z",
+        };
+        workState.projects.push(created);
+        return json(created, 201);
+      }
+      if (path === "/api/v1/work/time-entries" && method === "POST") {
+        const payload = requestBody(init);
+        const durationMinutes =
+          (new Date(String(payload.endsAt)).getTime() -
+            new Date(String(payload.startsAt)).getTime()) /
+          60_000;
+        const created = {
+          id: `arbeitszeit-${workState.timeEntries.length + 1}`,
+          ownerId: profile.id,
+          ...payload,
+          projectId: payload.projectId ?? null,
+          taskId: payload.taskId ?? null,
+          notes: payload.notes ?? null,
+          durationMinutes,
+          archivedAt: null,
+          createdAt: "2032-01-01T00:00:00.000Z",
+          updatedAt: "2032-01-01T00:00:00.000Z",
+        };
+        workState.timeEntries.push(created);
+        return json(created, 201);
+      }
+      if (path === "/api/v1/study/programs" && method === "POST") {
+        const payload = requestBody(init);
+        const created = {
+          id: `studium-${studyState.programs.length + 1}`,
+          ownerId: profile.id,
+          ...payload,
+          notes: payload.notes ?? null,
+          archivedAt: null,
+          createdAt: "2026-08-09T10:00:00.000Z",
+          updatedAt: "2026-08-09T10:00:00.000Z",
+        };
+        studyState.programs.push(created);
+        return json(created, 201);
+      }
+      if (path === "/api/v1/study/modules" && method === "POST") {
+        const payload = requestBody(init);
+        const created = {
+          id: `modul-${studyState.modules.length + 1}`,
+          ownerId: profile.id,
+          ...payload,
+          code: payload.code ?? null,
+          credits: payload.credits ?? null,
+          grade: null,
+          notes: payload.notes ?? null,
+          documentReferences: payload.documentReferences ?? [],
+          archivedAt: null,
+          createdAt: "2026-08-09T10:00:00.000Z",
+          updatedAt: "2026-08-09T10:00:00.000Z",
+        };
+        studyState.modules.push(created);
+        return json(created, 201);
+      }
       if (path === "/api/v1/calendars") return json(calendars);
       if (path === "/api/v1/dashboard" && method === "GET") {
         if (dashboardError) {
@@ -328,6 +560,82 @@ describe("LifeOS-Weboberfläche", () => {
     ).toBeVisible();
   });
 
+  it("richtet den ersten lokalen App-Start ohne Terminal ein", async () => {
+    const { fetchMock } = installApi({ setupRequired: true });
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Lokal einrichten" }),
+    ).toBeVisible();
+    await user.type(screen.getByLabelText("Anzeigename"), "Anton Lokal");
+    await user.type(
+      screen.getByLabelText("App-Passwort"),
+      "synthetic-app-password-2032",
+    );
+    await user.type(
+      screen.getByLabelText("App-Passwort wiederholen"),
+      "synthetic-app-password-2032",
+    );
+    await user.type(
+      screen.getByLabelText("CalDAV-Passwort"),
+      "synthetic-caldav-password-2032",
+    );
+    await user.type(
+      screen.getByLabelText("CalDAV-Passwort wiederholen"),
+      "synthetic-caldav-password-2032",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Life OS einrichten" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: /Guten Tag, Anton/ }),
+    ).toBeVisible();
+    const setupRequest = fetchMock.mock.calls.find(
+      ([path, init]) => path === "/api/v1/setup" && init?.method === "POST",
+    );
+    expect(setupRequest).toBeDefined();
+    expect(requestBody(setupRequest?.[1])).toMatchObject({
+      displayName: "Anton Lokal",
+      password: "synthetic-app-password-2032",
+      calDavPassword: "synthetic-caldav-password-2032",
+    });
+  });
+
+  it("zeigt nach abgeschlossener Einrichtung die Anmeldung ohne Fehler", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: string | URL | Request) => {
+        const path =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url;
+        if (path === "/api/v1/setup") {
+          return json({ required: false });
+        }
+        return json(
+          {
+            error: {
+              code: "UNAUTHORIZED",
+              message: "Eine lokale Anmeldung ist erforderlich.",
+            },
+          },
+          401,
+        );
+      }),
+    );
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Lokal anmelden" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("öffnet über Dashboard-Schnellaktionen die vorhandenen Erstellformulare", async () => {
     installApi();
     const user = userEvent.setup();
@@ -347,6 +655,36 @@ describe("LifeOS-Weboberfläche", () => {
     expect(
       await screen.findByRole("region", { name: "Zeit bewusst einplanen" }),
     ).toBeVisible();
+  });
+
+  it("legt einen Studienabschnitt und ein Modul nachvollziehbar an", async () => {
+    installApi();
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Studium" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Abschnitt anlegen" }));
+    await user.type(
+      screen.getByLabelText("Studiengang oder Ausbildungsbereich"),
+      "Synthetischer Studiengang",
+    );
+    await user.type(
+      screen.getByLabelText("Hochschule oder Bildungseinrichtung"),
+      "Lokale Testhochschule",
+    );
+    await user.type(
+      screen.getByLabelText("Semester oder Studienabschnitt"),
+      "Sommersemester 2032",
+    );
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByText("Synthetischer Studiengang")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Modul hinzufügen" }));
+    await user.type(
+      screen.getByLabelText("Modul oder Kurs"),
+      "Nachvollziehbare Systeme",
+    );
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByText("Nachvollziehbare Systeme")).toBeVisible();
   });
 
   it("zeigt einen verständlichen Dashboard-Fehler mit Wiederholungsaktion", async () => {
@@ -557,6 +895,100 @@ describe("LifeOS-Weboberfläche", () => {
     expect(
       screen.getByRole("button", { name: /Erste Aufgabe anlegen/ }),
     ).toBeEnabled();
+  });
+
+  it("plant einen Arbeitsbereich mit Projekt und getrennten Zeitarten", async () => {
+    installApi();
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Arbeit" })[0]!);
+    await user.click(
+      screen.getByRole("button", { name: "Arbeitsbereich anlegen" }),
+    );
+    await user.type(
+      screen.getByLabelText("Arbeitsbereich"),
+      "Synthetische Praxis",
+    );
+    await user.type(
+      screen.getByLabelText("Position oder Rolle"),
+      "Praxisrolle",
+    );
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(
+      await screen.findByRole("heading", { name: "Synthetische Praxis" }),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: /Projekt hinzufügen/ }),
+    );
+    await user.type(
+      screen.getByLabelText("Projekt oder Praxisbereich"),
+      "Synthetisches Arbeitsprojekt",
+    );
+    await user.type(
+      screen.getByLabelText("Ziel"),
+      "Nachvollziehbarer Testfortschritt",
+    );
+    await user.type(screen.getByLabelText("Frist"), "2032-06-30");
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(
+      await screen.findByText("Synthetisches Arbeitsprojekt"),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: /Zeit erfassen/ }));
+    await user.type(
+      screen.getByLabelText("Bezeichnung"),
+      "Geplanter Fokusblock",
+    );
+    await user.type(screen.getByLabelText("Beginn"), "2032-06-15T09:00");
+    await user.type(screen.getByLabelText("Ende"), "2032-06-15T10:30");
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByText("Geplanter Fokusblock")).toBeVisible();
+    expect(screen.getByText("1 h 30 min")).toBeVisible();
+    expect(screen.getByText("0 h 0 min")).toBeVisible();
+  });
+
+  it("zeigt gemeinsame Woche, Konflikte, Filter und persönliche Verfügbarkeit", async () => {
+    installApi();
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Planung" })[0]!);
+    expect(
+      await screen.findByRole("heading", {
+        name: "Woche und Agenda aus deinen Quelldaten",
+      }),
+    ).toBeVisible();
+    expect(screen.getByText("Gemeinsamer Termin A")).toBeVisible();
+    expect(screen.getByText("Synthetische Prüfung")).toBeVisible();
+    expect(
+      screen.getByText(/Zwei feste Termine überschneiden sich/),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("checkbox", { name: "Studium" }));
+    expect(screen.queryByText("Synthetische Prüfung")).not.toBeInTheDocument();
+    expect(screen.getByText("Gemeinsamer Termin A")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Agenda" }));
+    expect(
+      screen.getByRole("region", { name: "Gemeinsame Agenda" }),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: /Fenster hinzufügen/ }),
+    );
+    await user.selectOptions(screen.getByLabelText("Wochentag"), "1");
+    await user.clear(screen.getByLabelText("Von"));
+    await user.type(screen.getByLabelText("Von"), "09:00");
+    await user.clear(screen.getByLabelText("Bis"));
+    await user.type(screen.getByLabelText("Bis"), "12:00");
+    await user.type(screen.getByLabelText("Bezeichnung"), "Fokuszeit");
+    await user.click(
+      screen.getByRole("button", { name: "Verfügbarkeit speichern" }),
+    );
+    expect(await screen.findByText(/09:00–12:00 · Fokuszeit/)).toBeVisible();
   });
 
   it("zeigt bei nicht erreichbarer API die Anmeldung mit Fehlerhinweis", async () => {
