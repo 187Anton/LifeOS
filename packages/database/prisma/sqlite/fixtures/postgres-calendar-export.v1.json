@@ -1,0 +1,118 @@
+{
+  "formatVersion": 1,
+  "user": {
+    "id": "10000000-0000-4000-8000-000000000001",
+    "externalId": "sqlite-migration-synthetic-user",
+    "displayName": "Synthetische Migrationsperson",
+    "createdAt": "2030-01-01T09:00:00.000Z",
+    "updatedAt": "2030-01-01T09:00:00.000Z"
+  },
+  "settings": {
+    "userId": "10000000-0000-4000-8000-000000000001",
+    "timezone": "Europe/Berlin",
+    "currencyCode": "EUR",
+    "locale": "de-DE",
+    "weekStartsOn": 1,
+    "defaultCalendarView": "week",
+    "showWeekends": true,
+    "createdAt": "2030-01-01T09:00:00.000Z",
+    "updatedAt": "2030-01-01T09:00:00.000Z"
+  },
+  "credential": {
+    "userId": "10000000-0000-4000-8000-000000000001",
+    "passwordHash": "synthetic-password-hash-not-a-secret",
+    "revision": 2,
+    "createdAt": "2030-01-01T09:00:00.000Z",
+    "updatedAt": "2030-01-02T09:00:00.000Z"
+  },
+  "session": {
+    "id": "10000000-0000-4000-8000-000000000002",
+    "userId": "10000000-0000-4000-8000-000000000001",
+    "tokenHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "credentialRevision": 2,
+    "expiresAt": "2030-02-01T09:00:00.000Z",
+    "revokedAt": null,
+    "createdAt": "2030-01-02T09:00:00.000Z"
+  },
+  "calDavCredential": {
+    "userId": "10000000-0000-4000-8000-000000000001",
+    "username": "synthetic-local",
+    "passwordHash": "synthetic-caldav-hash-not-a-secret",
+    "revision": 3,
+    "revokedAt": null,
+    "createdAt": "2030-01-01T09:00:00.000Z",
+    "updatedAt": "2030-01-03T09:00:00.000Z"
+  },
+  "calendar": {
+    "id": "10000000-0000-4000-8000-000000000003",
+    "userId": "10000000-0000-4000-8000-000000000001",
+    "externalId": "sqlite-migration-synthetic-calendar",
+    "name": "Synthetischer Migrationskalender",
+    "timezone": "Europe/Berlin",
+    "isPrimary": true,
+    "syncToken": 12,
+    "createdAt": "2030-01-01T09:00:00.000Z",
+    "updatedAt": "2030-01-05T09:00:00.000Z",
+    "deletedAt": null
+  },
+  "events": [
+    {
+      "id": "10000000-0000-4000-8000-000000000004",
+      "userId": "10000000-0000-4000-8000-000000000001",
+      "calendarId": "10000000-0000-4000-8000-000000000003",
+      "uid": "sqlite-migration-timed@lifeos.local",
+      "title": "Synthetischer zeitgebundener Termin",
+      "description": "Repräsentativer PostgreSQL-Export für M1.",
+      "location": "Lokaler Testraum",
+      "startsAt": "2030-03-30T09:00:00.000Z",
+      "endsAt": "2030-03-30T10:30:00.000Z",
+      "startDate": null,
+      "endDate": null,
+      "timezone": "Europe/Berlin",
+      "isAllDay": false,
+      "recurrenceRule": "FREQ=WEEKLY;COUNT=3",
+      "reminderMinutes": [10, 30],
+      "etag": "\"sqlite-migration-timed-v4\"",
+      "sequence": 4,
+      "syncVersion": 11,
+      "deletedAt": null,
+      "createdAt": "2030-01-02T09:00:00.000Z",
+      "updatedAt": "2030-01-05T09:00:00.000Z"
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000005",
+      "userId": "10000000-0000-4000-8000-000000000001",
+      "calendarId": "10000000-0000-4000-8000-000000000003",
+      "uid": "sqlite-migration-all-day@lifeos.local",
+      "title": "Synthetischer ganztägiger Termin",
+      "description": null,
+      "location": null,
+      "startsAt": null,
+      "endsAt": null,
+      "startDate": "2030-10-27",
+      "endDate": "2030-10-29",
+      "timezone": "Europe/Berlin",
+      "isAllDay": true,
+      "recurrenceRule": null,
+      "reminderMinutes": [1440],
+      "etag": "\"sqlite-migration-all-day-v2\"",
+      "sequence": 2,
+      "syncVersion": 12,
+      "deletedAt": null,
+      "createdAt": "2030-01-03T09:00:00.000Z",
+      "updatedAt": "2030-01-05T09:00:00.000Z"
+    }
+  ],
+  "auditEvent": {
+    "id": "10000000-0000-4000-8000-000000000006",
+    "userId": "10000000-0000-4000-8000-000000000001",
+    "action": "migration.synthetic_exported",
+    "entityType": "Calendar",
+    "entityId": "10000000-0000-4000-8000-000000000003",
+    "metadata": {
+      "source": "synthetic-postgresql-export",
+      "formatVersion": 1
+    },
+    "occurredAt": "2030-01-05T09:00:00.000Z"
+  }
+}

@@ -147,6 +147,69 @@ Aufgabenstatus noch Terminzeiten kopiert. Soft-Deletes bleiben als nicht
 verfügbare Beziehungspartner sichtbar. Das Ändern, Abschließen oder Löschen
 eines Objekts löst keine unbestätigte Änderung am anderen Objekt aus.
 
+## Studienmodul
+
+Das Studienmodul ist ein eigenes Fachmodul und kein Hochschulverwaltungssystem.
+`StudyProgram` beschreibt Studiengang oder Ausbildungsbereich, Einrichtung und
+aktuellen Abschnitt. `StudyModule` hält Kursstatus, optionale Leistungspunkte,
+Note, Notizen und reine Dokumentverweise nachvollziehbar. `StudyEntry` bildet
+Lehrveranstaltung, Prüfung, Abgabe oder Lernzeit ab.
+
+Prüfungen und Abgaben dürfen ohne erfundene Uhrzeit als `DATE` gespeichert
+werden. Zeitgebundene Einträge verwenden immer Beginn, Ende und IANA-Zeitzone;
+ein Datenbank-Constraint verhindert gemischte oder rückwärts laufende Formen.
+Optionale Aufgaben- und Kalenderrelationen verwenden zusammengesetzte
+Besitzschlüssel und kopieren keine Fachdaten. Schreibende Änderungen erzeugen
+nur Feldnamen im Audit-Ereignis, keine persönlichen Inhalte. Das Studienmodul
+ändert weder Aufgaben noch Kalenderereignisse automatisch.
+Dashboard und Kalenderansicht laden Studieneinträge als rein lesende
+Projektion aus dem Studien-API-Zustand. Sie erzeugen dabei weder zusätzliche
+`CalendarEvent`-Datensätze noch CalDAV-Ressourcen.
+
+## Arbeits- und Praxismodul
+
+`WorkContext` beschreibt einen persönlichen beruflichen Kontext mit Rolle,
+optionalem Organisationsnamen, Zeitraum und IANA-Zeitzone. `WorkProject`
+gehört eindeutig zu einem solchen Kontext und hält Status, Ziel, reine
+Datumsfrist sowie optional einen vorhandenen Kalenderbezug. Ein berufliches
+Projekt ist kein GitHub-Projekt und löst keine externe Integration aus.
+
+Arbeitsaufgaben bleiben im bestehenden `Task`-Modell mit dem Bereich `work`.
+`WorkTaskLink` speichert lediglich deren besitzgesicherte Zuordnung zu einem
+Arbeitskontext oder -projekt. `WorkTimeEntry` unterscheidet die Arten
+`planned` und `actual`; Beginn und Ende sind absolute `TIMESTAMPTZ`-Werte mit
+fachlicher IANA-Zeitzone. Die API leitet daraus eine klar benannte Dauer in
+Minuten ab, statt geplante und tatsächliche Werte zusammenzurechnen.
+
+Zusammengesetzte Fremdschlüssel und serverseitige Referenzprüfungen verhindern
+Beziehungen über Besitzer- oder Kontextgrenzen. Filter sind reine Abfragen
+beziehungsweise UI-Projektionen. Schreibende Änderungen protokollieren nur
+Aktion und Feldnamen, niemals Organisation, Notizen, Ziele oder Zeitwerte.
+Arbeitsdaten werden weder in Logs noch in Browser-Storage persistiert.
+
+## Gemeinsame Zeitplanung
+
+Die gemeinsame Planung ist eine besitzgebundene, rein lesende Projektion der
+vorhandenen Kalender-, Aufgaben-, Studien- und Arbeitsdaten. Der Endpunkt
+`/api/v1/planning` speichert keine zusammengeführten Einträge und dupliziert
+keine Fristen oder Termine. Bereichs- und Zeitraumfilter begrenzen nur die
+Antwort beziehungsweise Darstellung. Änderungen bleiben am jeweiligen
+Quellobjekt und erscheinen beim nächsten Laden automatisch in der Planung.
+
+`AvailabilityWindow` ist die einzige eigene Planungsentität. Sie beschreibt
+eine wöchentlich wiederkehrende persönliche Verfügbarkeit mit Wochentag,
+Start- und Endminute sowie IANA-Zeitzone. Die Projektion erzeugt daraus nur für
+den angefragten Zeitraum flüchtige Zeitfenster. Tagesgrenzen und lokale
+Zeitpunkte werden zeitzonenbewusst berechnet, damit Sommer- und Winterzeit
+nicht als starre 24-Stunden-Tage behandelt werden.
+
+Konflikte und Überlastung sind erklärbare Regeln: zwei überlappende feste
+Termine, eine offene Frist in der Vergangenheit, mehr geplante Minuten als
+verfügbare Minuten, fehlende Verfügbarkeit oder mehrere hohe Prioritäten am
+gleichen Tag. Die API liefert Ursache und betroffene Projektions-IDs, verändert
+aber keine Quelldaten und löst Konflikte nicht automatisch. Logs enthalten
+weder Titel noch kombinierte private, Studien- oder Arbeitsinhalte.
+
 ## Organisations-Dashboard
 
 Das Dashboard ist eine rein lesende Projektion der vorhandenen Fachmodule und

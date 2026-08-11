@@ -5,10 +5,32 @@ import type {
   CreateTaskEventLinkRequest,
   CreateTaskRequest,
   DashboardResponse,
+  CreateStudyEntryRequest,
+  CreateStudyModuleRequest,
+  CreateStudyProgramRequest,
   ProfileResponse,
+  CompleteSetupRequest,
+  CompleteSetupResponse,
+  SetupStatusResponse,
   SessionResponse,
   TaskResponse,
   TaskEventLinkResponse,
+  StudyOverviewResponse,
+  UpdateStudyEntryRequest,
+  UpdateStudyModuleRequest,
+  UpdateStudyProgramRequest,
+  CreateWorkContextRequest,
+  CreateWorkProjectRequest,
+  CreateWorkTaskLinkRequest,
+  CreateWorkTimeEntryRequest,
+  UpdateWorkContextRequest,
+  UpdateWorkProjectRequest,
+  UpdateWorkTimeEntryRequest,
+  WorkOverviewResponse,
+  CreateAvailabilityWindowRequest,
+  PlanningArea,
+  PlanningResponse,
+  UpdateAvailabilityWindowRequest,
   UpdateTaskRequest,
 } from "@lifeos/contracts";
 
@@ -78,6 +100,17 @@ const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
 };
 
 export const api = {
+  getSetupStatus() {
+    return request<SetupStatusResponse>("/setup");
+  },
+
+  completeSetup(payload: CompleteSetupRequest) {
+    return request<CompleteSetupResponse>("/setup", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
   createSession(password: string) {
     return request<SessionResponse>("/session", {
       method: "POST",
@@ -179,6 +212,121 @@ export const api = {
 
   deleteTask(taskId: string) {
     return request<void>(`/tasks/${encodeURIComponent(taskId)}`, {
+      method: "DELETE",
+    });
+  },
+  getStudy(includeArchived = true) {
+    return request<StudyOverviewResponse>(
+      `/study?includeArchived=${includeArchived ? "true" : "false"}`,
+    );
+  },
+  createStudyProgram(payload: CreateStudyProgramRequest) {
+    return request("/study/programs", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateStudyProgram(id: string, payload: UpdateStudyProgramRequest) {
+    return request(`/study/programs/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createStudyModule(payload: CreateStudyModuleRequest) {
+    return request("/study/modules", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateStudyModule(id: string, payload: UpdateStudyModuleRequest) {
+    return request(`/study/modules/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createStudyEntry(payload: CreateStudyEntryRequest) {
+    return request("/study/entries", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateStudyEntry(id: string, payload: UpdateStudyEntryRequest) {
+    return request(`/study/entries/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  getWork(includeArchived = true) {
+    return request<WorkOverviewResponse>(
+      `/work?includeArchived=${includeArchived ? "true" : "false"}`,
+    );
+  },
+  createWorkContext(payload: CreateWorkContextRequest) {
+    return request("/work/contexts", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateWorkContext(id: string, payload: UpdateWorkContextRequest) {
+    return request(`/work/contexts/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createWorkProject(payload: CreateWorkProjectRequest) {
+    return request("/work/projects", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateWorkProject(id: string, payload: UpdateWorkProjectRequest) {
+    return request(`/work/projects/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createWorkTaskLink(payload: CreateWorkTaskLinkRequest) {
+    return request("/work/task-links", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteWorkTaskLink(id: string) {
+    return request<void>(`/work/task-links/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+  },
+  createWorkTimeEntry(payload: CreateWorkTimeEntryRequest) {
+    return request("/work/time-entries", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateWorkTimeEntry(id: string, payload: UpdateWorkTimeEntryRequest) {
+    return request(`/work/time-entries/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  getPlanning(from: string, to: string, areas?: PlanningArea[]) {
+    const query = new URLSearchParams({ from, to });
+    if (areas?.length) query.set("areas", areas.join(","));
+    return request<PlanningResponse>(`/planning?${query.toString()}`);
+  },
+  createAvailability(payload: CreateAvailabilityWindowRequest) {
+    return request("/planning/availability", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateAvailability(id: string, payload: UpdateAvailabilityWindowRequest) {
+    return request(`/planning/availability/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteAvailability(id: string) {
+    return request<void>(`/planning/availability/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
   },

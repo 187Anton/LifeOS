@@ -6,13 +6,62 @@ Sie verwendet Express 5 und stellt versionierte REST-Endpunkte unter
 
 ## Lokal starten
 
-Voraussetzungen sind eine `.env` nach dem Muster der `.env.example` und eine
-erreichbare lokale PostgreSQL-Datenbank:
+Voraussetzung ist eine `.env` nach dem Muster der `.env.example`. Die API kann
+mit einer erreichbaren PostgreSQL-Datenbank oder einer zuvor migrierten,
+absolut adressierten SQLite-Datei starten:
 
 ```bash
 npm run db:start
 npm run api:start
 ```
+
+Der bestätigte SQLite-Prüfweg benötigt keinen Docker-Container:
+
+```bash
+export SQLITE_DATABASE_URL="file:/absoluter/pfad/lifeos.sqlite"
+export DATABASE_URL="$SQLITE_DATABASE_URL"
+npm run db:sqlite:migrate
+npm run api:start
+```
+
+Relative SQLite-Pfade werden abgelehnt, damit Desktop-App und Hilfsbefehle
+nicht versehentlich unterschiedliche Dateien öffnen. Das Setzen eines echten
+lokalen Passworts und CalDAV-Zugangs erfolgt im Entwicklungsbetrieb über die
+getrennten Bootstrap-Befehle. Die Mac-App verwendet stattdessen die einmalige
+lokale Ersteinrichtung unter `GET/POST /api/v1/setup`.
+
+Der SQLite-Migrationslauf aktiviert WAL; der API-Client verwendet eine
+Sperrwartezeit von fünf Sekunden. Freigegeben ist genau ein schreibender
+API-/Sidecar-Prozess. Der automatisierte ETag-Konkurrenztest bestätigt, dass
+von zwei gleichzeitig gestarteten Änderungen mit demselben alten ETag nur eine
+gewinnt und die andere keine Synchronisationsversion verbraucht.
+
+## Gebündelter Mac-App-Betrieb
+
+Die Tauri-App startet die gebaute API mit einer fest gebündelten
+Node.js-22-Laufzeit. Sie übergibt absolute Pfade für SQLite, Migrationen,
+Web-Assets und Dokumente. Vor dem Öffnen der Oberfläche wendet die API alle
+noch fehlenden SQLite-Migrationen an und besteht ihre Readiness-Prüfung.
+
+Im Desktop-Betrieb liefert Express die gebaute React-Oberfläche und die API
+über denselben dynamisch gewählten `127.0.0.1`-Port aus. Das Sitzungs-Cookie
+bleibt `HttpOnly`, `SameSite=Strict` und auf HTTPS-Herkünften zusätzlich
+`Secure`; für den ausschließlich lokalen HTTP-Loopback der App wird `Secure`
+nicht gesetzt, weil der Browser das Cookie sonst nicht zurücksenden würde.
+Persönliche Antworten werden dadurch weiterhin weder in Web Storage noch im
+Service-Worker-Cache persistiert.
+
+Die Desktop-Vorbereitung und der geprüfte Sidecar-Start sind über
+`npm run desktop:prepare` und `npm run desktop:verify:sidecar` reproduzierbar.
+Details zu Laufzeitprüfsummen, App-Pfaden und noch offenen Distributions-Gates
+stehen in [`apps/desktop/README.md`](../desktop/README.md) und im
+[`Migrationsprotokoll`](../../docs/mac-desktop-migration-log.md).
+
+Der Einrichtungsendpunkt akzeptiert ausschließlich direkte Loopback-Zugriffe.
+Er legt Profil, Einstellungen, Primärkalender und beide gehashten Zugänge in
+einer Transaktion an und antwortet nach erfolgreichem Abschluss auf weitere
+Einrichtungsversuche mit HTTP 409. Die Passwörter werden weder geloggt noch in
+Audit-Metadaten geschrieben.
 
 Die API bindet standardmäßig nur an `127.0.0.1:3000`. Ein Start mit fehlender
 oder ungültiger Konfiguration endet verständlich und ohne Ausgabe von
@@ -107,34 +156,42 @@ unset CALDAV_TEST_PASSWORD
 
 ## Betriebsendpunkte
 
-| Endpunkt                                           | Bedeutung                                        |
-| -------------------------------------------------- | ------------------------------------------------ |
-| `GET /api/v1/health`                               | HTTP-Prozess ist erreichbar                      |
-| `GET /api/v1/readiness`                            | API und PostgreSQL-Verbindung sind einsatzbereit |
-| `POST /api/v1/session`                             | lokale Sitzung über Passwort anlegen             |
-| `DELETE /api/v1/session`                           | aktuelle Sitzung widerrufen                      |
-| `GET /api/v1/profile`                              | persönliches Profil und Einstellungen lesen      |
-| `PATCH /api/v1/settings`                           | Basiseinstellungen teilweise ändern              |
-| `GET/POST /api/v1/calendars`                       | Kalender auflisten oder anlegen                  |
-| `PATCH/DELETE /api/v1/calendars/:id`               | Kalender ändern oder soft löschen                |
-| `GET/POST /api/v1/calendars/:id/events`            | Ereignisse auflisten oder anlegen                |
-| `GET/PUT/DELETE /api/v1/calendars/:id/events/:uid` | Ereignis verwalten                               |
-| `GET/POST /api/v1/tasks`                           | Aufgaben filtern oder anlegen                    |
-| `GET/PATCH/DELETE /api/v1/tasks/:taskId`           | Aufgabe lesen, ändern oder soft löschen          |
-| `GET/POST /api/v1/task-event-links`                | Aufgaben-Termin-Beziehungen lesen oder anlegen   |
-| `DELETE /api/v1/task-event-links/:linkId`          | Aufgaben-Termin-Beziehung entfernen              |
-| `GET /api/v1/dashboard`                            | rein lesenden Organisations-Snapshot laden       |
-| `/.well-known/caldav`                              | CalDAV-Discovery auf `/caldav/`                  |
-| `/caldav/…`                                        | WebDAV-/CalDAV-Ressourcen                        |
+| Endpunkt                                           | Bedeutung                                          |
+| -------------------------------------------------- | -------------------------------------------------- |
+| `GET /api/v1/health`                               | HTTP-Prozess ist erreichbar                        |
+| `GET /api/v1/readiness`                            | API und konfigurierte Datenbank sind einsatzbereit |
+| `POST /api/v1/session`                             | lokale Sitzung über Passwort anlegen               |
+| `GET/POST /api/v1/setup`                           | lokale Ersteinrichtung prüfen oder abschließen     |
+| `DELETE /api/v1/session`                           | aktuelle Sitzung widerrufen                        |
+| `GET /api/v1/profile`                              | persönliches Profil und Einstellungen lesen        |
+| `PATCH /api/v1/settings`                           | Basiseinstellungen teilweise ändern                |
+| `GET/POST /api/v1/calendars`                       | Kalender auflisten oder anlegen                    |
+| `PATCH/DELETE /api/v1/calendars/:id`               | Kalender ändern oder soft löschen                  |
+| `GET/POST /api/v1/calendars/:id/events`            | Ereignisse auflisten oder anlegen                  |
+| `GET/PUT/DELETE /api/v1/calendars/:id/events/:uid` | Ereignis verwalten                                 |
+| `GET/POST /api/v1/tasks`                           | Aufgaben filtern oder anlegen                      |
+| `GET/PATCH/DELETE /api/v1/tasks/:taskId`           | Aufgabe lesen, ändern oder soft löschen            |
+| `GET/POST /api/v1/task-event-links`                | Aufgaben-Termin-Beziehungen lesen oder anlegen     |
+| `DELETE /api/v1/task-event-links/:linkId`          | Aufgaben-Termin-Beziehung entfernen                |
+| `GET /api/v1/dashboard`                            | rein lesenden Organisations-Snapshot laden         |
+| `GET /api/v1/work`                                 | eigene Arbeitsdaten filtern und laden              |
+| `POST/PATCH /api/v1/work/contexts/:id?`            | Arbeitsbereiche anlegen oder ändern                |
+| `POST/PATCH /api/v1/work/projects/:id?`            | Arbeitsprojekte, Ziele und Fristen verwalten       |
+| `POST/DELETE /api/v1/work/task-links/:id?`         | vorhandene Arbeitsaufgaben zuordnen                |
+| `POST/PATCH /api/v1/work/time-entries/:id?`        | geplante oder tatsächliche Zeit verwalten          |
+| `GET /api/v1/planning`                             | gemeinsame Planung nach Zeitraum/Bereich laden     |
+| `POST/PATCH/DELETE /api/v1/planning/availability`  | persönliche Verfügbarkeit verwalten                |
+| `/.well-known/caldav`                              | CalDAV-Discovery auf `/caldav/`                    |
+| `/caldav/…`                                        | WebDAV-/CalDAV-Ressourcen                          |
 
 Health greift absichtlich nicht auf die Datenbank zu. Readiness führt dagegen
 eine echte, ausschließlich lesende `SELECT 1`-Prüfung über den zentralen
-Prisma-Client aus. Bei nicht erreichbarer Datenbank bleibt Health grün und
-Readiness antwortet mit HTTP 503.
+Prisma-Client aus. Bei nicht erreichbarer PostgreSQL- oder SQLite-Datenbank
+bleibt Health grün und Readiness antwortet mit HTTP 503.
 
 Profil und Einstellungen benötigen die `HttpOnly`-Sitzung. Der Browser erhält
 das zufällige Sitzungstoken ausschließlich als `SameSite=Strict`-Cookie; in
-PostgreSQL liegt nur dessen SHA-256-Hash. Die Webentwicklung verwendet dieselbe
+der konfigurierten Datenbank liegt nur dessen SHA-256-Hash. Die Webentwicklung verwendet dieselbe
 Hostbezeichnung wie `WEB_ORIGIN` und später einen Same-Origin-Proxy, damit das
 Cookie nicht in JavaScript zugänglich werden muss.
 
@@ -224,6 +281,35 @@ Der Endpunkt erfindet oder ergänzt keine Termine und Aufgaben. Persönliche
 Inhalte werden nicht protokolliert; der bestehende Anfrage-Logger speichert nur
 Anfrage-ID, Routenmetadaten, Status und Dauer.
 
+## Arbeits- und Praxisvertrag
+
+`/work` verwendet ausschließlich den Besitzer der geprüften Sitzung. Kontexte,
+Projekte, Aufgabenbeziehungen und Zeitblöcke können nicht auf fremde oder
+archivierte Referenzen zeigen. Aufgaben werden nicht dupliziert, sondern aus
+dem bestehenden Aufgabenmodell mit Bereich `work` verknüpft. Filter nach
+Arbeitsbereich, Status und Zeitraum ändern nur die Antwortauswahl.
+
+Geplante und tatsächliche Zeit sind verschiedene Werte von `kind`. Beginn und
+Ende benötigen ISO-Zeitpunkte mit Offset sowie eine IANA-Zeitzone. Die Antwort
+weist die aus den Zeitpunkten berechnete `durationMinutes` aus. Fristen bleiben
+reine Kalendertage. Audit-Metadaten enthalten nur geänderte Feldnamen und keine
+Organisationen, Ziele, Notizen oder Zeitwerte.
+
+## Vertrag der gemeinsamen Planung
+
+`GET /planning` benötigt `from` und `to` als reine Datumswerte und akzeptiert
+optional eine kommagetrennte Bereichsauswahl. Der Zeitraum ist auf 63 Tage
+begrenzt. Die Antwort unterscheidet feste Termine, Fristen, geplante Aufgaben,
+tatsächliche Zeit und persönliche Verfügbarkeit. Warnungen nennen eine
+regelbasierte Ursache und die betroffenen Projektions-IDs; sie schreiben oder
+verschieben keine Quelldaten.
+
+Verfügbarkeitsfenster speichern Wochentag, Minuten seit Tagesbeginn und eine
+IANA-Zeitzone. Überlappende Fenster desselben Besitzers werden abgelehnt.
+Zeitraum-, Überfälligkeits- und DST-Berechnungen verwenden die gespeicherte
+Profilzeitzone. Audit-Ereignisse der Verfügbarkeitsverwaltung enthalten nur
+geänderte Feldnamen.
+
 Beispiel:
 
 ```bash
@@ -276,6 +362,10 @@ weitergegeben.
   zwischen Aufgaben- und Kalenderkern.
 - `modules/dashboard/` bündelt den besitzgebundenen, rein lesenden
   Organisations-Snapshot ohne eigene Fachdaten oder Schreiblogik.
+- `modules/work/` kapselt Arbeitskontexte, berufliche Projekte,
+  Aufgabenbeziehungen sowie geplante und tatsächliche Zeit mit Besitzprüfung.
+- `modules/planning/` projiziert vorhandene Fachobjekte besitzgebunden und
+  erkennt Konflikte beziehungsweise Überlastung mit transparenten Regeln.
 - `modules/caldav/` übersetzt den gemeinsamen Kalenderkern in WebDAV-XML und
   RFC-5545-iCalendar; Zugang, Parser und Transport bleiben von der REST-API
   getrennt.

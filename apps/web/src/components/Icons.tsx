@@ -113,3 +113,24 @@ export const LogOutIcon = (props: IconProps) => (
     <path d="M10 17l5-5-5-5M15 12H3M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" />
   </Icon>
 );
+
+export const StudyIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="m3 10 9-5 9 5-9 5-9-5Z" />
+    <path d="M7 12.5V17c3 2 7 2 10 0v-4.5M21 10v6" />
+  </Icon>
+);
+
+export const WorkIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="3" y="7" width="18" height="13" rx="2" />
+    <path d="M9 7V4h6v3M3 12h18M10 12v2h4v-2" />
+  </Icon>
+);
+
+export const PlanIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 5h16v15H4zM8 3v4M16 3v4M4 10h16" />
+    <path d="m8 15 2 2 5-5" />
+  </Icon>
+);

@@ -22,6 +22,14 @@ aktuell folgende Abläufe ab:
   überfälligen und hoch priorisierten Aufgaben sowie Bereichen und Projekten,
 - Hinweise auf Terminüberschneidungen und Aufgaben ohne Fälligkeit,
 - Schnellaktionen für die bestehenden Aufgaben- und Termin-Formulare,
+- Arbeitsbereiche und berufliche Projekte mit Ziel, Frist und Status,
+- Zuordnung vorhandener Arbeitsaufgaben ohne zweites Task-System,
+- getrennte geplante und tatsächliche Zeit samt Bereichs-, Status- und
+  Zeitraumfiltern,
+- gemeinsame Wochen- und Agendaansicht für Kalender, Aufgaben, Studium und
+  Arbeit mit Bereichsfiltern,
+- erklärbare Konflikt- und Überlastungshinweise sowie persönliche
+  Verfügbarkeitsfenster ohne automatische Verschiebungen,
 - verständliche Lade-, Leer-, Erfolgs- und Fehlerzustände.
 
 ## Lokal starten
@@ -73,5 +81,7 @@ Playwright-Tests laufen in Chrome für Desktop und Smartphone. Sie prüfen
 Aufgaben-Erstellung, Neuladen, Suche, Filter, Bearbeitung, Abschluss,
 Wiederöffnung, Archivierung, Löschung, Kalenderansichten, Termin-CRUD,
 Aufgaben-Termin-Verknüpfung und -Trennung, Dashboard-Schnellaktionen und
-Aktualisierung, fehlende Browserpersistenz, horizontalen Überlauf sowie
-Manifest, Service Worker und Offline-App-Shell.
+Aktualisierung, Studienplanung, Arbeitskontexte, Projekte, Aufgabenbezug,
+getrennte Zeitarten, kombinierte Studien- und Arbeitswochen, Bereichsfilter,
+Konflikt- und Kapazitätswarnungen, fehlende Browserpersistenz, horizontalen
+Überlauf sowie Manifest, Service Worker und Offline-App-Shell.

@@ -37,9 +37,7 @@ export const Login = ({ error, pending, onLogin }: LoginProps) => {
         <div>
           <p className="eyebrow">WILLKOMMEN ZURÜCK</p>
           <h2 id="login-form-title">Lokal anmelden</h2>
-          <p>
-            Verwende das Passwort, das du mit dem Bootstrap-Befehl gesetzt hast.
-          </p>
+          <p>Verwende dein bei der lokalen Einrichtung gewähltes Passwort.</p>
         </div>
 
         <form onSubmit={(event) => void submit(event)}>
