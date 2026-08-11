@@ -15,6 +15,7 @@ Die Anwendung soll:
 - Datenherkunft und Berechnungen nachvollziehbar halten,
 - Vorschläge statt unbestätigter Änderungen erzeugen,
 - sensible Daten sparsam und unter persönlicher Kontrolle verarbeiten,
+- als installierbares lokales Release einfach in Betrieb genommen werden können,
 - zunächst ohne produktive externe Integrationen funktionieren.
 
 Die maßgebliche Produktreferenz ist `LifeOS Leitfaden.docx`. Bei
@@ -77,6 +78,15 @@ Eine native Desktop- oder Mobile-App ist nicht Teil des MVP. Tauri oder eine
 native iOS-App dürfen später dieselbe Weboberfläche wiederverwenden, wenn ein
 konkreter Bedarf wie Systembenachrichtigungen, Tray-Funktionen oder EventKit
 entsteht.
+
+Als Veröffentlichungsziel wird LifeOS als installierbares lokales Release
+bereitgestellt. Die erste Ausbaustufe bündelt die lokale Anwendung samt
+Docker-Compose-Konfiguration und verständlichen Startskripten in einem
+versionierten GitHub-Release. Die README verlinkt das jeweils aktuelle
+Installationspaket, sobald ein tatsächlich geprüftes Release-Artefakt
+verfügbar ist. Nach dem lokalen Start bietet die Weboberfläche eine
+Installationsmöglichkeit für die bestehende PWA. Ein nativer Desktop-Installer
+ist eine spätere Ausbaustufe und darf nur dieselbe Weboberfläche wiederverwenden.
 
 Die PWA-App-Shell darf statische, lokal gebündelte Assets offline cachen.
 Persönliche API-Antworten, Kalenderdaten und Zugangsdaten werden weder im
@@ -491,3 +501,7 @@ gemeldet.
   ARM64-DMG, konsistente lokale Bundle-Signatur und datenerhaltenden
   Update-/Rollback-Ablauf nach lokalem M6-Nachweis festgehalten; Developer-ID,
   Notarisierung und sauberer zweiter Mac bleiben Release-Gates.
+- **2026-08-12:** Installierbares lokales Release mit versioniertem
+  Download-Artefakt, README-Verlinkung und PWA-Installation als dauerhaftes
+  Veröffentlichungsziel ergänzt; native Installer bleiben eine spätere
+  Ausbaustufe.
