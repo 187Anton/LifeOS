@@ -21,7 +21,7 @@ const calendar = {
   syncToken: 1,
 };
 
-const eventStartsAt = new Date().toISOString();
+const eventStartsAt = new Date(`${today}T09:00:00.000Z`).toISOString();
 const eventEndsAt = new Date(
   new Date(eventStartsAt).valueOf() + 60 * 60 * 1000,
 ).toISOString();
@@ -51,6 +51,11 @@ const berlinDateTimeInput = (value: Date): string => {
   return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
 };
 const today = berlinDate(new Date());
+const eventStartsAt = new Date(`${today}T09:00:00.000Z`).toISOString();
+const eventEndsAt = new Date(
+  new Date(eventStartsAt).valueOf() + 60 * 60 * 1000,
+).toISOString();
+};
 const tomorrow = berlinDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
 const stringValue = (value: unknown): string =>
   typeof value === "string" ? value : "";
