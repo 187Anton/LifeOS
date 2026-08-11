@@ -132,11 +132,14 @@ gemeinsame React-Weboberfläche, den separaten Browserbetrieb oder den
 vorhandenen API-/CalDAV-Kern aufzugeben. Dieses Querschnittsziel hat vor den
 noch nicht begonnenen Produktphasen 0.4 und 0.5 Priorität.
 
-Der aktuelle Stand umfasst die abgeschlossenen Pakete M0 bis M5: Planung,
-vollständiges SQLite-Schema, API-/CalDAV-Parität, Import und Recovery sowie
-eine gebaute und gestartete Tauri-`.app` für macOS ARM64 sind nachgewiesen. Ein
-freigegebener Mac-Installations- und Updateweg ist das noch nicht. Die
-detaillierte Bestandsaufnahme, Entscheidungen, Risiken und
+Der aktuelle Stand umfasst die abgeschlossenen Pakete M0 bis M5 sowie den
+lokalen Teil von M6: Planung, vollständiges SQLite-Schema, API-/CalDAV-Parität,
+Import und Recovery, eine gebaute und gestartete Tauri-`.app`, ein geprüftes
+ARM64-DMG sowie Ersteinrichtung, Update, Rollback, Backup, Restore und
+Deinstallation sind nachgewiesen. Ein öffentlich freigegebener
+Mac-Installationsweg ist das noch nicht, weil Developer-ID, Notarisierung und
+der Gegencheck auf einem zweiten sauberen Mac fehlen. Die detaillierte
+Bestandsaufnahme, Entscheidungen, Risiken und
 Akzeptanzkriterien stehen in
 [`docs/mac-desktop-spike-plan.md`](mac-desktop-spike-plan.md). Der Fortschritt
 und die tatsächlich ausgeführten Nachweise werden fortlaufend in
@@ -211,6 +214,12 @@ Node; der Browserbetrieb bleibt separat möglich.
 Abschlusskriterium: Ein sauberer unterstützter Mac installiert und startet
 LifeOS ohne Docker; ein Update erhält lokale Daten und CalDAV-Identitäten.
 Nicht geprüfte Release-Gates bleiben ausdrücklich offen.
+
+Lokaler M6-Stand: Das DMG und sämtliche Datenhaltungsabläufe des
+Abschlusskriteriums sind auf dem Entwicklungs-Mac mit isolierten App-, Daten-
+und Laufzeitpfaden erfolgreich geprüft. M6 ist damit lokal erfolgreich; die
+öffentliche Produktfreigabe mit Developer-ID, Notarisierung und Zweit-Mac-Test
+ist ausdrücklich auf ein späteres Arbeitspaket verschoben.
 
 ## 0.2 Organisation
 

@@ -1,6 +1,6 @@
 # Technische Spike-Planung: lokale Mac-App und SQLite
 
-Stand: 9. August 2026
+Stand: 11. August 2026
 
 Ausgangsstand: `origin/develop` bei `830fb77`
 
@@ -48,16 +48,16 @@ umgesetzt. Das nächste Paket beginnt erst, wenn das Gate des vorherigen Pakets
 erfüllt oder eine ausdrücklich dokumentierte Architekturentscheidung getroffen
 wurde.
 
-| Paket | Ergebnis                                                               | Freigabe-Gate                                                                                | Status        |
-| ----- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------- |
-| M0    | Ziel, Baseline, Risiken und Nachweisformat sind dokumentiert.          | Dokumentprüfung und Repository-Tests sind erfolgreich.                                       | abgeschlossen |
-| M1    | Repräsentatives SQLite-Schema und versionierte Migration existieren.   | Schema, Seed, Wiederholung und Datenregeln sind automatisiert geprüft.                       | abgeschlossen |
-| M2    | Das gebaute Express-Backend läuft ohne Docker auf SQLite.              | Anmeldung, Einstellungen, Kalender-CRUD und Neustart bestehen den unveränderten API-Vertrag. | abgeschlossen |
-| M3    | Kalender und CalDAV besitzen SQLite-Parität.                           | CRUD, Zeitzone, Ganztag, RRULE, Erinnerung, ETag-Konflikt und Sync sind geprüft.             | abgeschlossen |
-| M4    | PostgreSQL-Übernahme sowie SQLite-Backup und -Restore sind sicher.     | Automatisierter Datenvergleich und Recovery-Test erhalten alle stabilen Identitäten.         | abgeschlossen |
-| M5    | Tauri startet und beendet einen reproduzierbar gebauten Sidecar.       | Mac-App, Browser und CalDAV verwenden denselben Kern ohne Docker und globales Node.js.       | abgeschlossen |
-| M6    | Installation und Update sind auf einem sauberen Mac nachgewiesen.      | DMG, Erststart, Neustart, Update, Backup und Restore sind dokumentiert erfolgreich.          | teilweise     |
-| M7    | Betriebs- und Produktdokumentation entsprechen dem geprüften Endstand. | Abschlussprüfung bestätigt alle Erfolgskriterien und keine offenen kritischen Gates.         | offen         |
+| Paket | Ergebnis                                                               | Freigabe-Gate                                                                                | Status                                          |
+| ----- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| M0    | Ziel, Baseline, Risiken und Nachweisformat sind dokumentiert.          | Dokumentprüfung und Repository-Tests sind erfolgreich.                                       | abgeschlossen                                   |
+| M1    | Repräsentatives SQLite-Schema und versionierte Migration existieren.   | Schema, Seed, Wiederholung und Datenregeln sind automatisiert geprüft.                       | abgeschlossen                                   |
+| M2    | Das gebaute Express-Backend läuft ohne Docker auf SQLite.              | Anmeldung, Einstellungen, Kalender-CRUD und Neustart bestehen den unveränderten API-Vertrag. | abgeschlossen                                   |
+| M3    | Kalender und CalDAV besitzen SQLite-Parität.                           | CRUD, Zeitzone, Ganztag, RRULE, Erinnerung, ETag-Konflikt und Sync sind geprüft.             | abgeschlossen                                   |
+| M4    | PostgreSQL-Übernahme sowie SQLite-Backup und -Restore sind sicher.     | Automatisierter Datenvergleich und Recovery-Test erhalten alle stabilen Identitäten.         | abgeschlossen                                   |
+| M5    | Tauri startet und beendet einen reproduzierbar gebauten Sidecar.       | Mac-App, Browser und CalDAV verwenden denselben Kern ohne Docker und globales Node.js.       | abgeschlossen                                   |
+| M6    | Lokaler Installations-, Update- und Recovery-Pfad ist nachgewiesen.    | Lokales DMG und Datenhaltung sind geprüft; externe Produktrelease-Gates sind aufgeschoben.   | lokal erfolgreich; Produktfreigabe aufgeschoben |
+| M7    | Betriebs- und Produktdokumentation entsprechen dem geprüften Endstand. | Abschlussprüfung bestätigt alle Erfolgskriterien und keine offenen kritischen Gates.         | offen                                           |
 
 Der aktuelle Nachweisstand wird in
 [`docs/mac-desktop-migration-log.md`](mac-desktop-migration-log.md) geführt.
@@ -465,7 +465,7 @@ Lokaler Nachweis:
   und Programme-Link. Prüfsumme, schreibgeschütztes Mounten, Kopie in ein
   isoliertes Programme-Verzeichnis und die vollständige Code-Signaturstruktur
   wurden bestätigt. Das finale lokale Artefakt hat die SHA-256-Prüfsumme
-  `96563589782571789fe40d7a996b1141a21ef95fe50372300ed73964550abf73`.
+  `9648de7f17294e3619b66772c87c26703e336460c6c55a54237e50cc8207c913`.
 - Die aus dem DMG kopierte App zeigte auf einer leeren isolierten SQLite-Datei
   die terminalfreie Ersteinrichtung. Profil, Einstellungen, Primärkalender,
   App-Passwort und getrennter CalDAV-Zugang wurden atomar angelegt; ein
@@ -493,9 +493,11 @@ Noch offene Freigabe-Gates:
 - Intel-/Universal-Build und der physische Apple-Kalender-Zugriff über eine
   bewusst abgesicherte LAN-Bindung sind nicht geprüft.
 
-M6 bleibt bis zum Gegencheck auf einem sauberen Mac sowie Developer-ID-
-Signierung und Notarisierung teilweise offen. Diese externen Gates ändern den
-lokal erfolgreichen Daten-, Update- und Rollback-Nachweis nicht.
+M6 ist für den Quellcode und den lokalen ARM64-Nachweis erfolgreich. Die
+öffentliche Produktfreigabe bleibt bewusst aufgeschoben, bis ein späteres
+Arbeitspaket Developer-ID, Notarisierung und den Gegencheck auf einem sauberen
+Mac tatsächlich ausführt. Diese externen Gates ändern den lokal erfolgreichen
+Daten-, Update- und Rollback-Nachweis nicht.
 
 ## Reihenfolge und Stop-Gates
 

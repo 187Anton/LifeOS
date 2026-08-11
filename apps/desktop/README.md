@@ -83,7 +83,7 @@ Anfragekörper, Cookies oder Zugangsdaten.
   Laufzeit gestartet. Die Bundle-Signatur ist lokal ad-hoc konsistent, aber
   noch nicht mit einer Developer-ID signiert oder von Apple notarisiert. Das
   finale lokale DMG hat die SHA-256-Prüfsumme
-  `96563589782571789fe40d7a996b1141a21ef95fe50372300ed73964550abf73`.
+  `9648de7f17294e3619b66772c87c26703e336460c6c55a54237e50cc8207c913`.
 - Der dynamische Loopback-Link kann parallel in einem Browser geöffnet werden.
   Die Desktop-App bindet absichtlich noch nicht ins LAN; ein iPhone erreicht
   diesen M5-Prototyp deshalb nicht. Der physische Apple-Kalender-Test bleibt

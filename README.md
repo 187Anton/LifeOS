@@ -111,7 +111,8 @@ Es ist lokal ad-hoc signiert, aber mangels verfügbarer Developer-ID nicht von
 Apple notarisiert. Auch der verpflichtende Gegencheck auf einem zweiten
 sauberen Mac und ein Intel-/Universal-Build sind noch offene Release-Gates.
 Die Details und der lokale Update-/Rollback-Nachweis stehen im
-[Migrationsprotokoll](docs/mac-desktop-migration-log.md).
+[Migrationsprotokoll](docs/mac-desktop-migration-log.md). M6 ist damit lokal
+erfolgreich; die öffentliche Produktfreigabe ist ausdrücklich aufgeschoben.
 
 ## Browser- und Entwicklungsbetrieb
 
@@ -319,6 +320,8 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 | Gebaute SQLite-API mit Neustart prüfen        | `npm run verify:sqlite:api-runtime` |
 | Gebündelten Mac-Sidecar prüfen                | `npm run desktop:verify:sidecar`    |
 | Native Mac-App lokal bauen                    | `npm run desktop:build:app`         |
+| ARM64-DMG lokal bauen                         | `npm run desktop:build:dmg`         |
+| Lokales DMG und gebündelten Sidecar prüfen    | `npm run desktop:verify:dmg`        |
 | PostgreSQL vollständig nach SQLite übertragen | `npm run db:sqlite:import`          |
 | SQLite und Dokumente sichern                  | `npm run db:sqlite:backup -- …`     |
 | SQLite-Backup in neue Ziele restaurieren      | `npm run db:sqlite:restore -- …`    |

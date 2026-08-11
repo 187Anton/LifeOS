@@ -1,6 +1,6 @@
 # Migrationsprotokoll: Mac-App und SQLite
 
-Stand: 9. August 2026
+Stand: 11. August 2026
 
 Dieses Dokument ist der fortlaufende Nachweis für die in
 [`mac-desktop-spike-plan.md`](mac-desktop-spike-plan.md) beschriebene Migration.
@@ -9,16 +9,16 @@ tatsächlich ausgeführten Prüfungen dokumentiert ist.
 
 ## Statusübersicht
 
-| Paket                             | Status        | Letzter Nachweis |
-| --------------------------------- | ------------- | ---------------- |
-| M0 – Ziel und Ausführungsplan     | abgeschlossen | 9. August 2026   |
-| M1 – SQLite-Schema und Migration  | abgeschlossen | 9. August 2026   |
-| M2 – API ohne Docker              | abgeschlossen | 9. August 2026   |
-| M3 – Kalender- und CalDAV-Parität | abgeschlossen | 9. August 2026   |
-| M4 – Datenübernahme und Recovery  | abgeschlossen | 9. August 2026   |
-| M5 – Tauri-Sidecar                | abgeschlossen | 9. August 2026   |
-| M6 – Installation und Update      | teilweise     | 9. August 2026   |
-| M7 – Abschlussdokumentation       | offen         | –                |
+| Paket                             | Status                                          | Letzter Nachweis |
+| --------------------------------- | ----------------------------------------------- | ---------------- |
+| M0 – Ziel und Ausführungsplan     | abgeschlossen                                   | 9. August 2026   |
+| M1 – SQLite-Schema und Migration  | abgeschlossen                                   | 9. August 2026   |
+| M2 – API ohne Docker              | abgeschlossen                                   | 9. August 2026   |
+| M3 – Kalender- und CalDAV-Parität | abgeschlossen                                   | 9. August 2026   |
+| M4 – Datenübernahme und Recovery  | abgeschlossen                                   | 9. August 2026   |
+| M5 – Tauri-Sidecar                | abgeschlossen                                   | 9. August 2026   |
+| M6 – Installation und Update      | lokal erfolgreich; Produktfreigabe aufgeschoben | 11. August 2026  |
+| M7 – Abschlussdokumentation       | offen                                           | –                |
 
 ## Nachweisvorlage
 
@@ -307,7 +307,7 @@ formuliert werden.
   PostgreSQL-API-Suite ebenfalls 47 Fälle. Zusätzlich bestanden 9
   Datenbanktests, 28 Web-Unit-, 16 Browser-E2E-, 4 Desktop- und 12
   Repository-Tests sowie Typprüfung, Linting, Format-, Build- und Secret-
-  Prüfung. Das finale DMG hat die SHA-256-Prüfsumme
+  Prüfung. Das in diesem Lauf geprüfte DMG hatte die SHA-256-Prüfsumme
   `96563589782571789fe40d7a996b1141a21ef95fe50372300ed73964550abf73`.
 - **Datenvergleich:** Vor dem App-Austausch wurde ein Online-Backup erzeugt.
   Update 0.1.0 → 0.1.1, Neustart und Rollback auf 0.1.0 erhielten Benutzer-ID,
@@ -323,7 +323,36 @@ formuliert werden.
   automatische Updateverteilung, Backup-Oberfläche und physischer
   Apple-Kalender-Test über LAN bleiben offen. Das DMG ist noch kein öffentlich
   freigegebenes Release.
-- **Nächster Schritt:** M6 wird auf einem sauberen Apple-Silicon-Mac mit
-  Developer-ID und Notarisierung abgeschlossen. Danach kann M7 die finale
-  Release-Checkliste freigeben; bis dahin bleibt die Gesamtmigration lokal
-  nachgewiesen, aber nicht distributionsreif.
+- **Nächster Schritt:** Der Quellcode wird nach `develop` als Draft-PR zur
+  Prüfung gestellt. Developer-ID, Notarisierung, GitHub-Produktrelease,
+  Zweit-Mac-, Universal-/Intel-, Updater- und physischer Apple-Kalender-Test
+  bleiben ausdrücklich einem späteren Produktrelease-Arbeitspaket vorbehalten.
+
+## 11. August 2026 – M6: lokaler Quellcodeabschluss
+
+- **Befund:** Der Anwendungscode war bei `9d5a4ce` vollständig lokal geprüft;
+  die Roadmap nannte dennoch nur M0 bis M5 und die README führte die bereits
+  vorhandenen DMG-Befehle nicht auf.
+- **Ursache oder Entscheidung:** M6 wird als „lokal erfolgreich, öffentliche
+  Produktfreigabe aufgeschoben“ abgeschlossen. Begonnene Notarisierungs- und
+  öffentliche Release-Skripte gehören nicht in diesen Quellcode-PR und wurden
+  entfernt.
+- **Änderungsumfang:** Ausschließlich Abschlussdokumentation in README,
+  Desktop-README, Roadmap, Migrationsplan, Migrationsprotokoll und Leitfaden;
+  kein Anwendungs-, Datenbank- oder Migrationscode wurde geändert.
+- **Verifikation:** Der unveränderte ARM64-Build und `desktop:verify:dmg`
+  bestanden erneut; der gebündelte Node-22.23.2-Sidecar startete aus der
+  kopierten App zweimal ohne Homebrew-Pfad. Git-Diff-Prüfung, Formatprüfung,
+  Secret-Scan und alle 12 Repository-Tests bestanden. Der aktualisierte
+  22-seitige Leitfaden wurde vollständig gerendert und visuell geprüft. Das
+  zuletzt geprüfte lokale DMG hat die SHA-256-Prüfsumme
+  `9648de7f17294e3619b66772c87c26703e336460c6c55a54237e50cc8207c913`.
+- **Datenvergleich:** Nicht erneut erforderlich, da dieser Abschluss keine
+  Fachlogik oder Datenpfade verändert. Der zuvor dokumentierte SQLite-/
+  PostgreSQL-, Kalender-, CalDAV-, Import-, Backup-, Restore-, Update- und
+  Rollback-Nachweis bleibt unverändert maßgeblich.
+- **Risiken und Grenzen:** Das lokal ad-hoc signierte DMG ist kein öffentliches
+  Produktrelease. Alle externen Apple- und Geräte-Gates bleiben offen.
+- **Nächster Schritt:** Kleinen Dokumentations-Commit erstellen, den gesamten
+  Unterschied zu `origin/develop` prüfen und – bei gültiger GitHub-
+  Authentifizierung – als Draft-PR nach `develop` veröffentlichen.
