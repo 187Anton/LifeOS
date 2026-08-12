@@ -132,6 +132,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
           transaction.project.findMany({
             where: {
               userId,
+              deletedAt: null,
               archivedAt: null,
               tasks: {
                 some: {

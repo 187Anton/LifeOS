@@ -373,9 +373,23 @@ Ziel: Eigene Projekte und lokale Wissensquellen strukturiert nutzen.
 
 ### 0.4.1 Projekte und Meilensteine
 
-- Projekte, Ziele und Meilensteine verwalten.
-- Aufgaben und Termine mit Projekten verknüpfen.
-- Fortschritt aus nachvollziehbaren Daten berechnen.
+- **Umgesetzt (12. August 2026):** Besitzgebundene Projekte, Ziele und
+  Meilensteine können angelegt, angezeigt, bearbeitet, archiviert, reaktiviert
+  und per Löschmarkierung ausgeblendet werden. Status, optionale Risiken und
+  reine Fälligkeitstage sind in PostgreSQL und SQLite versioniert.
+- Aufgaben und Kalenderereignisse werden ausschließlich referenziert. Aufgabe,
+  Kalender-UID und ETag bleiben in ihren führenden Modulen; fremde oder
+  ungültige Referenzen weist die API zurück.
+- Der Fortschritt ist eine gleichgewichtete Projektion aktiver, nicht
+  abgebrochener Ziele, Meilensteine und Aufgaben. Ohne Datengrundlage zeigt die
+  Oberfläche „noch nicht messbar“. Formel und Vertrag sind in
+  [`docs/api/projects.md`](api/projects.md) festgelegt.
+- Responsive Projektübersicht und Detailansicht, synthetische Seeds sowie Unit-,
+  API-, PostgreSQL-/SQLite-Datenbank- und Desktop-/Mobiltests wurden ergänzt.
+
+Abschlusskriterium: Projektverwaltung und Verknüpfungen funktionieren lokal;
+PostgreSQL- und SQLite-Parität, Migration, Import und Recovery werden durch die
+automatisierten Prüfungen des Teilabschnitts nachgewiesen.
 
 ### 0.4.2 Lokale Dokumente und Notizen
 

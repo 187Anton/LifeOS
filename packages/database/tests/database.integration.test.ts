@@ -173,6 +173,68 @@ test("erzwingt Besitz und gültige Zeiträume im Arbeitsmodell", async (t) => {
   );
 });
 
+test("erzwingt Besitz und reine Fälligkeitstage für Projektziele und Meilensteine", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalIds = [
+    `project-db-owner-${suffix}`,
+    `project-db-other-${suffix}`,
+  ];
+  t.after(async () => {
+    await database.user.deleteMany({
+      where: { externalId: { in: externalIds } },
+    });
+    await database.$disconnect();
+  });
+  const [owner, other] = await Promise.all(
+    externalIds.map((externalId) =>
+      database.user.create({
+        data: {
+          externalId,
+          displayName: "Synthetische Projektperson",
+          settings: { create: {} },
+        },
+      }),
+    ),
+  );
+  assert.ok(owner && other);
+  const project = await database.project.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetisches Projekt",
+      dueDate: new Date("2032-06-30T00:00:00.000Z"),
+    },
+  });
+  const goal = await database.projectGoal.create({
+    data: {
+      userId: owner.id,
+      projectId: project.id,
+      title: "Synthetisches Ziel",
+      dueDate: new Date("2032-05-31T00:00:00.000Z"),
+    },
+  });
+  const milestone = await database.projectMilestone.create({
+    data: {
+      userId: owner.id,
+      projectId: project.id,
+      title: "Synthetischer Meilenstein",
+      status: "completed",
+      dueDate: new Date("2032-04-30T00:00:00.000Z"),
+    },
+  });
+  assert.equal(goal.dueDate?.toISOString(), "2032-05-31T00:00:00.000Z");
+  assert.equal(milestone.dueDate?.toISOString(), "2032-04-30T00:00:00.000Z");
+  await assert.rejects(() =>
+    database.projectGoal.create({
+      data: {
+        userId: other.id,
+        projectId: project.id,
+        title: "Fremdes Projektziel",
+      },
+    }),
+  );
+});
+
 test("erzwingt gültige persönliche Verfügbarkeitsfenster", async (t) => {
   const database = createDatabaseClient();
   const suffix = randomUUID();

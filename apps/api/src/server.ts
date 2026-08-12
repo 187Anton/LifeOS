@@ -20,6 +20,9 @@ import { DashboardService } from "./modules/dashboard/service.js";
 import { PrismaPlanningRepository } from "./modules/planning/repository.js";
 import { createPlanningRouter } from "./modules/planning/router.js";
 import { PlanningService } from "./modules/planning/service.js";
+import { PrismaProjectRepository } from "./modules/projects/repository.js";
+import { createProjectRouter } from "./modules/projects/router.js";
+import { ProjectService } from "./modules/projects/service.js";
 import { PrismaProfileRepository } from "./modules/profile/repository.js";
 import { createProfileRouter } from "./modules/profile/router.js";
 import {
@@ -61,6 +64,7 @@ const main = async (): Promise<void> => {
   const study = new StudyService(new PrismaStudyRepository(database));
   const work = new WorkService(new PrismaWorkRepository(database));
   const planning = new PlanningService(new PrismaPlanningRepository(database));
+  const projects = new ProjectService(new PrismaProjectRepository(database));
   const taskEventLinks = new TaskEventLinkService(
     new PrismaTaskEventLinkRepository(database),
   );
@@ -110,6 +114,7 @@ const main = async (): Promise<void> => {
       createStudyRouter({ authentication, study }),
       createWorkRouter({ authentication, work }),
       createPlanningRouter({ authentication, planning }),
+      createProjectRouter({ authentication, projects }),
     ],
   });
   let runningServer: Awaited<ReturnType<typeof startApiServer>>;

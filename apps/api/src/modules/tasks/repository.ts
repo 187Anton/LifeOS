@@ -243,7 +243,7 @@ export class PrismaTaskRepository implements TaskRepository {
   ): Promise<void> {
     if (!projectId) return;
     const project = await transaction.project.findFirst({
-      where: { id: projectId, userId, archivedAt: null },
+      where: { id: projectId, userId, archivedAt: null, deletedAt: null },
       select: { id: true },
     });
     if (!project) throw new ProjectNotFoundError();

@@ -131,6 +131,13 @@ Kennzahlen, verwendet die Profilzeitzone für „heute“ und „überfällig“
 öffnet bei Schnellaktionen nur bestehende Formulare; Schreiben bleibt eine
 getrennte, bestätigte Fachaktion.
 
+Der Projektfortschritt ist eine rein lesende, nicht persistierte Projektion.
+Aktive, nicht archivierte, nicht gelöschte und nicht abgebrochene Ziele,
+Meilensteine und Aufgaben zählen gleichgewichtet; Ziele und Meilensteine gelten
+mit `completed`, Aufgaben mit `done` als abgeschlossen. Ohne berücksichtigte
+Einträge wird kein Prozentwert erfunden. Projektverknüpfungen verändern Aufgaben
+oder Kalenderereignisse nicht automatisch.
+
 Die lokale Erreichbarkeit muss dokumentiert werden. `localhost` auf dem
 iPhone zeigt auf das iPhone selbst; für lokale Synchronisation wird die
 Netzwerkadresse oder ein lokaler DNS-Name des Entwicklungsrechners benötigt.
@@ -206,7 +213,7 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
   nur ein schreibender API-/Sidecar-Prozess freigegeben. Ein ETag-Konflikt muss
   die Änderung einschließlich Sync-Token und Audit vollständig zurückrollen.
 - Der PostgreSQL-zu-SQLite-Import liest die Quelle konsistent und
-  schreibgeschützt, vergleicht alle 19 Modelle und veröffentlicht nur eine neue
+  schreibgeschützt, vergleicht alle vorhandenen Modelle und veröffentlicht nur eine neue
   geprüfte Zieldatei. SQLite-Backup und Restore umfassen Datenbank und
   Dokumente, verwenden SHA-256-Manifeste und schreiben niemals über aktive
   Ziele. Backups sind unverschlüsselt und vertraulich zu behandeln.
@@ -505,3 +512,7 @@ gemeldet.
   Download-Artefakt, README-Verlinkung und PWA-Installation als dauerhaftes
   Veröffentlichungsziel ergänzt; native Installer bleiben eine spätere
   Ausbaustufe.
+- **2026-08-12:** Besitzgebundene Projektverwaltung mit Zielen, Meilensteinen,
+  reinen Fälligkeitstagen, referenzierten Aufgaben und Kalenderereignissen sowie
+  gleichgewichteter, nicht persistierter Fortschrittsprojektion nach
+  PostgreSQL-/SQLite-, API-, Recovery- und Desktop-/Mobiltests festgehalten.

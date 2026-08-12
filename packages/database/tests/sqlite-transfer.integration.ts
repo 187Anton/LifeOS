@@ -101,7 +101,31 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     },
   });
   const project = await source.project.create({
-    data: { userId: user.id, title: "Synthetischer Projektanker" },
+    data: {
+      userId: user.id,
+      title: "Synthetischer Projektanker",
+      description: "Transferprojekt",
+      status: "active",
+      dueDate: new Date("2032-12-31T00:00:00.000Z"),
+    },
+  });
+  await source.projectGoal.create({
+    data: {
+      userId: user.id,
+      projectId: project.id,
+      title: "Synthetisches Transferziel",
+      status: "in_progress",
+      dueDate: new Date("2032-10-31T00:00:00.000Z"),
+    },
+  });
+  await source.projectMilestone.create({
+    data: {
+      userId: user.id,
+      projectId: project.id,
+      title: "Synthetischer Transfermeilenstein",
+      status: "completed",
+      dueDate: new Date("2032-09-30T00:00:00.000Z"),
+    },
   });
   const task = await source.task.create({
     data: {
@@ -119,6 +143,9 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   });
   await source.taskEventLink.create({
     data: { userId: user.id, taskId: task.id, calendarEventId: event.id },
+  });
+  await source.projectEventLink.create({
+    data: { userId: user.id, projectId: project.id, calendarEventId: event.id },
   });
   const program = await source.studyProgram.create({
     data: {
@@ -234,6 +261,9 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       sessions: true,
       calendars: { include: { events: true } },
       projects: true,
+      projectGoals: true,
+      projectMilestones: true,
+      projectEventLinks: true,
       tasks: true,
       taskEventLinks: true,
       studyPrograms: true,
@@ -256,6 +286,12 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   assert.deepEqual(importedUser.studyModules[0]?.documentReferences, [
     "documents/study/module.txt",
   ]);
+  assert.equal(
+    importedUser.projectGoals[0]?.dueDate?.toISOString(),
+    "2032-10-31T00:00:00.000Z",
+  );
+  assert.equal(importedUser.projectMilestones.length, 1);
+  assert.equal(importedUser.projectEventLinks[0]?.calendarEventId, event.id);
 
   const documents = path.join(directory, "documents-source");
   await mkdir(path.join(documents, "study"), { recursive: true });

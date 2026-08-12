@@ -58,6 +58,10 @@ const startServer = async (databaseUrl: string, port: number) => {
       API_HOST: "127.0.0.1",
       API_PORT: String(port),
       DATABASE_URL: databaseUrl,
+      SQLITE_MIGRATIONS_PATH: path.join(
+        repositoryRoot,
+        "packages/database/prisma/sqlite/migrations",
+      ),
       WEB_ORIGIN: `http://127.0.0.1:${port}`,
       LOG_LEVEL: "error",
       SHUTDOWN_TIMEOUT_MS: "1000",

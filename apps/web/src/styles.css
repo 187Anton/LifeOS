@@ -96,6 +96,83 @@ p {
   display: grid;
   gap: 1rem;
 }
+.project-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.75fr) minmax(0, 2fr);
+  gap: 1rem;
+  align-items: start;
+}
+.project-list,
+.project-detail {
+  display: grid;
+  gap: 1rem;
+}
+.project-list-item {
+  display: grid;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  background: #fff;
+  text-align: left;
+}
+.project-list-item.active {
+  border-color: var(--forest-soft);
+  background: var(--sage);
+}
+.project-list-item span,
+.project-progress span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.project-list-item progress,
+.project-progress progress {
+  width: 100%;
+  accent-color: var(--forest-soft);
+}
+.project-detail .study-section > header,
+.project-progress,
+.project-linked-row,
+.inline-link-form {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+.project-progress {
+  margin-top: 1rem;
+}
+.project-progress strong {
+  white-space: nowrap;
+}
+.risk-note {
+  margin: 1rem 0 0;
+  color: var(--danger);
+}
+.inline-link-form {
+  margin: 1rem 0;
+}
+.inline-link-form select {
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+.inline-link-form button {
+  padding: 0.65rem 0.85rem;
+  border: 0;
+  border-radius: 10px;
+  color: white;
+  background: var(--forest);
+}
+.project-linked-row {
+  padding: 0.65rem 0;
+  border-top: 1px solid var(--line);
+}
 .study-section,
 .study-form {
   padding: 1.25rem;
@@ -460,9 +537,15 @@ p {
   .record-actions {
     width: 100%;
   }
+  .record-actions {
+    flex-wrap: wrap;
+  }
   .study-actions button,
   .record-actions select {
     flex: 1;
+  }
+  .record-actions select {
+    min-width: 0;
   }
   .study-form-grid {
     grid-template-columns: 1fr;
@@ -2098,7 +2181,8 @@ input[readonly] {
     bottom: 0;
     left: 0;
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(7, minmax(68px, 1fr));
+    overflow-x: auto;
     border-top: 1px solid var(--line);
     background: rgba(255, 253, 248, 0.96);
     backdrop-filter: blur(12px);
@@ -2112,6 +2196,15 @@ input[readonly] {
     color: var(--muted);
     background: transparent;
     font-size: 0.7rem;
+  }
+  .project-layout {
+    grid-template-columns: 1fr;
+  }
+  .project-detail .study-section > header,
+  .project-progress,
+  .inline-link-form {
+    align-items: stretch;
+    flex-direction: column;
   }
   .mobile-navigation button.active {
     color: var(--forest);

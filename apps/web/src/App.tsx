@@ -25,6 +25,12 @@ import type {
   WorkOverviewResponse,
   CreateAvailabilityWindowRequest,
   PlanningResponse,
+  CreateProjectItemRequest,
+  CreateProjectRequest,
+  ProjectDetailResponse,
+  ProjectOverviewResponse,
+  UpdateProjectItemRequest,
+  UpdateProjectRequest,
 } from "@lifeos/contracts";
 import { useCallback, useEffect, useState } from "react";
 
@@ -38,6 +44,7 @@ import { TaskWorkspace } from "./components/TaskWorkspace";
 import { StudyWorkspace } from "./components/StudyWorkspace";
 import { WorkWorkspace } from "./components/WorkWorkspace";
 import { PlanningWorkspace } from "./components/PlanningWorkspace";
+import { ProjectWorkspace } from "./components/ProjectWorkspace";
 import { weekRange, type DateRange } from "./planning";
 
 type SessionState = "checking" | "anonymous" | "authenticated";
@@ -67,6 +74,11 @@ export const App = () => {
   const [study, setStudy] = useState<StudyOverviewResponse | null>(null);
   const [work, setWork] = useState<WorkOverviewResponse | null>(null);
   const [planning, setPlanning] = useState<PlanningResponse | null>(null);
+  const [projects, setProjects] = useState<ProjectOverviewResponse | null>(
+    null,
+  );
+  const [projectDetail, setProjectDetail] =
+    useState<ProjectDetailResponse | null>(null);
   const [planningRange, setPlanningRange] = useState<DateRange>(() =>
     weekRange("Europe/Berlin", 1),
   );
@@ -95,6 +107,9 @@ export const App = () => {
   const [planningLoading, setPlanningLoading] = useState(false);
   const [planningError, setPlanningError] = useState<string | null>(null);
   const [planningSuccess, setPlanningSuccess] = useState<string | null>(null);
+  const [projectLoading, setProjectLoading] = useState(false);
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const [projectSuccess, setProjectSuccess] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [taskSuccess, setTaskSuccess] = useState<string | null>(null);
 
@@ -194,6 +209,40 @@ export const App = () => {
     }
   }, []);
 
+  const loadProject = useCallback(async (projectId: string) => {
+    setProjectLoading(true);
+    setProjectError(null);
+    try {
+      setProjectDetail(await api.getProject(projectId));
+    } catch (error) {
+      setProjectError(errorMessage(error));
+      setProjectDetail(null);
+    } finally {
+      setProjectLoading(false);
+    }
+  }, []);
+
+  const loadProjects = useCallback(async (preferredProjectId?: string) => {
+    setProjectLoading(true);
+    setProjectError(null);
+    try {
+      const overview = await api.listProjects(true);
+      setProjects(overview);
+      const selected =
+        overview.projects.find(
+          (project) => project.id === preferredProjectId,
+        ) ?? overview.projects[0];
+      if (selected) setProjectDetail(await api.getProject(selected.id));
+      else setProjectDetail(null);
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401)
+        setSession("anonymous");
+      else setProjectError(errorMessage(error));
+    } finally {
+      setProjectLoading(false);
+    }
+  }, []);
+
   const loadAuthenticatedData = useCallback(async () => {
     const [loadedProfile, loadedCalendars, loadedTasks, loadedLinks] =
       await Promise.all([
@@ -223,8 +272,16 @@ export const App = () => {
       loadStudy(),
       loadWork(),
       loadPlanning(currentPlanningRange),
+      loadProjects(),
     ]);
-  }, [loadDashboard, loadEvents, loadPlanning, loadStudy, loadWork]);
+  }, [
+    loadDashboard,
+    loadEvents,
+    loadPlanning,
+    loadProjects,
+    loadStudy,
+    loadWork,
+  ]);
 
   useEffect(() => {
     // Der initiale API-Aufruf klärt zuerst die einmalige lokale Einrichtung.
@@ -290,6 +347,8 @@ export const App = () => {
     setStudy(null);
     setWork(null);
     setPlanning(null);
+    setProjects(null);
+    setProjectDetail(null);
     setSelectedCalendarId(null);
     setLoginError(null);
   };
@@ -552,6 +611,30 @@ export const App = () => {
     void loadPlanning(range);
   };
 
+  const changeProject = async (
+    operation: () => Promise<unknown>,
+    message: string,
+  ) => {
+    const selectedProjectId = projectDetail?.project.id;
+    setSaving(true);
+    setProjectError(null);
+    setProjectSuccess(null);
+    try {
+      await operation();
+      setProjectSuccess(message);
+      await Promise.all([
+        loadProjects(selectedProjectId),
+        loadTasks(),
+        loadDashboard(),
+      ]);
+    } catch (error) {
+      setProjectError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (session === "checking") {
     return (
       <main className="boot-screen" role="status">
@@ -753,6 +836,101 @@ export const App = () => {
             changePlanning(
               () => api.deleteAvailability(id),
               "Die persönliche Verfügbarkeit wurde entfernt.",
+            )
+          }
+        />
+      ) : view === "projects" ? (
+        <ProjectWorkspace
+          overview={projects}
+          detail={projectDetail}
+          tasks={tasks}
+          calendars={calendars}
+          events={events}
+          loading={projectLoading}
+          saving={saving}
+          error={projectError}
+          success={projectSuccess}
+          onReload={() => void loadProjects()}
+          onSelect={(id) => void loadProject(id)}
+          onCreateProject={(value: CreateProjectRequest) =>
+            changeProject(
+              () => api.createProject(value),
+              "Das Projekt wurde angelegt.",
+            )
+          }
+          onUpdateProject={(id: string, value: UpdateProjectRequest) =>
+            changeProject(
+              () => api.updateProject(id, value),
+              "Das Projekt wurde aktualisiert.",
+            )
+          }
+          onDeleteProject={(id: string) =>
+            changeProject(
+              () => api.deleteProject(id),
+              "Das Projekt wurde gelöscht.",
+            )
+          }
+          onCreateItem={(
+            projectId: string,
+            kind: "goals" | "milestones",
+            value: CreateProjectItemRequest,
+          ) =>
+            changeProject(
+              () => api.createProjectItem(projectId, kind, value),
+              "Der Projekteintrag wurde angelegt.",
+            )
+          }
+          onUpdateItem={(
+            projectId: string,
+            kind: "goals" | "milestones",
+            itemId: string,
+            value: UpdateProjectItemRequest,
+          ) =>
+            changeProject(
+              () => api.updateProjectItem(projectId, kind, itemId, value),
+              "Der Projekteintrag wurde aktualisiert.",
+            )
+          }
+          onDeleteItem={(
+            projectId: string,
+            kind: "goals" | "milestones",
+            itemId: string,
+          ) =>
+            changeProject(
+              () => api.deleteProjectItem(projectId, kind, itemId),
+              "Der Projekteintrag wurde gelöscht.",
+            )
+          }
+          onLinkTask={(projectId: string, taskId: string) =>
+            changeProject(
+              () => api.linkProjectTask(projectId, { taskId }),
+              "Die Aufgabe wurde verknüpft.",
+            )
+          }
+          onUnlinkTask={(projectId: string, taskId: string) =>
+            changeProject(
+              () => api.unlinkProjectTask(projectId, taskId),
+              "Die Aufgabenverknüpfung wurde entfernt.",
+            )
+          }
+          onLinkEvent={(
+            projectId: string,
+            calendarId: string,
+            eventUid: string,
+          ) =>
+            changeProject(
+              () => api.linkProjectEvent(projectId, { calendarId, eventUid }),
+              "Der Termin wurde verknüpft.",
+            )
+          }
+          onUnlinkEvent={(
+            projectId: string,
+            calendarId: string,
+            eventUid: string,
+          ) =>
+            changeProject(
+              () => api.unlinkProjectEvent(projectId, calendarId, eventUid),
+              "Die Terminverknüpfung wurde entfernt.",
             )
           }
         />
