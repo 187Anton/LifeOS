@@ -18,6 +18,9 @@ const SYNTHETIC_AUDIT_ID = "00000000-0000-4000-8000-000000000004";
 const SYNTHETIC_TASK_ID = "00000000-0000-4000-8000-000000000005";
 const SYNTHETIC_PROJECT_ID = "00000000-0000-4000-8000-000000000006";
 const SYNTHETIC_TASK_EVENT_LINK_ID = "00000000-0000-4000-8000-000000000007";
+const SYNTHETIC_PROJECT_GOAL_ID = "00000000-0000-4000-8000-000000000008";
+const SYNTHETIC_PROJECT_MILESTONE_ID = "00000000-0000-4000-8000-000000000009";
+const SYNTHETIC_PROJECT_EVENT_LINK_ID = "00000000-0000-4000-8000-000000000010";
 
 const seed = async () => {
   const database = createDatabaseClient();
@@ -87,6 +90,37 @@ const seed = async () => {
         id: SYNTHETIC_PROJECT_ID,
         userId: user.id,
         title: "Synthetisches LifeOS-Projekt",
+        description:
+          "Nachvollziehbares Beispielprojekt ohne persönliche Daten.",
+        status: "active",
+        risk: "Testtermin könnte sich verschieben.",
+        dueDate: new Date("2030-03-31T00:00:00.000Z"),
+      },
+    });
+
+    await database.projectGoal.upsert({
+      where: { id: SYNTHETIC_PROJECT_GOAL_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_PROJECT_GOAL_ID,
+        userId: user.id,
+        projectId: project.id,
+        title: "Synthetisches Projektziel",
+        status: "in_progress",
+        dueDate: new Date("2030-02-28T00:00:00.000Z"),
+      },
+    });
+
+    await database.projectMilestone.upsert({
+      where: { id: SYNTHETIC_PROJECT_MILESTONE_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_PROJECT_MILESTONE_ID,
+        userId: user.id,
+        projectId: project.id,
+        title: "Synthetischer Meilenstein",
+        status: "completed",
+        dueDate: new Date("2030-01-31T00:00:00.000Z"),
       },
     });
 
@@ -116,6 +150,17 @@ const seed = async () => {
         id: SYNTHETIC_TASK_EVENT_LINK_ID,
         userId: user.id,
         taskId: task.id,
+        calendarEventId: event.id,
+      },
+    });
+
+    await database.projectEventLink.upsert({
+      where: { id: SYNTHETIC_PROJECT_EVENT_LINK_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_PROJECT_EVENT_LINK_ID,
+        userId: user.id,
+        projectId: project.id,
         calendarEventId: event.id,
       },
     });

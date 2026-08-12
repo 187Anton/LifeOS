@@ -19,6 +19,9 @@ type ReadClient = Pick<
   | "calendar"
   | "calendarEvent"
   | "project"
+  | "projectGoal"
+  | "projectMilestone"
+  | "projectEventLink"
   | "task"
   | "taskEventLink"
   | "studyProgram"
@@ -49,6 +52,13 @@ const readDataset = async (database: ReadClient) => ({
     orderBy: { id: "asc" },
   }),
   projects: await database.project.findMany({ orderBy: { id: "asc" } }),
+  projectGoals: await database.projectGoal.findMany({ orderBy: { id: "asc" } }),
+  projectMilestones: await database.projectMilestone.findMany({
+    orderBy: { id: "asc" },
+  }),
+  projectEventLinks: await database.projectEventLink.findMany({
+    orderBy: { id: "asc" },
+  }),
   tasks: await database.task.findMany({ orderBy: { id: "asc" } }),
   taskEventLinks: await database.taskEventLink.findMany({
     orderBy: { id: "asc" },
@@ -152,11 +162,21 @@ const insertDataset = async (
       });
     if (dataset.projects.length)
       await transaction.project.createMany({ data: dataset.projects });
+    if (dataset.projectGoals.length)
+      await transaction.projectGoal.createMany({ data: dataset.projectGoals });
+    if (dataset.projectMilestones.length)
+      await transaction.projectMilestone.createMany({
+        data: dataset.projectMilestones,
+      });
     if (dataset.tasks.length)
       await transaction.task.createMany({ data: dataset.tasks });
     if (dataset.taskEventLinks.length)
       await transaction.taskEventLink.createMany({
         data: dataset.taskEventLinks,
+      });
+    if (dataset.projectEventLinks.length)
+      await transaction.projectEventLink.createMany({
+        data: dataset.projectEventLinks,
       });
     if (dataset.studyPrograms.length)
       await transaction.studyProgram.createMany({

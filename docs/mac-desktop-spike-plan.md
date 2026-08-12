@@ -139,7 +139,7 @@ Schema und die PostgreSQL-Migrationen sind jedoch nicht direkt portierbar.
 
 ### PostgreSQL-spezifische Modellbestandteile
 
-Das aktuelle Schema enthält 19 Modelle, sieben Enums und unter anderem:
+Das aktuelle Schema enthält die vollständigen Fachmodelle und unter anderem:
 
 - 57 `TIMESTAMPTZ`-, sieben `DATE`- und 51 `UUID`-Attribute;
 - drei primitive Array-Felder;
@@ -284,7 +284,7 @@ Akzeptanzkriterien:
 
 Bestätigter Nachweis:
 
-- Das SQLite-Schema umfasst alle 19 vorhandenen Fachmodelle. Die zentrale
+- Das SQLite-Schema umfasst alle vorhandenen Fachmodelle. Die zentrale
   Client-Fabrik wählt anhand einer absoluten `file:`-URL SQLite, ohne die
   bestehende PostgreSQL-URL oder den öffentlichen `/api/v1`-Vertrag zu ändern.
 - Eine schmale Kompatibilitätsschicht bildet reine PostgreSQL-`DATE`-Werte an
@@ -371,7 +371,7 @@ Bestätigter Nachweis:
 - Der Import liest PostgreSQL in einer `REPEATABLE READ`-Transaktion, die vor
   der ersten Fachabfrage auf `READ ONLY` gesetzt wird. Er schreibt in eine
   zufällig benannte SQLite-Stagingdatei und lehnt ein vorhandenes Ziel ab.
-- Alle 19 Fachmodelle werden in Abhängigkeitsreihenfolge übertragen und
+- Alle vorhandenen Fachmodelle werden in Abhängigkeitsreihenfolge übertragen und
   anschließend kanonisch feldweise verglichen. Fremdschlüssel,
   `integrity_check` und ein unveränderter zweiter PostgreSQL-Snapshot sind
   zusätzliche Veröffentlichungsgates.

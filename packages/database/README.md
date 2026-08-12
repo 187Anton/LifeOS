@@ -24,9 +24,11 @@ Mac-App-Migration.
   einem Kalender eines anderen Benutzers zugeordnet wird. UID und ETag bleiben
   stabil bzw. versionsbezogen; Wiederholungsregeln und bis zu zehn
   Erinnerungszeitpunkte werden verlustarm gespeichert.
-- `Project` ist zunächst ein kleiner, besitzgebundener Projektanker für
-  Aufgaben. Die vollständige Projekt- und Meilensteinverwaltung bleibt
-  Roadmap 0.4 vorbehalten.
+- `Project`, `ProjectGoal`, `ProjectMilestone` und `ProjectEventLink` bilden die
+  besitzgebundene Projektverwaltung. Projekte, Ziele und Meilensteine besitzen
+  Status, optionales Risiko, reines Fälligkeitsdatum sowie reversible Archiv-
+  und Löschzeitpunkte. Aufgaben und Kalenderereignisse werden referenziert,
+  nicht kopiert.
 - `Task` speichert Titel, Beschreibung, Status, Priorität, Fälligkeit,
   optionale Startplanung, ganzzahlige Dauerminuten, Tags, Bereich,
   Projekt-/Elternbezug sowie Abschluss-, Archivierungs- und Löschzeitpunkte.
@@ -177,7 +179,7 @@ npm run db:sqlite:import
 ```
 
 Der Import liest PostgreSQL in einer schreibgeschützten konsistenten
-Transaktion, überträgt alle 19 Modelle in eine Stagingdatei und veröffentlicht
+Transaktion, überträgt alle 22 Modelle in eine Stagingdatei und veröffentlicht
 das Ziel erst nach vollständigem Feld-, Fremdschlüssel- und
 Integritätsvergleich. Ein vorhandenes Ziel wird nie überschrieben. Für den
 echten Umzug soll der bisherige schreibende Betrieb pausiert werden; ändert

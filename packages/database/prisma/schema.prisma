@@ -21,6 +21,9 @@ model User {
   sessions         UserSession[]
   calendars        Calendar[]
   projects         Project[]
+  projectGoals     ProjectGoal[]
+  projectMilestones ProjectMilestone[]
+  projectEventLinks ProjectEventLink[]
   tasks            Task[]
   taskEventLinks   TaskEventLink[]
   studyPrograms    StudyProgram[]
@@ -124,6 +127,7 @@ model CalendarEvent {
   taskLinks       TaskEventLink[]
   studyEntries    StudyEntry[]
   workProjects    WorkProject[]
+  projectLinks    ProjectEventLink[]
 
   @@unique([id, userId])
   @@unique([calendarId, uid])
@@ -158,18 +162,99 @@ enum TaskArea {
   personal
 }
 
+enum ProjectStatus {
+  planned
+  active
+  paused
+  completed
+  cancelled
+}
+
+enum ProjectItemStatus {
+  open
+  in_progress
+  completed
+  cancelled
+}
+
 model Project {
-  id         String    @id @default(uuid()) @db.Uuid
-  userId     String    @db.Uuid
-  title      String    @db.VarChar(500)
-  archivedAt DateTime? @db.Timestamptz(3)
-  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt  DateTime  @updatedAt @db.Timestamptz(3)
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tasks      Task[]
+  id          String        @id @default(uuid()) @db.Uuid
+  userId      String        @db.Uuid
+  title       String        @db.VarChar(500)
+  description String?
+  status      ProjectStatus @default(planned)
+  risk        String?
+  dueDate     DateTime?     @db.Date
+  archivedAt  DateTime?     @db.Timestamptz(3)
+  deletedAt   DateTime?     @db.Timestamptz(3)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals       ProjectGoal[]
+  milestones  ProjectMilestone[]
+  tasks       Task[]
+  eventLinks  ProjectEventLink[]
 
   @@unique([id, userId])
-  @@index([userId, archivedAt])
+  @@index([userId, deletedAt, archivedAt])
+  @@index([userId, status, dueDate])
+}
+
+model ProjectGoal {
+  id          String            @id @default(uuid()) @db.Uuid
+  userId      String            @db.Uuid
+  projectId   String            @db.Uuid
+  title       String            @db.VarChar(500)
+  description String?
+  status      ProjectItemStatus @default(open)
+  risk        String?
+  dueDate     DateTime?         @db.Date
+  archivedAt  DateTime?         @db.Timestamptz(3)
+  deletedAt   DateTime?         @db.Timestamptz(3)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project           @relation(fields: [projectId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([id, userId])
+  @@index([userId, projectId, deletedAt, archivedAt])
+  @@index([userId, status, dueDate])
+}
+
+model ProjectMilestone {
+  id          String            @id @default(uuid()) @db.Uuid
+  userId      String            @db.Uuid
+  projectId   String            @db.Uuid
+  title       String            @db.VarChar(500)
+  description String?
+  status      ProjectItemStatus @default(open)
+  risk        String?
+  dueDate     DateTime?         @db.Date
+  archivedAt  DateTime?         @db.Timestamptz(3)
+  deletedAt   DateTime?         @db.Timestamptz(3)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project           @relation(fields: [projectId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([id, userId])
+  @@index([userId, projectId, deletedAt, archivedAt])
+  @@index([userId, status, dueDate])
+}
+
+model ProjectEventLink {
+  id              String        @id @default(uuid()) @db.Uuid
+  userId          String        @db.Uuid
+  projectId       String        @db.Uuid
+  calendarEventId String        @db.Uuid
+  createdAt       DateTime      @default(now()) @db.Timestamptz(3)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project         Project       @relation(fields: [projectId, userId], references: [id, userId], onDelete: Cascade)
+  calendarEvent   CalendarEvent @relation(fields: [calendarEventId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([userId, projectId, calendarEventId])
+  @@index([userId, projectId])
+  @@index([userId, calendarEventId])
 }
 
 model Task {

@@ -282,8 +282,10 @@ npm run web:dev
 ```
 
 Die Oberfläche ist unter `http://127.0.0.1:5173` erreichbar. Sie verwendet
-einen lokalen API-Proxy und zeigt Aufgaben, Kalender, Studium sowie Arbeit und
-Praxis auf Desktop und Smartphone an. Arbeitskontexte, Projekte, Ziele,
+einen lokalen API-Proxy und zeigt Aufgaben, Kalender, Studium, Arbeit und
+persönliche Projekte auf Desktop und Smartphone an. Projektziele,
+Meilensteine, Risiken, berechneter Fortschritt sowie reine Verknüpfungen zu
+Aufgaben und Kalenderereignissen sind lokal verfügbar. Arbeitskontexte, Projekte, Ziele,
 Fristen und getrennte geplante beziehungsweise tatsächliche Zeitblöcke werden
 lokal verwaltet; Arbeitsaufgaben bleiben dabei im gemeinsamen Aufgabenmodell.
 Eine gemeinsame Wochen- und Agendaansicht verbindet diese Daten mit Aufgaben

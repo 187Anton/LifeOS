@@ -134,3 +134,10 @@ export const PlanIcon = (props: IconProps) => (
     <path d="m8 15 2 2 5-5" />
   </Icon>
 );
+
+export const ProjectIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 6h6l2 2h8v11H4z" />
+    <path d="M8 13h8M12 10v6" />
+  </Icon>
+);

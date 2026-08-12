@@ -123,9 +123,14 @@ try {
   assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
   assert.equal(database.pragma("journal_mode", { simple: true }), "wal");
   const applied = database
-    .prepare('SELECT COUNT(*) AS count FROM "_lifeos_migrations"')
-    .get();
-  assert.equal(applied.count, 2);
+    .prepare('SELECT "name" FROM "_lifeos_migrations" ORDER BY "name"')
+    .all()
+    .map(({ name }) => name);
+  assert.deepEqual(applied, [
+    "20260809190000_sqlite_foundation",
+    "20260809203000_product_modules",
+    "20260812100000_projects_milestones",
+  ]);
   database.close();
   assert.equal((await stat(databasePath)).mode & 0o777, 0o600);
 

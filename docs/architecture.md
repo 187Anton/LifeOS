@@ -127,9 +127,12 @@ setzen den Abschlusszeitpunkt passend zum Status. Archivierung ist umkehrbar,
 während Löschen eine datenschutzgerechte Löschmarkierung setzt. Jede
 schreibende Änderung erzeugt ein wertfreies Audit-Ereignis.
 
-Der `Project`-Datensatz ist in Phase 0.2 nur ein stabiler, besitzgebundener
-Anker für die optionale Aufgabenrelation. Projekt-CRUD, Ziele und Meilensteine
-gehören weiterhin in Roadmap 0.4 und werden nicht vorweggenommen.
+Das Projektmodul erweitert den besitzgebundenen Aufgabenanker um Projekt-CRUD,
+Ziele, Meilensteine, Risiken, Archivierung und Löschmarkierungen. Aufgaben- und
+Kalenderverknüpfungen speichern nur Besitzer und stabile Referenzen. Der
+Fortschritt wird bei jeder Abfrage gleichgewichtet aus aktiven Zielen,
+Meilensteinen und Aufgaben berechnet; er wird nicht als Schattenkennzahl
+persistiert. Ohne berücksichtigte Daten lautet der Zustand `no_data`.
 
 ## Aufgaben-Termin-Beziehung
 

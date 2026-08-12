@@ -124,6 +124,14 @@ const installApi = ({
     timeEntries: [] as Record<string, unknown>[],
     history: [] as Record<string, unknown>[],
   };
+  const projectState: Array<Record<string, unknown>> = [];
+  const projectDetails = new Map<
+    string,
+    {
+      goals: Array<Record<string, unknown>>;
+      milestones: Array<Record<string, unknown>>;
+    }
+  >();
   const availabilityState: Record<string, unknown>[] = [];
   let conflictReturned = false;
   let setupIsRequired = setupRequired;
@@ -243,6 +251,135 @@ const installApi = ({
           ],
           availabilityWindows: availabilityState,
         });
+      }
+      if (path.startsWith("/api/v1/projects?") && method === "GET") {
+        return json({ projects: projectState });
+      }
+      if (path === "/api/v1/projects" && method === "POST") {
+        const payload = requestBody(init);
+        const id = `projekt-${projectState.length + 1}`;
+        const created = {
+          id,
+          ownerId: profile.id,
+          ...payload,
+          description: payload.description ?? null,
+          status: payload.status ?? "planned",
+          risk: payload.risk ?? null,
+          dueDate: payload.dueDate ?? null,
+          archivedAt: null,
+          createdAt: "2032-01-01T00:00:00.000Z",
+          updatedAt: "2032-01-01T00:00:00.000Z",
+          progress: {
+            state: "no_data",
+            percent: null,
+            completedItems: 0,
+            totalItems: 0,
+            breakdown: {
+              goals: { completed: 0, total: 0 },
+              milestones: { completed: 0, total: 0 },
+              tasks: { completed: 0, total: 0 },
+            },
+          },
+        };
+        projectState.push(created);
+        projectDetails.set(id, { goals: [], milestones: [] });
+        return json(created, 201);
+      }
+      const projectMatch = path.match(/^\/api\/v1\/projects\/([^/]+)$/);
+      if (projectMatch && method === "PATCH") {
+        const project = projectState.find(
+          (value) => value.id === projectMatch[1],
+        )!;
+        const payload = requestBody(init);
+        Object.assign(project, payload, {
+          archivedAt:
+            payload.archived === undefined
+              ? project.archivedAt
+              : payload.archived
+                ? "2032-01-02T00:00:00.000Z"
+                : null,
+          updatedAt: "2032-01-02T00:00:00.000Z",
+        });
+        return json(project);
+      }
+      if (projectMatch && method === "GET") {
+        const project = projectState.find(
+          (value) => value.id === projectMatch[1],
+        );
+        const items = projectDetails.get(projectMatch[1] ?? "") ?? {
+          goals: [],
+          milestones: [],
+        };
+        return json({
+          project,
+          ...items,
+          tasks: [],
+          calendarEvents: [],
+          progress: project?.progress,
+        });
+      }
+      const itemMatch = path.match(
+        /^\/api\/v1\/projects\/([^/]+)\/(goals|milestones)$/,
+      );
+      if (itemMatch && method === "POST") {
+        const payload = requestBody(init);
+        const details = projectDetails.get(itemMatch[1] ?? "")!;
+        const collection = details[itemMatch[2] as "goals" | "milestones"];
+        const created = {
+          id: `${itemMatch[2]}-${collection.length + 1}`,
+          ownerId: profile.id,
+          projectId: itemMatch[1],
+          ...payload,
+          description: payload.description ?? null,
+          risk: payload.risk ?? null,
+          dueDate: payload.dueDate ?? null,
+          archivedAt: null,
+          createdAt: "2032-01-01T00:00:00.000Z",
+          updatedAt: "2032-01-01T00:00:00.000Z",
+        };
+        collection.push(created);
+        const project = projectState.find((value) => value.id === itemMatch[1]);
+        if (project)
+          project.progress = {
+            state: "available",
+            percent: payload.status === "completed" ? 100 : 0,
+            completedItems: payload.status === "completed" ? 1 : 0,
+            totalItems: 1,
+            breakdown: {
+              goals: {
+                completed: payload.status === "completed" ? 1 : 0,
+                total: itemMatch[2] === "goals" ? 1 : 0,
+              },
+              milestones: {
+                completed: 0,
+                total: itemMatch[2] === "milestones" ? 1 : 0,
+              },
+              tasks: { completed: 0, total: 0 },
+            },
+          };
+        return json(created, 201);
+      }
+      const itemDetailMatch = path.match(
+        /^\/api\/v1\/projects\/([^/]+)\/(goals|milestones)\/([^/]+)$/,
+      );
+      if (itemDetailMatch && method === "PATCH") {
+        const details = projectDetails.get(itemDetailMatch[1] ?? "")!;
+        const collection =
+          details[itemDetailMatch[2] as "goals" | "milestones"];
+        const item = collection.find(
+          (value) => value.id === itemDetailMatch[3],
+        )!;
+        const payload = requestBody(init);
+        Object.assign(item, payload, {
+          archivedAt:
+            payload.archived === undefined
+              ? item.archivedAt
+              : payload.archived
+                ? "2032-01-02T00:00:00.000Z"
+                : null,
+          updatedAt: "2032-01-02T00:00:00.000Z",
+        });
+        return json(item);
       }
       if (path === "/api/v1/planning/availability" && method === "POST") {
         const payload = requestBody(init);
@@ -685,6 +822,52 @@ describe("LifeOS-Weboberfläche", () => {
     );
     await user.click(screen.getByRole("button", { name: "Speichern" }));
     expect(await screen.findByText("Nachvollziehbare Systeme")).toBeVisible();
+  });
+
+  it("legt ein Projekt und ein messbares Ziel in der Projektansicht an", async () => {
+    installApi();
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Projekte" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Projekt" }));
+    await user.type(
+      screen.getByLabelText("Bezeichnung"),
+      "Synthetisches Wissensprojekt",
+    );
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(
+      (await screen.findAllByText("Synthetisches Wissensprojekt"))[0],
+    ).toBeVisible();
+    expect(screen.getByText("Noch keine Fortschrittsdaten")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Ziel hinzufügen" }));
+    await user.type(
+      screen.getByLabelText("Bezeichnung"),
+      "Nachvollziehbares Ziel",
+    );
+    await user.selectOptions(screen.getByLabelText("Status"), "completed");
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(await screen.findByText("Nachvollziehbares Ziel")).toBeVisible();
+    expect(
+      screen.getByText(/1 von 1 aktiven Einträgen abgeschlossen/),
+    ).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Projekt bearbeiten" }),
+    );
+    await user.clear(screen.getByLabelText("Bezeichnung"));
+    await user.type(screen.getByLabelText("Bezeichnung"), "Projekt bearbeitet");
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    expect((await screen.findAllByText("Projekt bearbeitet"))[0]).toBeVisible();
+    await user.click(
+      screen.getByRole("button", {
+        name: "Nachvollziehbares Ziel archivieren",
+      }),
+    );
+    expect(
+      await screen.findByRole("button", {
+        name: "Nachvollziehbares Ziel wiederherstellen",
+      }),
+    ).toBeVisible();
   });
 
   it("zeigt einen verständlichen Dashboard-Fehler mit Wiederholungsaktion", async () => {

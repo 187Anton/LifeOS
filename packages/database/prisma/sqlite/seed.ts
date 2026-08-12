@@ -263,6 +263,11 @@ const toDate = (value: string) => new Date(value);
 const toNullableDate = (value: NullableTimestamp) =>
   value === null ? null : toDate(value);
 
+const SYNTHETIC_PROJECT_ID = "00000000-0000-4000-8000-000000000106";
+const SYNTHETIC_PROJECT_GOAL_ID = "00000000-0000-4000-8000-000000000108";
+const SYNTHETIC_PROJECT_MILESTONE_ID = "00000000-0000-4000-8000-000000000109";
+const SYNTHETIC_PROJECT_EVENT_LINK_ID = "00000000-0000-4000-8000-000000000110";
+
 export const seedSqliteDatabase = async (
   databaseUrl = process.env.SQLITE_DATABASE_URL,
   fixturePath = process.env.SQLITE_SEED_SOURCE || defaultSqliteSeedFixturePath,
@@ -344,6 +349,65 @@ export const seedSqliteDatabase = async (
           },
         });
       }
+      await transaction.project.upsert({
+        where: { id: SYNTHETIC_PROJECT_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_PROJECT_ID,
+          userId: fixture.user.id,
+          title: "Synthetisches SQLite-Projekt",
+          description: "Lokales Beispielprojekt für reproduzierbare Tests.",
+          status: "active",
+          risk: "Nur synthetischer Testrisikohinweis.",
+          dueDate: "2030-03-31",
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.projectGoal.upsert({
+        where: { id: SYNTHETIC_PROJECT_GOAL_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_PROJECT_GOAL_ID,
+          userId: fixture.user.id,
+          projectId: SYNTHETIC_PROJECT_ID,
+          title: "Synthetisches SQLite-Projektziel",
+          status: "in_progress",
+          dueDate: "2030-02-28",
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.projectMilestone.upsert({
+        where: { id: SYNTHETIC_PROJECT_MILESTONE_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_PROJECT_MILESTONE_ID,
+          userId: fixture.user.id,
+          projectId: SYNTHETIC_PROJECT_ID,
+          title: "Synthetischer SQLite-Meilenstein",
+          status: "completed",
+          dueDate: "2030-01-31",
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      const firstEvent = fixture.events[0];
+      requireCondition(
+        firstEvent,
+        "Ein Kalenderereignis für das Projekt fehlt.",
+      );
+      await transaction.projectEventLink.upsert({
+        where: { id: SYNTHETIC_PROJECT_EVENT_LINK_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_PROJECT_EVENT_LINK_ID,
+          userId: fixture.user.id,
+          projectId: SYNTHETIC_PROJECT_ID,
+          calendarEventId: firstEvent.id,
+          createdAt: toDate(fixture.user.createdAt),
+        },
+      });
       await transaction.auditEvent.upsert({
         where: { id: fixture.auditEvent.id },
         update: {},

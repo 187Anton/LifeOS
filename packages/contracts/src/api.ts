@@ -208,6 +208,105 @@ export interface DashboardResponse {
   projects: DashboardProjectResponse[];
 }
 
+export type ProjectStatus =
+  "planned" | "active" | "paused" | "completed" | "cancelled";
+export type ProjectItemStatus =
+  "open" | "in_progress" | "completed" | "cancelled";
+
+interface ProjectOwnedRecordResponse {
+  id: string;
+  ownerId: string;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectResponse extends ProjectOwnedRecordResponse {
+  title: string;
+  description: string | null;
+  status: ProjectStatus;
+  risk: string | null;
+  dueDate: string | null;
+}
+
+export interface ProjectItemResponse extends ProjectOwnedRecordResponse {
+  projectId: string;
+  title: string;
+  description: string | null;
+  status: ProjectItemStatus;
+  risk: string | null;
+  dueDate: string | null;
+}
+
+export interface ProjectProgressResponse {
+  state: "available" | "no_data";
+  percent: number | null;
+  completedItems: number;
+  totalItems: number;
+  breakdown: {
+    goals: { completed: number; total: number };
+    milestones: { completed: number; total: number };
+    tasks: { completed: number; total: number };
+  };
+}
+
+export interface ProjectTaskSummaryResponse {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  dueDate: string | null;
+}
+
+export interface ProjectEventSummaryResponse {
+  calendarId: string;
+  uid: string;
+  title: string;
+  startsAt: string | null;
+  startDate: string | null;
+  etag: string;
+}
+
+export interface ProjectDetailResponse {
+  project: ProjectResponse;
+  goals: ProjectItemResponse[];
+  milestones: ProjectItemResponse[];
+  tasks: ProjectTaskSummaryResponse[];
+  calendarEvents: ProjectEventSummaryResponse[];
+  progress: ProjectProgressResponse;
+}
+
+export interface ProjectOverviewResponse {
+  projects: Array<ProjectResponse & { progress: ProjectProgressResponse }>;
+}
+
+export interface CreateProjectRequest {
+  title: string;
+  description?: string | null;
+  status?: ProjectStatus;
+  risk?: string | null;
+  dueDate?: string | null;
+}
+export interface UpdateProjectRequest extends Partial<CreateProjectRequest> {
+  archived?: boolean;
+}
+export interface CreateProjectItemRequest {
+  title: string;
+  description?: string | null;
+  status?: ProjectItemStatus;
+  risk?: string | null;
+  dueDate?: string | null;
+}
+export interface UpdateProjectItemRequest extends Partial<CreateProjectItemRequest> {
+  archived?: boolean;
+}
+export interface CreateProjectTaskLinkRequest {
+  taskId: string;
+}
+export interface CreateProjectEventLinkRequest {
+  calendarId: string;
+  eventUid: string;
+}
+
 export type StudyStatus =
   "planned" | "active" | "completed" | "paused" | "cancelled";
 export type StudyEntryKind = "lecture" | "exam" | "submission" | "learning";
