@@ -39,6 +39,9 @@ const readMigrationSnapshot = async (
         include: { events: { orderBy: { id: "asc" } } },
       },
       aiInteractions: { orderBy: { id: "asc" } },
+      financeCategories: { orderBy: { id: "asc" } },
+      financeTransactions: { orderBy: { id: "asc" } },
+      financeBudgets: { orderBy: { id: "asc" } },
       auditEvents: { orderBy: { id: "asc" } },
     },
   });
@@ -57,6 +60,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
     "20260812190000_local_documents_notes",
     "20260820100000_local_search",
     "20260820150000_source_grounded_ai",
+    "20260820190000_finance_module",
   ]);
 
   const database = createSqliteDatabaseClient(databaseUrl);
@@ -65,7 +69,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const migrationRows = await database.$queryRawUnsafe<
     Array<{ name: string; checksum: string }>
   >('SELECT "name", "checksum" FROM "_lifeos_migrations"');
-  assert.equal(migrationRows.length, 6);
+  assert.equal(migrationRows.length, 7);
   assert.equal(migrationRows[0]?.name, "20260809190000_sqlite_foundation");
   assert.match(migrationRows[0]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[1]?.name, "20260809203000_product_modules");
@@ -78,6 +82,8 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   assert.match(migrationRows[4]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[5]?.name, "20260820150000_source_grounded_ai");
   assert.match(migrationRows[5]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[6]?.name, "20260820190000_finance_module");
+  assert.match(migrationRows[6]?.checksum ?? "", /^[0-9a-f]{64}$/);
 
   const foreignKeys = await database.$queryRawUnsafe<
     Array<{ foreign_keys: bigint }>
@@ -302,6 +308,43 @@ test("speichert Projektziele und Meilensteine mit reinen Fälligkeitstagen und B
     database.project.update({
       where: { id: project.id },
       data: { deletedAt: new Date("2000-01-01T00:00:00.000Z") },
+    }),
+  );
+});
+
+test("erzwingt ganzzahlige Finanzwerte und Besitzergrenzen in SQLite", async (t) => {
+  const databaseUrl = await createIsolatedDatabase(t);
+  await migrateSqliteDatabase(databaseUrl);
+  await seedSqliteDatabase(databaseUrl);
+  const fixture = await readSqliteSeedFixture();
+  const database = createSqliteDatabaseClient(databaseUrl);
+  t.after(async () => database.$disconnect());
+  const category = await database.financeCategory.findFirstOrThrow({
+    where: { userId: fixture.user.id, kind: "expense" },
+  });
+  const transaction = await database.financeTransaction.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+  });
+  assert.equal(transaction.bookingDate, "2030-01-10");
+  assert.equal(transaction.amountMinor, 4_250);
+  await assert.rejects(() =>
+    database.$executeRawUnsafe(
+      `INSERT INTO "FinanceTransaction" ("id", "userId", "categoryId", "kind", "bookingDate", "amountMinor", "currencyCode", "createdAt", "updatedAt") VALUES (?, ?, ?, 'expense', '2032-08-02', 10.5, 'EUR', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      "00000000-0000-4000-8000-000000000899",
+      fixture.user.id,
+      category.id,
+    ),
+  );
+  await assert.rejects(() =>
+    database.financeTransaction.create({
+      data: {
+        userId: "00000000-0000-4000-8000-000000000999",
+        categoryId: category.id,
+        kind: "expense",
+        bookingDate: "2032-08-02",
+        amountMinor: 100,
+        currencyCode: "EUR",
+      },
     }),
   );
 });

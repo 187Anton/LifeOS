@@ -10,35 +10,38 @@ datasource db {
 }
 
 model User {
-  id               String            @id @default(uuid()) @db.Uuid
-  externalId       String            @unique @db.VarChar(100)
-  displayName      String            @db.VarChar(200)
-  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
-  settings         UserSettings?
-  credential       UserCredential?
-  calDavCredential CalDavCredential?
-  sessions         UserSession[]
-  calendars        Calendar[]
-  projects         Project[]
-  projectGoals     ProjectGoal[]
-  projectMilestones ProjectMilestone[]
-  projectEventLinks ProjectEventLink[]
-  notes            Note[]
-  noteVersions     NoteVersion[]
-  documents        Document[]
-  tasks            Task[]
-  taskEventLinks   TaskEventLink[]
-  studyPrograms    StudyProgram[]
-  studyModules     StudyModule[]
-  studyEntries     StudyEntry[]
-  workContexts     WorkContext[]
-  workProjects     WorkProject[]
-  workTaskLinks    WorkTaskLink[]
-  workTimeEntries  WorkTimeEntry[]
+  id                  String               @id @default(uuid()) @db.Uuid
+  externalId          String               @unique @db.VarChar(100)
+  displayName         String               @db.VarChar(200)
+  createdAt           DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime             @updatedAt @db.Timestamptz(3)
+  settings            UserSettings?
+  credential          UserCredential?
+  calDavCredential    CalDavCredential?
+  sessions            UserSession[]
+  calendars           Calendar[]
+  projects            Project[]
+  projectGoals        ProjectGoal[]
+  projectMilestones   ProjectMilestone[]
+  projectEventLinks   ProjectEventLink[]
+  notes               Note[]
+  noteVersions        NoteVersion[]
+  documents           Document[]
+  tasks               Task[]
+  taskEventLinks      TaskEventLink[]
+  studyPrograms       StudyProgram[]
+  studyModules        StudyModule[]
+  studyEntries        StudyEntry[]
+  workContexts        WorkContext[]
+  workProjects        WorkProject[]
+  workTaskLinks       WorkTaskLink[]
+  workTimeEntries     WorkTimeEntry[]
   availabilityWindows AvailabilityWindow[]
-  aiInteractions   AiInteraction[]
-  auditEvents      AuditEvent[]
+  financeCategories   FinanceCategory[]
+  financeTransactions FinanceTransaction[]
+  financeBudgets      FinanceBudget[]
+  aiInteractions      AiInteraction[]
+  auditEvents         AuditEvent[]
 }
 
 model UserSettings {
@@ -106,28 +109,28 @@ model Calendar {
 }
 
 model CalendarEvent {
-  id              String          @id @default(uuid()) @db.Uuid
-  userId          String          @db.Uuid
-  calendarId      String          @db.Uuid
-  uid             String          @db.VarChar(255)
-  title           String          @db.VarChar(500)
+  id              String             @id @default(uuid()) @db.Uuid
+  userId          String             @db.Uuid
+  calendarId      String             @db.Uuid
+  uid             String             @db.VarChar(255)
+  title           String             @db.VarChar(500)
   description     String?
-  location        String?         @db.VarChar(500)
-  startsAt        DateTime?       @db.Timestamptz(3)
-  endsAt          DateTime?       @db.Timestamptz(3)
-  startDate       DateTime?       @db.Date
-  endDate         DateTime?       @db.Date
-  timezone        String          @default("Europe/Berlin") @db.VarChar(100)
-  isAllDay        Boolean         @default(false)
-  recurrenceRule  String?         @db.Text
-  reminderMinutes Int[]           @default([])
-  etag            String          @db.VarChar(100)
-  sequence        Int             @default(0)
-  syncVersion     Int             @default(0)
-  deletedAt       DateTime?       @db.Timestamptz(3)
-  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
-  calendar        Calendar        @relation(fields: [calendarId, userId], references: [id, userId], onDelete: Cascade)
+  location        String?            @db.VarChar(500)
+  startsAt        DateTime?          @db.Timestamptz(3)
+  endsAt          DateTime?          @db.Timestamptz(3)
+  startDate       DateTime?          @db.Date
+  endDate         DateTime?          @db.Date
+  timezone        String             @default("Europe/Berlin") @db.VarChar(100)
+  isAllDay        Boolean            @default(false)
+  recurrenceRule  String?            @db.Text
+  reminderMinutes Int[]              @default([])
+  etag            String             @db.VarChar(100)
+  sequence        Int                @default(0)
+  syncVersion     Int                @default(0)
+  deletedAt       DateTime?          @db.Timestamptz(3)
+  createdAt       DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime           @updatedAt @db.Timestamptz(3)
+  calendar        Calendar           @relation(fields: [calendarId, userId], references: [id, userId], onDelete: Cascade)
   taskLinks       TaskEventLink[]
   studyEntries    StudyEntry[]
   workProjects    WorkProject[]
@@ -182,25 +185,25 @@ enum ProjectItemStatus {
 }
 
 model Project {
-  id          String        @id @default(uuid()) @db.Uuid
-  userId      String        @db.Uuid
-  title       String        @db.VarChar(500)
-  description String?
-  status      ProjectStatus @default(planned)
-  risk        String?
-  dueDate     DateTime?     @db.Date
-  searchEnabled Boolean     @default(false)
-  archivedAt  DateTime?     @db.Timestamptz(3)
-  deletedAt   DateTime?     @db.Timestamptz(3)
-  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  goals       ProjectGoal[]
-  milestones  ProjectMilestone[]
-  tasks       Task[]
-  eventLinks  ProjectEventLink[]
-  notes       Note[]
-  documents   Document[]
+  id            String             @id @default(uuid()) @db.Uuid
+  userId        String             @db.Uuid
+  title         String             @db.VarChar(500)
+  description   String?
+  status        ProjectStatus      @default(planned)
+  risk          String?
+  dueDate       DateTime?          @db.Date
+  searchEnabled Boolean            @default(false)
+  archivedAt    DateTime?          @db.Timestamptz(3)
+  deletedAt     DateTime?          @db.Timestamptz(3)
+  createdAt     DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime           @updatedAt @db.Timestamptz(3)
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals         ProjectGoal[]
+  milestones    ProjectMilestone[]
+  tasks         Task[]
+  eventLinks    ProjectEventLink[]
+  notes         Note[]
+  documents     Document[]
 
   @@unique([id, userId])
   @@index([userId, deletedAt, archivedAt])
@@ -361,7 +364,7 @@ model StudyModule {
   grade              String?      @db.VarChar(100)
   notes              String?
   documentReferences String[]     @default([])
-  searchEnabled       Boolean      @default(false)
+  searchEnabled      Boolean      @default(false)
   archivedAt         DateTime?    @db.Timestamptz(3)
   createdAt          DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime     @updatedAt @db.Timestamptz(3)
@@ -527,7 +530,7 @@ model WorkProject {
   deadlineDate    DateTime?       @db.Date
   calendarEventId String?         @db.Uuid
   notes           String?
-  searchEnabled   Boolean      @default(false)
+  searchEnabled   Boolean         @default(false)
   archivedAt      DateTime?       @db.Timestamptz(3)
   createdAt       DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
@@ -604,6 +607,88 @@ model AvailabilityWindow {
 
   @@unique([userId, weekday, startMinute, endMinute])
   @@index([userId, weekday])
+}
+
+enum FinanceCategoryKind {
+  income
+  expense
+}
+
+enum FinanceTransactionKind {
+  income
+  expense
+}
+
+enum FinanceRecurrenceFrequency {
+  weekly
+  monthly
+  yearly
+}
+
+enum FinanceBudgetPeriod {
+  month
+  year
+}
+
+model FinanceCategory {
+  id           String               @id @default(uuid()) @db.Uuid
+  userId       String               @db.Uuid
+  name         String               @db.VarChar(200)
+  kind         FinanceCategoryKind
+  archivedAt   DateTime?            @db.Timestamptz(3)
+  createdAt    DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime             @updatedAt @db.Timestamptz(3)
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions FinanceTransaction[]
+  budgets      FinanceBudget[]
+
+  @@unique([id, userId])
+  @@unique([userId, kind, name])
+  @@index([userId, archivedAt])
+}
+
+model FinanceTransaction {
+  id                  String                      @id @default(uuid()) @db.Uuid
+  userId              String                      @db.Uuid
+  categoryId          String                      @db.Uuid
+  kind                FinanceTransactionKind
+  bookingDate         DateTime                    @db.Date
+  amountMinor         Int
+  currencyCode        String                      @db.Char(3)
+  note                String?
+  recurrenceFrequency FinanceRecurrenceFrequency?
+  recurrenceInterval  Int?
+  recurrenceEndDate   DateTime?                   @db.Date
+  archivedAt          DateTime?                   @db.Timestamptz(3)
+  createdAt           DateTime                    @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime                    @updatedAt @db.Timestamptz(3)
+  user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category            FinanceCategory             @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt, bookingDate])
+  @@index([userId, categoryId, bookingDate])
+  @@index([userId, kind, bookingDate])
+}
+
+model FinanceBudget {
+  id                      String              @id @default(uuid()) @db.Uuid
+  userId                  String              @db.Uuid
+  categoryId              String?             @db.Uuid
+  period                  FinanceBudgetPeriod
+  periodStart             DateTime            @db.Date
+  amountMinor             Int
+  currencyCode            String              @db.Char(3)
+  warningThresholdPercent Int                 @default(80)
+  archivedAt              DateTime?           @db.Timestamptz(3)
+  createdAt               DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime            @updatedAt @db.Timestamptz(3)
+  user                    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category                FinanceCategory?    @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt, periodStart])
+  @@index([userId, categoryId, periodStart])
 }
 
 model AuditEvent {

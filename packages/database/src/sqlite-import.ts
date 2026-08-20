@@ -35,6 +35,9 @@ type ReadClient = Pick<
   | "workTaskLink"
   | "workTimeEntry"
   | "availabilityWindow"
+  | "financeCategory"
+  | "financeTransaction"
+  | "financeBudget"
   | "aiInteraction"
   | "auditEvent"
 >;
@@ -84,6 +87,15 @@ const readDataset = async (database: ReadClient) => ({
     orderBy: { id: "asc" },
   }),
   availabilityWindows: await database.availabilityWindow.findMany({
+    orderBy: { id: "asc" },
+  }),
+  financeCategories: await database.financeCategory.findMany({
+    orderBy: { id: "asc" },
+  }),
+  financeTransactions: await database.financeTransaction.findMany({
+    orderBy: { id: "asc" },
+  }),
+  financeBudgets: await database.financeBudget.findMany({
     orderBy: { id: "asc" },
   }),
   aiInteractions: await database.aiInteraction.findMany({
@@ -217,6 +229,18 @@ const insertDataset = async (
     if (dataset.availabilityWindows.length)
       await transaction.availabilityWindow.createMany({
         data: dataset.availabilityWindows,
+      });
+    if (dataset.financeCategories.length)
+      await transaction.financeCategory.createMany({
+        data: dataset.financeCategories,
+      });
+    if (dataset.financeTransactions.length)
+      await transaction.financeTransaction.createMany({
+        data: dataset.financeTransactions,
+      });
+    if (dataset.financeBudgets.length)
+      await transaction.financeBudget.createMany({
+        data: dataset.financeBudgets,
       });
     if (dataset.aiInteractions.length)
       await transaction.aiInteraction.createMany({

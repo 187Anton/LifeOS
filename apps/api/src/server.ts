@@ -61,6 +61,9 @@ import {
   DisabledAiProviderAdapter,
   SourceGroundedAiService,
 } from "./modules/ai/service.js";
+import { PrismaFinanceRepository } from "./modules/finance/repository.js";
+import { createFinanceRouter } from "./modules/finance/router.js";
+import { FinanceService } from "./modules/finance/service.js";
 
 const main = async (): Promise<void> => {
   loadLocalEnvironment();
@@ -81,6 +84,7 @@ const main = async (): Promise<void> => {
   const work = new WorkService(new PrismaWorkRepository(database));
   const planning = new PlanningService(new PrismaPlanningRepository(database));
   const projects = new ProjectService(new PrismaProjectRepository(database));
+  const finance = new FinanceService(new PrismaFinanceRepository(database));
   const documentStorage = new LocalDocumentStorage(config.storagePath);
   await documentStorage.initialize();
   const knowledge = new KnowledgeService(
@@ -146,6 +150,7 @@ const main = async (): Promise<void> => {
       createWorkRouter({ authentication, work }),
       createPlanningRouter({ authentication, planning }),
       createProjectRouter({ authentication, projects }),
+      createFinanceRouter({ authentication, finance }),
       createKnowledgeRouter({ authentication, knowledge }),
       createSearchRouter({ authentication, search }),
       createAiRouter({ authentication, ai }),

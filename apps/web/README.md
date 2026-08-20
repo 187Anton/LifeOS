@@ -36,6 +36,9 @@ aktuell folgende Abläufe ab:
   ausdrücklich freigegebene Inhalte,
 - lokale KI-Quellenaufbereitung mit sichtbaren Textstellen und Warnungen bei
   dauerhaft deaktiviertem Anbieter und ohne externe Übertragung,
+- lokale Finanzverwaltung mit Kategorien, Buchungen, vorbereiteten
+  Wiederholungen, Monats-/Jahresbudgets, Filtern, Monatsvergleich, Sparquote,
+  Warnungen und eigenem JSON-Export,
 - verständliche Lade-, Leer-, Erfolgs- und Fehlerzustände.
 
 ## Lokal starten
@@ -67,7 +70,9 @@ Antworten und persönliche Kalenderdaten werden bewusst nicht im Service-Worker,
 kann die Shell deshalb keine Aufgaben oder Kalenderdaten laden. Aufgabenfilter,
 Suche, KI-Quellenantworten und geöffnete Editoren sind ausschließlich
 flüchtiger React-Zustand. Die
-Sitzung bleibt in einem vom Backend gesetzten `HttpOnly`-Cookie.
+Sitzung bleibt in einem vom Backend gesetzten `HttpOnly`-Cookie. Auch
+Finanzfilter, Buchungsformulare, Auswertungen und Exporte bleiben flüchtig oder
+werden nur als bewusst heruntergeladene lokale Datei erzeugt.
 
 Die Oberfläche lädt keine externen Schriftarten oder anderen notwendigen
 Assets. Manifest-Icons liegen versioniert unter `public/icons/`.
@@ -91,4 +96,5 @@ Aufgaben-Termin-Verknüpfung und -Trennung, Dashboard-Schnellaktionen und
 Aktualisierung, Studienplanung, Arbeitskontexte, Projekte, Aufgabenbezug,
 getrennte Zeitarten, kombinierte Studien- und Arbeitswochen, Bereichsfilter,
 Konflikt- und Kapazitätswarnungen, fehlende Browserpersistenz, horizontalen
-Überlauf sowie Manifest, Service Worker und Offline-App-Shell.
+Überlauf, Finanzkennzahlen, Buchungserfassung und Budgetwarnungen sowie
+Manifest, Service Worker und Offline-App-Shell.

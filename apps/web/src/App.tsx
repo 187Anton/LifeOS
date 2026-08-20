@@ -54,6 +54,7 @@ import { WorkWorkspace } from "./components/WorkWorkspace";
 import { PlanningWorkspace } from "./components/PlanningWorkspace";
 import { ProjectWorkspace } from "./components/ProjectWorkspace";
 import { KnowledgeWorkspace } from "./components/KnowledgeWorkspace";
+import { FinanceWorkspace } from "./components/FinanceWorkspace";
 import { weekRange, type DateRange } from "./planning";
 
 type SessionState = "checking" | "anonymous" | "authenticated";
@@ -1099,6 +1100,8 @@ export const App = () => {
             )
           }
         />
+      ) : view === "finance" ? (
+        <FinanceWorkspace currencyCode={profile.settings.currencyCode} />
       ) : view === "knowledge" ? (
         <KnowledgeWorkspace
           key={noteDetail?.id ?? "new-note"}

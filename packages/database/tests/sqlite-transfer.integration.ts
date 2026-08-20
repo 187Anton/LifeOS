@@ -311,6 +311,38 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       },
     },
   });
+  const financeCategory = await source.financeCategory.create({
+    data: {
+      userId: user.id,
+      name: "Synthetische Lebensmittel",
+      kind: "expense",
+    },
+  });
+  const financeTransaction = await source.financeTransaction.create({
+    data: {
+      userId: user.id,
+      categoryId: financeCategory.id,
+      kind: "expense",
+      bookingDate: new Date("2032-09-01T00:00:00.000Z"),
+      amountMinor: 12_345,
+      currencyCode: "EUR",
+      note: "Ausschließlich synthetische Transferdaten",
+      recurrenceFrequency: "monthly",
+      recurrenceInterval: 1,
+      recurrenceEndDate: new Date("2032-12-31T00:00:00.000Z"),
+    },
+  });
+  const financeBudget = await source.financeBudget.create({
+    data: {
+      userId: user.id,
+      categoryId: financeCategory.id,
+      period: "month",
+      periodStart: new Date("2032-09-01T00:00:00.000Z"),
+      amountMinor: 20_000,
+      currencyCode: "EUR",
+      warningThresholdPercent: 80,
+    },
+  });
 
   const importedDatabasePath = path.join(directory, "imported.sqlite");
   const importResult = await importPostgresToSqlite(
@@ -349,6 +381,9 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       workTimeEntries: true,
       availabilityWindows: true,
       aiInteractions: true,
+      financeCategories: true,
+      financeTransactions: true,
+      financeBudgets: true,
       auditEvents: true,
     },
   });
@@ -379,6 +414,20 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   assert.equal(importedUser.workProjects[0]?.searchEnabled, true);
   assert.equal(importedUser.aiInteractions[0]?.id, aiInteraction.id);
   assert.equal(importedUser.aiInteractions[0]?.externalTransferOccurred, false);
+  assert.equal(importedUser.financeCategories[0]?.id, financeCategory.id);
+  assert.equal(
+    importedUser.financeTransactions[0]?.bookingDate.toISOString(),
+    "2032-09-01T00:00:00.000Z",
+  );
+  assert.equal(
+    importedUser.financeTransactions[0]?.amountMinor,
+    financeTransaction.amountMinor,
+  );
+  assert.equal(
+    importedUser.financeTransactions[0]?.recurrenceEndDate?.toISOString(),
+    "2032-12-31T00:00:00.000Z",
+  );
+  assert.equal(importedUser.financeBudgets[0]?.id, financeBudget.id);
 
   const documents = path.join(directory, "documents-source");
   await mkdir(path.join(documents, user.id), { recursive: true });
@@ -419,6 +468,12 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   assert.equal(restoredEvent.uid, event.uid);
   assert.equal(restoredEvent.etag, event.etag);
   assert.equal(restoredEvent.syncVersion, event.syncVersion);
+  const restoredFinanceTransaction =
+    await restored.financeTransaction.findUniqueOrThrow({
+      where: { id: financeTransaction.id },
+    });
+  assert.equal(restoredFinanceTransaction.amountMinor, 12_345);
+  assert.equal(restoredFinanceTransaction.currencyCode, "EUR");
   assert.equal(
     await restored.auditEvent.count({
       where: { userId: user.id, action: "after.backup" },

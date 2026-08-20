@@ -269,6 +269,12 @@ const SYNTHETIC_PROJECT_MILESTONE_ID = "00000000-0000-4000-8000-000000000109";
 const SYNTHETIC_PROJECT_EVENT_LINK_ID = "00000000-0000-4000-8000-000000000110";
 const SYNTHETIC_NOTE_ID = "00000000-0000-4000-8000-000000000111";
 const SYNTHETIC_AI_INTERACTION_ID = "00000000-0000-4000-8000-000000000112";
+const SYNTHETIC_FINANCE_INCOME_CATEGORY_ID =
+  "00000000-0000-4000-8000-000000000113";
+const SYNTHETIC_FINANCE_EXPENSE_CATEGORY_ID =
+  "00000000-0000-4000-8000-000000000114";
+const SYNTHETIC_FINANCE_TRANSACTION_ID = "00000000-0000-4000-8000-000000000115";
+const SYNTHETIC_FINANCE_BUDGET_ID = "00000000-0000-4000-8000-000000000116";
 
 export const seedSqliteDatabase = async (
   databaseUrl = process.env.SQLITE_DATABASE_URL,
@@ -440,6 +446,65 @@ export const seedSqliteDatabase = async (
           },
         },
       });
+      await transaction.financeCategory.upsert({
+        where: { id: SYNTHETIC_FINANCE_INCOME_CATEGORY_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_FINANCE_INCOME_CATEGORY_ID,
+          userId: fixture.user.id,
+          name: "Synthetisches Einkommen",
+          kind: "income",
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.financeCategory.upsert({
+        where: { id: SYNTHETIC_FINANCE_EXPENSE_CATEGORY_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_FINANCE_EXPENSE_CATEGORY_ID,
+          userId: fixture.user.id,
+          name: "Synthetische Lebensmittel",
+          kind: "expense",
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.financeTransaction.upsert({
+        where: { id: SYNTHETIC_FINANCE_TRANSACTION_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_FINANCE_TRANSACTION_ID,
+          userId: fixture.user.id,
+          categoryId: SYNTHETIC_FINANCE_EXPENSE_CATEGORY_ID,
+          kind: "expense",
+          bookingDate: "2030-01-10",
+          amountMinor: 4250,
+          currencyCode: "EUR",
+          note: "Rein synthetischer Beispieldatensatz",
+          recurrenceFrequency: "monthly",
+          recurrenceInterval: 1,
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.financeBudget.upsert({
+        where: { id: SYNTHETIC_FINANCE_BUDGET_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_FINANCE_BUDGET_ID,
+          userId: fixture.user.id,
+          categoryId: SYNTHETIC_FINANCE_EXPENSE_CATEGORY_ID,
+          period: "month",
+          periodStart: "2030-01-01",
+          amountMinor: 30000,
+          currencyCode: "EUR",
+          warningThresholdPercent: 80,
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+
       await transaction.aiInteraction.upsert({
         where: { id: SYNTHETIC_AI_INTERACTION_ID },
         update: {},

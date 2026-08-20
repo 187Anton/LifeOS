@@ -375,6 +375,10 @@ weitergegeben.
   deaktiviert; externe Verarbeitung und automatische Fachänderungen finden
   nicht statt. Der Vertrag ist in [`docs/api/ai.md`](../../docs/api/ai.md)
   beschrieben.
+- `modules/finance/` verwaltet eigene Kategorien, ganzzahlige Buchungen und
+  Budgets, berechnet Monatsvergleich, Sparquote und Warnungen rein lokal und
+  stellt einen versionierten eigenen Export bereit. Grenzen und Vertrag stehen
+  in [`docs/api/finance.md`](../../docs/api/finance.md).
 - `modules/caldav/` übersetzt den gemeinsamen Kalenderkern in WebDAV-XML und
   RFC-5545-iCalendar; Zugang, Parser und Transport bleiben von der REST-API
   getrennt.

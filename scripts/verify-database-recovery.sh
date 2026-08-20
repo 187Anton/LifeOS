@@ -82,7 +82,13 @@ FROM (
   UNION ALL
   SELECT 10, 'ai-interaction|' || id::text || '|' || "userId"::text || '|' || status || '|' || "processingMode" || '|' || "externalTransferOccurred"::text || '|' || "requestHash" || '|' || jsonb_array_length("sourceReferences")::text FROM "AiInteraction"
   UNION ALL
-  SELECT 11, 'audit-count|' || count(*)::text FROM "AuditEvent"
+  SELECT 11, 'finance-category|' || id::text || '|' || "userId"::text || '|' || name || '|' || kind::text || '|' || coalesce("archivedAt"::text, '') FROM "FinanceCategory"
+  UNION ALL
+  SELECT 12, 'finance-transaction|' || id::text || '|' || "categoryId"::text || '|' || kind::text || '|' || "bookingDate"::text || '|' || "amountMinor"::text || '|' || "currencyCode" || '|' || coalesce("recurrenceFrequency"::text, '') FROM "FinanceTransaction"
+  UNION ALL
+  SELECT 13, 'finance-budget|' || id::text || '|' || coalesce("categoryId"::text, '') || '|' || period::text || '|' || "periodStart"::text || '|' || "amountMinor"::text || '|' || "warningThresholdPercent"::text FROM "FinanceBudget"
+  UNION ALL
+  SELECT 14, 'audit-count|' || count(*)::text FROM "AuditEvent"
 ) AS stable_values
 ORDER BY ordinal, value;
 SQL
