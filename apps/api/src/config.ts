@@ -62,6 +62,16 @@ const environmentSchema = z.strictObject({
     .max(60_000)
     .default(10_000),
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(24),
+  INTEGRATION_SECRET_KEY: z
+    .string()
+    .trim()
+    .refine(
+      (value) =>
+        /^[A-Za-z0-9+/]{43}=$/.test(value) &&
+        Buffer.from(value, "base64").length === 32,
+      "muss ein Base64-kodierter 32-Byte-Schlüssel sein",
+    )
+    .optional(),
 });
 
 export interface ApiConfig {
@@ -77,6 +87,7 @@ export interface ApiConfig {
   logLevel: "debug" | "info" | "warn" | "error";
   shutdownTimeoutMs: number;
   sessionTtlHours: number;
+  integrationSecretKey?: string;
 }
 
 export class ConfigurationError extends Error {
@@ -112,6 +123,7 @@ export const parseConfig = (
     LOG_LEVEL: environment.LOG_LEVEL,
     SHUTDOWN_TIMEOUT_MS: environment.SHUTDOWN_TIMEOUT_MS,
     SESSION_TTL_HOURS: environment.SESSION_TTL_HOURS,
+    INTEGRATION_SECRET_KEY: environment.INTEGRATION_SECRET_KEY,
   });
 
   if (!result.success) {
@@ -144,5 +156,8 @@ export const parseConfig = (
     logLevel: result.data.LOG_LEVEL,
     shutdownTimeoutMs: result.data.SHUTDOWN_TIMEOUT_MS,
     sessionTtlHours: result.data.SESSION_TTL_HOURS,
+    ...(result.data.INTEGRATION_SECRET_KEY
+      ? { integrationSecretKey: result.data.INTEGRATION_SECRET_KEY }
+      : {}),
   };
 };

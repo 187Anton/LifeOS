@@ -17,7 +17,10 @@ import {
   AuthenticationService,
   ProfileService,
 } from "../src/modules/profile/service.js";
-import { hashPassword } from "../src/modules/profile/security.js";
+import {
+  hashPassword,
+  sessionRevocationTime,
+} from "../src/modules/profile/security.js";
 
 class SilentLogger implements Logger {
   debug(): void {}
@@ -100,6 +103,21 @@ class InMemoryProfileRepository
     return structuredClone(this.profile);
   }
 }
+
+test("widerruft Sitzungen auch bei vorauseilender Systemuhr nie vor ihrer Erzeugung", () => {
+  const now = new Date("2026-08-20T12:00:00.000Z");
+  const futureCreatedAt = new Date("2030-01-02T09:00:00.000Z");
+  const pastCreatedAt = new Date("2026-08-19T12:00:00.000Z");
+
+  assert.equal(
+    sessionRevocationTime(futureCreatedAt, now).toISOString(),
+    futureCreatedAt.toISOString(),
+  );
+  assert.equal(
+    sessionRevocationTime(pastCreatedAt, now).toISOString(),
+    now.toISOString(),
+  );
+});
 
 const listen = async (
   application: Express,

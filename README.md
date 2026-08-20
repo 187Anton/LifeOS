@@ -18,6 +18,7 @@ Fachlogik wird schrittweise ergänzt.
 - ein einfach installierbares lokales Release als Veröffentlichungsziel
 - CalDAV-Server ab dem Fundament, damit Termine ohne installierte LifeOS-App
   in Apple Kalender sichtbar werden können
+- lokaler ICS-Import mit Vorschau und konfliktgeschützter Kalenderexport
 - lokale Speicherung und synthetische Beispieldaten
 - externe Integrationen und KI standardmäßig deaktiviert
 
@@ -85,7 +86,7 @@ spätere Ausbaustufe und soll keine zweite Benutzeroberfläche einführen.
 
 ```text
 apps/
-api/ Backend und CalDAV-Schnittstelle
+api/ Backend, CalDAV- sowie lokale ICS-Schnittstelle
 web/ responsive React-Weboberfläche und PWA-App-Shell
 
 packages/
@@ -319,8 +320,55 @@ Anbieter eingerichtet und es werden keine Daten nach außen übertragen.
 Vorschläge benötigen eine Bestätigung, und selbst diese Bestätigung ändert
 noch keine Fachdaten. Fragen, Antworten und Ausschnitte werden weder
 protokolliert noch im Klartext persistiert. Details stehen im
-[KI-Vertrag](docs/api/ai.md). Ein Produktions-Build erzeugt zusätzlich
-Manifest und Offline-App-Shell:
+[KI-Vertrag](docs/api/ai.md).
+
+Der Bereich **Finanzen** verwaltet Einnahmen, Ausgaben, Kategorien sowie
+Monats- und Jahresbudgets vollständig lokal. Geldbeträge werden als ganze
+kleinste Währungseinheiten gespeichert; Zeitraum- und Kategoriefilter,
+Monatsvergleich, Sparquote und Budgetwarnungen verändern keine Quelldaten. Ein
+versionierter JSON-Export enthält ausschließlich die Daten des angemeldeten
+Profils. Wiederholungen werden vorbereitet, aber nicht automatisch gebucht.
+Es gibt keine Bankanbindung, Steuer- oder Rechtsbewertung, KI-Freigabe oder
+externe Übertragung. Details stehen im
+[Finanzvertrag](docs/api/finance.md).
+
+Der Bereich **Fitness** verwaltet Trainingspläne, Übungen, Einheiten, Sätze und
+Gewichtseinträge vollständig lokal. Gewichte, Wiederholungen, Dauer und Distanz
+werden als kontrollierte ganze Basiseinheiten gespeichert. Historie,
+Trainingsvolumen, Gewichtsverlauf und persönliche Bestleistungen sind einfache
+rein lesende Auswertungen und ausdrücklich keine Diagnose oder medizinische
+Empfehlung. Eine Einheit kann einen vorhandenen Termin über Kalender-ID und
+stabile UID referenzieren; der Termin samt ETag und Sync-Token bleibt
+unverändert. Es gibt keine ungefragte externe Übertragung. Details stehen im
+[Fitnessvertrag](docs/api/fitness.md).
+
+Der Bereich **Integrationen** kann einen externen CalDAV-Dienst als
+standardmäßig deaktivierte read-only-Quelle anbinden. Zugangsdaten erreichen
+nur die lokale API und liegen dort AES-256-GCM-verschlüsselt; ohne den
+separaten lokalen `INTEGRATION_SECRET_KEY` bleibt die Funktion vollständig
+aus. Nach ausdrücklicher Aktivierung lassen sich Verbindung und Kalender
+kontrolliert prüfen. Ereignisse werden erst nach Importvorschau und erneuter
+Bestätigung in den vorhandenen Kalenderkern übernommen. Es gibt keine
+automatische oder bidirektionale Synchronisation und keine Schreibaktion zum
+externen Dienst. Details und offene Grenzen stehen im
+[externen CalDAV-Vertrag](docs/api/external-caldav.md).
+
+Im selben Bereich kann optional eine ausschließlich lesende GitHub-Verbindung
+eingerichtet werden. Sie bleibt ohne `INTEGRATION_SECRET_KEY` und bis zur
+bewussten Aktivierung netzwerkfrei. Das Token wird nur verschlüsselt im
+Backend gespeichert und nie wieder ausgegeben. Danach lassen sich
+Repository-Metadaten, Issues, Pull Requests, Commits, Releases und CI-Status
+flüchtig anzeigen; LifeOS speichert diese Inhalte nicht dauerhaft und führt
+keine GitHub-Schreibaktion aus. Details, Berechtigungen, Limits und offene
+Grenzen stehen im [GitHub-Integrationsvertrag](docs/api/github-integration.md).
+
+Der vollständige synthetische Abschlusslauf für Finanzen, Fitness, ICS,
+optionale Integrationen, PostgreSQL, SQLite, Recovery, Browser und Mac-Sidecar
+ist im [lokalen Roadmap-0.5-Nachweis](docs/roadmap-05-local-demo.md)
+dokumentiert. Dort sind auch Update-/Backup-Schritte und ausdrücklich offene
+externe Release-Gates getrennt aufgeführt.
+
+Ein Produktions-Build erzeugt zusätzlich Manifest und Offline-App-Shell:
 
 ```bash
 npm run build --workspace @lifeos/web

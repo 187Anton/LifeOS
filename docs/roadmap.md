@@ -464,41 +464,138 @@ Ziel: Weitere persönliche Bereiche ergänzen, ohne den lokalen Kern zu gefährd
 
 ### 0.5.1 Finanzen
 
-- Manuelle Buchungen und Kategorien erfassen.
-- Budgets und Auswertungszeiträume unterstützen.
-- Keine Bankanbindung im ersten Umsetzungsschritt.
+- **Umgesetzt (20. August 2026):** Einnahmen, Ausgaben und Kategorien lassen
+  sich besitzgebunden anlegen, bearbeiten und reversibel archivieren. Betrag,
+  Währung und Buchungsdatum werden serverseitig validiert; Geldwerte bleiben
+  in PostgreSQL und SQLite ganze kleinste Währungseinheiten.
+- Wiederkehrende Buchungen werden ohne automatische Erzeugung vorbereitet.
+  Monats- und Jahresbudgets, Zeitraum- und Kategoriefilter, Monatsvergleich,
+  Sparquote und nachvollziehbare Budgetwarnungen stehen lokal zur Verfügung.
+- Der versionierte JSON-Export enthält ausschließlich eigene Finanzdaten. Es
+  gibt keine Bankanbindung, Steuer- oder Rechtsbewertung, KI-Freigabe oder
+  externe Übertragung.
+- Responsive Oberfläche, synthetischer Seed, API-, Datenbank-, SQLite-,
+  Recovery- und Browsernachweise sowie Grenzen sind im
+  [`Finanzvertrag`](api/finance.md) dokumentiert.
+
+Abschlusskriterium: Der Finanzbereich ist lokal nutzbar, besitzgebunden,
+ganzzahlig ausgewertet und über PostgreSQL, SQLite, Backup und Restore geprüft;
+persönliche Antworten werden nicht im Browser gespeichert.
 
 ### 0.5.2 Fitness
 
-- Trainings-, Gewichts- und Messwerte lokal erfassen.
-- Zeitreihen und einfache Auswertungen anzeigen.
-- Sensible Daten besonders schützen und nicht extern übertragen.
+- **Umgesetzt (20. August 2026):** Besitzgebundene Trainingspläne, Übungen,
+  Zielwerte, geplante und abgeschlossene Einheiten, Sätze sowie Gewichtseinträge
+  lassen sich lokal anlegen, anzeigen, bearbeiten und soweit fachlich passend
+  reversibel archivieren.
+- Gewicht, Dauer, Distanz und Wiederholungen verwenden kontrollierte ganze
+  Basiseinheiten. Trainingshistorie, Volumen, Gewichtsverlauf und persönliche
+  Maxima sind rein lesende, einfache Fortschrittsauswertungen ohne Diagnose
+  oder medizinische Empfehlung.
+- Einheiten referenzieren vorhandene Kalenderereignisse ausschließlich über
+  eigene Kalender-ID und stabile UID. Ereignis, ETag und Sync-Token werden
+  nicht automatisch geändert.
+- PostgreSQL-/SQLite-Migration, synthetischer Seed, Import, Recovery, API,
+  responsive Oberfläche und Sicherheitsgrenzen sind im
+  [`Fitnessvertrag`](api/fitness.md) dokumentiert und automatisiert geprüft.
+
+Abschlusskriterium: Fitnessdaten funktionieren lokal, besitzgebunden und ohne
+externe Übertragung; Datenbankparität, Kalender-Unabhängigkeit, Recovery sowie
+Desktop-/Mobilbetrieb sind nachgewiesen.
 
 ### 0.5.3 ICS-Import und -Export
 
-- iCalendar-Dateien importieren und exportieren.
-- UID, Zeitzone und Wiederholungsregeln möglichst verlustarm behandeln.
-- Importkonflikte vor dem Schreiben anzeigen.
+- **Umgesetzt (20. August 2026):** Eigene Kalender lassen sich lokal als
+  RFC-5545-iCalendar-Datei exportieren; begrenzte ICS-Dateien werden vor jedem
+  Import vollständig geprüft und als Vorschau angezeigt.
+- Stabile UIDs, `VTIMEZONE`, zeitgebundene und ganztägige Ereignisse,
+  begrenzte Wiederholungen und DISPLAY-Erinnerungen werden verlustarm
+  übernommen. Wiederholter Import identischer Daten erzeugt keine Duplikate.
+- Doppelte, gelöschte oder abweichend vorhandene UIDs sowie ungültige
+  Ereignisse blockieren den atomaren Schreibschritt. Lokale ETags und
+  Sync-Daten werden nicht ungefragt überschrieben.
+- Besitzgrenzen, 2-MiB-/500-Ereignis-Limits, kurzlebige Einmal-Vorschauen,
+  PostgreSQL-/SQLite-Parität und die responsive Bedienung sind im
+  [`ICS-Vertrag`](api/ics.md) dokumentiert und automatisiert geprüft.
+
+Abschlusskriterium: Import und Export verwenden ausschließlich den vorhandenen
+Kalenderkern; Konflikte sind vor dem Schreiben sichtbar, identische Importe
+sind idempotent und persönliche Kalenderdaten bleiben lokal.
 
 ### 0.5.4 Externe CalDAV-Integration
 
-- Bestehende iCloud-/CalDAV-Kalender optional als externe Quelle anbinden.
-- Zugangsdaten ausschließlich lokal und verschlüsselt konfigurieren.
-- Externe Synchronisierung vom lokalen LifeOS-Kern trennen.
-- Konflikt- und Löschverhalten zuerst mit Testdaten prüfen.
+- **Umgesetzt (20. August 2026):** Externe CalDAV-Kalender lassen sich als
+  optionale, standardmäßig deaktivierte read-only-Quelle konfigurieren,
+  testen, auflisten und nach Vorschau manuell in einen eigenen
+  LifeOS-Kalender importieren.
+- Zugangsdaten bleiben ausschließlich im Backend und werden mit einem
+  getrennten lokalen AES-256-GCM-Schlüssel verschlüsselt. Ohne Schlüssel ist
+  die Funktion vollständig nicht verfügbar; Widerruf löscht Chiffretext und
+  Integrationsdaten.
+- HTTPS, Zertifikatsprüfung, DNS-/IP-Prüfung mit fest gebundener Zieladresse,
+  gleichursprüngliche begrenzte Weiterleitungen, Timeouts sowie Antwort- und
+  Mengenlimits schützen den optionalen Netzwerkpfad. Private, Loopback-,
+  Link-Local- und Metadata-Ziele werden abgewiesen.
+- Fremde ICS-Inhalte werden begrenzt validiert. Abweichende UIDs bleiben vor
+  dem Schreiben sichtbare Konflikte; stabile externe UID-/ETag-Zuordnungen
+  verändern lokale ETags und Sync-Tokens nicht.
+- PostgreSQL-/SQLite-Persistenz, Transfer, Recovery, synthetischer Adapter,
+  Besitzgrenzen, Widerruf sowie Desktop-/Mobilbedienung sind im
+  [`externen CalDAV-Vertrag`](api/external-caldav.md) dokumentiert und
+  automatisiert geprüft.
+
+Abschlusskriterium: Der externe Netzwerkpfad ist nur nach bewusster
+Aktivierung nutzbar, importiert ausschließlich nach Vorschau und Bestätigung
+und kann vollständig widerrufen werden. Bidirektionale Synchronisation,
+Schreiben, Löschspiegelung, echte Apple-Zugänge und der Mac-Schlüsselbundpfad
+bleiben ausdrücklich offen.
 
 ### 0.5.5 Optionale GitHub-Integration
 
-- Issues und Pull Requests nur nach expliziter Aktivierung einlesen.
-- Keine Schreibaktionen ohne Bestätigung.
-- Token und Berechtigungen minimal halten.
+- Als standardmäßig deaktivierte, ausschließlich lesende Integration
+  umgesetzt. Ohne getrennten lokalen `INTEGRATION_SECRET_KEY` ist sie nicht
+  verfügbar; eine Verbindung muss vor jedem Netzwerkpfad bewusst aktiviert
+  sein.
+- Token werden ausschließlich im Backend AES-256-GCM-verschlüsselt und nie an
+  die Oberfläche zurückgegeben. Widerruf entfernt den Chiffretext. Fine-grained
+  Tokens sollen auf ausgewählte Repositories und lesende Rechte für Metadata,
+  Contents, Issues, Pull requests und Actions begrenzt werden.
+- Repository-Metadaten, Issues, Pull Requests, Commits, Releases und CI-Status
+  werden über den festen Ursprung `api.github.com` mit GET, Timeouts,
+  Antwort-/Mengenlimits und begrenzten gleichursprünglichen Weiterleitungen
+  gelesen. Rate Limits und Fehler bleiben sichtbar.
+- Fremde Inhalte werden nur als begrenzter Text dargestellt, nicht dauerhaft
+  kopiert und lösen keine Anweisung oder Schreibaktion aus. PostgreSQL,
+  SQLite, Transfer, Recovery, Besitzgrenzen, Widerruf, synthetischer Adapter
+  sowie Desktop-/Mobilbedienung sind im
+  [`GitHub-Integrationsvertrag`](api/github-integration.md) dokumentiert.
+
+Abschlusskriterium: Der Netzwerkzugriff erfolgt ausschließlich nach expliziter
+Aktivierung, das Token bleibt serverseitig verschlüsselt und die fünf
+Metadatenbereiche sind lesbar, ohne externe Inhalte zu persistieren. OAuth,
+Webhooks, Hintergrundsynchronisation und sämtliche GitHub-Schreibaktionen
+bleiben ausdrücklich außerhalb dieses Stands.
 
 ### 0.5.6 Abschluss und produktionsnahe Demo
 
-- Sicherheits- und Datenschutzreview durchführen.
-- Backups und Wiederherstellung testen.
-- Rückwärtskompatibilität von API, Datenmodell, CalDAV-UIDs und ETags prüfen.
-- Lokale Demo mit vollständiger Start-, Update- und Backup-Anleitung erstellen.
+- **Abgeschlossen (20. August 2026):** Die Sicherheits- und Datenschutzmatrix
+  prüft Authentifizierung, Besitz, fremde IDs, Limits, Timeouts, widerrufene
+  Zugänge, fehlende Berechtigungen, Secret-Scan und standardmäßig ausbleibende
+  externe Übertragung.
+- PostgreSQL und SQLite wenden alle versionierten Migrationen an. Seed,
+  Neustart, vollständiger Fachmodelltransfer, Backup und Restore in neue Ziele
+  sowie der gebündelte Node-22-Sidecar sind reproduzierbar geprüft.
+- Die reale lokale Browserdemo legte Finanzdaten an, änderte und wertete sie
+  aus, löste den eigenen Export aus, ergänzte einen Fitnessfortschritt und
+  führte ICS-Vorschau, bestätigten Import und Export am gemeinsamen
+  Kalenderkern aus. CalDAV und GitHub blieben ohne Schlüssel vollständig
+  deaktiviert.
+- Ein im Demoablauf entdeckter Uhrzeitfehler beim Widerruf zukünftiger
+  synthetischer Sitzungen wurde providerunabhängig behoben und mit Unit- sowie
+  SQLite-Bootstrap-Test abgesichert.
+- Ablauf, Prüfmatrix, Update-/Recovery-Regeln und offene Release-Gates stehen
+  im [`lokalen Roadmap-0.5-Nachweis`](roadmap-05-local-demo.md).
 
 Abschlusskriterium: Die zusätzlichen Bereiche bleiben optional, lokal und
 deaktivierbar; der Kalender- und Aufgaben-Kern bleibt unabhängig nutzbar.
+Roadmap 0.5 ist damit fachlich und technisch abgeschlossen.

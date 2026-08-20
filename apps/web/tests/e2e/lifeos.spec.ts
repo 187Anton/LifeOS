@@ -121,6 +121,83 @@ const installApi = async (page: Page) => {
     }
   >();
   const availability: Array<Record<string, unknown>> = [];
+  const financeCategories: Array<Record<string, unknown>> = [
+    {
+      id: "finance-category-1",
+      ownerId: profile.id,
+      name: "Synthetische Lebensmittel",
+      kind: "expense",
+      archivedAt: null,
+      createdAt: "2032-01-01T00:00:00.000Z",
+      updatedAt: "2032-01-01T00:00:00.000Z",
+    },
+  ];
+  const financeTransactions: Array<Record<string, unknown>> = [
+    {
+      id: "finance-transaction-1",
+      ownerId: profile.id,
+      categoryId: "finance-category-1",
+      kind: "expense",
+      bookingDate: today,
+      amountMinor: 12_345,
+      currencyCode: "EUR",
+      note: "Nur synthetisch",
+      recurrenceFrequency: null,
+      recurrenceInterval: null,
+      recurrenceEndDate: null,
+      archivedAt: null,
+      createdAt: "2032-01-01T00:00:00.000Z",
+      updatedAt: "2032-01-01T00:00:00.000Z",
+    },
+  ];
+  const financeBudgets: Array<Record<string, unknown>> = [
+    {
+      id: "finance-budget-1",
+      ownerId: profile.id,
+      categoryId: "finance-category-1",
+      period: "month",
+      periodStart: `${today.slice(0, 7)}-01`,
+      amountMinor: 20_000,
+      currencyCode: "EUR",
+      warningThresholdPercent: 50,
+      archivedAt: null,
+      createdAt: "2032-01-01T00:00:00.000Z",
+      updatedAt: "2032-01-01T00:00:00.000Z",
+    },
+  ];
+  const fitnessExercises: Array<Record<string, unknown>> = [];
+  const externalCalDavConnections: Array<Record<string, unknown>> = [
+    {
+      id: "external-caldav-1",
+      name: "Synthetischer CalDAV-Dienst",
+      baseUrl: "https://calendar.example.test/caldav/",
+      enabled: false,
+      readOnly: true,
+      status: "disabled",
+      credentialsConfigured: true,
+      lastErrorCode: null,
+      lastTestedAt: null,
+      lastSyncAt: null,
+      revokedAt: null,
+      calendars: [],
+      importedEventCount: 0,
+    },
+  ];
+  const githubConnections: Array<Record<string, unknown>> = [
+    {
+      id: "github-connection-1",
+      name: "Synthetischer GitHub-Zugang",
+      enabled: false,
+      readOnly: true,
+      status: "disabled",
+      tokenConfigured: true,
+      accountLogin: null,
+      lastErrorCode: null,
+      lastTestedAt: null,
+      lastFetchedAt: null,
+      rateLimit: { remaining: null, resetAt: null },
+    },
+  ];
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -132,6 +209,242 @@ const installApi = async (page: Page) => {
     }
     if (path === "/api/v1/profile" && method === "GET") {
       await route.fulfill({ json: profile });
+      return;
+    }
+    if (path === "/api/v1/integrations/caldav" && method === "GET") {
+      await route.fulfill({
+        json: {
+          available: true,
+          networkDefault: "disabled",
+          mode: "read_only_import",
+          connections: externalCalDavConnections,
+        },
+      });
+      return;
+    }
+    if (path === "/api/v1/integrations/github" && method === "GET") {
+      await route.fulfill({
+        json: {
+          available: true,
+          networkDefault: "disabled",
+          mode: "read_only",
+          apiHost: "api.github.com",
+          connections: githubConnections,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/api/v1/integrations/github/github-connection-1" &&
+      method === "PATCH"
+    ) {
+      const payload = request.postDataJSON() as { enabled: boolean };
+      Object.assign(githubConnections[0]!, {
+        enabled: payload.enabled,
+        status: payload.enabled ? "ready" : "disabled",
+      });
+      await route.fulfill({ json: githubConnections[0] });
+      return;
+    }
+    if (
+      path === "/api/v1/integrations/github/github-connection-1/test" &&
+      method === "POST"
+    ) {
+      Object.assign(githubConnections[0]!, {
+        accountLogin: "synthetic-owner",
+        lastTestedAt: "2034-03-01T10:00:00.000Z",
+        rateLimit: { remaining: 4_999, resetAt: null },
+      });
+      await route.fulfill({
+        json: {
+          reachable: true,
+          accountLogin: "synthetic-owner",
+          rateLimit: { remaining: 4_999, resetAt: null },
+        },
+      });
+      return;
+    }
+    if (
+      path === "/api/v1/integrations/github/github-connection-1/repositories" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          repositories: [
+            {
+              id: "github-repository-1",
+              owner: "synthetic-owner",
+              name: "synthetic-repository",
+              fullName: "synthetic-owner/synthetic-repository",
+              description: "Nur synthetische Metadaten",
+              private: true,
+              archived: false,
+              defaultBranch: "main",
+              updatedAt: "2034-03-01T10:00:00.000Z",
+            },
+          ],
+          rateLimit: { remaining: 4_998, resetAt: null },
+        },
+      });
+      return;
+    }
+    if (
+      path ===
+        "/api/v1/integrations/github/github-connection-1/repositories/synthetic-owner/synthetic-repository" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          repository: {
+            id: "github-repository-1",
+            owner: "synthetic-owner",
+            name: "synthetic-repository",
+            fullName: "synthetic-owner/synthetic-repository",
+            description: "Nur synthetische Metadaten",
+            private: true,
+            archived: false,
+            defaultBranch: "main",
+            updatedAt: "2034-03-01T10:00:00.000Z",
+          },
+          issues: [
+            {
+              number: 11,
+              title: "Synthetisches Issue",
+              state: "open",
+              updatedAt: "2034-03-01T10:00:00.000Z",
+            },
+          ],
+          pullRequests: [
+            {
+              number: 12,
+              title: "Synthetischer Pull Request",
+              state: "open",
+              draft: false,
+              updatedAt: "2034-03-01T10:00:00.000Z",
+            },
+          ],
+          commits: [
+            {
+              sha: "a".repeat(40),
+              message: "Synthetischer Commit",
+              authoredAt: null,
+              authorLogin: "synthetic-owner",
+            },
+          ],
+          releases: [
+            {
+              tagName: "v-test",
+              name: "Synthetisches Release",
+              draft: false,
+              prerelease: true,
+              publishedAt: null,
+            },
+          ],
+          ciRuns: [
+            {
+              id: "ci-1",
+              name: "Repository checks",
+              status: "completed",
+              conclusion: "success",
+              headBranch: "main",
+              updatedAt: "2034-03-01T10:00:00.000Z",
+            },
+          ],
+          rateLimit: { remaining: 4_992, resetAt: null },
+        },
+      });
+      return;
+    }
+    if (
+      path === "/api/v1/integrations/caldav/external-caldav-1" &&
+      method === "PATCH"
+    ) {
+      const payload = request.postDataJSON() as { enabled: boolean };
+      Object.assign(externalCalDavConnections[0]!, {
+        enabled: payload.enabled,
+        status: payload.enabled ? "ready" : "disabled",
+      });
+      await route.fulfill({ json: externalCalDavConnections[0] });
+      return;
+    }
+    if (
+      path === "/api/v1/integrations/caldav/external-caldav-1/test" &&
+      method === "POST"
+    ) {
+      Object.assign(externalCalDavConnections[0]!, {
+        status: "ready",
+        lastTestedAt: "2034-03-01T10:00:00.000Z",
+      });
+      await route.fulfill({ json: { reachable: true, calendarCount: 1 } });
+      return;
+    }
+    if (
+      path === "/api/v1/integrations/caldav/external-caldav-1/calendars" &&
+      method === "GET"
+    ) {
+      const remoteCalendar = {
+        id: "external-calendar-1",
+        displayName: "Externer Testkalender",
+        href: "/caldav/test/",
+        etag: '"remote-calendar-etag"',
+        lastFetchedAt: "2034-03-01T10:00:00.000Z",
+      };
+      externalCalDavConnections[0]!.calendars = [remoteCalendar];
+      await route.fulfill({ json: [remoteCalendar] });
+      return;
+    }
+    if (
+      path ===
+        "/api/v1/integrations/caldav/external-caldav-1/imports/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          externalImportId: "external-import-1",
+          expiresAt: "2034-03-01T10:15:00.000Z",
+          localCalendarId: calendar.id,
+          externalCalendarId: "external-calendar-1",
+          preview: {
+            previewId: "external-ics-preview-1",
+            expiresAt: "2034-03-01T10:15:00.000Z",
+            sourceSha256: "b".repeat(64),
+            totalEvents: 1,
+            creatableEvents: 1,
+            unchangedEvents: 0,
+            conflictingEvents: 0,
+            invalidEvents: 0,
+            canCommit: true,
+            items: [
+              {
+                index: 0,
+                uid: "external-event@lifeos.local",
+                title: "Externer synthetischer Termin",
+                action: "create",
+                message: "Das Ereignis kann neu angelegt werden.",
+                existingEtag: null,
+              },
+            ],
+          },
+        },
+      });
+      return;
+    }
+    if (
+      path === "/api/v1/integrations/caldav/external-caldav-1/imports/commit" &&
+      method === "POST"
+    ) {
+      Object.assign(externalCalDavConnections[0]!, {
+        lastSyncAt: "2034-03-01T10:05:00.000Z",
+        importedEventCount: 1,
+      });
+      await route.fulfill({
+        json: {
+          createdEvents: 1,
+          unchangedEvents: 0,
+          createdUids: ["external-event@lifeos.local"],
+          mappedEvents: 1,
+        },
+      });
       return;
     }
     if (path === "/api/v1/study" && method === "GET") {
@@ -851,6 +1164,64 @@ const installApi = async (page: Page) => {
       return;
     }
     if (
+      path === "/api/v1/calendars/kalender-1/ics/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          previewId: "ics-preview-1",
+          expiresAt: "2034-03-01T10:15:00.000Z",
+          sourceSha256: "a".repeat(64),
+          totalEvents: 1,
+          creatableEvents: 1,
+          unchangedEvents: 0,
+          conflictingEvents: 0,
+          invalidEvents: 0,
+          canCommit: true,
+          items: [
+            {
+              index: 0,
+              uid: "imported-ics@lifeos.local",
+              title: "Importierter Testtermin",
+              action: "create",
+              message: "Das Ereignis kann neu angelegt werden.",
+              existingEtag: null,
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (
+      path === "/api/v1/calendars/kalender-1/ics/commit" &&
+      method === "POST"
+    ) {
+      events.push({
+        ...initialEvent,
+        uid: "imported-ics@lifeos.local",
+        title: "Importierter Testtermin",
+        etag: '"import-etag"',
+      });
+      await route.fulfill({
+        json: {
+          createdEvents: 1,
+          unchangedEvents: 0,
+          createdUids: ["imported-ics@lifeos.local"],
+        },
+      });
+      return;
+    }
+    if (
+      path === "/api/v1/calendars/kalender-1/ics/export" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        contentType: "text/calendar; charset=utf-8",
+        body: "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n",
+      });
+      return;
+    }
+    if (
       path === "/api/v1/tasks" &&
       request.url().includes("includeArchived=true") &&
       method === "GET"
@@ -942,6 +1313,111 @@ const installApi = async (page: Page) => {
       await route.fulfill({ status: 204, body: "" });
       return;
     }
+    if (path === "/api/v1/finance" && method === "GET") {
+      const activeTransactions = financeTransactions.filter(
+        (value) => !value.archivedAt,
+      );
+      const incomeMinor = activeTransactions
+        .filter((value) => value.kind === "income")
+        .reduce((sum, value) => sum + Number(value.amountMinor), 0);
+      const expenseMinor = activeTransactions
+        .filter((value) => value.kind === "expense")
+        .reduce((sum, value) => sum + Number(value.amountMinor), 0);
+      const spentMinor = activeTransactions
+        .filter((value) => value.categoryId === "finance-category-1")
+        .reduce((sum, value) => sum + Number(value.amountMinor), 0);
+      await route.fulfill({
+        json: {
+          range: {
+            from: `${today.slice(0, 4)}-01-01`,
+            to: `${today.slice(0, 4)}-12-31`,
+          },
+          categories: financeCategories,
+          transactions: activeTransactions,
+          budgets: financeBudgets,
+          analytics: {
+            incomeMinor,
+            expenseMinor,
+            balanceMinor: incomeMinor - expenseMinor,
+            savingsRateBasisPoints:
+              incomeMinor > 0
+                ? Math.round(
+                    ((incomeMinor - expenseMinor) * 10_000) / incomeMinor,
+                  )
+                : null,
+            months: [
+              {
+                month: today.slice(0, 7),
+                incomeMinor,
+                expenseMinor,
+                balanceMinor: incomeMinor - expenseMinor,
+              },
+            ],
+            budgetWarnings: [
+              {
+                budgetId: "finance-budget-1",
+                spentMinor,
+                limitMinor: 20_000,
+                utilizationBasisPoints: Math.round(
+                  (spentMinor * 10_000) / 20_000,
+                ),
+                thresholdReached: spentMinor >= 10_000,
+                exceeded: spentMinor > 20_000,
+              },
+            ],
+          },
+        },
+      });
+      return;
+    }
+    if (path === "/api/v1/finance/transactions" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const created = {
+        ...payload,
+        id: `finance-transaction-${financeTransactions.length + 1}`,
+        ownerId: profile.id,
+        archivedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      financeTransactions.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    if (path === "/api/v1/fitness" && method === "GET") {
+      await route.fulfill({
+        json: {
+          plans: [],
+          exercises: fitnessExercises,
+          planExercises: [],
+          sessions: [],
+          sets: [],
+          bodyWeights: [],
+          analytics: {
+            completedSessionCount: 0,
+            completedSetCount: 0,
+            volumeGramRepetitions: 0,
+            weightChangeGrams: null,
+            personalBests: [],
+          },
+        },
+      });
+      return;
+    }
+    if (path === "/api/v1/fitness/exercises" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const created = {
+        ...payload,
+        id: `fitness-exercise-${fitnessExercises.length + 1}`,
+        ownerId: profile.id,
+        archivedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      fitnessExercises.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
     await route.fulfill({
       status: 404,
       json: { error: { code: "NOT_FOUND", message: "Nicht gefunden" } },
@@ -951,6 +1427,79 @@ const installApi = async (page: Page) => {
 
 test.beforeEach(async ({ page }) => {
   await installApi(page);
+});
+
+test("verwaltet Finanzen lokal, ganzzahlig und ohne Browserpersistenz", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Finanzen", exact: true })
+    .filter({ visible: true })
+    .click();
+
+  await expect(
+    page.getByRole("heading", { name: "Finanzen", exact: true }),
+  ).toBeVisible();
+  const metrics = page.getByRole("region", { name: "Finanzkennzahlen" });
+  await expect(metrics.getByText("123,45 €", { exact: true })).toBeVisible();
+  await expect(page.getByText("61,73 % genutzt")).toBeVisible();
+
+  const transactionForm = page
+    .getByRole("heading", { name: "Buchung anlegen" })
+    .locator("..");
+  await transactionForm.getByLabel("Art").selectOption("expense");
+  await transactionForm
+    .getByLabel("Kategorie")
+    .selectOption("finance-category-1");
+  await transactionForm.getByLabel("Buchungsdatum").fill(today);
+  await transactionForm.getByLabel("Betrag in EUR").fill("10.01");
+  await transactionForm
+    .getByRole("button", { name: "Buchung anlegen" })
+    .click();
+
+  await expect(page.getByRole("status")).toContainText("angelegt");
+  const transactionList = page
+    .getByRole("heading", { name: "Buchungen im Zeitraum" })
+    .locator("..");
+  await expect(
+    transactionList.getByText("−10,01 €", { exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
+});
+
+test("verwaltet Fitness lokal und zeigt medizinische Grenzen", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Fitness", exact: true })
+    .filter({ visible: true })
+    .click();
+
+  await expect(
+    page.getByRole("heading", { name: "Fitness", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/weder Diagnosen noch medizinische Empfehlungen/),
+  ).toBeVisible();
+  const exerciseForm = page
+    .getByRole("heading", { name: "Übung anlegen" })
+    .locator("..");
+  await exerciseForm.getByLabel("Name").fill("Synthetische Kniebeuge");
+  await exerciseForm.getByRole("button", { name: "Übung speichern" }).click();
+  await expect(page.getByText("Die Übung wurde angelegt.")).toBeVisible();
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
 });
 
 test("zeigt die lokale Übersicht und speichert Termine ohne Browserpersistenz", async ({
@@ -995,7 +1544,7 @@ test("zeigt die lokale Übersicht und speichert Termine ohne Browserpersistenz",
 
   await page.getByRole("button", { name: /Neuer Termin/ }).click();
   await page.getByLabel("Titel").fill("Synthetischer Arzttermin");
-  await page.getByLabel("Ort").fill("Praxis");
+  await page.getByLabel("Ort", { exact: true }).fill("Praxis");
   await page.getByRole("button", { name: "Termin anlegen" }).click();
   await expect(page.getByText("Synthetischer Arzttermin")).toBeVisible();
   await expect(page.getByRole("status")).toContainText("angelegt");
@@ -1026,6 +1575,144 @@ test("zeigt die lokale Übersicht und speichert Termine ohne Browserpersistenz",
   await expect(page.getByText("Fokusblock aktualisiert")).toHaveCount(0);
   await expect(page.getByRole("status")).toContainText("gelöscht");
 
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
+});
+
+test("prüft ICS-Dateien vor dem Import und exportiert lokal", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Kalender", exact: true })
+    .filter({ visible: true })
+    .click();
+
+  await page.getByLabel(/ICS-Datei für Vorschau/).setInputFiles({
+    name: "synthetischer-import.ics",
+    mimeType: "text/calendar",
+    buffer: (
+      globalThis as unknown as {
+        Buffer: { from(value: string): never };
+      }
+    ).Buffer.from(
+      "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:imported-ics@lifeos.local\r\nSUMMARY:Importierter Testtermin\r\nDTSTART:20340320T080000Z\r\nDTEND:20340320T090000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+    ),
+  });
+  await expect(page.getByText("Importierter Testtermin")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Vorschau verbindlich importieren" })
+    .click();
+  await expect(page.getByText(/1 Ereignisse importiert/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Kalender exportieren" }).click();
+  await expect(
+    page.getByText("Der lokale ICS-Export wurde erstellt."),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
+});
+
+test("aktiviert externe CalDAV-Importe nur kontrolliert und read-only", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Integrationen", exact: true })
+    .filter({ visible: true })
+    .click();
+
+  await expect(
+    page.getByRole("heading", { name: "Integrationen", exact: true }),
+  ).toBeVisible();
+  const externalCalDav = page.locator(".external-caldav-card");
+  await expect(
+    externalCalDav.getByText("Deaktiviert", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    externalCalDav.getByRole("button", { name: "Verbindung testen" }),
+  ).toBeDisabled();
+
+  await externalCalDav
+    .getByRole("button", { name: "Read-only aktivieren" })
+    .click();
+  await expect(externalCalDav.getByText("Aktiv · nur Lesen")).toBeVisible();
+  await externalCalDav
+    .getByRole("button", { name: "Verbindung testen" })
+    .click();
+  await expect(page.getByRole("status")).toContainText("erfolgreich getestet");
+  await externalCalDav
+    .getByRole("button", { name: "Kalender auflisten" })
+    .click();
+  await externalCalDav
+    .getByLabel("Externer Kalender")
+    .selectOption("external-calendar-1");
+  await externalCalDav
+    .getByRole("button", { name: "Importvorschau erstellen" })
+    .click();
+  await expect(page.getByText(/1 Ereignisse: 1 neu/)).toBeVisible();
+  await externalCalDav
+    .getByRole("button", { name: "Read-only-Import bestätigen" })
+    .click();
+  await expect(page.getByRole("status")).toContainText("read-only importiert");
+  await externalCalDav
+    .getByRole("button", { name: "Verbindung deaktivieren" })
+    .click();
+  await expect(
+    externalCalDav.getByText("Deaktiviert", { exact: true }),
+  ).toBeVisible();
+
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
+});
+
+test("liest GitHub-Metadaten nur nach Aktivierung und ohne Browserpersistenz", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Integrationen", exact: true })
+    .filter({ visible: true })
+    .click();
+  const github = page.locator(".github-integration-panel");
+
+  await expect(
+    github.getByRole("heading", { name: "GitHub-Integration" }),
+  ).toBeVisible();
+  await expect(github.getByText("Deaktiviert", { exact: true })).toBeVisible();
+  await expect(
+    github.getByRole("button", { name: "Verbindung testen" }),
+  ).toBeDisabled();
+  await github.getByRole("button", { name: "Read-only aktivieren" }).click();
+  await github.getByRole("button", { name: "Verbindung testen" }).click();
+  await expect(github.getByRole("status")).toContainText(
+    "erfolgreich getestet",
+  );
+  await github.getByRole("button", { name: "Repositories laden" }).click();
+  await github
+    .getByLabel("Repository")
+    .selectOption("synthetic-owner/synthetic-repository");
+  await github.getByRole("button", { name: "Aktuellen Stand lesen" }).click();
+
+  await expect(github.getByText(/Synthetisches Issue/)).toBeVisible();
+  await expect(github.getByText(/Synthetischer Pull Request/)).toBeVisible();
+  await expect(github.getByText(/Synthetischer Commit/)).toBeVisible();
+  await expect(github.getByText(/Synthetisches Release/)).toBeVisible();
+  await expect(github.getByText(/Repository checks/)).toBeVisible();
+  await github.getByRole("button", { name: "GitHub deaktivieren" }).click();
+  await expect(github.getByText("Deaktiviert", { exact: true })).toBeVisible();
   expect(
     await page.evaluate(() => ({
       local: Object.keys(localStorage),

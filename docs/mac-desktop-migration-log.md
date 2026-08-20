@@ -356,3 +356,67 @@ formuliert werden.
 - **Nächster Schritt:** Kleinen Dokumentations-Commit erstellen, den gesamten
   Unterschied zu `origin/develop` prüfen und – bei gültiger GitHub-
   Authentifizierung – als Draft-PR nach `develop` veröffentlichen.
+
+## 20. August 2026 – Roadmap 0.5.4: sicher deaktivierter Integrationspfad
+
+- **Befund:** Die externe CalDAV-Integration benötigt einen getrennten
+  Verschlüsselungsschlüssel. Die Mac-App stellt bewusst noch keinen
+  Schlüsselbundpfad bereit und darf deshalb nicht versehentlich mit einem
+  über die Elternumgebung geerbten Zugang nach außen kommunizieren.
+- **Entscheidung:** Der Sidecar erhält keinen `INTEGRATION_SECRET_KEY`. Sein
+  authentifizierter Statusendpunkt muss `available: false`,
+  `networkDefault: disabled` und eine leere Verbindungsliste liefern. Ein
+  späterer nativer Aktivierungspfad benötigt eine eigene geprüfte
+  Schlüsselbund-Integration.
+- **Verifikation:** `npm run desktop:verify:sidecar` baute Web und API, wendete
+  alle neun SQLite-Migrationen einschließlich
+  `20260820210000_external_caldav` an, richtete nur ein synthetisches Profil
+  ein, prüfte den deaktivierten Integrationsstatus und startete den
+  gebündelten Node-22.23.2-Sidecar zweimal ohne Homebrew-Pfad. Zusätzlich
+  bestanden der gebaute SQLite-Neustart, 72 SQLite-API-Fälle, PostgreSQL- und
+  SQLite-Recovery sowie der externe CalDAV-Browserablauf auf Desktop und
+  Smartphone.
+- **Grenzen:** Keine produktive externe CalDAV-Verbindung, kein echter
+  Apple-Zugang, kein Mac-Schlüsselbundpfad, kein bidirektionales Schreiben und
+  keine Hintergrundsynchronisation wurden geprüft oder als freigegeben
+  behauptet.
+
+## 20. August 2026 – Roadmap 0.5.5: deaktivierte GitHub-Leseintegration
+
+- **Befund:** Auch ein lesendes GitHub-Token benötigt einen sicheren lokalen
+  Geheimnispfad. Der Mac-Prototyp darf ohne native Schlüsselbundfreigabe kein
+  aus der Umgebung geerbtes Token oder Integrationsschlüssel verwenden.
+- **Entscheidung:** Der Sidecar erhält keinen `INTEGRATION_SECRET_KEY`. Der
+  authentifizierte GitHub-Status muss deshalb `available: false`, den
+  Netzwerkstandard `disabled` und eine leere Verbindungsliste liefern.
+  Produktive Tokens, OAuth und GitHub-Schreibaktionen bleiben ausgeschlossen.
+- **Verifikation:** Der Sidecar-Nachweis wendet alle zehn SQLite-Migrationen
+  einschließlich `20260820220000_github_integration` an und prüft den sicheren
+  Status vor dem zweiten Start. API, Datenbank, Recovery und Browser verwenden
+  nur synthetische Daten beziehungsweise Adapter.
+- **Grenzen:** Kein produktives Token, keine echte GitHub-Anmeldung, keine
+  native Schlüsselbundablage, keine Webhooks, keine Hintergrundsynchronisation
+  und keine Schreibberechtigung wurden geprüft oder freigegeben.
+
+## 20. August 2026 – Roadmap 0.5.6: Stabilisierung und lokale Demo
+
+- **Befund:** Der fachliche Stand benötigt neben Mock-E2E einen echten lokalen
+  Browserlauf gegen SQLite. Dabei zeigte der zukünftige synthetische Seed eine
+  Constraint-Verletzung im pauschalen Sitzungswiderruf.
+- **Entscheidung:** Sitzungen werden beim Passwort-Bootstrap einzeln und nie
+  vor `createdAt` widerrufen. Die Demo verwendet einen neuen temporären
+  Datenpfad und keinen Integrationsschlüssel; CalDAV- und GitHub-Clients
+  bleiben dadurch sicher netzwerkfrei.
+- **Verifikation:** Gebaute Weboberfläche und API liefen am gemeinsamen
+  Loopback-Ursprung. Finanz-Anlage/Änderung/Auswertung/Export,
+  Fitness-Fortschritt und ICS-Vorschau/Commit/Export waren erfolgreich;
+  Integrationen meldeten `available: false` und der Browser keine
+  Konsolenfehler. Der Sidecar startete mit allen zehn Migrationen zweimal.
+  Nach Installation der zuvor fehlenden lokalen Rust-1.97.1-Toolchain wurden
+  das ARM64-DMG neu gebaut und mit `desktop:verify:dmg` geprüft. DMG-Prüfsumme,
+  kopierte App, ad-hoc Signaturstruktur und zweimaliger Node-22.23.2-
+  Sidecar-Start bestanden; die SHA-256-Prüfsumme lautet
+  `e79acef81ecb42544e708868db3bad8fa3d8d4eaa90e3946dfa8d3dd1455ee83`.
+- **Grenzen:** Produktive externe Zugänge, Schlüsselbund, physischer
+  Apple-Kalender, Developer-ID, Notarisierung, sauberer zweiter Mac und
+  Intel-/Universal-Build bleiben offen.

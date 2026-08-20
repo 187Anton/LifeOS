@@ -184,6 +184,69 @@ Das Ergebnis wird mit Datum, iPhone-Modell, iOS-Version, LifeOS-Commit und
 Abweichungen notiert. Ein fehlendes physisches Gerät ist eine dokumentierte
 Testgrenze und kein automatisierter Erfolgsnachweis.
 
+## Ergänzender Fitness-Nachweis 0.5.2
+
+Der Fitness-Nachweis ergänzt die allgemeine Matrix um `npm run db:test`,
+`npm run db:sqlite:test`, `npm run test:sqlite:api`, den
+PostgreSQL-zu-SQLite-Transfer-/Recovery-Test, `npm run
+desktop:verify:sidecar` sowie den Playwright-Ablauf „verwaltet Fitness lokal“.
+Er prüft ausschließlich synthetische Pläne, Übungen, Einheiten, Sätze und
+Gewichtswerte. Ein Kalenderbezug muss UID, ETag und Sync-Version unverändert
+lassen; Browser-Storage und externe Übertragung bleiben leer.
+
+## Ergänzender ICS-Nachweis 0.5.3
+
+Der ICS-Nachweis ergänzt die Kalender- und CalDAV-Suite um Vorschau, atomaren
+Commit und Export. Synthetische Fälle prüfen Zeitpunkte, `VTIMEZONE`, Ganztag,
+RRULE, Erinnerung, doppelte und abweichende UIDs, fehlerhafte Dateien,
+wiederholten Import, fremde Kalender, abgelaufene Vorschauen sowie die Grenzen
+von 2 MiB, 500 Ereignissen und 1000 Wiederholungen. PostgreSQL, SQLite,
+Browser- und Sidecar-Prüfung verwenden denselben `/api/v1`-Kalenderkern.
+
+## Ergänzender externer CalDAV-Nachweis 0.5.4
+
+Der externe CalDAV-Nachweis verwendet ausschließlich einen synthetischen
+Adapter und keine produktiven Zugangsdaten. API-Tests prüfen fehlende Sitzung,
+fremde IDs, standardmäßige Deaktivierung, AES-256-GCM-Chiffretext,
+verbotene HTTP-/Loopback-/Private-/Metadata-Ziele, Timeoutfehler ohne fremden
+Antwortkörper, ungültige ICS-Ressourcen, maximal 20 Verbindungen, manuelle
+Vorschau, bestätigten Import, stabile UID-/ETag-Zuordnung und vollständigen
+Widerruf. Datenbank-, SQLite- und Recovery-Tests vergleichen Verbindung,
+Kalender und Zuordnungen. Playwright prüft Desktop und Smartphone ohne
+Browser-Storage. Der Sidecar-Nachweis startet ohne Integrationsschlüssel und
+erwartet deshalb `available: false` sowie ausbleibende externe Übertragung.
+
+## Ergänzender GitHub-Nachweis 0.5.5
+
+Der GitHub-Nachweis verwendet ausschließlich einen synthetischen Adapter und
+keine produktiven Tokens. API-Tests prüfen fehlende Sitzung, fremde IDs,
+standardmäßige Deaktivierung, verschlüsselten Chiffretext, Einmalübertragung,
+maximal fünf Verbindungen, widerrufene Verbindungen, ungültige Eingaben,
+Berechtigungs- und Rate-Limit-Fehler sowie die flüchtige Ausgabe aller fünf
+Metadatenbereiche. Datenbank-, SQLite-, Transfer- und Recovery-Prüfungen
+vergleichen nur Konfiguration und Status, weil externe Inhalte bewusst nicht
+persistiert werden. Playwright prüft Desktop und Smartphone ohne
+Browser-Storage. Der Sidecar startet ohne Integrationsschlüssel und muss
+`available: false` melden.
+
+## Roadmap-0.5-Stabilisierung und lokale Demo
+
+Der Abschlusslauf kombiniert die vollständige automatisierte Suite mit einer
+real gestarteten, gebauten LifeOS-Oberfläche an einem gemeinsamen
+Loopback-Ursprung. Eine neue temporäre SQLite-Datei erhielt alle zehn
+Migrationen und ausschließlich synthetische Seed-Daten. Im Browser wurden
+Finanz-Anlage, Änderung, Auswertung und Export, Fitness-Fortschritt sowie
+ICS-Vorschau, Commit und Export geprüft. Externes CalDAV und GitHub meldeten
+ohne Integrationsschlüssel `available: false`; der Browser protokollierte keine
+Konsolenfehler. Das temporäre Demo-Verzeichnis wurde anschließend entfernt.
+
+Die Demo reproduzierte außerdem eine Constraint-Verletzung beim Widerruf einer
+zukünftig datierten synthetischen Sitzung. Der korrigierte Bootstrap verwendet
+nun je Sitzung frühestens deren Erzeugungszeitpunkt. Unit-Test und realer
+SQLite-Bootstrap mit einer 2030-Sitzung belegen diesen Recovery-Randfall. Die
+vollständige Matrix und offene Gates dokumentiert
+[`roadmap-05-local-demo.md`](roadmap-05-local-demo.md).
+
 ## Bekannte Grenzen und Folgearbeiten
 
 - LifeOS unterstützt im Fundament genau ein lokales Profil und keine

@@ -16,6 +16,10 @@ type ReadClient = Pick<
   | "userCredential"
   | "userSession"
   | "calDavCredential"
+  | "externalCalDavConnection"
+  | "externalCalDavCalendar"
+  | "externalCalDavEventMapping"
+  | "gitHubConnection"
   | "calendar"
   | "calendarEvent"
   | "project"
@@ -35,6 +39,15 @@ type ReadClient = Pick<
   | "workTaskLink"
   | "workTimeEntry"
   | "availabilityWindow"
+  | "financeCategory"
+  | "financeTransaction"
+  | "financeBudget"
+  | "fitnessPlan"
+  | "fitnessExercise"
+  | "fitnessPlanExercise"
+  | "fitnessSession"
+  | "fitnessSet"
+  | "bodyWeightEntry"
   | "aiInteraction"
   | "auditEvent"
 >;
@@ -50,6 +63,19 @@ const readDataset = async (database: ReadClient) => ({
   userSessions: await database.userSession.findMany({ orderBy: { id: "asc" } }),
   calDavCredentials: await database.calDavCredential.findMany({
     orderBy: { userId: "asc" },
+  }),
+  externalCalDavConnections: await database.externalCalDavConnection.findMany({
+    orderBy: { id: "asc" },
+  }),
+  externalCalDavCalendars: await database.externalCalDavCalendar.findMany({
+    orderBy: { id: "asc" },
+  }),
+  externalCalDavEventMappings:
+    await database.externalCalDavEventMapping.findMany({
+      orderBy: { id: "asc" },
+    }),
+  gitHubConnections: await database.gitHubConnection.findMany({
+    orderBy: { id: "asc" },
   }),
   calendars: await database.calendar.findMany({ orderBy: { id: "asc" } }),
   calendarEvents: await database.calendarEvent.findMany({
@@ -84,6 +110,29 @@ const readDataset = async (database: ReadClient) => ({
     orderBy: { id: "asc" },
   }),
   availabilityWindows: await database.availabilityWindow.findMany({
+    orderBy: { id: "asc" },
+  }),
+  financeCategories: await database.financeCategory.findMany({
+    orderBy: { id: "asc" },
+  }),
+  financeTransactions: await database.financeTransaction.findMany({
+    orderBy: { id: "asc" },
+  }),
+  financeBudgets: await database.financeBudget.findMany({
+    orderBy: { id: "asc" },
+  }),
+  fitnessPlans: await database.fitnessPlan.findMany({ orderBy: { id: "asc" } }),
+  fitnessExercises: await database.fitnessExercise.findMany({
+    orderBy: { id: "asc" },
+  }),
+  fitnessPlanExercises: await database.fitnessPlanExercise.findMany({
+    orderBy: { id: "asc" },
+  }),
+  fitnessSessions: await database.fitnessSession.findMany({
+    orderBy: { id: "asc" },
+  }),
+  fitnessSets: await database.fitnessSet.findMany({ orderBy: { id: "asc" } }),
+  bodyWeightEntries: await database.bodyWeightEntry.findMany({
     orderBy: { id: "asc" },
   }),
   aiInteractions: await database.aiInteraction.findMany({
@@ -164,11 +213,27 @@ const insertDataset = async (
       await transaction.calDavCredential.createMany({
         data: dataset.calDavCredentials,
       });
+    if (dataset.externalCalDavConnections.length)
+      await transaction.externalCalDavConnection.createMany({
+        data: dataset.externalCalDavConnections,
+      });
+    if (dataset.externalCalDavCalendars.length)
+      await transaction.externalCalDavCalendar.createMany({
+        data: dataset.externalCalDavCalendars,
+      });
     if (dataset.calendars.length)
       await transaction.calendar.createMany({ data: dataset.calendars });
     if (dataset.calendarEvents.length)
       await transaction.calendarEvent.createMany({
         data: dataset.calendarEvents,
+      });
+    if (dataset.externalCalDavEventMappings.length)
+      await transaction.externalCalDavEventMapping.createMany({
+        data: dataset.externalCalDavEventMappings,
+      });
+    if (dataset.gitHubConnections.length)
+      await transaction.gitHubConnection.createMany({
+        data: dataset.gitHubConnections,
       });
     if (dataset.projects.length)
       await transaction.project.createMany({ data: dataset.projects });
@@ -217,6 +282,38 @@ const insertDataset = async (
     if (dataset.availabilityWindows.length)
       await transaction.availabilityWindow.createMany({
         data: dataset.availabilityWindows,
+      });
+    if (dataset.financeCategories.length)
+      await transaction.financeCategory.createMany({
+        data: dataset.financeCategories,
+      });
+    if (dataset.financeTransactions.length)
+      await transaction.financeTransaction.createMany({
+        data: dataset.financeTransactions,
+      });
+    if (dataset.financeBudgets.length)
+      await transaction.financeBudget.createMany({
+        data: dataset.financeBudgets,
+      });
+    if (dataset.fitnessPlans.length)
+      await transaction.fitnessPlan.createMany({ data: dataset.fitnessPlans });
+    if (dataset.fitnessExercises.length)
+      await transaction.fitnessExercise.createMany({
+        data: dataset.fitnessExercises,
+      });
+    if (dataset.fitnessPlanExercises.length)
+      await transaction.fitnessPlanExercise.createMany({
+        data: dataset.fitnessPlanExercises,
+      });
+    if (dataset.fitnessSessions.length)
+      await transaction.fitnessSession.createMany({
+        data: dataset.fitnessSessions,
+      });
+    if (dataset.fitnessSets.length)
+      await transaction.fitnessSet.createMany({ data: dataset.fitnessSets });
+    if (dataset.bodyWeightEntries.length)
+      await transaction.bodyWeightEntry.createMany({
+        data: dataset.bodyWeightEntries,
       });
     if (dataset.aiInteractions.length)
       await transaction.aiInteraction.createMany({

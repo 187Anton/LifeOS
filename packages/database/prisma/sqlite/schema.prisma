@@ -10,35 +10,48 @@ datasource db {
 }
 
 model User {
-  id                  String               @id @default(uuid())
-  externalId          String               @unique
-  displayName         String
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  settings            UserSettings?
-  credential          UserCredential?
-  calDavCredential    CalDavCredential?
-  sessions            UserSession[]
-  calendars           Calendar[]
-  projects            Project[]
-  projectGoals        ProjectGoal[]
-  projectMilestones   ProjectMilestone[]
-  projectEventLinks   ProjectEventLink[]
-  notes               Note[]
-  noteVersions        NoteVersion[]
-  documents           Document[]
-  tasks               Task[]
-  taskEventLinks      TaskEventLink[]
-  studyPrograms       StudyProgram[]
-  studyModules        StudyModule[]
-  studyEntries        StudyEntry[]
-  workContexts        WorkContext[]
-  workProjects        WorkProject[]
-  workTaskLinks       WorkTaskLink[]
-  workTimeEntries     WorkTimeEntry[]
-  availabilityWindows AvailabilityWindow[]
-  aiInteractions      AiInteraction[]
-  auditEvents         AuditEvent[]
+  id                        String                       @id @default(uuid())
+  externalId                String                       @unique
+  displayName               String
+  createdAt                 DateTime                     @default(now())
+  updatedAt                 DateTime                     @updatedAt
+  settings                  UserSettings?
+  credential                UserCredential?
+  calDavCredential          CalDavCredential?
+  externalCalDavConnections ExternalCalDavConnection[]
+  externalCalDavCalendars   ExternalCalDavCalendar[]
+  externalCalDavMappings    ExternalCalDavEventMapping[]
+  githubConnections         GitHubConnection[]
+  sessions                  UserSession[]
+  calendars                 Calendar[]
+  projects                  Project[]
+  projectGoals              ProjectGoal[]
+  projectMilestones         ProjectMilestone[]
+  projectEventLinks         ProjectEventLink[]
+  notes                     Note[]
+  noteVersions              NoteVersion[]
+  documents                 Document[]
+  tasks                     Task[]
+  taskEventLinks            TaskEventLink[]
+  studyPrograms             StudyProgram[]
+  studyModules              StudyModule[]
+  studyEntries              StudyEntry[]
+  workContexts              WorkContext[]
+  workProjects              WorkProject[]
+  workTaskLinks             WorkTaskLink[]
+  workTimeEntries           WorkTimeEntry[]
+  availabilityWindows       AvailabilityWindow[]
+  financeCategories         FinanceCategory[]
+  financeTransactions       FinanceTransaction[]
+  financeBudgets            FinanceBudget[]
+  fitnessPlans              FitnessPlan[]
+  fitnessExercises          FitnessExercise[]
+  fitnessPlanExercises      FitnessPlanExercise[]
+  fitnessSessions           FitnessSession[]
+  fitnessSets               FitnessSet[]
+  bodyWeightEntries         BodyWeightEntry[]
+  aiInteractions            AiInteraction[]
+  auditEvents               AuditEvent[]
 }
 
 model UserSettings {
@@ -87,6 +100,96 @@ model CalDavCredential {
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model ExternalCalDavConnection {
+  id                   String                       @id @default(uuid())
+  userId               String
+  name                 String
+  baseUrl              String
+  credentialsEncrypted String
+  secretIv             String
+  secretTag            String
+  enabled              Boolean                      @default(false)
+  readOnly             Boolean                      @default(true)
+  status               String                       @default("disabled")
+  lastErrorCode        String?
+  lastTestedAt         DateTime?
+  lastSyncAt           DateTime?
+  revokedAt            DateTime?
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+  user                 User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calendars            ExternalCalDavCalendar[]
+  eventMappings        ExternalCalDavEventMapping[]
+
+  @@unique([userId, name])
+  @@unique([id, userId])
+  @@index([userId, revokedAt])
+}
+
+model ExternalCalDavCalendar {
+  id            String                       @id @default(uuid())
+  userId        String
+  connectionId  String
+  href          String
+  displayName   String
+  remoteEtag    String?
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
+  user          User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection    ExternalCalDavConnection     @relation(fields: [connectionId, userId], references: [id, userId], onDelete: Cascade)
+  eventMappings ExternalCalDavEventMapping[]
+
+  @@unique([connectionId, href])
+  @@unique([id, userId])
+  @@index([userId])
+}
+
+model ExternalCalDavEventMapping {
+  id                 String                   @id @default(uuid())
+  userId             String
+  connectionId       String
+  externalCalendarId String
+  remoteHref         String
+  remoteUid          String
+  remoteEtag         String?
+  localCalendarId    String
+  localEventUid      String
+  importedAt         DateTime                 @default(now())
+  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection         ExternalCalDavConnection @relation(fields: [connectionId, userId], references: [id, userId], onDelete: Cascade)
+  externalCalendar   ExternalCalDavCalendar   @relation(fields: [externalCalendarId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([connectionId, remoteHref])
+  @@unique([externalCalendarId, remoteUid])
+  @@unique([localCalendarId, localEventUid])
+  @@index([userId])
+}
+
+model GitHubConnection {
+  id                 String    @id @default(uuid())
+  userId             String
+  name               String
+  tokenEncrypted     String
+  secretIv           String
+  secretTag          String
+  enabled            Boolean   @default(false)
+  readOnly           Boolean   @default(true)
+  status             String    @default("disabled")
+  accountLogin       String?
+  lastErrorCode      String?
+  lastTestedAt       DateTime?
+  lastFetchedAt      DateTime?
+  rateLimitRemaining Int?
+  rateLimitResetAt   DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@unique([id, userId])
+  @@index([userId])
+}
+
 model Calendar {
   id         String          @id @default(uuid())
   userId     String
@@ -106,7 +209,7 @@ model Calendar {
 }
 
 model CalendarEvent {
-  id              String          @id @default(uuid())
+  id              String             @id @default(uuid())
   userId          String
   calendarId      String
   uid             String
@@ -117,21 +220,22 @@ model CalendarEvent {
   endsAt          DateTime?
   startDate       String?
   endDate         String?
-  timezone        String          @default("Europe/Berlin")
-  isAllDay        Boolean         @default(false)
+  timezone        String             @default("Europe/Berlin")
+  isAllDay        Boolean            @default(false)
   recurrenceRule  String?
-  reminderMinutes Json            @default("[]")
+  reminderMinutes Json               @default("[]")
   etag            String
-  sequence        Int             @default(0)
-  syncVersion     Int             @default(0)
+  sequence        Int                @default(0)
+  syncVersion     Int                @default(0)
   deletedAt       DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  calendar        Calendar        @relation(fields: [calendarId, userId], references: [id, userId], onDelete: Cascade)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  calendar        Calendar           @relation(fields: [calendarId, userId], references: [id, userId], onDelete: Cascade)
   taskLinks       TaskEventLink[]
   studyEntries    StudyEntry[]
   workProjects    WorkProject[]
   projectLinks    ProjectEventLink[]
+  fitnessSessions FitnessSession[]
 
   @@unique([id, userId])
   @@unique([calendarId, uid])
@@ -182,25 +286,25 @@ enum ProjectItemStatus {
 }
 
 model Project {
-  id          String        @id @default(uuid())
-  userId      String
-  title       String
-  description String?
-  status      ProjectStatus @default(planned)
-  risk        String?
-  dueDate     String?
-  searchEnabled Boolean     @default(false)
-  archivedAt  DateTime?
-  deletedAt   DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  goals       ProjectGoal[]
-  milestones  ProjectMilestone[]
-  tasks       Task[]
-  eventLinks  ProjectEventLink[]
-  notes       Note[]
-  documents   Document[]
+  id            String             @id @default(uuid())
+  userId        String
+  title         String
+  description   String?
+  status        ProjectStatus      @default(planned)
+  risk          String?
+  dueDate       String?
+  searchEnabled Boolean            @default(false)
+  archivedAt    DateTime?
+  deletedAt     DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals         ProjectGoal[]
+  milestones    ProjectMilestone[]
+  tasks         Task[]
+  eventLinks    ProjectEventLink[]
+  notes         Note[]
+  documents     Document[]
 
   @@unique([id, userId])
   @@index([userId, deletedAt, archivedAt])
@@ -361,7 +465,7 @@ model StudyModule {
   grade              String?
   notes              String?
   documentReferences Json         @default("[]")
-  searchEnabled       Boolean      @default(false)
+  searchEnabled      Boolean      @default(false)
   archivedAt         DateTime?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
@@ -527,7 +631,7 @@ model WorkProject {
   deadlineDate    String?
   calendarEventId String?
   notes           String?
-  searchEnabled   Boolean      @default(false)
+  searchEnabled   Boolean         @default(false)
   archivedAt      DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -604,6 +708,212 @@ model AvailabilityWindow {
 
   @@unique([userId, weekday, startMinute, endMinute])
   @@index([userId, weekday])
+}
+
+enum FinanceCategoryKind {
+  income
+  expense
+}
+
+enum FinanceTransactionKind {
+  income
+  expense
+}
+
+enum FinanceRecurrenceFrequency {
+  weekly
+  monthly
+  yearly
+}
+
+enum FinanceBudgetPeriod {
+  month
+  year
+}
+
+model FinanceCategory {
+  id           String               @id @default(uuid())
+  userId       String
+  name         String
+  kind         FinanceCategoryKind
+  archivedAt   DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions FinanceTransaction[]
+  budgets      FinanceBudget[]
+
+  @@unique([id, userId])
+  @@unique([userId, kind, name])
+  @@index([userId, archivedAt])
+}
+
+model FinanceTransaction {
+  id                  String                      @id @default(uuid())
+  userId              String
+  categoryId          String
+  kind                FinanceTransactionKind
+  bookingDate         String
+  amountMinor         Int
+  currencyCode        String
+  note                String?
+  recurrenceFrequency FinanceRecurrenceFrequency?
+  recurrenceInterval  Int?
+  recurrenceEndDate   String?
+  archivedAt          DateTime?
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+  user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category            FinanceCategory             @relation(fields: [categoryId, userId], references: [id, userId], onDelete: NoAction)
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt, bookingDate])
+  @@index([userId, categoryId, bookingDate])
+  @@index([userId, kind, bookingDate])
+}
+
+model FinanceBudget {
+  id                      String              @id @default(uuid())
+  userId                  String
+  categoryId              String?
+  period                  FinanceBudgetPeriod
+  periodStart             String
+  amountMinor             Int
+  currencyCode            String
+  warningThresholdPercent Int                 @default(80)
+  archivedAt              DateTime?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  user                    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category                FinanceCategory?    @relation(fields: [categoryId, userId], references: [id, userId], onDelete: NoAction)
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt, periodStart])
+  @@index([userId, categoryId, periodStart])
+}
+
+enum FitnessSessionStatus {
+  planned
+  completed
+  cancelled
+}
+
+model FitnessPlan {
+  id         String                @id @default(uuid())
+  userId     String
+  name       String
+  notes      String?
+  archivedAt DateTime?
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+  user       User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises  FitnessPlanExercise[]
+  sessions   FitnessSession[]
+
+  @@unique([id, userId])
+  @@unique([userId, name])
+  @@index([userId, archivedAt])
+}
+
+model FitnessExercise {
+  id            String                @id @default(uuid())
+  userId        String
+  name          String
+  notes         String?
+  archivedAt    DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planExercises FitnessPlanExercise[]
+  sets          FitnessSet[]
+
+  @@unique([id, userId])
+  @@unique([userId, name])
+  @@index([userId, archivedAt])
+}
+
+model FitnessPlanExercise {
+  id                    String          @id @default(uuid())
+  userId                String
+  planId                String
+  exerciseId            String
+  position              Int
+  targetSets            Int?
+  targetRepetitions     Int?
+  targetWeightGrams     Int?
+  targetDurationSeconds Int?
+  targetDistanceMeters  Int?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                  FitnessPlan     @relation(fields: [planId, userId], references: [id, userId], onDelete: Cascade)
+  exercise              FitnessExercise @relation(fields: [exerciseId, userId], references: [id, userId], onDelete: Restrict)
+
+  @@unique([id, userId])
+  @@unique([planId, exerciseId])
+  @@unique([planId, position])
+  @@index([userId, planId])
+}
+
+model FitnessSession {
+  id              String               @id @default(uuid())
+  userId          String
+  planId          String?
+  calendarEventId String?
+  title           String
+  status          FitnessSessionStatus @default(planned)
+  performedAt     DateTime?
+  timezone        String?
+  notes           String?
+  archivedAt      DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan            FitnessPlan?         @relation(fields: [planId, userId], references: [id, userId], onDelete: Restrict)
+  calendarEvent   CalendarEvent?       @relation(fields: [calendarEventId, userId], references: [id, userId], onDelete: Restrict)
+  sets            FitnessSet[]
+
+  @@unique([id, userId])
+  @@index([userId, status, performedAt])
+  @@index([userId, calendarEventId])
+}
+
+model FitnessSet {
+  id              String          @id @default(uuid())
+  userId          String
+  sessionId       String
+  exerciseId      String
+  setNumber       Int
+  repetitions     Int?
+  weightGrams     Int?
+  durationSeconds Int?
+  distanceMeters  Int?
+  completedAt     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session         FitnessSession  @relation(fields: [sessionId, userId], references: [id, userId], onDelete: Cascade)
+  exercise        FitnessExercise @relation(fields: [exerciseId, userId], references: [id, userId], onDelete: Restrict)
+
+  @@unique([id, userId])
+  @@unique([sessionId, exerciseId, setNumber])
+  @@index([userId, exerciseId, completedAt])
+}
+
+model BodyWeightEntry {
+  id           String    @id @default(uuid())
+  userId       String
+  measuredDate String
+  weightGrams  Int
+  note         String?
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([id, userId])
+  @@unique([userId, measuredDate])
+  @@index([userId, archivedAt, measuredDate])
 }
 
 model AuditEvent {

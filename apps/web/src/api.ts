@@ -52,6 +52,39 @@ import type {
   CreateAiQueryRequest,
   UpdateDocumentRequest,
   UpdateNoteRequest,
+  CreateFinanceBudgetRequest,
+  CreateFinanceCategoryRequest,
+  CreateFinanceTransactionRequest,
+  FinanceExportResponse,
+  FinanceOverviewResponse,
+  UpdateFinanceBudgetRequest,
+  UpdateFinanceCategoryRequest,
+  UpdateFinanceTransactionRequest,
+  CreateBodyWeightEntryRequest,
+  CreateFitnessExerciseRequest,
+  CreateFitnessPlanRequest,
+  CreateFitnessSessionRequest,
+  CreateFitnessSetRequest,
+  FitnessOverviewResponse,
+  UpdateBodyWeightEntryRequest,
+  UpdateFitnessExerciseRequest,
+  UpdateFitnessPlanRequest,
+  UpdateFitnessSessionRequest,
+  UpdateFitnessSetRequest,
+  UpsertFitnessPlanExerciseRequest,
+  IcsImportCommitResponse,
+  IcsImportPreviewResponse,
+  CreateExternalCalDavConnectionRequest,
+  ExternalCalDavCalendarResponse,
+  ExternalCalDavConnectionResponse,
+  ExternalCalDavImportCommitResponse,
+  ExternalCalDavImportPreviewResponse,
+  ExternalCalDavOverviewResponse,
+  CreateGitHubConnectionRequest,
+  GitHubConnectionResponse,
+  GitHubIntegrationOverviewResponse,
+  GitHubRepositoryListResponse,
+  GitHubRepositorySnapshotResponse,
 } from "@lifeos/contracts";
 
 const API_BASE = "/api/v1";
@@ -117,6 +150,21 @@ const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+};
+
+const requestText = async (path: string): Promise<string> => {
+  const response = await fetch(`${API_BASE}${path}`, {
+    credentials: "include",
+    headers: { Accept: "text/calendar" },
+  });
+  if (!response.ok) {
+    throw new ApiClientError(
+      response.status,
+      "HTTP_ERROR",
+      "Die lokale Kalenderdatei konnte nicht erstellt werden.",
+    );
+  }
+  return response.text();
 };
 
 export const api = {
@@ -505,5 +553,259 @@ export const api = {
     return request<void>(`/planning/availability/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
+  },
+  getFinance(
+    from: string,
+    to: string,
+    currencyCode = "EUR",
+    categoryId?: string,
+  ) {
+    const query = new URLSearchParams({ from, to, currencyCode });
+    if (categoryId) query.set("categoryId", categoryId);
+    return request<FinanceOverviewResponse>(`/finance?${query.toString()}`);
+  },
+  createFinanceCategory(payload: CreateFinanceCategoryRequest) {
+    return request("/finance/categories", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFinanceCategory(id: string, payload: UpdateFinanceCategoryRequest) {
+    return request(`/finance/categories/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createFinanceTransaction(payload: CreateFinanceTransactionRequest) {
+    return request("/finance/transactions", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFinanceTransaction(
+    id: string,
+    payload: UpdateFinanceTransactionRequest,
+  ) {
+    return request(`/finance/transactions/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createFinanceBudget(payload: CreateFinanceBudgetRequest) {
+    return request("/finance/budgets", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFinanceBudget(id: string, payload: UpdateFinanceBudgetRequest) {
+    return request(`/finance/budgets/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  exportFinance(from: string, to: string, currencyCode = "EUR") {
+    const query = new URLSearchParams({ from, to, currencyCode });
+    return request<FinanceExportResponse>(
+      `/finance/export?${query.toString()}`,
+    );
+  },
+  getFitness(includeArchived = false) {
+    return request<FitnessOverviewResponse>(
+      `/fitness?includeArchived=${String(includeArchived)}`,
+    );
+  },
+  createFitnessPlan(payload: CreateFitnessPlanRequest) {
+    return request("/fitness/plans", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFitnessPlan(id: string, payload: UpdateFitnessPlanRequest) {
+    return request(`/fitness/plans/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createFitnessExercise(payload: CreateFitnessExerciseRequest) {
+    return request("/fitness/exercises", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFitnessExercise(id: string, payload: UpdateFitnessExerciseRequest) {
+    return request(`/fitness/exercises/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  addFitnessPlanExercise(
+    planId: string,
+    payload: UpsertFitnessPlanExerciseRequest,
+  ) {
+    return request(`/fitness/plans/${encodeURIComponent(planId)}/exercises`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFitnessPlanExercise(
+    id: string,
+    payload: Partial<UpsertFitnessPlanExerciseRequest>,
+  ) {
+    return request(`/fitness/plan-exercises/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createFitnessSession(payload: CreateFitnessSessionRequest) {
+    return request("/fitness/sessions", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFitnessSession(id: string, payload: UpdateFitnessSessionRequest) {
+    return request(`/fitness/sessions/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createFitnessSet(payload: CreateFitnessSetRequest) {
+    return request("/fitness/sets", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFitnessSet(id: string, payload: UpdateFitnessSetRequest) {
+    return request(`/fitness/sets/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createBodyWeight(payload: CreateBodyWeightEntryRequest) {
+    return request("/fitness/body-weights", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateBodyWeight(id: string, payload: UpdateBodyWeightEntryRequest) {
+    return request(`/fitness/body-weights/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  previewIcsImport(calendarId: string, source: string) {
+    return request<IcsImportPreviewResponse>(
+      `/calendars/${encodeURIComponent(calendarId)}/ics/preview`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "text/calendar; charset=utf-8" },
+        body: source,
+      },
+    );
+  },
+  commitIcsImport(calendarId: string, previewId: string) {
+    return request<IcsImportCommitResponse>(
+      `/calendars/${encodeURIComponent(calendarId)}/ics/commit`,
+      { method: "POST", body: JSON.stringify({ previewId }) },
+    );
+  },
+  exportIcs(calendarId: string) {
+    return requestText(
+      `/calendars/${encodeURIComponent(calendarId)}/ics/export`,
+    );
+  },
+  getExternalCalDav() {
+    return request<ExternalCalDavOverviewResponse>("/integrations/caldav");
+  },
+  createExternalCalDav(payload: CreateExternalCalDavConnectionRequest) {
+    return request<ExternalCalDavConnectionResponse>("/integrations/caldav", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  setExternalCalDavEnabled(connectionId: string, enabled: boolean) {
+    return request<ExternalCalDavConnectionResponse>(
+      `/integrations/caldav/${encodeURIComponent(connectionId)}`,
+      { method: "PATCH", body: JSON.stringify({ enabled }) },
+    );
+  },
+  testExternalCalDav(connectionId: string) {
+    return request<{ reachable: true; calendarCount: number }>(
+      `/integrations/caldav/${encodeURIComponent(connectionId)}/test`,
+      { method: "POST" },
+    );
+  },
+  listExternalCalDavCalendars(connectionId: string) {
+    return request<ExternalCalDavCalendarResponse[]>(
+      `/integrations/caldav/${encodeURIComponent(connectionId)}/calendars`,
+    );
+  },
+  previewExternalCalDavImport(
+    connectionId: string,
+    externalCalendarId: string,
+    localCalendarId: string,
+  ) {
+    return request<ExternalCalDavImportPreviewResponse>(
+      `/integrations/caldav/${encodeURIComponent(connectionId)}/imports/preview`,
+      {
+        method: "POST",
+        body: JSON.stringify({ externalCalendarId, localCalendarId }),
+      },
+    );
+  },
+  commitExternalCalDavImport(connectionId: string, externalImportId: string) {
+    return request<ExternalCalDavImportCommitResponse>(
+      `/integrations/caldav/${encodeURIComponent(connectionId)}/imports/commit`,
+      { method: "POST", body: JSON.stringify({ externalImportId }) },
+    );
+  },
+  revokeExternalCalDav(connectionId: string) {
+    return request<void>(
+      `/integrations/caldav/${encodeURIComponent(connectionId)}`,
+      { method: "DELETE" },
+    );
+  },
+  getGitHubIntegration() {
+    return request<GitHubIntegrationOverviewResponse>("/integrations/github");
+  },
+  createGitHubConnection(payload: CreateGitHubConnectionRequest) {
+    return request<GitHubConnectionResponse>("/integrations/github", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  setGitHubConnectionEnabled(connectionId: string, enabled: boolean) {
+    return request<GitHubConnectionResponse>(
+      `/integrations/github/${encodeURIComponent(connectionId)}`,
+      { method: "PATCH", body: JSON.stringify({ enabled }) },
+    );
+  },
+  testGitHubConnection(connectionId: string) {
+    return request<{
+      reachable: true;
+      accountLogin: string;
+      rateLimit: { remaining: number | null; resetAt: string | null };
+    }>(`/integrations/github/${encodeURIComponent(connectionId)}/test`, {
+      method: "POST",
+    });
+  },
+  listGitHubRepositories(connectionId: string) {
+    return request<GitHubRepositoryListResponse>(
+      `/integrations/github/${encodeURIComponent(connectionId)}/repositories`,
+    );
+  },
+  getGitHubRepositorySnapshot(
+    connectionId: string,
+    owner: string,
+    repository: string,
+  ) {
+    return request<GitHubRepositorySnapshotResponse>(
+      `/integrations/github/${encodeURIComponent(connectionId)}/repositories/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}`,
+    );
+  },
+  revokeGitHubConnection(connectionId: string) {
+    return request<void>(
+      `/integrations/github/${encodeURIComponent(connectionId)}`,
+      { method: "DELETE" },
+    );
   },
 };

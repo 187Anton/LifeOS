@@ -15,6 +15,314 @@ loadEnvironment({
   quiet: true,
 });
 
+test("erzwingt ganzzahlige Beträge, Währungen und Besitzer im Finanzmodell", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalIds = [
+    `finance-db-owner-${suffix}`,
+    `finance-db-other-${suffix}`,
+  ];
+  t.after(async () => {
+    await database.user.deleteMany({
+      where: { externalId: { in: externalIds } },
+    });
+    await database.$disconnect();
+  });
+  const [owner, other] = await Promise.all(
+    externalIds.map((externalId) =>
+      database.user.create({
+        data: {
+          externalId,
+          displayName: "Synthetische Finanzperson",
+          settings: { create: {} },
+        },
+      }),
+    ),
+  );
+  assert.ok(owner && other);
+  const category = await database.financeCategory.create({
+    data: {
+      userId: owner.id,
+      name: "Synthetische Ausgabe",
+      kind: "expense",
+    },
+  });
+  const transaction = await database.financeTransaction.create({
+    data: {
+      userId: owner.id,
+      categoryId: category.id,
+      kind: "expense",
+      bookingDate: new Date("2032-05-10T00:00:00.000Z"),
+      amountMinor: 10_001,
+      currencyCode: "EUR",
+    },
+  });
+  assert.equal(transaction.amountMinor, 10_001);
+  assert.equal(
+    transaction.bookingDate.toISOString(),
+    "2032-05-10T00:00:00.000Z",
+  );
+  await assert.rejects(() =>
+    database.financeTransaction.create({
+      data: {
+        userId: other.id,
+        categoryId: category.id,
+        kind: "expense",
+        bookingDate: new Date("2032-05-11T00:00:00.000Z"),
+        amountMinor: 500,
+        currencyCode: "EUR",
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.financeBudget.create({
+      data: {
+        userId: owner.id,
+        period: "month",
+        periodStart: new Date("2032-05-02T00:00:00.000Z"),
+        amountMinor: 20_000,
+        currencyCode: "EUR",
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.financeTransaction.create({
+      data: {
+        userId: owner.id,
+        categoryId: category.id,
+        kind: "expense",
+        bookingDate: new Date("2032-05-12T00:00:00.000Z"),
+        amountMinor: 500,
+        currencyCode: "eur",
+      },
+    }),
+  );
+});
+
+test("erzwingt Fitnessbesitz, ganzzahlige Messwerte und eigenständige Kalenderbezüge", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalIds = [
+    `fitness-db-owner-${suffix}`,
+    `fitness-db-other-${suffix}`,
+  ];
+  t.after(async () => {
+    await database.user.deleteMany({
+      where: { externalId: { in: externalIds } },
+    });
+    await database.$disconnect();
+  });
+  const [owner, other] = await Promise.all(
+    externalIds.map((externalId) =>
+      database.user.create({
+        data: {
+          externalId,
+          displayName: "Synthetische Fitnessperson",
+          settings: { create: {} },
+        },
+      }),
+    ),
+  );
+  assert.ok(owner && other);
+  const plan = await database.fitnessPlan.create({
+    data: { userId: owner.id, name: "Synthetischer Plan" },
+  });
+  const exercise = await database.fitnessExercise.create({
+    data: { userId: owner.id, name: "Synthetische Übung" },
+  });
+  const session = await database.fitnessSession.create({
+    data: {
+      userId: owner.id,
+      planId: plan.id,
+      title: "Synthetische Einheit",
+      status: "completed",
+      performedAt: new Date("2032-05-12T16:00:00.000Z"),
+      timezone: "Europe/Berlin",
+    },
+  });
+  const set = await database.fitnessSet.create({
+    data: {
+      userId: owner.id,
+      sessionId: session.id,
+      exerciseId: exercise.id,
+      setNumber: 1,
+      repetitions: 8,
+      weightGrams: 60_000,
+    },
+  });
+  assert.equal(set.weightGrams, 60_000);
+  await assert.rejects(() =>
+    database.fitnessSet.create({
+      data: {
+        userId: other.id,
+        sessionId: session.id,
+        exerciseId: exercise.id,
+        setNumber: 2,
+        repetitions: 8,
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.fitnessSession.create({
+      data: {
+        userId: owner.id,
+        title: "Ungültiger Abschluss",
+        status: "completed",
+      },
+    }),
+  );
+  const storedWeight = await database.bodyWeightEntry.create({
+    data: {
+      userId: owner.id,
+      measuredDate: new Date("2032-05-12T00:00:00.000Z"),
+      weightGrams: 75_000,
+    },
+  });
+  assert.equal(Number.isInteger(storedWeight.weightGrams), true);
+});
+
+test("erzwingt verschlüsselte read-only-CalDAV-Verbindungen und Besitzergrenzen", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalIds = [
+    `external-caldav-db-owner-${suffix}`,
+    `external-caldav-db-other-${suffix}`,
+  ];
+  t.after(async () => {
+    await database.user.deleteMany({
+      where: { externalId: { in: externalIds } },
+    });
+    await database.$disconnect();
+  });
+  const [owner, other] = await Promise.all(
+    externalIds.map((externalId) =>
+      database.user.create({
+        data: {
+          externalId,
+          displayName: "Synthetische Integrationsperson",
+          settings: { create: {} },
+        },
+      }),
+    ),
+  );
+  assert.ok(owner && other);
+  const connection = await database.externalCalDavConnection.create({
+    data: {
+      userId: owner.id,
+      name: "Synthetischer externer Kalender",
+      baseUrl: "https://calendar.example.test/caldav/",
+      credentialsEncrypted: "synthetic-encrypted-payload",
+      secretIv: "synthetic-iv",
+      secretTag: "synthetic-tag",
+    },
+  });
+  const calendar = await database.externalCalDavCalendar.create({
+    data: {
+      userId: owner.id,
+      connectionId: connection.id,
+      href: "/calendars/personal/",
+      displayName: "Synthetischer Kalender",
+    },
+  });
+  await database.externalCalDavEventMapping.create({
+    data: {
+      userId: owner.id,
+      connectionId: connection.id,
+      externalCalendarId: calendar.id,
+      remoteHref: "/calendars/personal/event.ics",
+      remoteUid: "remote-event@example.test",
+      localCalendarId: "local-calendar",
+      localEventUid: "remote-event@example.test",
+    },
+  });
+  await assert.rejects(() =>
+    database.externalCalDavCalendar.create({
+      data: {
+        userId: other.id,
+        connectionId: connection.id,
+        href: "/calendars/foreign/",
+        displayName: "Fremder Kalender",
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.externalCalDavConnection.create({
+      data: {
+        userId: owner.id,
+        name: "Ungültiger Schreibzugang",
+        baseUrl: "https://calendar.example.test/write/",
+        credentialsEncrypted: "synthetic-encrypted-payload",
+        secretIv: "synthetic-iv",
+        secretTag: "synthetic-tag",
+        readOnly: false,
+      },
+    }),
+  );
+});
+
+test("erzwingt verschlüsselte read-only-GitHub-Verbindungen und Besitzergrenzen", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalIds = [
+    `github-db-owner-${suffix}`,
+    `github-db-other-${suffix}`,
+  ];
+  t.after(async () => {
+    await database.user.deleteMany({
+      where: { externalId: { in: externalIds } },
+    });
+    await database.$disconnect();
+  });
+  const [owner, other] = await Promise.all(
+    externalIds.map((externalId) =>
+      database.user.create({
+        data: {
+          externalId,
+          displayName: "Synthetische GitHub-Person",
+          settings: { create: {} },
+        },
+      }),
+    ),
+  );
+  assert.ok(owner && other);
+  const connection = await database.gitHubConnection.create({
+    data: {
+      userId: owner.id,
+      name: "Synthetischer GitHub-Zugang",
+      tokenEncrypted: "synthetic-encrypted-token",
+      secretIv: "synthetic-iv",
+      secretTag: "synthetic-tag",
+      rateLimitRemaining: 50,
+    },
+  });
+  assert.equal(connection.readOnly, true);
+  assert.equal(connection.userId, owner.id);
+  await assert.rejects(() =>
+    database.gitHubConnection.create({
+      data: {
+        userId: owner.id,
+        name: "Ungültiger Schreibzugang",
+        tokenEncrypted: "synthetic-encrypted-token",
+        secretIv: "synthetic-iv",
+        secretTag: "synthetic-tag",
+        readOnly: false,
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.gitHubConnection.create({
+      data: {
+        userId: other.id,
+        name: "Ungültiges Limit",
+        tokenEncrypted: "synthetic-encrypted-token",
+        secretIv: "synthetic-iv",
+        secretTag: "synthetic-tag",
+        rateLimitRemaining: -1,
+      },
+    }),
+  );
+});
+
 test("erzwingt Besitz und eindeutige Zeitformen im Studienmodell", async (t) => {
   const database = createDatabaseClient();
   const suffix = randomUUID();

@@ -10,35 +10,48 @@ datasource db {
 }
 
 model User {
-  id               String            @id @default(uuid()) @db.Uuid
-  externalId       String            @unique @db.VarChar(100)
-  displayName      String            @db.VarChar(200)
-  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
-  settings         UserSettings?
-  credential       UserCredential?
-  calDavCredential CalDavCredential?
-  sessions         UserSession[]
-  calendars        Calendar[]
-  projects         Project[]
-  projectGoals     ProjectGoal[]
-  projectMilestones ProjectMilestone[]
-  projectEventLinks ProjectEventLink[]
-  notes            Note[]
-  noteVersions     NoteVersion[]
-  documents        Document[]
-  tasks            Task[]
-  taskEventLinks   TaskEventLink[]
-  studyPrograms    StudyProgram[]
-  studyModules     StudyModule[]
-  studyEntries     StudyEntry[]
-  workContexts     WorkContext[]
-  workProjects     WorkProject[]
-  workTaskLinks    WorkTaskLink[]
-  workTimeEntries  WorkTimeEntry[]
-  availabilityWindows AvailabilityWindow[]
-  aiInteractions   AiInteraction[]
-  auditEvents      AuditEvent[]
+  id                        String                       @id @default(uuid()) @db.Uuid
+  externalId                String                       @unique @db.VarChar(100)
+  displayName               String                       @db.VarChar(200)
+  createdAt                 DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime                     @updatedAt @db.Timestamptz(3)
+  settings                  UserSettings?
+  credential                UserCredential?
+  calDavCredential          CalDavCredential?
+  externalCalDavConnections ExternalCalDavConnection[]
+  externalCalDavCalendars   ExternalCalDavCalendar[]
+  externalCalDavMappings    ExternalCalDavEventMapping[]
+  githubConnections         GitHubConnection[]
+  sessions                  UserSession[]
+  calendars                 Calendar[]
+  projects                  Project[]
+  projectGoals              ProjectGoal[]
+  projectMilestones         ProjectMilestone[]
+  projectEventLinks         ProjectEventLink[]
+  notes                     Note[]
+  noteVersions              NoteVersion[]
+  documents                 Document[]
+  tasks                     Task[]
+  taskEventLinks            TaskEventLink[]
+  studyPrograms             StudyProgram[]
+  studyModules              StudyModule[]
+  studyEntries              StudyEntry[]
+  workContexts              WorkContext[]
+  workProjects              WorkProject[]
+  workTaskLinks             WorkTaskLink[]
+  workTimeEntries           WorkTimeEntry[]
+  availabilityWindows       AvailabilityWindow[]
+  financeCategories         FinanceCategory[]
+  financeTransactions       FinanceTransaction[]
+  financeBudgets            FinanceBudget[]
+  fitnessPlans              FitnessPlan[]
+  fitnessExercises          FitnessExercise[]
+  fitnessPlanExercises      FitnessPlanExercise[]
+  fitnessSessions           FitnessSession[]
+  fitnessSets               FitnessSet[]
+  bodyWeightEntries         BodyWeightEntry[]
+  aiInteractions            AiInteraction[]
+  auditEvents               AuditEvent[]
 }
 
 model UserSettings {
@@ -87,6 +100,96 @@ model CalDavCredential {
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model ExternalCalDavConnection {
+  id                   String                       @id @default(uuid()) @db.Uuid
+  userId               String                       @db.Uuid
+  name                 String                       @db.VarChar(100)
+  baseUrl              String                       @db.VarChar(2048)
+  credentialsEncrypted String                       @db.Text
+  secretIv             String                       @db.VarChar(64)
+  secretTag            String                       @db.VarChar(64)
+  enabled              Boolean                      @default(false)
+  readOnly             Boolean                      @default(true)
+  status               String                       @default("disabled") @db.VarChar(30)
+  lastErrorCode        String?                      @db.VarChar(100)
+  lastTestedAt         DateTime?                    @db.Timestamptz(3)
+  lastSyncAt           DateTime?                    @db.Timestamptz(3)
+  revokedAt            DateTime?                    @db.Timestamptz(3)
+  createdAt            DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                     @updatedAt @db.Timestamptz(3)
+  user                 User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calendars            ExternalCalDavCalendar[]
+  eventMappings        ExternalCalDavEventMapping[]
+
+  @@unique([userId, name])
+  @@unique([id, userId])
+  @@index([userId, revokedAt])
+}
+
+model ExternalCalDavCalendar {
+  id            String                       @id @default(uuid()) @db.Uuid
+  userId        String                       @db.Uuid
+  connectionId  String                       @db.Uuid
+  href          String                       @db.VarChar(2048)
+  displayName   String                       @db.VarChar(200)
+  remoteEtag    String?                      @db.VarChar(255)
+  createdAt     DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime                     @updatedAt @db.Timestamptz(3)
+  user          User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection    ExternalCalDavConnection     @relation(fields: [connectionId, userId], references: [id, userId], onDelete: Cascade)
+  eventMappings ExternalCalDavEventMapping[]
+
+  @@unique([connectionId, href])
+  @@unique([id, userId])
+  @@index([userId])
+}
+
+model ExternalCalDavEventMapping {
+  id                 String                   @id @default(uuid()) @db.Uuid
+  userId             String                   @db.Uuid
+  connectionId       String                   @db.Uuid
+  externalCalendarId String                   @db.Uuid
+  remoteHref         String                   @db.VarChar(2048)
+  remoteUid          String                   @db.VarChar(255)
+  remoteEtag         String?                  @db.VarChar(255)
+  localCalendarId    String                   @db.VarChar(100)
+  localEventUid      String                   @db.VarChar(255)
+  importedAt         DateTime                 @default(now()) @db.Timestamptz(3)
+  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection         ExternalCalDavConnection @relation(fields: [connectionId, userId], references: [id, userId], onDelete: Cascade)
+  externalCalendar   ExternalCalDavCalendar   @relation(fields: [externalCalendarId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([connectionId, remoteHref])
+  @@unique([externalCalendarId, remoteUid])
+  @@unique([localCalendarId, localEventUid])
+  @@index([userId])
+}
+
+model GitHubConnection {
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @db.Uuid
+  name               String    @db.VarChar(100)
+  tokenEncrypted     String    @db.Text
+  secretIv           String    @db.VarChar(64)
+  secretTag          String    @db.VarChar(64)
+  enabled            Boolean   @default(false)
+  readOnly           Boolean   @default(true)
+  status             String    @default("disabled") @db.VarChar(30)
+  accountLogin       String?   @db.VarChar(100)
+  lastErrorCode      String?   @db.VarChar(100)
+  lastTestedAt       DateTime? @db.Timestamptz(3)
+  lastFetchedAt      DateTime? @db.Timestamptz(3)
+  rateLimitRemaining Int?
+  rateLimitResetAt   DateTime? @db.Timestamptz(3)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(3)
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@unique([id, userId])
+  @@index([userId])
+}
+
 model Calendar {
   id         String          @id @default(uuid()) @db.Uuid
   userId     String          @db.Uuid
@@ -106,32 +209,33 @@ model Calendar {
 }
 
 model CalendarEvent {
-  id              String          @id @default(uuid()) @db.Uuid
-  userId          String          @db.Uuid
-  calendarId      String          @db.Uuid
-  uid             String          @db.VarChar(255)
-  title           String          @db.VarChar(500)
+  id              String             @id @default(uuid()) @db.Uuid
+  userId          String             @db.Uuid
+  calendarId      String             @db.Uuid
+  uid             String             @db.VarChar(255)
+  title           String             @db.VarChar(500)
   description     String?
-  location        String?         @db.VarChar(500)
-  startsAt        DateTime?       @db.Timestamptz(3)
-  endsAt          DateTime?       @db.Timestamptz(3)
-  startDate       DateTime?       @db.Date
-  endDate         DateTime?       @db.Date
-  timezone        String          @default("Europe/Berlin") @db.VarChar(100)
-  isAllDay        Boolean         @default(false)
-  recurrenceRule  String?         @db.Text
-  reminderMinutes Int[]           @default([])
-  etag            String          @db.VarChar(100)
-  sequence        Int             @default(0)
-  syncVersion     Int             @default(0)
-  deletedAt       DateTime?       @db.Timestamptz(3)
-  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
-  calendar        Calendar        @relation(fields: [calendarId, userId], references: [id, userId], onDelete: Cascade)
+  location        String?            @db.VarChar(500)
+  startsAt        DateTime?          @db.Timestamptz(3)
+  endsAt          DateTime?          @db.Timestamptz(3)
+  startDate       DateTime?          @db.Date
+  endDate         DateTime?          @db.Date
+  timezone        String             @default("Europe/Berlin") @db.VarChar(100)
+  isAllDay        Boolean            @default(false)
+  recurrenceRule  String?            @db.Text
+  reminderMinutes Int[]              @default([])
+  etag            String             @db.VarChar(100)
+  sequence        Int                @default(0)
+  syncVersion     Int                @default(0)
+  deletedAt       DateTime?          @db.Timestamptz(3)
+  createdAt       DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime           @updatedAt @db.Timestamptz(3)
+  calendar        Calendar           @relation(fields: [calendarId, userId], references: [id, userId], onDelete: Cascade)
   taskLinks       TaskEventLink[]
   studyEntries    StudyEntry[]
   workProjects    WorkProject[]
   projectLinks    ProjectEventLink[]
+  fitnessSessions FitnessSession[]
 
   @@unique([id, userId])
   @@unique([calendarId, uid])
@@ -182,25 +286,25 @@ enum ProjectItemStatus {
 }
 
 model Project {
-  id          String        @id @default(uuid()) @db.Uuid
-  userId      String        @db.Uuid
-  title       String        @db.VarChar(500)
-  description String?
-  status      ProjectStatus @default(planned)
-  risk        String?
-  dueDate     DateTime?     @db.Date
-  searchEnabled Boolean     @default(false)
-  archivedAt  DateTime?     @db.Timestamptz(3)
-  deletedAt   DateTime?     @db.Timestamptz(3)
-  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  goals       ProjectGoal[]
-  milestones  ProjectMilestone[]
-  tasks       Task[]
-  eventLinks  ProjectEventLink[]
-  notes       Note[]
-  documents   Document[]
+  id            String             @id @default(uuid()) @db.Uuid
+  userId        String             @db.Uuid
+  title         String             @db.VarChar(500)
+  description   String?
+  status        ProjectStatus      @default(planned)
+  risk          String?
+  dueDate       DateTime?          @db.Date
+  searchEnabled Boolean            @default(false)
+  archivedAt    DateTime?          @db.Timestamptz(3)
+  deletedAt     DateTime?          @db.Timestamptz(3)
+  createdAt     DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime           @updatedAt @db.Timestamptz(3)
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals         ProjectGoal[]
+  milestones    ProjectMilestone[]
+  tasks         Task[]
+  eventLinks    ProjectEventLink[]
+  notes         Note[]
+  documents     Document[]
 
   @@unique([id, userId])
   @@index([userId, deletedAt, archivedAt])
@@ -361,7 +465,7 @@ model StudyModule {
   grade              String?      @db.VarChar(100)
   notes              String?
   documentReferences String[]     @default([])
-  searchEnabled       Boolean      @default(false)
+  searchEnabled      Boolean      @default(false)
   archivedAt         DateTime?    @db.Timestamptz(3)
   createdAt          DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime     @updatedAt @db.Timestamptz(3)
@@ -527,7 +631,7 @@ model WorkProject {
   deadlineDate    DateTime?       @db.Date
   calendarEventId String?         @db.Uuid
   notes           String?
-  searchEnabled   Boolean      @default(false)
+  searchEnabled   Boolean         @default(false)
   archivedAt      DateTime?       @db.Timestamptz(3)
   createdAt       DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
@@ -604,6 +708,212 @@ model AvailabilityWindow {
 
   @@unique([userId, weekday, startMinute, endMinute])
   @@index([userId, weekday])
+}
+
+enum FinanceCategoryKind {
+  income
+  expense
+}
+
+enum FinanceTransactionKind {
+  income
+  expense
+}
+
+enum FinanceRecurrenceFrequency {
+  weekly
+  monthly
+  yearly
+}
+
+enum FinanceBudgetPeriod {
+  month
+  year
+}
+
+model FinanceCategory {
+  id           String               @id @default(uuid()) @db.Uuid
+  userId       String               @db.Uuid
+  name         String               @db.VarChar(200)
+  kind         FinanceCategoryKind
+  archivedAt   DateTime?            @db.Timestamptz(3)
+  createdAt    DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime             @updatedAt @db.Timestamptz(3)
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions FinanceTransaction[]
+  budgets      FinanceBudget[]
+
+  @@unique([id, userId])
+  @@unique([userId, kind, name])
+  @@index([userId, archivedAt])
+}
+
+model FinanceTransaction {
+  id                  String                      @id @default(uuid()) @db.Uuid
+  userId              String                      @db.Uuid
+  categoryId          String                      @db.Uuid
+  kind                FinanceTransactionKind
+  bookingDate         DateTime                    @db.Date
+  amountMinor         Int
+  currencyCode        String                      @db.Char(3)
+  note                String?
+  recurrenceFrequency FinanceRecurrenceFrequency?
+  recurrenceInterval  Int?
+  recurrenceEndDate   DateTime?                   @db.Date
+  archivedAt          DateTime?                   @db.Timestamptz(3)
+  createdAt           DateTime                    @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime                    @updatedAt @db.Timestamptz(3)
+  user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category            FinanceCategory             @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt, bookingDate])
+  @@index([userId, categoryId, bookingDate])
+  @@index([userId, kind, bookingDate])
+}
+
+model FinanceBudget {
+  id                      String              @id @default(uuid()) @db.Uuid
+  userId                  String              @db.Uuid
+  categoryId              String?             @db.Uuid
+  period                  FinanceBudgetPeriod
+  periodStart             DateTime            @db.Date
+  amountMinor             Int
+  currencyCode            String              @db.Char(3)
+  warningThresholdPercent Int                 @default(80)
+  archivedAt              DateTime?           @db.Timestamptz(3)
+  createdAt               DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime            @updatedAt @db.Timestamptz(3)
+  user                    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category                FinanceCategory?    @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt, periodStart])
+  @@index([userId, categoryId, periodStart])
+}
+
+enum FitnessSessionStatus {
+  planned
+  completed
+  cancelled
+}
+
+model FitnessPlan {
+  id         String                @id @default(uuid()) @db.Uuid
+  userId     String                @db.Uuid
+  name       String                @db.VarChar(200)
+  notes      String?
+  archivedAt DateTime?             @db.Timestamptz(3)
+  createdAt  DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime              @updatedAt @db.Timestamptz(3)
+  user       User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises  FitnessPlanExercise[]
+  sessions   FitnessSession[]
+
+  @@unique([id, userId])
+  @@unique([userId, name])
+  @@index([userId, archivedAt])
+}
+
+model FitnessExercise {
+  id            String                @id @default(uuid()) @db.Uuid
+  userId        String                @db.Uuid
+  name          String                @db.VarChar(200)
+  notes         String?
+  archivedAt    DateTime?             @db.Timestamptz(3)
+  createdAt     DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime              @updatedAt @db.Timestamptz(3)
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planExercises FitnessPlanExercise[]
+  sets          FitnessSet[]
+
+  @@unique([id, userId])
+  @@unique([userId, name])
+  @@index([userId, archivedAt])
+}
+
+model FitnessPlanExercise {
+  id                    String          @id @default(uuid()) @db.Uuid
+  userId                String          @db.Uuid
+  planId                String          @db.Uuid
+  exerciseId            String          @db.Uuid
+  position              Int
+  targetSets            Int?
+  targetRepetitions     Int?
+  targetWeightGrams     Int?
+  targetDurationSeconds Int?
+  targetDistanceMeters  Int?
+  createdAt             DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime        @updatedAt @db.Timestamptz(3)
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                  FitnessPlan     @relation(fields: [planId, userId], references: [id, userId], onDelete: Cascade)
+  exercise              FitnessExercise @relation(fields: [exerciseId, userId], references: [id, userId], onDelete: Restrict)
+
+  @@unique([id, userId])
+  @@unique([planId, exerciseId])
+  @@unique([planId, position])
+  @@index([userId, planId])
+}
+
+model FitnessSession {
+  id              String               @id @default(uuid()) @db.Uuid
+  userId          String               @db.Uuid
+  planId          String?              @db.Uuid
+  calendarEventId String?              @db.Uuid
+  title           String               @db.VarChar(200)
+  status          FitnessSessionStatus @default(planned)
+  performedAt     DateTime?            @db.Timestamptz(3)
+  timezone        String?              @db.VarChar(100)
+  notes           String?
+  archivedAt      DateTime?            @db.Timestamptz(3)
+  createdAt       DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime             @updatedAt @db.Timestamptz(3)
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan            FitnessPlan?         @relation(fields: [planId, userId], references: [id, userId], onDelete: Restrict)
+  calendarEvent   CalendarEvent?       @relation(fields: [calendarEventId, userId], references: [id, userId], onDelete: Restrict)
+  sets            FitnessSet[]
+
+  @@unique([id, userId])
+  @@index([userId, status, performedAt])
+  @@index([userId, calendarEventId])
+}
+
+model FitnessSet {
+  id              String          @id @default(uuid()) @db.Uuid
+  userId          String          @db.Uuid
+  sessionId       String          @db.Uuid
+  exerciseId      String          @db.Uuid
+  setNumber       Int
+  repetitions     Int?
+  weightGrams     Int?
+  durationSeconds Int?
+  distanceMeters  Int?
+  completedAt     DateTime?       @db.Timestamptz(3)
+  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session         FitnessSession  @relation(fields: [sessionId, userId], references: [id, userId], onDelete: Cascade)
+  exercise        FitnessExercise @relation(fields: [exerciseId, userId], references: [id, userId], onDelete: Restrict)
+
+  @@unique([id, userId])
+  @@unique([sessionId, exerciseId, setNumber])
+  @@index([userId, exerciseId, completedAt])
+}
+
+model BodyWeightEntry {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  measuredDate DateTime  @db.Date
+  weightGrams  Int
+  note         String?
+  archivedAt   DateTime? @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([id, userId])
+  @@unique([userId, measuredDate])
+  @@index([userId, archivedAt, measuredDate])
 }
 
 model AuditEvent {

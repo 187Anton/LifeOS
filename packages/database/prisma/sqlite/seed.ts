@@ -269,6 +269,19 @@ const SYNTHETIC_PROJECT_MILESTONE_ID = "00000000-0000-4000-8000-000000000109";
 const SYNTHETIC_PROJECT_EVENT_LINK_ID = "00000000-0000-4000-8000-000000000110";
 const SYNTHETIC_NOTE_ID = "00000000-0000-4000-8000-000000000111";
 const SYNTHETIC_AI_INTERACTION_ID = "00000000-0000-4000-8000-000000000112";
+const SYNTHETIC_FINANCE_INCOME_CATEGORY_ID =
+  "00000000-0000-4000-8000-000000000113";
+const SYNTHETIC_FINANCE_EXPENSE_CATEGORY_ID =
+  "00000000-0000-4000-8000-000000000114";
+const SYNTHETIC_FINANCE_TRANSACTION_ID = "00000000-0000-4000-8000-000000000115";
+const SYNTHETIC_FINANCE_BUDGET_ID = "00000000-0000-4000-8000-000000000116";
+const SYNTHETIC_FITNESS_PLAN_ID = "00000000-0000-4000-8000-000000000117";
+const SYNTHETIC_FITNESS_EXERCISE_ID = "00000000-0000-4000-8000-000000000118";
+const SYNTHETIC_FITNESS_PLAN_EXERCISE_ID =
+  "00000000-0000-4000-8000-000000000119";
+const SYNTHETIC_FITNESS_SESSION_ID = "00000000-0000-4000-8000-000000000120";
+const SYNTHETIC_FITNESS_SET_ID = "00000000-0000-4000-8000-000000000121";
+const SYNTHETIC_BODY_WEIGHT_ID = "00000000-0000-4000-8000-000000000122";
 
 export const seedSqliteDatabase = async (
   databaseUrl = process.env.SQLITE_DATABASE_URL,
@@ -440,6 +453,149 @@ export const seedSqliteDatabase = async (
           },
         },
       });
+      await transaction.financeCategory.upsert({
+        where: { id: SYNTHETIC_FINANCE_INCOME_CATEGORY_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_FINANCE_INCOME_CATEGORY_ID,
+          userId: fixture.user.id,
+          name: "Synthetisches Einkommen",
+          kind: "income",
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.financeCategory.upsert({
+        where: { id: SYNTHETIC_FINANCE_EXPENSE_CATEGORY_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_FINANCE_EXPENSE_CATEGORY_ID,
+          userId: fixture.user.id,
+          name: "Synthetische Lebensmittel",
+          kind: "expense",
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.financeTransaction.upsert({
+        where: { id: SYNTHETIC_FINANCE_TRANSACTION_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_FINANCE_TRANSACTION_ID,
+          userId: fixture.user.id,
+          categoryId: SYNTHETIC_FINANCE_EXPENSE_CATEGORY_ID,
+          kind: "expense",
+          bookingDate: "2030-01-10",
+          amountMinor: 4250,
+          currencyCode: "EUR",
+          note: "Rein synthetischer Beispieldatensatz",
+          recurrenceFrequency: "monthly",
+          recurrenceInterval: 1,
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.financeBudget.upsert({
+        where: { id: SYNTHETIC_FINANCE_BUDGET_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_FINANCE_BUDGET_ID,
+          userId: fixture.user.id,
+          categoryId: SYNTHETIC_FINANCE_EXPENSE_CATEGORY_ID,
+          period: "month",
+          periodStart: "2030-01-01",
+          amountMinor: 30000,
+          currencyCode: "EUR",
+          warningThresholdPercent: 80,
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.fitnessPlan.upsert({
+        where: { id: SYNTHETIC_FITNESS_PLAN_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_FITNESS_PLAN_ID,
+          userId: fixture.user.id,
+          name: "Synthetischer Ganzkörperplan",
+          notes: "Lokaler Beispieldatensatz ohne Gesundheitsbewertung.",
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.fitnessExercise.upsert({
+        where: { id: SYNTHETIC_FITNESS_EXERCISE_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_FITNESS_EXERCISE_ID,
+          userId: fixture.user.id,
+          name: "Synthetische Kniebeuge",
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.fitnessPlanExercise.upsert({
+        where: { id: SYNTHETIC_FITNESS_PLAN_EXERCISE_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_FITNESS_PLAN_EXERCISE_ID,
+          userId: fixture.user.id,
+          planId: SYNTHETIC_FITNESS_PLAN_ID,
+          exerciseId: SYNTHETIC_FITNESS_EXERCISE_ID,
+          position: 0,
+          targetSets: 3,
+          targetRepetitions: 8,
+          targetWeightGrams: 60_000,
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.fitnessSession.upsert({
+        where: { id: SYNTHETIC_FITNESS_SESSION_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_FITNESS_SESSION_ID,
+          userId: fixture.user.id,
+          planId: SYNTHETIC_FITNESS_PLAN_ID,
+          calendarEventId: fixture.events[0]!.id,
+          title: "Synthetisches Ganzkörpertraining",
+          status: "completed",
+          performedAt: new Date("2030-01-15T17:00:00.000Z"),
+          timezone: "Europe/Berlin",
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.fitnessSet.upsert({
+        where: { id: SYNTHETIC_FITNESS_SET_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_FITNESS_SET_ID,
+          userId: fixture.user.id,
+          sessionId: SYNTHETIC_FITNESS_SESSION_ID,
+          exerciseId: SYNTHETIC_FITNESS_EXERCISE_ID,
+          setNumber: 1,
+          repetitions: 8,
+          weightGrams: 60_000,
+          completedAt: new Date("2030-01-15T17:15:00.000Z"),
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.bodyWeightEntry.upsert({
+        where: { id: SYNTHETIC_BODY_WEIGHT_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_BODY_WEIGHT_ID,
+          userId: fixture.user.id,
+          measuredDate: "2030-01-15",
+          weightGrams: 75_000,
+          note: "Synthetischer Eintrag",
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+
       await transaction.aiInteraction.upsert({
         where: { id: SYNTHETIC_AI_INTERACTION_ID },
         update: {},

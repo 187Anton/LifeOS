@@ -67,6 +67,36 @@ Die API bindet standardmäßig nur an `127.0.0.1:3000`. Ein Start mit fehlender
 oder ungültiger Konfiguration endet verständlich und ohne Ausgabe von
 Konfigurationswerten.
 
+Der lokale Fitnessvertrag unter `/api/v1/fitness` prüft Sitzung und Besitz für
+jede Route. Pläne, Übungen, Einheiten, Sätze und Gewichtseinträge verwenden
+begrenzte ganzzahlige Basiseinheiten. Ein optionaler Kalenderbezug wird nur
+über eigene Kalender-ID und stabile Ereignis-UID aufgelöst; Ereignis, ETag und
+Sync-Token werden nicht verändert. Details stehen im
+[`Fitnessvertrag`](../../docs/api/fitness.md).
+
+Der lokale [`ICS-Vertrag`](../../docs/api/ics.md) ergänzt den Kalenderkern um
+Export sowie einen zweistufigen Import mit flüchtiger Vorschau. Dateien sind
+auf 2 MiB und 500 Ereignisse begrenzt; Konflikte, doppelte UIDs und ungültige
+Serien blockieren den atomaren Schreibschritt.
+
+Die optionale externe CalDAV-Integration unter `/api/v1/integrations/caldav`
+ist ohne `INTEGRATION_SECRET_KEY` vollständig nicht verfügbar. Konfigurationen
+bleiben zunächst deaktiviert; Zugangsdaten werden AES-256-GCM-verschlüsselt
+und nie wieder ausgegeben. Nur aktivierte Verbindungen dürfen über den
+SSRF-geschützten HTTPS-Client getestet, aufgelistet und für einen bestätigten
+read-only-Import verwendet werden. Schreiben und automatische Synchronisation
+sind nicht implementiert. Routen, Limits und offene Grenzen dokumentiert der
+[`externe CalDAV-Vertrag`](../../docs/api/external-caldav.md).
+
+Die optionale GitHub-Integration unter `/api/v1/integrations/github` verwendet
+denselben lokalen Verschlüsselungsschlüssel, bleibt aber strikt lesend und auf
+`api.github.com` begrenzt. Neue Verbindungen sind deaktiviert. Erst nach
+Aktivierung dürfen Verbindung, maximal 50 Repositories und begrenzte
+Metadaten zu Issues, Pull Requests, Commits, Releases und CI geprüft werden.
+Tokens werden nie ausgegeben; externe Inhalte werden nicht persistiert.
+Routen, Berechtigungen, Limits und offene Grenzen stehen im
+[`GitHub-Integrationsvertrag`](../../docs/api/github-integration.md).
+
 Der Entwicklungsmodus mit automatischem Neustart lautet:
 
 ```bash
@@ -183,6 +213,9 @@ unset CALDAV_TEST_PASSWORD
 | `POST/PATCH/DELETE /api/v1/planning/availability`  | persönliche Verfügbarkeit verwalten                |
 | `/.well-known/caldav`                              | CalDAV-Discovery auf `/caldav/`                    |
 | `/caldav/…`                                        | WebDAV-/CalDAV-Ressourcen                          |
+| `POST /api/v1/calendars/:id/ics/preview`           | begrenzten ICS-Import ohne Schreiben prüfen        |
+| `POST /api/v1/calendars/:id/ics/commit`            | konfliktfreie Einmal-Vorschau atomar importieren   |
+| `GET /api/v1/calendars/:id/ics/export`             | eigene aktive Ereignisse als ICS exportieren       |
 
 Health greift absichtlich nicht auf die Datenbank zu. Readiness führt dagegen
 eine echte, ausschließlich lesende `SELECT 1`-Prüfung über den zentralen
@@ -226,6 +259,11 @@ gespeichert; bis zu zehn Erinnerungen werden als Minuten vor Beginn abgelegt.
 Jede Ereignisänderung erzeugt einen neuen ETag, erhöht `sequence` und den
 Kalender-`syncToken`. Löschungen sind Soft-Deletes und bleiben damit für die
 spätere CalDAV-Synchronisation nachvollziehbar.
+
+Der ICS-Import verwendet dieselben Regeln. Vor dem Schreiben zeigt er neue,
+unveränderte, konfliktbehaftete und ungültige Ereignisse. Vorhandene ETags
+werden nicht ersetzt; ein identischer erneuter Import wird ohne Duplikat
+übersprungen.
 
 ## Aufgabenvertrag
 
@@ -375,6 +413,10 @@ weitergegeben.
   deaktiviert; externe Verarbeitung und automatische Fachänderungen finden
   nicht statt. Der Vertrag ist in [`docs/api/ai.md`](../../docs/api/ai.md)
   beschrieben.
+- `modules/finance/` verwaltet eigene Kategorien, ganzzahlige Buchungen und
+  Budgets, berechnet Monatsvergleich, Sparquote und Warnungen rein lokal und
+  stellt einen versionierten eigenen Export bereit. Grenzen und Vertrag stehen
+  in [`docs/api/finance.md`](../../docs/api/finance.md).
 - `modules/caldav/` übersetzt den gemeinsamen Kalenderkern in WebDAV-XML und
   RFC-5545-iCalendar; Zugang, Parser und Transport bleiben von der REST-API
   getrennt.

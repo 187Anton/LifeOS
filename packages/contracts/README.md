@@ -11,7 +11,17 @@ Aktuell definiert es:
 - Health- und Readiness-Antworten,
 - Profil-, Einstellungs- und Sitzungsantworten,
 - Kalender- und Ereignisantworten einschließlich UID, ETag und Sync-Token,
+- ICS-Importvorschau, Konfliktstatus und atomaren Commit-Nachweis,
 - Projekte, Wissen und lokale Suchtreffer,
+- lokale Finanzkategorien, Buchungen, Budgets, Auswertungen und den
+  versionierten eigenen Export,
+- lokale Trainingspläne, Übungen, Einheiten, Sätze, Gewichtseinträge und
+  einfache Fortschrittsauswertungen,
+- ausschließlich redigierte externe CalDAV-Verbindungen, Kalenderlisten sowie
+  kurzlebige read-only-Importvorschauen und Commit-Nachweise,
+- ausschließlich redigierte GitHub-Verbindungen, Rate-Limit-Metadaten und
+  flüchtige lesende Zusammenfassungen für Repositories, Issues, Pull Requests,
+  Commits, Releases und CI-Läufe,
 - Status, Quellenreferenzen, Vorschläge und Metadaten der standardmäßig
   deaktivierten quellengestützten KI-Grundlage.
 

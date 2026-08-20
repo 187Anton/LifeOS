@@ -8,6 +8,10 @@ const dateOnlyFields = new Set([
   "startsOn",
   "endsOn",
   "deadlineDate",
+  "bookingDate",
+  "recurrenceEndDate",
+  "periodStart",
+  "measuredDate",
 ]);
 const delegateNames = new Set([
   "user",
@@ -15,6 +19,10 @@ const delegateNames = new Set([
   "userCredential",
   "userSession",
   "calDavCredential",
+  "externalCalDavConnection",
+  "externalCalDavCalendar",
+  "externalCalDavEventMapping",
+  "gitHubConnection",
   "calendar",
   "calendarEvent",
   "project",
@@ -34,6 +42,15 @@ const delegateNames = new Set([
   "workTaskLink",
   "workTimeEntry",
   "availabilityWindow",
+  "financeCategory",
+  "financeTransaction",
+  "financeBudget",
+  "fitnessPlan",
+  "fitnessExercise",
+  "fitnessPlanExercise",
+  "fitnessSession",
+  "fitnessSet",
+  "bodyWeightEntry",
   "auditEvent",
 ]);
 const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;

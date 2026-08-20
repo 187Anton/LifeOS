@@ -125,6 +125,13 @@ besitzgebundene Beziehung verknüpft. Die Beziehung kopiert keine Fachdaten:
 Aufgabenstatus und Fälligkeit bleiben im Aufgabenmodell, Start und Ende im
 Kalenderkern. Änderungen eines Objekts verändern das andere nicht automatisch.
 
+Fitnesspläne, Übungen, Einheiten, Sätze und Gewichtseinträge bleiben
+besitzgebunden und lokal. Messwerte werden als ganze Gramm, Sekunden, Meter
+beziehungsweise Wiederholungen gespeichert. Eine Trainingseinheit darf ein
+vorhandenes eigenes Kalenderereignis nur referenzieren; UID, ETag, Sync-Token
+und Ereignisinhalt werden dadurch nicht verändert. Fitnessauswertungen sind
+rein lesend und enthalten keine medizinische Bewertung.
+
 Das Organisations-Dashboard ist eine rein lesende, besitzgebundene Projektion
 vorhandener Aufgaben-, Kalender- und Projektdaten. Es speichert keine
 Kennzahlen, verwendet die Profilzeitzone für „heute“ und „überfällig“ und
@@ -147,6 +154,28 @@ Ein CalDAV-Client für bestehende iCloud-Kalender ist eine getrennte spätere
 Integration. Dafür niemals Apple-Zugangsdaten im Frontend speichern. Ein
 app-spezifisches Passwort oder eine andere Apple-Autorisierung darf nur nach
 expliziter Freigabe und mit sicherer Speicherung verwendet werden.
+
+Der erste geprüfte externe CalDAV-Client ist ausschließlich ein optionaler,
+standardmäßig deaktivierter read-only-Importpfad. Zugangsdaten liegen nur
+AES-256-GCM-verschlüsselt im Backend; ohne getrennten lokalen
+Integrationsschlüssel bleibt der Netzwerkpfad nicht verfügbar. Externe Ziele
+benötigen HTTPS, Zertifikatsprüfung, SSRF-geschützte DNS-/IP-Auflösung,
+gleichursprüngliche begrenzte Weiterleitungen, Timeouts und Größenlimits.
+Importe benötigen Vorschau und Bestätigung; lokale UIDs, ETags und Sync-Tokens
+bleiben im gemeinsamen Kalenderkern. Schreiben, Löschspiegelung,
+bidirektionale oder automatische Synchronisation und echte Apple-Zugänge sind
+weiterhin offen.
+
+Die erste geprüfte GitHub-Integration ist ebenfalls optional, standardmäßig
+deaktiviert und ausschließlich lesend. Das Fine-grained Token liegt nur
+AES-256-GCM-verschlüsselt im Backend und wird nie wieder ausgegeben. Der
+Netzwerkclient verwendet ausschließlich GET am festen Ursprung
+`api.github.com` mit Zeit-, Größen-, Mengen- und Weiterleitungsgrenzen;
+Repository-Inhalte werden nicht persistiert und gelten als nicht
+vertrauenswürdig. OAuth, Webhooks, Hintergrundsynchronisation und sämtliche
+GitHub-Schreibaktionen bleiben offen. Ohne sicheren lokalen
+Integrationsschlüssel, insbesondere im Mac-Sidecar ohne Schlüsselbundpfad,
+bleibt die Funktion vollständig nicht verfügbar.
 
 ### 3.4 Local-First-Betrieb
 
@@ -240,6 +269,12 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
   Datenbank ausführen; veraltete ETags liefern einen Konflikt und dürfen
   neuere Daten nicht überschreiben.
 - CalDAV-Änderungen dürfen keine Duplikate auf Apple-Geräten erzeugen.
+- Lokale ICS-Importe verwenden ausschließlich den gemeinsamen Kalenderkern,
+  zeigen vor jedem Schreiben eine kurzlebige besitzgebundene Vorschau und
+  importieren neue Ereignisse atomar. Dateien sind auf 2 MiB und 500
+  Ereignisse begrenzt; doppelte oder abweichend vorhandene UIDs sowie
+  unbegrenzte Serien blockieren den Import, statt ETags oder Sync-Daten zu
+  überschreiben.
 - Umbenennungen interner Felder über Migrationen und kompatible API-/CalDAV-
   Abbildung umsetzen.
 - Vor einem Update prüfen, ob die Anwendung und die Datenbankmigration
@@ -253,6 +288,10 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
 
 - Geldbeträge als Ganzzahl in kleinster Währungseinheit speichern, nie als
   unkontrollierte Fließkommazahl.
+- Finanzbuchungen und Budgets speichern zusätzlich eine explizite Währung und
+  reine Buchungs- beziehungsweise Periodentage. Wiederholungsangaben bereiten
+  Buchungen nur vor und erzeugen keine Datensätze automatisch; Finanz-Audits
+  enthalten weder Beträge noch Notizen und Finanzdaten sind keine KI-Quelle.
 - Zeitpunkte eindeutig mit Zeitzone behandeln; UTC-Speicherung und die
   Benutzerzeitzone nicht vermischen.
 - Kalendertage, etwa Prüfungstermine, als reine Datumswerte modellieren.
@@ -273,7 +312,8 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
 - Das lokale Passwort wird mit gesalzenem `scrypt` gespeichert. Sitzungen
   verwenden zufällige Tokens, von denen nur SHA-256-Hashes, Ablauf und
   Widerrufsstatus persistiert werden; Passwortwechsel widerrufen ältere
-  Zugangsversionen.
+  Zugangsversionen. Ein Widerruf liegt auch bei vorauseilender System- oder
+  Fixture-Uhr niemals vor dem Erzeugungszeitpunkt der Sitzung.
 - CalDAV-Zugang und externe Integrationszugänge separat widerrufbar machen.
 - CalDAV verwendet einen eigenen gehashten lokalen Zugang. Ereignisänderungen
   schreiben Kalender-`syncToken` und Ereignis-`syncVersion` atomar; iCalendar-
@@ -541,3 +581,31 @@ gemeldet.
   klartextfreier Interaktionspersistenz und bestätigungspflichtigen Vorschlägen
   nach PostgreSQL-/SQLite-, Recovery-, API- und Desktop-/Mobiltests
   festgehalten.
+- **2026-08-20:** Optionalen, standardmäßig deaktivierten externen
+  CalDAV-read-only-Import mit verschlüsselten Backend-Zugängen,
+  SSRF-geschütztem HTTPS-Client, manueller Vorschau, Bestätigung und stabiler
+  UID-/ETag-Zuordnung nach PostgreSQL-/SQLite-, Recovery-, API-, Sidecar- und
+  Desktop-/Mobiltests festgehalten; externe Schreib- und automatische
+  Synchronisationspfade bleiben offen.
+- **2026-08-20:** Lokalen ICS-Import mit verpflichtender kurzlebiger Vorschau,
+  atomarem Commit, Größen-/Mengen-/Seriengrenzen und konfliktfreiem Export nach
+  PostgreSQL-/SQLite-, CalDAV-, Recovery-, API-, Desktop-/Mobil- und
+  Sidecar-Tests festgehalten.
+- **2026-08-20:** Lokale besitzgebundene Finanzverwaltung mit ganzzahligen
+  Beträgen, expliziter Währung, reinen Buchungstagen, vorbereiteten
+  Wiederholungen, Budgets, Auswertungen und eigenem Export nach PostgreSQL-/
+  SQLite-, Recovery-, API-, Sidecar- und Desktop-/Mobiltests festgehalten.
+- **2026-08-20:** Lokale Fitnessverwaltung mit ganzzahligen Basiseinheiten,
+  rein lesenden Fortschrittswerten und eigenständigem Kalenderbezug ohne
+  medizinische Bewertung oder externe Übertragung nach PostgreSQL-/SQLite-,
+  Recovery-, API-, Sidecar- und Desktop-/Mobiltests festgehalten.
+- **2026-08-20:** Optionale, standardmäßig deaktivierte GitHub-Leseintegration
+  mit verschlüsseltem Backend-Token, festem API-Ursprung, minimalen
+  Fine-grained-Rechten, Zeit-/Größen-/Mengenlimits und ausschließlich
+  flüchtigen Repository-Metadaten nach PostgreSQL-/SQLite-, Recovery-, API-,
+  Sidecar- und Desktop-/Mobiltests festgehalten; OAuth, Webhooks,
+  Schlüsselbundpfad und Schreibaktionen bleiben offen.
+- **2026-08-20:** Uhrzeitsicheren Sitzungswiderruf beim Passwort-Bootstrap nach
+  reproduzierter zukünftiger SQLite-Fixture-Sitzung festgehalten; Unit-Test,
+  realer SQLite-Bootstrap und vollständige Roadmap-0.5-Demo bestätigen den
+  providerunabhängigen Ablauf.

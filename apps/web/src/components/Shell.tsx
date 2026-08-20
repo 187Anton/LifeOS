@@ -10,6 +10,8 @@ import {
   PlanIcon,
   ProjectIcon,
   KnowledgeIcon,
+  FinanceIcon,
+  FitnessIcon,
 } from "./Icons";
 
 export type View =
@@ -19,6 +21,9 @@ export type View =
   | "study"
   | "work"
   | "projects"
+  | "finance"
+  | "fitness"
+  | "integrations"
   | "knowledge"
   | "planning";
 
@@ -97,6 +102,30 @@ export const Shell = ({
         >
           <CalendarIcon />
           <span>Kalender</span>
+        </button>
+        <button
+          className={view === "finance" ? "nav-item active" : "nav-item"}
+          onClick={() => onViewChange("finance")}
+          aria-current={view === "finance" ? "page" : undefined}
+        >
+          <FinanceIcon />
+          <span>Finanzen</span>
+        </button>
+        <button
+          className={view === "fitness" ? "nav-item active" : "nav-item"}
+          onClick={() => onViewChange("fitness")}
+          aria-current={view === "fitness" ? "page" : undefined}
+        >
+          <FitnessIcon />
+          <span>Fitness</span>
+        </button>
+        <button
+          className={view === "integrations" ? "nav-item active" : "nav-item"}
+          onClick={() => onViewChange("integrations")}
+          aria-current={view === "integrations" ? "page" : undefined}
+        >
+          <CalendarIcon />
+          <span>Integrationen</span>
         </button>
         <button
           className={view === "knowledge" ? "nav-item active" : "nav-item"}
@@ -203,6 +232,30 @@ export const Shell = ({
       >
         <CalendarIcon />
         <span>Kalender</span>
+      </button>
+      <button
+        className={view === "finance" ? "active" : ""}
+        onClick={() => onViewChange("finance")}
+        aria-current={view === "finance" ? "page" : undefined}
+      >
+        <FinanceIcon />
+        <span>Finanzen</span>
+      </button>
+      <button
+        className={view === "fitness" ? "active" : ""}
+        onClick={() => onViewChange("fitness")}
+        aria-current={view === "fitness" ? "page" : undefined}
+      >
+        <FitnessIcon />
+        <span>Fitness</span>
+      </button>
+      <button
+        className={view === "integrations" ? "active" : ""}
+        onClick={() => onViewChange("integrations")}
+        aria-current={view === "integrations" ? "page" : undefined}
+      >
+        <CalendarIcon />
+        <span>Integrationen</span>
       </button>
       <button
         className={view === "knowledge" ? "active" : ""}

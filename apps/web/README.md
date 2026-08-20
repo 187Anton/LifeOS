@@ -16,6 +16,7 @@ aktuell folgende Abläufe ab:
   Termine,
 - Zeitzone, Ort, Beschreibung, Erinnerung und einfache RRULE-Eingabe,
 - verständliche ETag-Konflikte ohne stilles Überschreiben,
+- lokaler ICS-Import mit verpflichtender Vorschau sowie eigener ICS-Export,
 - Aufgaben und Termine in beiden Editoren verknüpfen und wieder trennen,
 - nicht mehr verfügbare verknüpfte Objekte nachvollziehbar anzeigen,
 - Organisations-Dashboard mit heutigen und nächsten Terminen, offenen,
@@ -36,6 +37,18 @@ aktuell folgende Abläufe ab:
   ausdrücklich freigegebene Inhalte,
 - lokale KI-Quellenaufbereitung mit sichtbaren Textstellen und Warnungen bei
   dauerhaft deaktiviertem Anbieter und ohne externe Übertragung,
+- lokale Finanzverwaltung mit Kategorien, Buchungen, vorbereiteten
+  Wiederholungen, Monats-/Jahresbudgets, Filtern, Monatsvergleich, Sparquote,
+  Warnungen und eigenem JSON-Export,
+- lokale Fitnessverwaltung mit Trainingsplänen, Übungen, Zielwerten, Einheiten,
+  Sätzen, Gewichtseinträgen, Verlauf und persönlichen Bestleistungen ohne
+  Gesundheitsbewertung,
+- optionale, standardmäßig deaktivierte externe CalDAV-Verbindung mit
+  Status, bewusstem Aktivieren, Test, Kalenderliste sowie bestätigter
+  read-only-Importvorschau ohne Zugangsdaten im Frontend,
+- optionale, standardmäßig deaktivierte GitHub-Leseverbindung mit Test,
+  Repository-Auswahl sowie flüchtigen Issues, Pull Requests, Commits, Releases
+  und CI-Status ohne Schreibaktion,
 - verständliche Lade-, Leer-, Erfolgs- und Fehlerzustände.
 
 ## Lokal starten
@@ -67,7 +80,17 @@ Antworten und persönliche Kalenderdaten werden bewusst nicht im Service-Worker,
 kann die Shell deshalb keine Aufgaben oder Kalenderdaten laden. Aufgabenfilter,
 Suche, KI-Quellenantworten und geöffnete Editoren sind ausschließlich
 flüchtiger React-Zustand. Die
-Sitzung bleibt in einem vom Backend gesetzten `HttpOnly`-Cookie.
+Sitzung bleibt in einem vom Backend gesetzten `HttpOnly`-Cookie. Auch
+Finanzfilter, Buchungsformulare, Auswertungen und Exporte bleiben flüchtig oder
+werden nur als bewusst heruntergeladene lokale Datei erzeugt.
+Dasselbe gilt für Fitnessformulare, Kalenderzuordnungen und Auswertungen.
+ICS-Dateien werden nur für die aktuelle Vorschau gelesen; Vorschauinhalt und
+Importstatus bleiben flüchtig und werden nicht im Browser gespeichert.
+Dasselbe gilt für externe CalDAV-Formulare, Status und Vorschauen. Benutzername
+und Passwort werden nur beim Konfigurieren an die lokale API gesendet, danach
+aus dem Formular entfernt und niemals wieder an die Oberfläche geliefert.
+Das GitHub-Token folgt derselben Einmalübertragung. Repository-Inhalte und
+Rate-Limit-Status bleiben React-Zustand und werden nicht im Browser gespeichert.
 
 Die Oberfläche lädt keine externen Schriftarten oder anderen notwendigen
 Assets. Manifest-Icons liegen versioniert unter `public/icons/`.
@@ -91,4 +114,9 @@ Aufgaben-Termin-Verknüpfung und -Trennung, Dashboard-Schnellaktionen und
 Aktualisierung, Studienplanung, Arbeitskontexte, Projekte, Aufgabenbezug,
 getrennte Zeitarten, kombinierte Studien- und Arbeitswochen, Bereichsfilter,
 Konflikt- und Kapazitätswarnungen, fehlende Browserpersistenz, horizontalen
-Überlauf sowie Manifest, Service Worker und Offline-App-Shell.
+Überlauf, Finanzkennzahlen, Buchungserfassung, Budgetwarnungen sowie lokale
+Fitnesserfassung und deren medizinische Abgrenzung auf Desktop und Smartphone
+sowie ICS-Vorschau, bestätigten Import, Export, Manifest, Service Worker und
+Offline-App-Shell. Der Integrationsablauf prüft zusätzlich den deaktivierten
+Ausgangszustand, bewusstes Aktivieren, Test, Kalenderliste, Vorschau,
+bestätigten read-only-Import, erneutes Deaktivieren und leeren Browser-Storage.

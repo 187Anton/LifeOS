@@ -284,4 +284,65 @@ describe("API-Client", () => {
       query: "Synthetische lokale Frage",
     });
   });
+
+  it("verwaltet und exportiert Finanzdaten nur über die lokale v1-API", async () => {
+    const json = (value: object, status = 200) =>
+      new Response(JSON.stringify(value), {
+        status,
+        headers: { "content-type": "application/json" },
+      });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json({ categories: [], transactions: [] }))
+      .mockResolvedValueOnce(json({ id: "kategorie-1" }, 201))
+      .mockResolvedValueOnce(json({ id: "buchung-1" }, 201))
+      .mockResolvedValueOnce(json({ id: "buchung-1" }))
+      .mockResolvedValueOnce(json({ id: "budget-1" }, 201))
+      .mockResolvedValueOnce(json({ formatVersion: 1 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.getFinance("2032-01-01", "2032-12-31", "EUR", "kategorie/1");
+    await api.createFinanceCategory({
+      name: "Synthetische Ausgabe",
+      kind: "expense",
+    });
+    await api.createFinanceTransaction({
+      categoryId: "kategorie-1",
+      kind: "expense",
+      bookingDate: "2032-01-15",
+      amountMinor: 1_001,
+      currencyCode: "EUR",
+    });
+    await api.updateFinanceTransaction("buchung/1", { archived: true });
+    await api.createFinanceBudget({
+      period: "month",
+      periodStart: "2032-01-01",
+      amountMinor: 5_000,
+      currencyCode: "EUR",
+    });
+    await api.exportFinance("2032-01-01", "2032-12-31", "EUR");
+
+    const calls = fetchMock.mock.calls as unknown as Array<
+      [string, RequestInit]
+    >;
+    expect(calls.map(([url]) => url)).toEqual([
+      "/api/v1/finance?from=2032-01-01&to=2032-12-31&currencyCode=EUR&categoryId=kategorie%2F1",
+      "/api/v1/finance/categories",
+      "/api/v1/finance/transactions",
+      "/api/v1/finance/transactions/buchung%2F1",
+      "/api/v1/finance/budgets",
+      "/api/v1/finance/export?from=2032-01-01&to=2032-12-31&currencyCode=EUR",
+    ]);
+    expect(calls.map(([, init]) => init.credentials)).toEqual(
+      Array(6).fill("include"),
+    );
+    expect(calls.map(([, init]) => init.method ?? "GET")).toEqual([
+      "GET",
+      "POST",
+      "POST",
+      "PATCH",
+      "POST",
+      "GET",
+    ]);
+  });
 });

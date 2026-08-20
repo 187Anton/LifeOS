@@ -12,6 +12,8 @@ export type ApiErrorCode =
   | "NOT_FOUND"
   | "SERVICE_NOT_READY"
   | "PAYLOAD_TOO_LARGE"
+  | "EXTERNAL_SERVICE_ERROR"
+  | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
 export interface ApiErrorDetail {
@@ -106,6 +108,40 @@ export interface CalendarEventResponse {
   etag: string;
   sequence: number;
   updatedAt: string;
+}
+
+export type IcsImportAction = "create" | "unchanged" | "conflict" | "invalid";
+
+export interface IcsImportPreviewItemResponse {
+  index: number;
+  uid: string | null;
+  title: string | null;
+  action: IcsImportAction;
+  message: string;
+  existingEtag: string | null;
+}
+
+export interface IcsImportPreviewResponse {
+  previewId: string;
+  expiresAt: string;
+  sourceSha256: string;
+  totalEvents: number;
+  creatableEvents: number;
+  unchangedEvents: number;
+  conflictingEvents: number;
+  invalidEvents: number;
+  canCommit: boolean;
+  items: IcsImportPreviewItemResponse[];
+}
+
+export interface CommitIcsImportRequest {
+  previewId: string;
+}
+
+export interface IcsImportCommitResponse {
+  createdEvents: number;
+  unchangedEvents: number;
+  createdUids: string[];
 }
 
 export type TaskStatus =
@@ -797,4 +833,447 @@ export interface PlanningResponse {
   items: PlanningItemResponse[];
   warnings: PlanningWarningResponse[];
   availabilityWindows: AvailabilityWindowResponse[];
+}
+
+export type FinanceCategoryKind = "income" | "expense";
+export type FinanceTransactionKind = "income" | "expense";
+export type FinanceRecurrenceFrequency = "weekly" | "monthly" | "yearly";
+export type FinanceBudgetPeriod = "month" | "year";
+
+export interface FinanceCategoryResponse {
+  id: string;
+  ownerId: string;
+  name: string;
+  kind: FinanceCategoryKind;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinanceTransactionResponse {
+  id: string;
+  ownerId: string;
+  categoryId: string;
+  kind: FinanceTransactionKind;
+  bookingDate: string;
+  amountMinor: number;
+  currencyCode: string;
+  note: string | null;
+  recurrenceFrequency: FinanceRecurrenceFrequency | null;
+  recurrenceInterval: number | null;
+  recurrenceEndDate: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinanceBudgetResponse {
+  id: string;
+  ownerId: string;
+  categoryId: string | null;
+  period: FinanceBudgetPeriod;
+  periodStart: string;
+  amountMinor: number;
+  currencyCode: string;
+  warningThresholdPercent: number;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinanceMonthSummaryResponse {
+  month: string;
+  incomeMinor: number;
+  expenseMinor: number;
+  balanceMinor: number;
+}
+
+export interface FinanceBudgetWarningResponse {
+  budgetId: string;
+  categoryId: string | null;
+  spentMinor: number;
+  limitMinor: number;
+  utilizationBasisPoints: number;
+  thresholdReached: boolean;
+  exceeded: boolean;
+}
+
+export interface FinanceAnalyticsResponse {
+  currencyCode: string;
+  incomeMinor: number;
+  expenseMinor: number;
+  balanceMinor: number;
+  savingsRateBasisPoints: number | null;
+  months: FinanceMonthSummaryResponse[];
+  budgetWarnings: FinanceBudgetWarningResponse[];
+}
+
+export interface FinanceOverviewResponse {
+  range: { from: string; to: string };
+  categories: FinanceCategoryResponse[];
+  transactions: FinanceTransactionResponse[];
+  budgets: FinanceBudgetResponse[];
+  analytics: FinanceAnalyticsResponse;
+}
+
+export interface CreateFinanceCategoryRequest {
+  name: string;
+  kind: FinanceCategoryKind;
+}
+export interface UpdateFinanceCategoryRequest extends Partial<CreateFinanceCategoryRequest> {
+  archived?: boolean;
+}
+
+export interface CreateFinanceTransactionRequest {
+  categoryId: string;
+  kind: FinanceTransactionKind;
+  bookingDate: string;
+  amountMinor: number;
+  currencyCode: string;
+  note?: string | null;
+  recurrenceFrequency?: FinanceRecurrenceFrequency | null;
+  recurrenceInterval?: number | null;
+  recurrenceEndDate?: string | null;
+}
+export interface UpdateFinanceTransactionRequest extends Partial<CreateFinanceTransactionRequest> {
+  archived?: boolean;
+}
+
+export interface CreateFinanceBudgetRequest {
+  categoryId?: string | null;
+  period: FinanceBudgetPeriod;
+  periodStart: string;
+  amountMinor: number;
+  currencyCode: string;
+  warningThresholdPercent?: number;
+}
+export interface UpdateFinanceBudgetRequest extends Partial<CreateFinanceBudgetRequest> {
+  archived?: boolean;
+}
+
+export interface FinanceExportResponse {
+  formatVersion: 1;
+  exportedAt: string;
+  range: { from: string; to: string };
+  categories: FinanceCategoryResponse[];
+  transactions: FinanceTransactionResponse[];
+  budgets: FinanceBudgetResponse[];
+}
+
+export type FitnessSessionStatus = "planned" | "completed" | "cancelled";
+
+export interface FitnessPlanResponse {
+  id: string;
+  ownerId: string;
+  name: string;
+  notes: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FitnessExerciseResponse {
+  id: string;
+  ownerId: string;
+  name: string;
+  notes: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FitnessPlanExerciseResponse {
+  id: string;
+  ownerId: string;
+  planId: string;
+  exerciseId: string;
+  position: number;
+  targetSets: number | null;
+  targetRepetitions: number | null;
+  targetWeightGrams: number | null;
+  targetDurationSeconds: number | null;
+  targetDistanceMeters: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FitnessSessionResponse {
+  id: string;
+  ownerId: string;
+  planId: string | null;
+  title: string;
+  status: FitnessSessionStatus;
+  performedAt: string | null;
+  timezone: string | null;
+  notes: string | null;
+  calendar: {
+    calendarId: string;
+    eventUid: string;
+    title: string;
+  } | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FitnessSetResponse {
+  id: string;
+  ownerId: string;
+  sessionId: string;
+  exerciseId: string;
+  setNumber: number;
+  repetitions: number | null;
+  weightGrams: number | null;
+  durationSeconds: number | null;
+  distanceMeters: number | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BodyWeightEntryResponse {
+  id: string;
+  ownerId: string;
+  measuredDate: string;
+  weightGrams: number;
+  note: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FitnessPersonalBestResponse {
+  exerciseId: string;
+  maximumWeightGrams: number | null;
+  maximumRepetitions: number | null;
+  maximumDurationSeconds: number | null;
+  maximumDistanceMeters: number | null;
+}
+
+export interface FitnessAnalyticsResponse {
+  completedSessionCount: number;
+  completedSetCount: number;
+  volumeGramRepetitions: number;
+  weightChangeGrams: number | null;
+  personalBests: FitnessPersonalBestResponse[];
+}
+
+export interface FitnessOverviewResponse {
+  plans: FitnessPlanResponse[];
+  exercises: FitnessExerciseResponse[];
+  planExercises: FitnessPlanExerciseResponse[];
+  sessions: FitnessSessionResponse[];
+  sets: FitnessSetResponse[];
+  bodyWeights: BodyWeightEntryResponse[];
+  analytics: FitnessAnalyticsResponse;
+}
+
+export interface CreateFitnessPlanRequest {
+  name: string;
+  notes?: string | null;
+}
+export interface UpdateFitnessPlanRequest extends Partial<CreateFitnessPlanRequest> {
+  archived?: boolean;
+}
+
+export interface CreateFitnessExerciseRequest {
+  name: string;
+  notes?: string | null;
+}
+export interface UpdateFitnessExerciseRequest extends Partial<CreateFitnessExerciseRequest> {
+  archived?: boolean;
+}
+
+export interface UpsertFitnessPlanExerciseRequest {
+  exerciseId: string;
+  position: number;
+  targetSets?: number | null;
+  targetRepetitions?: number | null;
+  targetWeightGrams?: number | null;
+  targetDurationSeconds?: number | null;
+  targetDistanceMeters?: number | null;
+}
+
+export interface CreateFitnessSessionRequest {
+  planId?: string | null;
+  title: string;
+  status?: FitnessSessionStatus;
+  performedAt?: string | null;
+  timezone?: string | null;
+  notes?: string | null;
+  calendarId?: string | null;
+  eventUid?: string | null;
+}
+export interface UpdateFitnessSessionRequest extends Partial<CreateFitnessSessionRequest> {
+  archived?: boolean;
+}
+
+export interface CreateFitnessSetRequest {
+  sessionId: string;
+  exerciseId: string;
+  setNumber: number;
+  repetitions?: number | null;
+  weightGrams?: number | null;
+  durationSeconds?: number | null;
+  distanceMeters?: number | null;
+  completedAt?: string | null;
+}
+export type UpdateFitnessSetRequest = Partial<CreateFitnessSetRequest>;
+
+export interface CreateBodyWeightEntryRequest {
+  measuredDate: string;
+  weightGrams: number;
+  note?: string | null;
+}
+export interface UpdateBodyWeightEntryRequest extends Partial<CreateBodyWeightEntryRequest> {
+  archived?: boolean;
+}
+
+export type ExternalCalDavStatus = "disabled" | "ready" | "error" | "revoked";
+
+export interface ExternalCalDavCalendarResponse {
+  id: string;
+  displayName: string;
+}
+
+export interface ExternalCalDavConnectionResponse {
+  id: string;
+  name: string;
+  baseUrl: string;
+  enabled: boolean;
+  readOnly: true;
+  status: ExternalCalDavStatus;
+  credentialsConfigured: boolean;
+  lastErrorCode: string | null;
+  lastTestedAt: string | null;
+  lastSyncAt: string | null;
+  revokedAt: string | null;
+  calendars: ExternalCalDavCalendarResponse[];
+  importedEventCount: number;
+}
+
+export interface ExternalCalDavOverviewResponse {
+  available: boolean;
+  networkDefault: "disabled";
+  mode: "read_only_import";
+  connections: ExternalCalDavConnectionResponse[];
+}
+
+export interface CreateExternalCalDavConnectionRequest {
+  name: string;
+  baseUrl: string;
+  username: string;
+  password: string;
+}
+
+export interface ExternalCalDavImportPreviewResponse {
+  externalImportId: string;
+  expiresAt: string;
+  localCalendarId: string;
+  externalCalendarId: string;
+  preview: IcsImportPreviewResponse;
+}
+
+export interface CommitExternalCalDavImportRequest {
+  externalImportId: string;
+}
+
+export interface ExternalCalDavImportCommitResponse extends IcsImportCommitResponse {
+  mappedEvents: number;
+}
+
+export type GitHubIntegrationStatus = "disabled" | "ready" | "error";
+
+export interface GitHubRateLimitResponse {
+  remaining: number | null;
+  resetAt: string | null;
+}
+
+export interface GitHubConnectionResponse {
+  id: string;
+  name: string;
+  enabled: boolean;
+  readOnly: true;
+  status: GitHubIntegrationStatus;
+  tokenConfigured: true;
+  accountLogin: string | null;
+  lastErrorCode: string | null;
+  lastTestedAt: string | null;
+  lastFetchedAt: string | null;
+  rateLimit: GitHubRateLimitResponse;
+}
+
+export interface GitHubIntegrationOverviewResponse {
+  available: boolean;
+  networkDefault: "disabled";
+  mode: "read_only";
+  apiHost: "api.github.com";
+  connections: GitHubConnectionResponse[];
+}
+
+export interface CreateGitHubConnectionRequest {
+  name: string;
+  token: string;
+}
+
+export interface GitHubRepositorySummaryResponse {
+  id: string;
+  owner: string;
+  name: string;
+  fullName: string;
+  description: string | null;
+  private: boolean;
+  archived: boolean;
+  defaultBranch: string;
+  updatedAt: string;
+}
+
+export interface GitHubIssueSummaryResponse {
+  number: number;
+  title: string;
+  state: "open" | "closed";
+  updatedAt: string;
+}
+
+export interface GitHubPullRequestSummaryResponse extends GitHubIssueSummaryResponse {
+  draft: boolean;
+}
+
+export interface GitHubCommitSummaryResponse {
+  sha: string;
+  message: string;
+  authoredAt: string | null;
+  authorLogin: string | null;
+}
+
+export interface GitHubReleaseSummaryResponse {
+  tagName: string;
+  name: string | null;
+  draft: boolean;
+  prerelease: boolean;
+  publishedAt: string | null;
+}
+
+export interface GitHubCiRunSummaryResponse {
+  id: string;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  headBranch: string | null;
+  updatedAt: string;
+}
+
+export interface GitHubRepositoryListResponse {
+  repositories: GitHubRepositorySummaryResponse[];
+  rateLimit: GitHubRateLimitResponse;
+}
+
+export interface GitHubRepositorySnapshotResponse {
+  repository: GitHubRepositorySummaryResponse;
+  issues: GitHubIssueSummaryResponse[];
+  pullRequests: GitHubPullRequestSummaryResponse[];
+  commits: GitHubCommitSummaryResponse[];
+  releases: GitHubReleaseSummaryResponse[];
+  ciRuns: GitHubCiRunSummaryResponse[];
+  rateLimit: GitHubRateLimitResponse;
 }

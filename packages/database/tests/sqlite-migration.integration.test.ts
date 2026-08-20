@@ -39,6 +39,15 @@ const readMigrationSnapshot = async (
         include: { events: { orderBy: { id: "asc" } } },
       },
       aiInteractions: { orderBy: { id: "asc" } },
+      financeCategories: { orderBy: { id: "asc" } },
+      financeTransactions: { orderBy: { id: "asc" } },
+      financeBudgets: { orderBy: { id: "asc" } },
+      fitnessPlans: { orderBy: { id: "asc" } },
+      fitnessExercises: { orderBy: { id: "asc" } },
+      fitnessPlanExercises: { orderBy: { id: "asc" } },
+      fitnessSessions: { orderBy: { id: "asc" } },
+      fitnessSets: { orderBy: { id: "asc" } },
+      bodyWeightEntries: { orderBy: { id: "asc" } },
       auditEvents: { orderBy: { id: "asc" } },
     },
   });
@@ -57,6 +66,10 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
     "20260812190000_local_documents_notes",
     "20260820100000_local_search",
     "20260820150000_source_grounded_ai",
+    "20260820190000_finance_module",
+    "20260820200000_fitness_module",
+    "20260820210000_external_caldav",
+    "20260820220000_github_integration",
   ]);
 
   const database = createSqliteDatabaseClient(databaseUrl);
@@ -65,7 +78,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const migrationRows = await database.$queryRawUnsafe<
     Array<{ name: string; checksum: string }>
   >('SELECT "name", "checksum" FROM "_lifeos_migrations"');
-  assert.equal(migrationRows.length, 6);
+  assert.equal(migrationRows.length, 10);
   assert.equal(migrationRows[0]?.name, "20260809190000_sqlite_foundation");
   assert.match(migrationRows[0]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[1]?.name, "20260809203000_product_modules");
@@ -78,6 +91,14 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   assert.match(migrationRows[4]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[5]?.name, "20260820150000_source_grounded_ai");
   assert.match(migrationRows[5]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[6]?.name, "20260820190000_finance_module");
+  assert.match(migrationRows[6]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[7]?.name, "20260820200000_fitness_module");
+  assert.match(migrationRows[7]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[8]?.name, "20260820210000_external_caldav");
+  assert.match(migrationRows[8]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[9]?.name, "20260820220000_github_integration");
+  assert.match(migrationRows[9]?.checksum ?? "", /^[0-9a-f]{64}$/);
 
   const foreignKeys = await database.$queryRawUnsafe<
     Array<{ foreign_keys: bigint }>
@@ -302,6 +323,196 @@ test("speichert Projektziele und Meilensteine mit reinen Fälligkeitstagen und B
     database.project.update({
       where: { id: project.id },
       data: { deletedAt: new Date("2000-01-01T00:00:00.000Z") },
+    }),
+  );
+});
+
+test("erzwingt ganzzahlige Finanzwerte und Besitzergrenzen in SQLite", async (t) => {
+  const databaseUrl = await createIsolatedDatabase(t);
+  await migrateSqliteDatabase(databaseUrl);
+  await seedSqliteDatabase(databaseUrl);
+  const fixture = await readSqliteSeedFixture();
+  const database = createSqliteDatabaseClient(databaseUrl);
+  t.after(async () => database.$disconnect());
+  const category = await database.financeCategory.findFirstOrThrow({
+    where: { userId: fixture.user.id, kind: "expense" },
+  });
+  const transaction = await database.financeTransaction.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+  });
+  assert.equal(transaction.bookingDate, "2030-01-10");
+  assert.equal(transaction.amountMinor, 4_250);
+  await assert.rejects(() =>
+    database.$executeRawUnsafe(
+      `INSERT INTO "FinanceTransaction" ("id", "userId", "categoryId", "kind", "bookingDate", "amountMinor", "currencyCode", "createdAt", "updatedAt") VALUES (?, ?, ?, 'expense', '2032-08-02', 10.5, 'EUR', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      "00000000-0000-4000-8000-000000000899",
+      fixture.user.id,
+      category.id,
+    ),
+  );
+  await assert.rejects(() =>
+    database.financeTransaction.create({
+      data: {
+        userId: "00000000-0000-4000-8000-000000000999",
+        categoryId: category.id,
+        kind: "expense",
+        bookingDate: "2032-08-02",
+        amountMinor: 100,
+        currencyCode: "EUR",
+      },
+    }),
+  );
+});
+
+test("erzwingt Fitnessbesitz und ganzzahlige Messwerte in SQLite", async (t) => {
+  const databaseUrl = await createIsolatedDatabase(t);
+  await migrateSqliteDatabase(databaseUrl);
+  await seedSqliteDatabase(databaseUrl);
+  const fixture = await readSqliteSeedFixture();
+  const database = createSqliteDatabaseClient(databaseUrl);
+  t.after(async () => database.$disconnect());
+  const plan = await database.fitnessPlan.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+  });
+  const exercise = await database.fitnessExercise.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+  });
+  const session = await database.fitnessSession.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+  });
+  const set = await database.fitnessSet.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+  });
+  const weight = await database.bodyWeightEntry.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+  });
+  assert.equal(plan.name, "Synthetischer Ganzkörperplan");
+  assert.equal(exercise.name, "Synthetische Kniebeuge");
+  assert.equal(session.status, "completed");
+  assert.equal(set.weightGrams, 60_000);
+  assert.equal(weight.measuredDate, "2030-01-15");
+  await assert.rejects(() =>
+    database.$executeRawUnsafe(
+      `INSERT INTO "FitnessSet" ("id", "userId", "sessionId", "exerciseId", "setNumber", "weightGrams", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, 2, 10.5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      "00000000-0000-4000-8000-000000000898",
+      fixture.user.id,
+      session.id,
+      exercise.id,
+    ),
+  );
+  await assert.rejects(() =>
+    database.fitnessSession.create({
+      data: {
+        userId: fixture.user.id,
+        title: "Ungültiger Abschluss",
+        status: "completed",
+      },
+    }),
+  );
+});
+
+test("erzwingt read-only-CalDAV und Besitzergrenzen in SQLite", async (t) => {
+  const databaseUrl = await createIsolatedDatabase(t);
+  await migrateSqliteDatabase(databaseUrl);
+  await seedSqliteDatabase(databaseUrl);
+  const fixture = await readSqliteSeedFixture();
+  const database = createSqliteDatabaseClient(databaseUrl);
+  t.after(async () => database.$disconnect());
+  const connection = await database.externalCalDavConnection.create({
+    data: {
+      userId: fixture.user.id,
+      name: "Synthetische externe Verbindung",
+      baseUrl: "https://calendar.example.test/caldav/",
+      credentialsEncrypted: "synthetic-encrypted-payload",
+      secretIv: "synthetic-iv",
+      secretTag: "synthetic-tag",
+    },
+  });
+  const calendar = await database.externalCalDavCalendar.create({
+    data: {
+      userId: fixture.user.id,
+      connectionId: connection.id,
+      href: "/calendars/personal/",
+      displayName: "Synthetischer externer Kalender",
+    },
+  });
+  const mapping = await database.externalCalDavEventMapping.create({
+    data: {
+      userId: fixture.user.id,
+      connectionId: connection.id,
+      externalCalendarId: calendar.id,
+      remoteHref: "/calendars/personal/event.ics",
+      remoteUid: "remote-event@example.test",
+      localCalendarId: fixture.calendar.externalId,
+      localEventUid: fixture.events[0]!.uid,
+    },
+  });
+  assert.equal(mapping.remoteUid, "remote-event@example.test");
+  await assert.rejects(() =>
+    database.externalCalDavConnection.create({
+      data: {
+        userId: fixture.user.id,
+        name: "Ungültiger Schreibzugang",
+        baseUrl: "https://calendar.example.test/write/",
+        credentialsEncrypted: "synthetic-encrypted-payload",
+        secretIv: "synthetic-iv",
+        secretTag: "synthetic-tag",
+        readOnly: false,
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.externalCalDavCalendar.create({
+      data: {
+        userId: "00000000-0000-4000-8000-000000000999",
+        connectionId: connection.id,
+        href: "/calendars/foreign/",
+        displayName: "Fremder Kalender",
+      },
+    }),
+  );
+});
+
+test("erzwingt verschlüsselte read-only-GitHub-Verbindungen in SQLite", async (t) => {
+  const databaseUrl = await createIsolatedDatabase(t);
+  await migrateSqliteDatabase(databaseUrl);
+  await seedSqliteDatabase(databaseUrl);
+  const fixture = await readSqliteSeedFixture();
+  const database = createSqliteDatabaseClient(databaseUrl);
+  t.after(async () => database.$disconnect());
+  const connection = await database.gitHubConnection.create({
+    data: {
+      userId: fixture.user.id,
+      name: "Synthetischer GitHub-Zugang",
+      tokenEncrypted: "synthetic-encrypted-token",
+      secretIv: "synthetic-iv",
+      secretTag: "synthetic-tag",
+      rateLimitRemaining: 50,
+    },
+  });
+  assert.equal(connection.readOnly, true);
+  await assert.rejects(() =>
+    database.gitHubConnection.create({
+      data: {
+        userId: fixture.user.id,
+        name: "Ungültiger Schreibzugang",
+        tokenEncrypted: "synthetic-encrypted-token",
+        secretIv: "synthetic-iv",
+        secretTag: "synthetic-tag",
+        readOnly: false,
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.gitHubConnection.create({
+      data: {
+        userId: fixture.user.id,
+        name: "Ungültiges Limit",
+        tokenEncrypted: "synthetic-encrypted-token",
+        secretIv: "synthetic-iv",
+        secretTag: "synthetic-tag",
+        rateLimitRemaining: -1,
+      },
     }),
   );
 });

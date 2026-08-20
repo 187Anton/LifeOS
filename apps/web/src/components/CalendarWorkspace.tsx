@@ -22,6 +22,7 @@ import {
 } from "../calendar-view";
 import { CalendarIcon, ClockIcon, EditIcon, PlusIcon } from "./Icons";
 import { EventForm } from "./EventForm";
+import { IcsTransferPanel } from "./IcsTransferPanel";
 
 interface CalendarWorkspaceProps {
   calendars: CalendarResponse[];
@@ -360,6 +361,8 @@ export const CalendarWorkspace = ({
           {warning}
         </p>
       ) : null}
+
+      <IcsTransferPanel calendarId={selectedCalendarId} onImported={onReload} />
 
       <div
         className={

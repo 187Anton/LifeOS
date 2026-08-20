@@ -14,6 +14,20 @@ Dieses Repository ist zunächst für eine persönliche, lokale Anwendung gedacht
 - Der CalDAV-Zugang bleibt getrennt von der Web-Anmeldung widerrufbar. Basic
   Auth über HTTP ist ausschließlich für ein vertrauenswürdiges lokales Netz;
   vor Zugriff aus anderen Netzen muss TLS vorgeschaltet werden.
+- Externe CalDAV-Verbindungen bleiben ohne bewusste Aktivierung netzwerkfrei.
+  Ihre Zugangsdaten werden ausschließlich im Backend mit einem getrennten
+  lokalen AES-256-GCM-Schlüssel verschlüsselt und beim Widerruf gelöscht.
+  Externe Ziele benötigen HTTPS und werden gegen DNS-Rebinding, Loopback-,
+  private, Link-Local- und Metadata-Adressen sowie ursprungsfremde
+  Weiterleitungen geschützt. Fremde XML-/ICS-Inhalte gelten als nicht
+  vertrauenswürdig und unterliegen Größen-, Mengen- und Zeitlimits.
+- GitHub-Verbindungen bleiben bis zur bewussten Aktivierung netzwerkfrei und
+  sind auf GET-Anfragen an `api.github.com` begrenzt. Tokens werden nur
+  AES-256-GCM-verschlüsselt im Backend gespeichert, nie wieder ausgegeben und
+  beim lokalen Widerruf gelöscht. Externe Texte bleiben nicht vertrauenswürdig,
+  werden begrenzt und dürfen keine Schreibaktion auslösen. Ein Fine-grained
+  Token muss außerhalb von LifeOS zusätzlich auf ausgewählte Repositories und
+  minimale Leserechte beschränkt werden.
 
 ## Secret-Prüfung
 
