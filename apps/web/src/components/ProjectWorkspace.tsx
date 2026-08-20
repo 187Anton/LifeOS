@@ -609,9 +609,11 @@ const ProjectForm = ({
         status: field(data, "status") as ProjectStatus,
         risk: nullable(field(data, "risk")),
         dueDate: nullable(field(data, "dueDate")),
+        searchEnabled: data.get("searchEnabled") === "on",
       })
     }
     statuses={projectStatuses}
+    searchRelease
   />
 );
 const ItemForm = ({
@@ -651,6 +653,7 @@ const BaseForm = ({
   onSubmit,
   statuses,
   initial,
+  searchRelease = false,
 }: {
   title: string;
   saving: boolean;
@@ -663,7 +666,9 @@ const BaseForm = ({
     status: string;
     risk: string | null;
     dueDate: string | null;
+    searchEnabled?: boolean;
   };
+  searchRelease?: boolean;
 }) => (
   <form
     className="study-form"
@@ -717,6 +722,17 @@ const BaseForm = ({
           defaultValue={initial?.description ?? ""}
         />
       </label>
+      {searchRelease ? (
+        <label className="wide checkbox-row">
+          <input
+            name="searchEnabled"
+            type="checkbox"
+            defaultChecked={initial?.searchEnabled ?? false}
+          />
+          Projekt und aktive Ziele sowie Meilensteine für die lokale Suche
+          freigeben
+        </label>
+      ) : null}
     </div>
     <div className="form-actions">
       <button type="button" className="secondary-button" onClick={onCancel}>

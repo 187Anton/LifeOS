@@ -36,6 +36,8 @@ import type {
   NoteDetailResponse,
   UpdateDocumentRequest,
   UpdateNoteRequest,
+  SearchResponse,
+  SearchResultResponse,
 } from "@lifeos/contracts";
 import { useCallback, useEffect, useState } from "react";
 
@@ -89,6 +91,7 @@ export const App = () => {
     null,
   );
   const [noteDetail, setNoteDetail] = useState<NoteDetailResponse | null>(null);
+  const [search, setSearch] = useState<SearchResponse | null>(null);
   const [planningRange, setPlanningRange] = useState<DateRange>(() =>
     weekRange("Europe/Berlin", 1),
   );
@@ -123,6 +126,8 @@ export const App = () => {
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
   const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
   const [knowledgeSuccess, setKnowledgeSuccess] = useState<string | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [taskSuccess, setTaskSuccess] = useState<string | null>(null);
 
@@ -287,6 +292,47 @@ export const App = () => {
     }
   }, []);
 
+  const runSearch = useCallback(async (query: string) => {
+    setSearchLoading(true);
+    setSearchError(null);
+    try {
+      setSearch(await api.search(query));
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401)
+        setSession("anonymous");
+      else setSearchError(errorMessage(error));
+      setSearch(null);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  const openSearchResult = useCallback(
+    (result: SearchResultResponse) => {
+      if (
+        result.contentType === "project" ||
+        result.contentType === "project_goal" ||
+        result.contentType === "project_milestone"
+      ) {
+        setView("projects");
+        void loadProject(result.source.id);
+      } else if (result.contentType === "note") {
+        setView("knowledge");
+        void loadNote(result.source.id);
+      } else if (
+        result.contentType === "study_module" ||
+        result.contentType === "study_entry"
+      ) {
+        setView("study");
+      } else if (result.contentType === "work_project") {
+        setView("work");
+      } else {
+        setView("knowledge");
+      }
+    },
+    [loadNote, loadProject],
+  );
+
   const loadAuthenticatedData = useCallback(async () => {
     const [loadedProfile, loadedCalendars, loadedTasks, loadedLinks] =
       await Promise.all([
@@ -397,6 +443,8 @@ export const App = () => {
     setProjectDetail(null);
     setKnowledge(null);
     setNoteDetail(null);
+    setSearch(null);
+    setSearchError(null);
     setSelectedCalendarId(null);
     setLoginError(null);
   };
@@ -1017,7 +1065,12 @@ export const App = () => {
           saving={saving}
           error={knowledgeError}
           success={knowledgeSuccess}
+          search={search}
+          searchLoading={searchLoading}
+          searchError={searchError}
           onReload={() => void loadKnowledge(noteDetail?.id)}
+          onSearch={runSearch}
+          onOpenSearchResult={openSearchResult}
           onSelectNote={(id) => void loadNote(id)}
           onCreateNote={(value: CreateNoteRequest) =>
             changeKnowledge(

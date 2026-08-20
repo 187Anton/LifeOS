@@ -352,7 +352,7 @@ export const seedSqliteDatabase = async (
       }
       await transaction.project.upsert({
         where: { id: SYNTHETIC_PROJECT_ID },
-        update: {},
+        update: { searchEnabled: true },
         create: {
           id: SYNTHETIC_PROJECT_ID,
           userId: fixture.user.id,
@@ -361,6 +361,7 @@ export const seedSqliteDatabase = async (
           status: "active",
           risk: "Nur synthetischer Testrisikohinweis.",
           dueDate: "2030-03-31",
+          searchEnabled: true,
           createdAt: toDate(fixture.user.createdAt),
           updatedAt: toDate(fixture.user.updatedAt),
         },
@@ -411,7 +412,7 @@ export const seedSqliteDatabase = async (
       });
       await transaction.note.upsert({
         where: { id: SYNTHETIC_NOTE_ID },
-        update: {},
+        update: { searchEnabled: true },
         create: {
           id: SYNTHETIC_NOTE_ID,
           userId: fixture.user.id,
@@ -421,6 +422,7 @@ export const seedSqliteDatabase = async (
             "# Beispiel\n\nLokale Markdown-Notiz ohne persönliche Daten.",
           category: "Dokumentation",
           tags: ["synthetisch", "projekt"],
+          searchEnabled: true,
           createdAt: toDate(fixture.user.createdAt),
           updatedAt: toDate(fixture.user.updatedAt),
           versions: {

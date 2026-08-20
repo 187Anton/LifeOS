@@ -13,12 +13,43 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  extractLocalDocumentText,
   LocalDocumentStorage,
+  MAX_EXTRACTED_TEXT_BYTES,
   StoredDocumentNotFoundError,
   UnsafeStoragePathError,
 } from "../src/modules/knowledge/storage.js";
 
 const USER_ID = "00000000-0000-4000-8000-000000000701";
+
+test("extrahiert nur begrenzte erlaubte UTF-8-Textformate lokal", () => {
+  assert.equal(
+    extractLocalDocumentText(
+      "text/markdown",
+      Buffer.from("# Synthetisch\r\n\r\nLokaler Text."),
+    ),
+    "# Synthetisch\n\nLokaler Text.",
+  );
+  assert.equal(
+    extractLocalDocumentText("application/pdf", Buffer.from("kein PDF")),
+    null,
+  );
+  assert.equal(
+    extractLocalDocumentText("text/plain", Buffer.from([0xc3, 0x28])),
+    null,
+  );
+  assert.equal(
+    extractLocalDocumentText("text/plain", Buffer.from("unsicher\0text")),
+    null,
+  );
+  assert.equal(
+    extractLocalDocumentText(
+      "text/plain",
+      Buffer.alloc(MAX_EXTRACTED_TEXT_BYTES + 1, 97),
+    ),
+    null,
+  );
+});
 
 test("speichert lokale Dokumente privat, prüfsummengeschützt und löschbar", async (t) => {
   const temporary = await mkdtemp(path.join(os.tmpdir(), "lifeos-storage-"));

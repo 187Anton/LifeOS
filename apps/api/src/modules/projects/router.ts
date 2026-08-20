@@ -30,6 +30,7 @@ const projectCreate = z.strictObject({
   status: projectStatus.optional(),
   risk: nullableText,
   dueDate: z.iso.date().nullable().optional(),
+  searchEnabled: z.boolean().optional(),
 });
 const projectUpdate = projectCreate
   .partial()

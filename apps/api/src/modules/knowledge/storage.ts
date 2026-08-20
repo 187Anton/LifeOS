@@ -13,6 +13,32 @@ import {
 import path from "node:path";
 
 export const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
+export const MAX_EXTRACTED_TEXT_BYTES = 1024 * 1024;
+
+const textMimeTypes = new Set([
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+]);
+
+export const extractLocalDocumentText = (
+  mimeType: string,
+  bytes: Buffer,
+): string | null => {
+  if (
+    !textMimeTypes.has(mimeType) ||
+    bytes.byteLength > MAX_EXTRACTED_TEXT_BYTES
+  )
+    return null;
+  try {
+    const value = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    if (value.includes("\0")) return null;
+    return value.replace(/\r\n?/g, "\n").slice(0, 1_000_000);
+  } catch {
+    return null;
+  }
+};
 
 export class UnsafeStoragePathError extends Error {}
 export class StoredDocumentNotFoundError extends Error {}

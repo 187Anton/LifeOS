@@ -34,6 +34,7 @@ export interface ModuleValues {
   grade: string | null;
   notes: string | null;
   documentReferences: string[];
+  searchEnabled: boolean;
 }
 export interface EntryValues {
   moduleId: string;
@@ -115,6 +116,7 @@ const mapModule = (record: StudyModuleModel): StudyModuleResponse => ({
   grade: record.grade,
   notes: record.notes,
   documentReferences: record.documentReferences,
+  searchEnabled: record.searchEnabled,
 });
 const mapEntry = (record: StudyEntryModel): StudyEntryResponse => ({
   ...common(record),

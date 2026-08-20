@@ -496,6 +496,32 @@ const installApi = async (page: Page) => {
       await route.fulfill({ json: { notes, documents } });
       return;
     }
+    if (path === "/api/v1/search" && method === "GET") {
+      const query = new URL(request.url()).searchParams.get("q") ?? "";
+      const normalized = query.toLocaleLowerCase("de-DE");
+      const results = notes
+        .filter(
+          (note) =>
+            note.searchEnabled === true &&
+            `${String(note.title)} ${String(note.content)}`
+              .toLocaleLowerCase("de-DE")
+              .includes(normalized),
+        )
+        .map((note) => ({
+          id: note.id,
+          title: note.title,
+          contentType: "note",
+          source: { type: "note", id: note.id, title: note.title },
+          updatedAt: note.updatedAt,
+          snippet: note.content,
+          matchReason: "content",
+          detailPath: `/knowledge/notes/${String(note.id)}`,
+          ownerId: profile.id,
+          searchEnabled: true,
+        }));
+      await route.fulfill({ json: { query, results } });
+      return;
+    }
     if (path === "/api/v1/notes" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       const created = {
@@ -1089,12 +1115,27 @@ test("verwaltet lokale Notizen und Dokumente auf Desktop und Smartphone", async 
   await page
     .getByLabel("Inhalt (Markdown)")
     .fill("# Lokal\n\nNur synthetischer Inhalt.");
+  await page.getByLabel("Für lokale Suche freigeben").first().check();
   await page.getByRole("button", { name: "Notiz anlegen" }).click();
   await expect(
     page.getByText("Synthetische Wissensnotiz").first(),
   ).toBeVisible();
   await page.getByLabel("Titel").fill("Synthetische Wissensnotiz Version 2");
   await page.getByRole("button", { name: "Änderung speichern" }).click();
+  await expect(page.getByText("Version 2").first()).toBeVisible();
+  await page.getByLabel("Suchbegriff").fill("synthetischer Inhalt");
+  await page.getByRole("button", { name: "Suchen" }).click();
+  const searchResult = page.locator(".search-result");
+  await expect(searchResult).toContainText(
+    "Synthetische Wissensnotiz Version 2",
+  );
+  await expect(searchResult).toContainText("Eigener, freigegebener Inhalt");
+  const sourceLink = searchResult.getByRole("link", { name: "Quelle öffnen" });
+  await expect(sourceLink).toHaveAttribute(
+    "href",
+    /\/knowledge\/notes\/note-1/,
+  );
+  await sourceLink.click();
   await expect(page.getByText("Version 2").first()).toBeVisible();
   await page.getByLabel("Datei").evaluate((element) => {
     const transfer = new DataTransfer();

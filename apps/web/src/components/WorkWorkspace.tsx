@@ -326,6 +326,19 @@ export const WorkWorkspace = (props: Props) => {
                         props.onUpdateProject(project.id, { archived: true })
                       }
                     />
+                    <button
+                      className="text-button"
+                      disabled={props.saving}
+                      onClick={() =>
+                        void props.onUpdateProject(project.id, {
+                          searchEnabled: !project.searchEnabled,
+                        })
+                      }
+                    >
+                      {project.searchEnabled
+                        ? "Suchfreigabe aufheben"
+                        : "Für lokale Suche freigeben"}
+                    </button>
                   </WorkCard>
                 ))
               ) : (
@@ -644,6 +657,7 @@ const ProjectForm = ({
         deadlineDate: field(data, "deadlineDate") || null,
         status: "planned",
         notes: field(data, "notes") || null,
+        searchEnabled: data.get("searchEnabled") === "on",
       });
     }}
   >
@@ -672,6 +686,10 @@ const ProjectForm = ({
     <label className="wide">
       Notizen
       <textarea name="notes" maxLength={20000} />
+    </label>
+    <label className="wide checkbox-row">
+      <input name="searchEnabled" type="checkbox" />
+      Arbeitsprojekt für die lokale Suche freigeben
     </label>
   </FormShell>
 );

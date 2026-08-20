@@ -21,6 +21,7 @@ export interface ProjectValues {
   status: ProjectStatus;
   risk: string | null;
   dueDate: Date | null;
+  searchEnabled: boolean;
 }
 export interface ProjectItemValues {
   title: string;
@@ -61,6 +62,7 @@ const mapProject = (record: ProjectRecord): ProjectResponse => ({
   status: record.status,
   risk: record.risk,
   dueDate: day(record.dueDate),
+  searchEnabled: record.searchEnabled,
   archivedAt: record.archivedAt?.toISOString() ?? null,
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),

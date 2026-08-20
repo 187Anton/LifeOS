@@ -54,6 +54,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
     "20260809203000_product_modules",
     "20260812100000_projects_milestones",
     "20260812190000_local_documents_notes",
+    "20260820100000_local_search",
   ]);
 
   const database = createSqliteDatabaseClient(databaseUrl);
@@ -62,7 +63,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const migrationRows = await database.$queryRawUnsafe<
     Array<{ name: string; checksum: string }>
   >('SELECT "name", "checksum" FROM "_lifeos_migrations"');
-  assert.equal(migrationRows.length, 4);
+  assert.equal(migrationRows.length, 5);
   assert.equal(migrationRows[0]?.name, "20260809190000_sqlite_foundation");
   assert.match(migrationRows[0]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[1]?.name, "20260809203000_product_modules");
@@ -71,6 +72,8 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   assert.match(migrationRows[2]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[3]?.name, "20260812190000_local_documents_notes");
   assert.match(migrationRows[3]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[4]?.name, "20260820100000_local_search");
+  assert.match(migrationRows[4]?.checksum ?? "", /^[0-9a-f]{64}$/);
 
   const foreignKeys = await database.$queryRawUnsafe<
     Array<{ foreign_keys: bigint }>
@@ -312,7 +315,7 @@ test("speichert Notizversionen und Dokumentmetadaten mit Besitzergrenzen", async
   });
   assert.equal(seeded.format, "markdown");
   assert.equal(seeded.versions.length, 1);
-  assert.equal(seeded.searchEnabled, false);
+  assert.equal(seeded.searchEnabled, true);
 
   await assert.rejects(() =>
     database.note.create({
