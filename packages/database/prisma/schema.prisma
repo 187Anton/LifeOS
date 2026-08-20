@@ -24,6 +24,9 @@ model User {
   projectGoals     ProjectGoal[]
   projectMilestones ProjectMilestone[]
   projectEventLinks ProjectEventLink[]
+  notes            Note[]
+  noteVersions     NoteVersion[]
+  documents        Document[]
   tasks            Task[]
   taskEventLinks   TaskEventLink[]
   studyPrograms    StudyProgram[]
@@ -194,6 +197,8 @@ model Project {
   milestones  ProjectMilestone[]
   tasks       Task[]
   eventLinks  ProjectEventLink[]
+  notes       Note[]
+  documents   Document[]
 
   @@unique([id, userId])
   @@index([userId, deletedAt, archivedAt])
@@ -360,10 +365,82 @@ model StudyModule {
   user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   program            StudyProgram @relation(fields: [programId, userId], references: [id, userId], onDelete: Restrict)
   entries            StudyEntry[]
+  knowledgeNotes     Note[]
+  documents          Document[]
 
   @@unique([id, userId])
   @@index([userId, archivedAt])
   @@index([programId])
+}
+
+model Note {
+  id            String        @id @default(uuid()) @db.Uuid
+  userId        String        @db.Uuid
+  projectId     String?       @db.Uuid
+  studyModuleId String?       @db.Uuid
+  title         String        @db.VarChar(500)
+  content       String
+  format        String        @default("markdown") @db.VarChar(20)
+  category      String?       @db.VarChar(200)
+  tags          String[]      @default([])
+  version       Int           @default(1)
+  searchEnabled Boolean       @default(false)
+  archivedAt    DateTime?     @db.Timestamptz(3)
+  deletedAt     DateTime?     @db.Timestamptz(3)
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project       Project?      @relation(fields: [projectId, userId], references: [id, userId], onDelete: Restrict)
+  studyModule   StudyModule?  @relation(fields: [studyModuleId, userId], references: [id, userId], onDelete: Restrict)
+  versions      NoteVersion[]
+
+  @@unique([id, userId])
+  @@index([userId, deletedAt, archivedAt])
+  @@index([projectId])
+  @@index([studyModuleId])
+}
+
+model NoteVersion {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  noteId    String   @db.Uuid
+  version   Int
+  title     String   @db.VarChar(500)
+  content   String
+  category  String?  @db.VarChar(200)
+  tags      String[] @default([])
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note      Note     @relation(fields: [noteId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([noteId, version])
+  @@index([userId, noteId])
+}
+
+model Document {
+  id            String       @id @default(uuid()) @db.Uuid
+  userId        String       @db.Uuid
+  projectId     String?      @db.Uuid
+  studyModuleId String?      @db.Uuid
+  storageKey    String       @unique @db.VarChar(255)
+  fileName      String       @db.VarChar(500)
+  mimeType      String       @db.VarChar(255)
+  byteSize      Int
+  sha256        String       @db.Char(64)
+  modifiedAt    DateTime     @db.Timestamptz(3)
+  searchEnabled Boolean      @default(false)
+  archivedAt    DateTime?    @db.Timestamptz(3)
+  deletedAt     DateTime?    @db.Timestamptz(3)
+  createdAt     DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime     @updatedAt @db.Timestamptz(3)
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project       Project?     @relation(fields: [projectId, userId], references: [id, userId], onDelete: Restrict)
+  studyModule   StudyModule? @relation(fields: [studyModuleId, userId], references: [id, userId], onDelete: Restrict)
+
+  @@unique([id, userId])
+  @@index([userId, deletedAt, archivedAt])
+  @@index([projectId])
+  @@index([studyModuleId])
 }
 
 model StudyEntry {

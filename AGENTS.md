@@ -179,6 +179,10 @@ Der erste Betrieb erfolgt vollständig lokal:
   wiederholten Seed, Backup und Restore ausschließlich in isolierten
   synthetischen Datenbanken; die Quelle wird nie ungeprüft überschrieben.
 - Dokumente liegen in einem nicht versionierten lokalen Datenverzeichnis
+- Lokale Dokumente verwenden ausschließlich serverseitig erzeugte opake
+  Storage-Schlüssel in einem absoluten Verzeichnis außerhalb des Repositorys;
+  Verzeichnisse sind `0700`, Dateien `0600`, symbolische Links werden
+  abgelehnt und Suchfreigaben sind standardmäßig aus.
 - externe KI- und Cloud-Dienste sind optional und standardmäßig deaktiviert
 - ein Heimserver, NAS oder VPS wird nicht vorausgesetzt
 
@@ -516,3 +520,6 @@ gemeldet.
   reinen Fälligkeitstagen, referenzierten Aufgaben und Kalenderereignissen sowie
   gleichgewichteter, nicht persistierter Fortschrittsprojektion nach
   PostgreSQL-/SQLite-, API-, Recovery- und Desktop-/Mobiltests festgehalten.
+- **2026-08-12:** Private lokale Dokumentablage mit opaken Schlüsseln,
+  Pfad-/Symlink-Schutz und standardmäßig deaktivierter Suchfreigabe nach
+  PostgreSQL-/SQLite-, Recovery-, API- und Desktop-/Mobiltests festgehalten.

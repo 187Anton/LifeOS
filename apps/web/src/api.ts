@@ -40,6 +40,13 @@ import type {
   UpdateProjectRequest,
   UpdateAvailabilityWindowRequest,
   UpdateTaskRequest,
+  CreateNoteRequest,
+  DocumentResponse,
+  KnowledgeOverviewResponse,
+  NoteDetailResponse,
+  NoteResponse,
+  UpdateDocumentRequest,
+  UpdateNoteRequest,
 } from "@lifeos/contracts";
 
 const API_BASE = "/api/v1";
@@ -247,6 +254,62 @@ export const api = {
   },
   deleteProject(projectId: string) {
     return request<void>(`/projects/${encodeURIComponent(projectId)}`, {
+      method: "DELETE",
+    });
+  },
+  getKnowledge(includeArchived = true) {
+    return request<KnowledgeOverviewResponse>(
+      `/knowledge?includeArchived=${includeArchived ? "true" : "false"}`,
+    );
+  },
+  getNote(noteId: string) {
+    return request<NoteDetailResponse>(`/notes/${encodeURIComponent(noteId)}`);
+  },
+  createNote(payload: CreateNoteRequest) {
+    return request<NoteResponse>("/notes", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateNote(noteId: string, payload: UpdateNoteRequest) {
+    return request<NoteResponse>(`/notes/${encodeURIComponent(noteId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteNote(noteId: string) {
+    return request<void>(`/notes/${encodeURIComponent(noteId)}`, {
+      method: "DELETE",
+    });
+  },
+  uploadDocument(
+    file: File,
+    links: {
+      projectId?: string | null;
+      studyModuleId?: string | null;
+      searchEnabled?: boolean;
+    } = {},
+  ) {
+    const query = new URLSearchParams({
+      fileName: file.name,
+      searchEnabled: links.searchEnabled ? "true" : "false",
+    });
+    if (links.projectId) query.set("projectId", links.projectId);
+    if (links.studyModuleId) query.set("studyModuleId", links.studyModuleId);
+    return request<DocumentResponse>(`/documents?${query.toString()}`, {
+      method: "POST",
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+      body: file,
+    });
+  },
+  updateDocument(documentId: string, payload: UpdateDocumentRequest) {
+    return request<DocumentResponse>(
+      `/documents/${encodeURIComponent(documentId)}`,
+      { method: "PATCH", body: JSON.stringify(payload) },
+    );
+  },
+  deleteDocument(documentId: string) {
+    return request<void>(`/documents/${encodeURIComponent(documentId)}`, {
       method: "DELETE",
     });
   },

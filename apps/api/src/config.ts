@@ -49,6 +49,11 @@ const environmentSchema = z.strictObject({
       (value) => value === undefined || path.isAbsolute(value),
       "muss ein absoluter Verzeichnispfad sein",
     ),
+  STORAGE_PATH: z
+    .string()
+    .trim()
+    .min(1)
+    .refine(path.isAbsolute, "muss ein absoluter Verzeichnispfad sein"),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   SHUTDOWN_TIMEOUT_MS: z.coerce
     .number()
@@ -68,6 +73,7 @@ export interface ApiConfig {
   webOrigin: string;
   webDistPath?: string;
   sqliteMigrationsPath?: string;
+  storagePath: string;
   logLevel: "debug" | "info" | "warn" | "error";
   shutdownTimeoutMs: number;
   sessionTtlHours: number;
@@ -102,6 +108,7 @@ export const parseConfig = (
     WEB_ORIGIN: environment.WEB_ORIGIN,
     WEB_DIST_PATH: environment.WEB_DIST_PATH,
     SQLITE_MIGRATIONS_PATH: environment.SQLITE_MIGRATIONS_PATH,
+    STORAGE_PATH: environment.STORAGE_PATH,
     LOG_LEVEL: environment.LOG_LEVEL,
     SHUTDOWN_TIMEOUT_MS: environment.SHUTDOWN_TIMEOUT_MS,
     SESSION_TTL_HOURS: environment.SESSION_TTL_HOURS,
@@ -133,6 +140,7 @@ export const parseConfig = (
     ...(result.data.SQLITE_MIGRATIONS_PATH
       ? { sqliteMigrationsPath: result.data.SQLITE_MIGRATIONS_PATH }
       : {}),
+    storagePath: result.data.STORAGE_PATH,
     logLevel: result.data.LOG_LEVEL,
     shutdownTimeoutMs: result.data.SHUTDOWN_TIMEOUT_MS,
     sessionTtlHours: result.data.SESSION_TTL_HOURS,

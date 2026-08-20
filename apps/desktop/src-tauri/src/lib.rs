@@ -171,6 +171,7 @@ pub fn run() {
                     .env("WEB_ORIGIN", &origin)
                     .env("WEB_DIST_PATH", web_path)
                     .env("SQLITE_MIGRATIONS_PATH", migration_path)
+                    .env("STORAGE_PATH", documents_directory)
                     .env("LOG_LEVEL", "info")
                     .env("SHUTDOWN_TIMEOUT_MS", "5000")
                     .env("SESSION_TTL_HOURS", "24");

@@ -22,6 +22,9 @@ type ReadClient = Pick<
   | "projectGoal"
   | "projectMilestone"
   | "projectEventLink"
+  | "note"
+  | "noteVersion"
+  | "document"
   | "task"
   | "taskEventLink"
   | "studyProgram"
@@ -59,6 +62,9 @@ const readDataset = async (database: ReadClient) => ({
   projectEventLinks: await database.projectEventLink.findMany({
     orderBy: { id: "asc" },
   }),
+  notes: await database.note.findMany({ orderBy: { id: "asc" } }),
+  noteVersions: await database.noteVersion.findMany({ orderBy: { id: "asc" } }),
+  documents: await database.document.findMany({ orderBy: { id: "asc" } }),
   tasks: await database.task.findMany({ orderBy: { id: "asc" } }),
   taskEventLinks: await database.taskEventLink.findMany({
     orderBy: { id: "asc" },
@@ -184,6 +190,12 @@ const insertDataset = async (
       });
     if (dataset.studyModules.length)
       await transaction.studyModule.createMany({ data: dataset.studyModules });
+    if (dataset.notes.length)
+      await transaction.note.createMany({ data: dataset.notes });
+    if (dataset.noteVersions.length)
+      await transaction.noteVersion.createMany({ data: dataset.noteVersions });
+    if (dataset.documents.length)
+      await transaction.document.createMany({ data: dataset.documents });
     if (dataset.studyEntries.length)
       await transaction.studyEntry.createMany({ data: dataset.studyEntries });
     if (dataset.workContexts.length)

@@ -111,6 +111,8 @@ const installApi = async (page: Page) => {
     history: [] as Array<Record<string, unknown>>,
   };
   const projects: Array<Record<string, unknown>> = [];
+  const notes: Array<Record<string, unknown>> = [];
+  const documents: Array<Record<string, unknown>> = [];
   const projectItems = new Map<
     string,
     {
@@ -488,6 +490,91 @@ const installApi = async (page: Page) => {
     }
     if (path === "/api/v1/projects" && method === "GET") {
       await route.fulfill({ json: { projects } });
+      return;
+    }
+    if (path === "/api/v1/knowledge" && method === "GET") {
+      await route.fulfill({ json: { notes, documents } });
+      return;
+    }
+    if (path === "/api/v1/notes" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const created = {
+        id: `note-${notes.length + 1}`,
+        ownerId: profile.id,
+        ...payload,
+        format: "markdown",
+        category: payload.category ?? null,
+        tags: payload.tags ?? [],
+        version: 1,
+        searchEnabled: payload.searchEnabled ?? false,
+        project: null,
+        studyModule: null,
+        archivedAt: null,
+        createdAt: "2032-01-01T00:00:00.000Z",
+        updatedAt: "2032-01-01T00:00:00.000Z",
+      };
+      notes.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    const noteMatch = path.match(/^\/api\/v1\/notes\/([^/]+)$/);
+    if (noteMatch && method === "GET") {
+      const note = notes.find((value) => value.id === noteMatch[1]);
+      await route.fulfill({
+        json: {
+          ...note,
+          versions: [
+            {
+              version: note?.version,
+              title: note?.title,
+              content: note?.content,
+              category: note?.category,
+              tags: note?.tags,
+              createdAt: note?.createdAt,
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (noteMatch && method === "PATCH") {
+      const note = notes.find((value) => value.id === noteMatch[1])!;
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const versioned = "title" in payload || "content" in payload;
+      Object.assign(note, payload, {
+        version: versioned ? Number(note.version) + 1 : note.version,
+        archivedAt:
+          payload.archived === undefined
+            ? note.archivedAt
+            : payload.archived
+              ? "2032-01-02T00:00:00.000Z"
+              : null,
+        updatedAt: "2032-01-02T00:00:00.000Z",
+      });
+      await route.fulfill({ json: note });
+      return;
+    }
+    if (path === "/api/v1/documents" && method === "POST") {
+      const url = new URL(request.url());
+      const created = {
+        id: `document-${documents.length + 1}`,
+        ownerId: profile.id,
+        fileName: url.searchParams.get("fileName"),
+        mimeType:
+          request.headers()["content-type"] ?? "application/octet-stream",
+        byteSize: new TextEncoder().encode(request.postData() ?? "").byteLength,
+        sha256: "a".repeat(64),
+        modifiedAt: "2032-01-01T00:00:00.000Z",
+        searchEnabled: false,
+        project: null,
+        studyModule: null,
+        archivedAt: null,
+        createdAt: "2032-01-01T00:00:00.000Z",
+        updatedAt: "2032-01-01T00:00:00.000Z",
+        contentUrl: `/api/v1/documents/document-${documents.length + 1}/content`,
+      };
+      documents.push(created);
+      await route.fulfill({ status: 201, json: created });
       return;
     }
     if (path === "/api/v1/projects" && method === "POST") {
@@ -979,6 +1066,48 @@ test("verwaltet Projekte und Fortschritt auf Desktop und Smartphone", async ({
       name: "Synthetisches E2E-Ziel wiederherstellen",
     }),
   ).toBeVisible();
+  const overflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test("verwaltet lokale Notizen und Dokumente auf Desktop und Smartphone", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Wissen" })
+    .filter({ visible: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Notizen & Dokumente" }),
+  ).toBeVisible();
+  await page.getByLabel("Titel").fill("Synthetische Wissensnotiz");
+  await page
+    .getByLabel("Inhalt (Markdown)")
+    .fill("# Lokal\n\nNur synthetischer Inhalt.");
+  await page.getByRole("button", { name: "Notiz anlegen" }).click();
+  await expect(
+    page.getByText("Synthetische Wissensnotiz").first(),
+  ).toBeVisible();
+  await page.getByLabel("Titel").fill("Synthetische Wissensnotiz Version 2");
+  await page.getByRole("button", { name: "Änderung speichern" }).click();
+  await expect(page.getByText("Version 2").first()).toBeVisible();
+  await page.getByLabel("Datei").evaluate((element) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(
+      new File(["Synthetisches Dokument"], "synthetisch.txt", {
+        type: "text/plain",
+      }),
+    );
+    (element as HTMLInputElement).files = transfer.files;
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.getByRole("button", { name: "Lokal ablegen" }).click();
+  await expect(page.getByText("synthetisch.txt")).toBeVisible();
   const overflow = await page.evaluate(
     () =>
       document.documentElement.scrollWidth -

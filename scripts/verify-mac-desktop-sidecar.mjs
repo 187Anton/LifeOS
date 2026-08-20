@@ -69,6 +69,7 @@ const startSidecar = async (databasePath, port) => {
       WEB_ORIGIN: baseUrl,
       WEB_DIST_PATH: path.join(resources, "web"),
       SQLITE_MIGRATIONS_PATH: path.join(resources, "sqlite-migrations"),
+      STORAGE_PATH: path.join(path.dirname(databasePath), "documents"),
       LOG_LEVEL: "error",
       SHUTDOWN_TIMEOUT_MS: "1000",
       SESSION_TTL_HOURS: "1",
@@ -130,6 +131,7 @@ try {
     "20260809190000_sqlite_foundation",
     "20260809203000_product_modules",
     "20260812100000_projects_milestones",
+    "20260812190000_local_documents_notes",
   ]);
   database.close();
   assert.equal((await stat(databasePath)).mode & 0o777, 0o600);

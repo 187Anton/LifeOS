@@ -53,6 +53,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
     "20260809190000_sqlite_foundation",
     "20260809203000_product_modules",
     "20260812100000_projects_milestones",
+    "20260812190000_local_documents_notes",
   ]);
 
   const database = createSqliteDatabaseClient(databaseUrl);
@@ -61,13 +62,15 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const migrationRows = await database.$queryRawUnsafe<
     Array<{ name: string; checksum: string }>
   >('SELECT "name", "checksum" FROM "_lifeos_migrations"');
-  assert.equal(migrationRows.length, 3);
+  assert.equal(migrationRows.length, 4);
   assert.equal(migrationRows[0]?.name, "20260809190000_sqlite_foundation");
   assert.match(migrationRows[0]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[1]?.name, "20260809203000_product_modules");
   assert.match(migrationRows[1]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[2]?.name, "20260812100000_projects_milestones");
   assert.match(migrationRows[2]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[3]?.name, "20260812190000_local_documents_notes");
+  assert.match(migrationRows[3]?.checksum ?? "", /^[0-9a-f]{64}$/);
 
   const foreignKeys = await database.$queryRawUnsafe<
     Array<{ foreign_keys: bigint }>
@@ -292,6 +295,46 @@ test("speichert Projektziele und Meilensteine mit reinen Fälligkeitstagen und B
     database.project.update({
       where: { id: project.id },
       data: { deletedAt: new Date("2000-01-01T00:00:00.000Z") },
+    }),
+  );
+});
+
+test("speichert Notizversionen und Dokumentmetadaten mit Besitzergrenzen", async (t) => {
+  const databaseUrl = await createIsolatedDatabase(t);
+  await migrateSqliteDatabase(databaseUrl);
+  await seedSqliteDatabase(databaseUrl);
+  const fixture = await readSqliteSeedFixture();
+  const database = createSqliteDatabaseClient(databaseUrl);
+  t.after(async () => database.$disconnect());
+  const seeded = await database.note.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+    include: { versions: true },
+  });
+  assert.equal(seeded.format, "markdown");
+  assert.equal(seeded.versions.length, 1);
+  assert.equal(seeded.searchEnabled, false);
+
+  await assert.rejects(() =>
+    database.note.create({
+      data: {
+        userId: fixture.user.id,
+        projectId: "00000000-0000-4000-8000-000000000999",
+        title: "Ungültige Verknüpfung",
+        content: "synthetisch",
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.document.create({
+      data: {
+        userId: "00000000-0000-4000-8000-000000000999",
+        storageKey: "00000000-0000-4000-8000-000000000801.txt",
+        fileName: "synthetisch.txt",
+        mimeType: "text/plain",
+        byteSize: 12,
+        sha256: "a".repeat(64),
+        modifiedAt: new Date(),
+      },
     }),
   );
 });

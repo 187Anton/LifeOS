@@ -393,9 +393,22 @@ automatisierten Prüfungen des Teilabschnitts nachgewiesen.
 
 ### 0.4.2 Lokale Dokumente und Notizen
 
-- Dokumente und Notizen lokal verwalten.
-- Dateipfade, Metadaten und Löschvorgänge sicher behandeln.
-- Keine automatische externe Übertragung einführen.
+- **Umgesetzt (12. August 2026):** Besitzgebundene Markdown-Notizen mit
+  Kategorien, Tags, Projekt-/Studienmodulbezug, Versionen, Suchfreigabe,
+  Archivierung und Soft-Delete stehen in PostgreSQL und SQLite bereit.
+- Dokumente werden über eine lokale Storage-Schnittstelle außerhalb des
+  Repositorys abgelegt. Opaque interne Schlüssel, serverseitige
+  Pfadbegrenzung, Symlink-Schutz, `0700`-Verzeichnisse, `0600`-Dateien,
+  SHA-256 und eine Grenze von 25 MiB sichern die Ablage ab.
+- Die responsive Wissensoberfläche unterstützt Anlage, Änderung,
+  Versionsanzeige, Archivierung, Wiederherstellung, Upload, Download und
+  Löschung. Persönliche Inhalte werden nicht im Browser gespeichert.
+- PostgreSQL→SQLite-Import sowie SQLite-Backup und -Restore umfassen die neuen
+  Modelle und Dokumentdateien; alle Nachweise verwenden synthetische Daten.
+
+Abschlusskriterium: Notiz- und Dokumentverwaltung funktionieren lokal in
+Browser und Mac-Sidecar; Besitz-, Pfad-, Archivierungs-, Lösch-, Migrations-
+und Recovery-Regeln sind automatisiert geprüft.
 
 ### 0.4.3 Suche
 

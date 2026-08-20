@@ -11,6 +11,7 @@ export type ApiErrorCode =
   | "CONFLICT"
   | "NOT_FOUND"
   | "SERVICE_NOT_READY"
+  | "PAYLOAD_TOO_LARGE"
   | "INTERNAL_ERROR";
 
 export interface ApiErrorDetail {
@@ -305,6 +306,85 @@ export interface CreateProjectTaskLinkRequest {
 export interface CreateProjectEventLinkRequest {
   calendarId: string;
   eventUid: string;
+}
+
+export interface KnowledgeLinkSummaryResponse {
+  id: string;
+  title: string;
+}
+
+export interface NoteVersionResponse {
+  version: number;
+  title: string;
+  content: string;
+  category: string | null;
+  tags: string[];
+  createdAt: string;
+}
+
+export interface NoteResponse {
+  id: string;
+  ownerId: string;
+  title: string;
+  content: string;
+  format: "markdown";
+  category: string | null;
+  tags: string[];
+  version: number;
+  searchEnabled: boolean;
+  project: KnowledgeLinkSummaryResponse | null;
+  studyModule: KnowledgeLinkSummaryResponse | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NoteDetailResponse extends NoteResponse {
+  versions: NoteVersionResponse[];
+}
+
+export interface DocumentResponse {
+  id: string;
+  ownerId: string;
+  fileName: string;
+  mimeType: string;
+  byteSize: number;
+  sha256: string;
+  modifiedAt: string;
+  searchEnabled: boolean;
+  project: KnowledgeLinkSummaryResponse | null;
+  studyModule: KnowledgeLinkSummaryResponse | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  contentUrl: string;
+}
+
+export interface KnowledgeOverviewResponse {
+  notes: NoteResponse[];
+  documents: DocumentResponse[];
+}
+
+export interface CreateNoteRequest {
+  title: string;
+  content: string;
+  format?: "markdown";
+  category?: string | null;
+  tags?: string[];
+  projectId?: string | null;
+  studyModuleId?: string | null;
+  searchEnabled?: boolean;
+}
+
+export interface UpdateNoteRequest extends Partial<CreateNoteRequest> {
+  archived?: boolean;
+}
+
+export interface UpdateDocumentRequest {
+  projectId?: string | null;
+  studyModuleId?: string | null;
+  searchEnabled?: boolean;
+  archived?: boolean;
 }
 
 export type StudyStatus =

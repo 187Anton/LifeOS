@@ -37,6 +37,13 @@ Mac-App-Migration.
 - `TaskEventLink` speichert ausschließlich die besitzgebundene Beziehung
   zwischen Aufgabe und Kalenderereignis. Eine zusammengesetzte Eindeutigkeit
   verhindert Duplikate; Fachdaten werden nicht kopiert.
+- `Note` speichert Markdown-Inhalte, Kategorie, Tags, optionale Projekt- und
+  Studienmodulbezüge sowie eine ausdrücklich gesetzte Suchfreigabe.
+  `NoteVersion` hält bei Inhaltsänderungen den nachvollziehbaren Stand; beide
+  Modelle bleiben besitzgebunden und Notizen sind archiv- sowie soft-löschbar.
+- `Document` enthält ausschließlich besitzgebundene Metadaten, Prüfsumme und
+  einen opaken Storage-Schlüssel. Der Binärinhalt liegt außerhalb des
+  Repositorys im privaten lokalen Dokumentverzeichnis.
 - `AvailabilityWindow` speichert wöchentliche persönliche Verfügbarkeit als
   Wochentag, Start- und Endminute sowie IANA-Zeitzone. Gültigkeitsbedingungen
   und Besitzbezug werden zusätzlich in PostgreSQL erzwungen.
@@ -179,7 +186,7 @@ npm run db:sqlite:import
 ```
 
 Der Import liest PostgreSQL in einer schreibgeschützten konsistenten
-Transaktion, überträgt alle 22 Modelle in eine Stagingdatei und veröffentlicht
+Transaktion, überträgt alle 25 Modelle in eine Stagingdatei und veröffentlicht
 das Ziel erst nach vollständigem Feld-, Fremdschlüssel- und
 Integritätsvergleich. Ein vorhandenes Ziel wird nie überschrieben. Für den
 echten Umzug soll der bisherige schreibende Betrieb pausiert werden; ändert
