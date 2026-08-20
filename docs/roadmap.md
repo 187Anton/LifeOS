@@ -412,9 +412,25 @@ und Recovery-Regeln sind automatisiert geprüft.
 
 ### 0.4.3 Suche
 
-- Volltextsuche über freigegebene lokale Inhalte ergänzen.
-- Treffer mit Quelle, Änderungsdatum und Inhaltstyp anzeigen.
-- Zugriffs- und Löschregeln in Suchergebnissen berücksichtigen.
+- **Umgesetzt (20. August 2026):** Die providerunabhängige lokale Suche erfasst
+  ausdrücklich freigegebene Projekte samt aktiven Zielen und Meilensteinen,
+  Notizen, Dokumentmetadaten und sicher extrahierten Text sowie freigegebene
+  Studienmodule, Studieneinträge und Arbeitsprojekte.
+- Jeder Treffer nennt Titel, Inhaltstyp, führende Quelle, Änderungsdatum,
+  Ausschnitt, Treffergrund und Detailpfad. Die responsive Oberfläche öffnet die
+  führenden Fachdaten, ohne Treffer im Browser zu persistieren.
+- Besitzergrenzen, Freigabe, Archivierung und Löschmarkierung werden vor der
+  Bewertung serverseitig gefiltert. PostgreSQL und SQLite verwenden denselben
+  deterministischen Vertrag und dieselbe Gewichtung; es gibt keinen externen
+  Suchdienst und keinen separaten Schattenindex.
+- Der genaue Vertrag, die Text-Extraktionsgrenze und bewusst fehlende
+  unscharfe beziehungsweise sprachabhängige Suche sind in
+  [`docs/api/search.md`](api/search.md) dokumentiert und durch Unit-, API-,
+  PostgreSQL-/SQLite- sowie Desktop-/Mobiltests festgelegt.
+
+Abschlusskriterium: Freigegebene lokale Inhalte sind besitzgebunden mit
+vergleichbaren Ergebnissen auf PostgreSQL und SQLite durchsuchbar; private,
+archivierte und gelöschte Inhalte erscheinen nicht.
 
 ### 0.4.4 Quellengestützte KI
 

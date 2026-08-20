@@ -43,7 +43,13 @@ Mac-App-Migration.
   Modelle bleiben besitzgebunden und Notizen sind archiv- sowie soft-löschbar.
 - `Document` enthält ausschließlich besitzgebundene Metadaten, Prüfsumme und
   einen opaken Storage-Schlüssel. Der Binärinhalt liegt außerhalb des
-  Repositorys im privaten lokalen Dokumentverzeichnis.
+  Repositorys im privaten lokalen Dokumentverzeichnis. Ein optionaler,
+  größenbegrenzter `extractedText` enthält nur lokal aus freigegebenen
+  UTF-8-Textformaten gewonnenen Inhalt.
+- `Project`, `StudyModule` und `WorkProject` besitzen wie `Note` und `Document`
+  eine standardmäßig deaktivierte `searchEnabled`-Freigabe. Die Migration
+  `20260820100000_local_search` ergänzt diese Felder und die nur für aktive
+  Datensätze verwendeten Zugriffspfade in PostgreSQL und SQLite.
 - `AvailabilityWindow` speichert wöchentliche persönliche Verfügbarkeit als
   Wochentag, Start- und Endminute sowie IANA-Zeitzone. Gültigkeitsbedingungen
   und Besitzbezug werden zusätzlich in PostgreSQL erzwungen.

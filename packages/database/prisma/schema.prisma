@@ -188,6 +188,7 @@ model Project {
   status      ProjectStatus @default(planned)
   risk        String?
   dueDate     DateTime?     @db.Date
+  searchEnabled Boolean     @default(false)
   archivedAt  DateTime?     @db.Timestamptz(3)
   deletedAt   DateTime?     @db.Timestamptz(3)
   createdAt   DateTime      @default(now()) @db.Timestamptz(3)
@@ -359,6 +360,7 @@ model StudyModule {
   grade              String?      @db.VarChar(100)
   notes              String?
   documentReferences String[]     @default([])
+  searchEnabled       Boolean      @default(false)
   archivedAt         DateTime?    @db.Timestamptz(3)
   createdAt          DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime     @updatedAt @db.Timestamptz(3)
@@ -429,6 +431,7 @@ model Document {
   sha256        String       @db.Char(64)
   modifiedAt    DateTime     @db.Timestamptz(3)
   searchEnabled Boolean      @default(false)
+  extractedText String?
   archivedAt    DateTime?    @db.Timestamptz(3)
   deletedAt     DateTime?    @db.Timestamptz(3)
   createdAt     DateTime     @default(now()) @db.Timestamptz(3)
@@ -523,6 +526,7 @@ model WorkProject {
   deadlineDate    DateTime?       @db.Date
   calendarEventId String?         @db.Uuid
   notes           String?
+  searchEnabled   Boolean      @default(false)
   archivedAt      DateTime?       @db.Timestamptz(3)
   createdAt       DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime        @updatedAt @db.Timestamptz(3)

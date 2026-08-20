@@ -241,6 +241,19 @@ export const StudyWorkspace = ({
                       onUpdateModule(module.id, { archived: true })
                     }
                   />
+                  <button
+                    className="text-button"
+                    disabled={saving}
+                    onClick={() =>
+                      void onUpdateModule(module.id, {
+                        searchEnabled: !module.searchEnabled,
+                      })
+                    }
+                  >
+                    {module.searchEnabled
+                      ? "Suchfreigabe aufheben"
+                      : "Für lokale Suche freigeben"}
+                  </button>
                 </StudyCard>
               ))
             ) : (
@@ -505,6 +518,7 @@ const ModuleForm = ({
         status: "planned",
         notes: field(data, "notes") || null,
         documentReferences: references,
+        searchEnabled: data.get("searchEnabled") === "on",
       });
     }}
   >
@@ -533,6 +547,10 @@ const ModuleForm = ({
     <label className="wide">
       Notizen
       <textarea name="notes" maxLength={20000} />
+    </label>
+    <label className="wide checkbox-row">
+      <input name="searchEnabled" type="checkbox" />
+      Modul und aktive Studieneinträge für die lokale Suche freigeben
     </label>
     <label className="wide">
       Dokumentverweise (einer pro Zeile)

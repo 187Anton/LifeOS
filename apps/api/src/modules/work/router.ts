@@ -58,6 +58,7 @@ const projectCreate = z.strictObject({
   deadlineDate: z.iso.date().nullable().optional(),
   calendarEventId: id.nullable().optional(),
   notes: optionalText,
+  searchEnabled: z.boolean().optional(),
 });
 const projectUpdate = projectCreate
   .partial()

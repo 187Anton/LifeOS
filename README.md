@@ -301,8 +301,15 @@ Dokumentmetadaten logisch und den lokalen Binärinhalt physisch. Die Option
 „Für lokale Suche freigeben“ ist standardmäßig aus. Die Mac-App verwendet
 automatisch ihr privates Anwendungs-Dokumentverzeichnis.
 
-Suche und kombinierbare Aufgaben-, Arbeitsbereichs-, Status- und Zeitraumfilter
-bleiben flüchtiger UI-Zustand. Ein Produktions-Build erzeugt zusätzlich
+Die lokale Suche im Bereich **Wissen** berücksichtigt nur eigene, aktive und
+ausdrücklich freigegebene Projekte, Ziele, Meilensteine, Notizen, Dokumente,
+Studienmodule, Studieneinträge und Arbeitsprojekte. Treffer zeigen Quelle,
+Änderungsdatum, Ausschnitt und Treffergrund. Zulässige kleine Text-, Markdown-,
+CSV- und JSON-Dokumente werden beim Upload lokal als UTF-8-Text extrahiert;
+andere Formate bleiben über ihre Metadaten auffindbar. Suchanfragen,
+Suchergebnisse und kombinierbare Aufgaben-, Arbeitsbereichs-, Status- und
+Zeitraumfilter bleiben flüchtiger UI-Zustand. Details und Grenzen stehen im
+[Suchvertrag](docs/api/search.md). Ein Produktions-Build erzeugt zusätzlich
 Manifest und Offline-App-Shell:
 
 ```bash

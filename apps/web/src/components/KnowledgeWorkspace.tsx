@@ -4,6 +4,8 @@ import type {
   NoteDetailResponse,
   ProjectResponse,
   StudyModuleResponse,
+  SearchResponse,
+  SearchResultResponse,
   UpdateDocumentRequest,
   UpdateNoteRequest,
 } from "@lifeos/contracts";
@@ -20,6 +22,9 @@ interface Props {
   saving: boolean;
   error: string | null;
   success: string | null;
+  search: SearchResponse | null;
+  searchLoading: boolean;
+  searchError: string | null;
   onReload: () => void;
   onSelectNote: (id: string) => void;
   onCreateNote: (value: CreateNoteRequest) => Promise<void>;
@@ -28,6 +33,8 @@ interface Props {
   onUploadDocument: (file: File, links: UpdateDocumentRequest) => Promise<void>;
   onUpdateDocument: (id: string, value: UpdateDocumentRequest) => Promise<void>;
   onDeleteDocument: (id: string) => Promise<void>;
+  onSearch: (query: string) => Promise<void>;
+  onOpenSearchResult: (result: SearchResultResponse) => void;
 }
 
 const emptyNote = {
@@ -58,6 +65,7 @@ export const KnowledgeWorkspace = (props: Props) => {
   const [documentProjectId, setDocumentProjectId] = useState("");
   const [documentStudyModuleId, setDocumentStudyModuleId] = useState("");
   const [documentSearchEnabled, setDocumentSearchEnabled] = useState(false);
+  const [query, setQuery] = useState("");
 
   const notePayload = (): CreateNoteRequest => ({
     title: note.title,
@@ -113,6 +121,92 @@ export const KnowledgeWorkspace = (props: Props) => {
         </p>
       ) : null}
       {props.loading ? <p role="status">Wissen wird geladen …</p> : null}
+
+      <section
+        className="study-section local-search"
+        aria-labelledby="local-search-heading"
+      >
+        <header>
+          <div>
+            <p className="eyebrow">Lokale Volltextsuche</p>
+            <h2 id="local-search-heading">Freigegebene Inhalte finden</h2>
+            <p>
+              Durchsucht nur eigene, aktive Inhalte mit ausdrücklicher
+              Suchfreigabe. Suchanfragen und Treffer werden nicht im Browser
+              gespeichert.
+            </p>
+          </div>
+        </header>
+        <form
+          className="local-search-form"
+          role="search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void props.onSearch(query);
+          }}
+        >
+          <label>
+            Suchbegriff
+            <input
+              value={query}
+              maxLength={200}
+              placeholder="z. B. Prüfungsplanung"
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <button className="primary-button" disabled={props.searchLoading}>
+            {props.searchLoading ? "Suche läuft …" : "Suchen"}
+          </button>
+        </form>
+        {props.searchError ? (
+          <p className="error-banner" role="alert">
+            {props.searchError}
+          </p>
+        ) : null}
+        {props.search ? (
+          <div className="search-results" aria-live="polite">
+            <p>
+              {props.search.results.length
+                ? `${props.search.results.length} Treffer für „${props.search.query}“`
+                : `Keine freigegebenen Treffer für „${props.search.query}“`}
+            </p>
+            {props.search.results.map((result) => (
+              <article
+                className="search-result"
+                key={`${result.contentType}-${result.id}`}
+              >
+                <div className="search-result-heading">
+                  <div>
+                    <span className="status-pill">
+                      {contentTypeLabel(result.contentType)}
+                    </span>
+                    <h3>{result.title}</h3>
+                  </div>
+                  <time dateTime={result.updatedAt}>
+                    {new Date(result.updatedAt).toLocaleDateString("de-DE")}
+                  </time>
+                </div>
+                <p>{result.snippet}</p>
+                <small>
+                  Quelle: {result.source.title} · Treffer in{" "}
+                  {matchReasonLabel(result.matchReason)} · Eigener,
+                  freigegebener Inhalt
+                </small>
+                <a
+                  href={result.detailPath}
+                  className="text-button"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    props.onOpenSearchResult(result);
+                  }}
+                >
+                  Quelle öffnen
+                </a>
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </section>
 
       <div className="knowledge-grid">
         <section className="study-section knowledge-list">
@@ -370,6 +464,21 @@ export const KnowledgeWorkspace = (props: Props) => {
     </main>
   );
 };
+
+const contentTypeLabel = (contentType: SearchResultResponse["contentType"]) =>
+  ({
+    project: "Projekt",
+    project_goal: "Projektziel",
+    project_milestone: "Meilenstein",
+    note: "Notiz",
+    document: "Dokument",
+    study_module: "Studienmodul",
+    study_entry: "Studieneintrag",
+    work_project: "Arbeitsprojekt",
+  })[contentType];
+
+const matchReasonLabel = (reason: SearchResultResponse["matchReason"]) =>
+  ({ title: "Titel", content: "Inhalt", metadata: "Metadaten" })[reason];
 
 const LinkSelect = ({
   label,

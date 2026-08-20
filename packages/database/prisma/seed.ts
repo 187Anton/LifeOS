@@ -86,7 +86,7 @@ const seed = async () => {
 
     const project = await database.project.upsert({
       where: { id: SYNTHETIC_PROJECT_ID },
-      update: {},
+      update: { searchEnabled: true },
       create: {
         id: SYNTHETIC_PROJECT_ID,
         userId: user.id,
@@ -96,6 +96,7 @@ const seed = async () => {
         status: "active",
         risk: "Testtermin könnte sich verschieben.",
         dueDate: new Date("2030-03-31T00:00:00.000Z"),
+        searchEnabled: true,
       },
     });
 
@@ -168,7 +169,7 @@ const seed = async () => {
 
     await database.note.upsert({
       where: { id: SYNTHETIC_NOTE_ID },
-      update: {},
+      update: { searchEnabled: true },
       create: {
         id: SYNTHETIC_NOTE_ID,
         userId: user.id,
@@ -177,6 +178,7 @@ const seed = async () => {
         content: "# Beispiel\n\nLokale Markdown-Notiz ohne persönliche Daten.",
         category: "Dokumentation",
         tags: ["synthetisch", "projekt"],
+        searchEnabled: true,
         versions: {
           create: {
             user: { connect: { id: user.id } },

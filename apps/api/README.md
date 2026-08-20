@@ -366,6 +366,9 @@ weitergegeben.
   Aufgabenbeziehungen sowie geplante und tatsächliche Zeit mit Besitzprüfung.
 - `modules/planning/` projiziert vorhandene Fachobjekte besitzgebunden und
   erkennt Konflikte beziehungsweise Überlastung mit transparenten Regeln.
+- `modules/search/` projiziert ausschließlich eigene, aktive und ausdrücklich
+  freigegebene Fachdaten mit einem providerunabhängigen lokalen Suchvertrag;
+  es persistiert weder Suchindex noch Suchanfragen oder Treffer.
 - `modules/caldav/` übersetzt den gemeinsamen Kalenderkern in WebDAV-XML und
   RFC-5545-iCalendar; Zugang, Parser und Transport bleiben von der REST-API
   getrennt.

@@ -45,6 +45,7 @@ import type {
   KnowledgeOverviewResponse,
   NoteDetailResponse,
   NoteResponse,
+  SearchResponse,
   UpdateDocumentRequest,
   UpdateNoteRequest,
 } from "@lifeos/contracts";
@@ -312,6 +313,9 @@ export const api = {
     return request<void>(`/documents/${encodeURIComponent(documentId)}`, {
       method: "DELETE",
     });
+  },
+  search(query: string) {
+    return request<SearchResponse>(`/search?q=${encodeURIComponent(query)}`);
   },
   createProjectItem(
     projectId: string,

@@ -17,6 +17,7 @@ import {
   UnsafeStoragePathError,
 } from "./storage.js";
 import type { LocalDocumentStorage } from "./storage.js";
+import { extractLocalDocumentText } from "./storage.js";
 
 const normalizedTags = (tags: string[] = []) => [
   ...new Set(tags.map((tag) => tag.trim()).filter(Boolean)),
@@ -96,6 +97,7 @@ export class KnowledgeService {
           projectId: input.projectId ?? null,
           studyModuleId: input.studyModuleId ?? null,
           searchEnabled: input.searchEnabled ?? false,
+          extractedText: extractLocalDocumentText(input.mimeType, input.bytes),
         }),
       );
     } catch (error) {

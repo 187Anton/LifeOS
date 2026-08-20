@@ -144,6 +144,15 @@ außerhalb des Repositorys; Frontend-Dateinamen werden nur als Metadaten
 behandelt. Der Server erzeugt opake Schlüssel, begrenzt alle Zugriffe auf das
 konfigurierte Verzeichnis und lehnt symbolische Links ab.
 
+Die lokale Suche ist eine besitzgebundene, rein lesende Projektion dieser
+Fachdaten. Sie lädt nur aktive Datensätze mit ausdrücklicher Suchfreigabe und
+bewertet normalisierte Suchwörter mit derselben deterministischen Logik auf
+PostgreSQL und SQLite. Ergebnisse werden nicht als eigener Index persistiert.
+Projektziele, Meilensteine und Studieneinträge erben die Freigabe ihrer
+führenden Quelle; das Aufheben der Freigabe wirkt deshalb unmittelbar. Kleine,
+ausdrücklich unterstützte Textdokumente erhalten beim lokalen Upload einen
+begrenzt extrahierten UTF-8-Text. Binärformate werden nicht interpretiert.
+
 ## Aufgaben-Termin-Beziehung
 
 Aufgabe, geplante Bearbeitungszeit und tatsächlich stattfindender Termin

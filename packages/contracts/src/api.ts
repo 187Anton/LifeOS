@@ -228,6 +228,7 @@ export interface ProjectResponse extends ProjectOwnedRecordResponse {
   status: ProjectStatus;
   risk: string | null;
   dueDate: string | null;
+  searchEnabled: boolean;
 }
 
 export interface ProjectItemResponse extends ProjectOwnedRecordResponse {
@@ -286,6 +287,7 @@ export interface CreateProjectRequest {
   status?: ProjectStatus;
   risk?: string | null;
   dueDate?: string | null;
+  searchEnabled?: boolean;
 }
 export interface UpdateProjectRequest extends Partial<CreateProjectRequest> {
   archived?: boolean;
@@ -416,6 +418,7 @@ export interface StudyModuleResponse extends StudyRecordResponse {
   grade: string | null;
   notes: string | null;
   documentReferences: string[];
+  searchEnabled: boolean;
 }
 
 export interface StudyEntryResponse extends StudyRecordResponse {
@@ -476,6 +479,7 @@ export interface CreateStudyModuleRequest {
   grade?: string | null;
   notes?: string | null;
   documentReferences?: string[];
+  searchEnabled?: boolean;
 }
 export interface UpdateStudyModuleRequest extends Partial<CreateStudyModuleRequest> {
   archived?: boolean;
@@ -530,6 +534,7 @@ export interface WorkProjectResponse extends WorkRecordResponse {
   deadlineDate: string | null;
   calendarEventId: string | null;
   notes: string | null;
+  searchEnabled: boolean;
 }
 
 export interface WorkTaskLinkResponse {
@@ -602,9 +607,44 @@ export interface CreateWorkProjectRequest {
   deadlineDate?: string | null;
   calendarEventId?: string | null;
   notes?: string | null;
+  searchEnabled?: boolean;
 }
 export interface UpdateWorkProjectRequest extends Partial<CreateWorkProjectRequest> {
   archived?: boolean;
+}
+
+export type SearchContentType =
+  | "project"
+  | "project_goal"
+  | "project_milestone"
+  | "note"
+  | "document"
+  | "study_module"
+  | "study_entry"
+  | "work_project";
+
+export interface SearchSourceResponse {
+  type: "project" | "note" | "document" | "study_module" | "work_project";
+  id: string;
+  title: string;
+}
+
+export interface SearchResultResponse {
+  id: string;
+  title: string;
+  contentType: SearchContentType;
+  source: SearchSourceResponse;
+  updatedAt: string;
+  snippet: string;
+  matchReason: "title" | "content" | "metadata";
+  detailPath: string;
+  ownerId: string;
+  searchEnabled: true;
+}
+
+export interface SearchResponse {
+  query: string;
+  results: SearchResultResponse[];
 }
 
 export interface CreateWorkTaskLinkRequest {

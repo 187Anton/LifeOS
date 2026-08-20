@@ -33,6 +33,7 @@ export interface DocumentValues {
   projectId: string | null;
   studyModuleId: string | null;
   searchEnabled: boolean;
+  extractedText: string | null;
 }
 export type DocumentChanges = Pick<
   UpdateDocumentRequest,

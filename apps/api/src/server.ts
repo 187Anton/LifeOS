@@ -52,6 +52,9 @@ import { createDatabaseReadinessProbe } from "./readiness.js";
 import { PrismaSetupRepository } from "./modules/setup/repository.js";
 import { createSetupRouter } from "./modules/setup/router.js";
 import { SetupService } from "./modules/setup/service.js";
+import { PrismaSearchRepository } from "./modules/search/repository.js";
+import { createSearchRouter } from "./modules/search/router.js";
+import { LocalSearchService } from "./modules/search/service.js";
 
 const main = async (): Promise<void> => {
   loadLocalEnvironment();
@@ -78,6 +81,7 @@ const main = async (): Promise<void> => {
     new PrismaKnowledgeRepository(database),
     documentStorage,
   );
+  const search = new LocalSearchService(new PrismaSearchRepository(database));
   const taskEventLinks = new TaskEventLinkService(
     new PrismaTaskEventLinkRepository(database),
   );
@@ -132,6 +136,7 @@ const main = async (): Promise<void> => {
       createPlanningRouter({ authentication, planning }),
       createProjectRouter({ authentication, projects }),
       createKnowledgeRouter({ authentication, knowledge }),
+      createSearchRouter({ authentication, search }),
     ],
   });
   let runningServer: Awaited<ReturnType<typeof startApiServer>>;

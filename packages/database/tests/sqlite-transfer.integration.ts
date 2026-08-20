@@ -107,6 +107,7 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       description: "Transferprojekt",
       status: "active",
       dueDate: new Date("2032-12-31T00:00:00.000Z"),
+      searchEnabled: true,
     },
   });
   await source.projectGoal.create({
@@ -165,6 +166,7 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       status: "active",
       credits: 6.5,
       documentReferences: ["documents/study/module.txt"],
+      searchEnabled: true,
     },
   });
   const note = await source.note.create({
@@ -204,6 +206,7 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
         .digest("hex"),
       modifiedAt: new Date("2032-09-01T12:00:00.000Z"),
       searchEnabled: true,
+      extractedText: "Synthetisch extrahierter Transfertext.",
     },
   });
   await source.studyEntry.create({
@@ -236,6 +239,7 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       status: "active",
       deadlineDate: new Date("2032-10-01T00:00:00.000Z"),
       calendarEventId: event.id,
+      searchEnabled: true,
     },
   });
   await source.workTaskLink.create({
@@ -336,6 +340,13 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   assert.equal(importedUser.notes[0]?.id, note.id);
   assert.equal(importedUser.notes[0]?.versions.length, 1);
   assert.equal(importedUser.documents[0]?.storageKey, storageKey);
+  assert.equal(
+    importedUser.documents[0]?.extractedText,
+    "Synthetisch extrahierter Transfertext.",
+  );
+  assert.equal(importedUser.projects[0]?.searchEnabled, true);
+  assert.equal(importedUser.studyModules[0]?.searchEnabled, true);
+  assert.equal(importedUser.workProjects[0]?.searchEnabled, true);
 
   const documents = path.join(directory, "documents-source");
   await mkdir(path.join(documents, user.id), { recursive: true });

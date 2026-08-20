@@ -43,6 +43,7 @@ export class ProjectService {
         status: input.status ?? "planned",
         risk: input.risk ?? null,
         dueDate: day(input.dueDate),
+        searchEnabled: input.searchEnabled ?? false,
       }),
     );
   }
