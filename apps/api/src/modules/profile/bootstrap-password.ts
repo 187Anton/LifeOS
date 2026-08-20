@@ -2,7 +2,7 @@ import { createDatabaseClient } from "@lifeos/database";
 import { z } from "zod";
 
 import { loadLocalEnvironment } from "../../config.js";
-import { hashPassword } from "./security.js";
+import { hashPassword, sessionRevocationTime } from "./security.js";
 
 loadLocalEnvironment();
 const passwordResult = z
@@ -30,16 +30,23 @@ try {
   }
 
   const passwordHash = await hashPassword(password);
+  const now = new Date();
+  const activeSessions = await database.userSession.findMany({
+    where: { userId: user.id, revokedAt: null },
+    select: { id: true, createdAt: true },
+  });
   await database.$transaction(async (transaction) => {
     await transaction.userCredential.upsert({
       where: { userId: user.id },
       create: { userId: user.id, passwordHash },
       update: { passwordHash, revision: { increment: 1 } },
     });
-    await transaction.userSession.updateMany({
-      where: { userId: user.id, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+    for (const session of activeSessions) {
+      await transaction.userSession.update({
+        where: { id: session.id },
+        data: { revokedAt: sessionRevocationTime(session.createdAt, now) },
+      });
+    }
     await transaction.auditEvent.create({
       data: {
         userId: user.id,

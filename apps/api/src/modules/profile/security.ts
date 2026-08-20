@@ -68,3 +68,6 @@ export const createSessionToken = (): string =>
 
 export const hashSessionToken = (token: string): string =>
   createHash("sha256").update(token, "utf8").digest("hex");
+
+export const sessionRevocationTime = (createdAt: Date, now: Date): Date =>
+  createdAt > now ? createdAt : now;
