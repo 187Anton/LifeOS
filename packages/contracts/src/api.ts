@@ -923,3 +923,172 @@ export interface FinanceExportResponse {
   transactions: FinanceTransactionResponse[];
   budgets: FinanceBudgetResponse[];
 }
+
+export type FitnessSessionStatus = "planned" | "completed" | "cancelled";
+
+export interface FitnessPlanResponse {
+  id: string;
+  ownerId: string;
+  name: string;
+  notes: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FitnessExerciseResponse {
+  id: string;
+  ownerId: string;
+  name: string;
+  notes: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FitnessPlanExerciseResponse {
+  id: string;
+  ownerId: string;
+  planId: string;
+  exerciseId: string;
+  position: number;
+  targetSets: number | null;
+  targetRepetitions: number | null;
+  targetWeightGrams: number | null;
+  targetDurationSeconds: number | null;
+  targetDistanceMeters: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FitnessSessionResponse {
+  id: string;
+  ownerId: string;
+  planId: string | null;
+  title: string;
+  status: FitnessSessionStatus;
+  performedAt: string | null;
+  timezone: string | null;
+  notes: string | null;
+  calendar: {
+    calendarId: string;
+    eventUid: string;
+    title: string;
+  } | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FitnessSetResponse {
+  id: string;
+  ownerId: string;
+  sessionId: string;
+  exerciseId: string;
+  setNumber: number;
+  repetitions: number | null;
+  weightGrams: number | null;
+  durationSeconds: number | null;
+  distanceMeters: number | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BodyWeightEntryResponse {
+  id: string;
+  ownerId: string;
+  measuredDate: string;
+  weightGrams: number;
+  note: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FitnessPersonalBestResponse {
+  exerciseId: string;
+  maximumWeightGrams: number | null;
+  maximumRepetitions: number | null;
+  maximumDurationSeconds: number | null;
+  maximumDistanceMeters: number | null;
+}
+
+export interface FitnessAnalyticsResponse {
+  completedSessionCount: number;
+  completedSetCount: number;
+  volumeGramRepetitions: number;
+  weightChangeGrams: number | null;
+  personalBests: FitnessPersonalBestResponse[];
+}
+
+export interface FitnessOverviewResponse {
+  plans: FitnessPlanResponse[];
+  exercises: FitnessExerciseResponse[];
+  planExercises: FitnessPlanExerciseResponse[];
+  sessions: FitnessSessionResponse[];
+  sets: FitnessSetResponse[];
+  bodyWeights: BodyWeightEntryResponse[];
+  analytics: FitnessAnalyticsResponse;
+}
+
+export interface CreateFitnessPlanRequest {
+  name: string;
+  notes?: string | null;
+}
+export interface UpdateFitnessPlanRequest extends Partial<CreateFitnessPlanRequest> {
+  archived?: boolean;
+}
+
+export interface CreateFitnessExerciseRequest {
+  name: string;
+  notes?: string | null;
+}
+export interface UpdateFitnessExerciseRequest extends Partial<CreateFitnessExerciseRequest> {
+  archived?: boolean;
+}
+
+export interface UpsertFitnessPlanExerciseRequest {
+  exerciseId: string;
+  position: number;
+  targetSets?: number | null;
+  targetRepetitions?: number | null;
+  targetWeightGrams?: number | null;
+  targetDurationSeconds?: number | null;
+  targetDistanceMeters?: number | null;
+}
+
+export interface CreateFitnessSessionRequest {
+  planId?: string | null;
+  title: string;
+  status?: FitnessSessionStatus;
+  performedAt?: string | null;
+  timezone?: string | null;
+  notes?: string | null;
+  calendarId?: string | null;
+  eventUid?: string | null;
+}
+export interface UpdateFitnessSessionRequest extends Partial<CreateFitnessSessionRequest> {
+  archived?: boolean;
+}
+
+export interface CreateFitnessSetRequest {
+  sessionId: string;
+  exerciseId: string;
+  setNumber: number;
+  repetitions?: number | null;
+  weightGrams?: number | null;
+  durationSeconds?: number | null;
+  distanceMeters?: number | null;
+  completedAt?: string | null;
+}
+export type UpdateFitnessSetRequest = Partial<CreateFitnessSetRequest>;
+
+export interface CreateBodyWeightEntryRequest {
+  measuredDate: string;
+  weightGrams: number;
+  note?: string | null;
+}
+export interface UpdateBodyWeightEntryRequest extends Partial<CreateBodyWeightEntryRequest> {
+  archived?: boolean;
+}

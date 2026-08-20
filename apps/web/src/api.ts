@@ -60,6 +60,18 @@ import type {
   UpdateFinanceBudgetRequest,
   UpdateFinanceCategoryRequest,
   UpdateFinanceTransactionRequest,
+  CreateBodyWeightEntryRequest,
+  CreateFitnessExerciseRequest,
+  CreateFitnessPlanRequest,
+  CreateFitnessSessionRequest,
+  CreateFitnessSetRequest,
+  FitnessOverviewResponse,
+  UpdateBodyWeightEntryRequest,
+  UpdateFitnessExerciseRequest,
+  UpdateFitnessPlanRequest,
+  UpdateFitnessSessionRequest,
+  UpdateFitnessSetRequest,
+  UpsertFitnessPlanExerciseRequest,
 } from "@lifeos/contracts";
 
 const API_BASE = "/api/v1";
@@ -568,5 +580,88 @@ export const api = {
     return request<FinanceExportResponse>(
       `/finance/export?${query.toString()}`,
     );
+  },
+  getFitness(includeArchived = false) {
+    return request<FitnessOverviewResponse>(
+      `/fitness?includeArchived=${String(includeArchived)}`,
+    );
+  },
+  createFitnessPlan(payload: CreateFitnessPlanRequest) {
+    return request("/fitness/plans", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFitnessPlan(id: string, payload: UpdateFitnessPlanRequest) {
+    return request(`/fitness/plans/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createFitnessExercise(payload: CreateFitnessExerciseRequest) {
+    return request("/fitness/exercises", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFitnessExercise(id: string, payload: UpdateFitnessExerciseRequest) {
+    return request(`/fitness/exercises/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  addFitnessPlanExercise(
+    planId: string,
+    payload: UpsertFitnessPlanExerciseRequest,
+  ) {
+    return request(`/fitness/plans/${encodeURIComponent(planId)}/exercises`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFitnessPlanExercise(
+    id: string,
+    payload: Partial<UpsertFitnessPlanExerciseRequest>,
+  ) {
+    return request(`/fitness/plan-exercises/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createFitnessSession(payload: CreateFitnessSessionRequest) {
+    return request("/fitness/sessions", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFitnessSession(id: string, payload: UpdateFitnessSessionRequest) {
+    return request(`/fitness/sessions/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createFitnessSet(payload: CreateFitnessSetRequest) {
+    return request("/fitness/sets", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFitnessSet(id: string, payload: UpdateFitnessSetRequest) {
+    return request(`/fitness/sets/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createBodyWeight(payload: CreateBodyWeightEntryRequest) {
+    return request("/fitness/body-weights", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateBodyWeight(id: string, payload: UpdateBodyWeightEntryRequest) {
+    return request(`/fitness/body-weights/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
   },
 };

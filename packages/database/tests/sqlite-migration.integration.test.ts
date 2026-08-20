@@ -42,6 +42,12 @@ const readMigrationSnapshot = async (
       financeCategories: { orderBy: { id: "asc" } },
       financeTransactions: { orderBy: { id: "asc" } },
       financeBudgets: { orderBy: { id: "asc" } },
+      fitnessPlans: { orderBy: { id: "asc" } },
+      fitnessExercises: { orderBy: { id: "asc" } },
+      fitnessPlanExercises: { orderBy: { id: "asc" } },
+      fitnessSessions: { orderBy: { id: "asc" } },
+      fitnessSets: { orderBy: { id: "asc" } },
+      bodyWeightEntries: { orderBy: { id: "asc" } },
       auditEvents: { orderBy: { id: "asc" } },
     },
   });
@@ -61,6 +67,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
     "20260820100000_local_search",
     "20260820150000_source_grounded_ai",
     "20260820190000_finance_module",
+    "20260820200000_fitness_module",
   ]);
 
   const database = createSqliteDatabaseClient(databaseUrl);
@@ -69,7 +76,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const migrationRows = await database.$queryRawUnsafe<
     Array<{ name: string; checksum: string }>
   >('SELECT "name", "checksum" FROM "_lifeos_migrations"');
-  assert.equal(migrationRows.length, 7);
+  assert.equal(migrationRows.length, 8);
   assert.equal(migrationRows[0]?.name, "20260809190000_sqlite_foundation");
   assert.match(migrationRows[0]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[1]?.name, "20260809203000_product_modules");
@@ -84,6 +91,8 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   assert.match(migrationRows[5]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[6]?.name, "20260820190000_finance_module");
   assert.match(migrationRows[6]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[7]?.name, "20260820200000_fitness_module");
+  assert.match(migrationRows[7]?.checksum ?? "", /^[0-9a-f]{64}$/);
 
   const foreignKeys = await database.$queryRawUnsafe<
     Array<{ foreign_keys: bigint }>
@@ -344,6 +353,53 @@ test("erzwingt ganzzahlige Finanzwerte und Besitzergrenzen in SQLite", async (t)
         bookingDate: "2032-08-02",
         amountMinor: 100,
         currencyCode: "EUR",
+      },
+    }),
+  );
+});
+
+test("erzwingt Fitnessbesitz und ganzzahlige Messwerte in SQLite", async (t) => {
+  const databaseUrl = await createIsolatedDatabase(t);
+  await migrateSqliteDatabase(databaseUrl);
+  await seedSqliteDatabase(databaseUrl);
+  const fixture = await readSqliteSeedFixture();
+  const database = createSqliteDatabaseClient(databaseUrl);
+  t.after(async () => database.$disconnect());
+  const plan = await database.fitnessPlan.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+  });
+  const exercise = await database.fitnessExercise.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+  });
+  const session = await database.fitnessSession.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+  });
+  const set = await database.fitnessSet.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+  });
+  const weight = await database.bodyWeightEntry.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+  });
+  assert.equal(plan.name, "Synthetischer Ganzkörperplan");
+  assert.equal(exercise.name, "Synthetische Kniebeuge");
+  assert.equal(session.status, "completed");
+  assert.equal(set.weightGrams, 60_000);
+  assert.equal(weight.measuredDate, "2030-01-15");
+  await assert.rejects(() =>
+    database.$executeRawUnsafe(
+      `INSERT INTO "FitnessSet" ("id", "userId", "sessionId", "exerciseId", "setNumber", "weightGrams", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, 2, 10.5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      "00000000-0000-4000-8000-000000000898",
+      fixture.user.id,
+      session.id,
+      exercise.id,
+    ),
+  );
+  await assert.rejects(() =>
+    database.fitnessSession.create({
+      data: {
+        userId: fixture.user.id,
+        title: "Ungültiger Abschluss",
+        status: "completed",
       },
     }),
   );

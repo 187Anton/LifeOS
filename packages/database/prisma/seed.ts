@@ -29,6 +29,13 @@ const SYNTHETIC_FINANCE_EXPENSE_CATEGORY_ID =
   "00000000-0000-4000-8000-000000000014";
 const SYNTHETIC_FINANCE_TRANSACTION_ID = "00000000-0000-4000-8000-000000000015";
 const SYNTHETIC_FINANCE_BUDGET_ID = "00000000-0000-4000-8000-000000000016";
+const SYNTHETIC_FITNESS_PLAN_ID = "00000000-0000-4000-8000-000000000017";
+const SYNTHETIC_FITNESS_EXERCISE_ID = "00000000-0000-4000-8000-000000000018";
+const SYNTHETIC_FITNESS_PLAN_EXERCISE_ID =
+  "00000000-0000-4000-8000-000000000019";
+const SYNTHETIC_FITNESS_SESSION_ID = "00000000-0000-4000-8000-000000000020";
+const SYNTHETIC_FITNESS_SET_ID = "00000000-0000-4000-8000-000000000021";
+const SYNTHETIC_BODY_WEIGHT_ID = "00000000-0000-4000-8000-000000000022";
 
 const seed = async () => {
   const database = createDatabaseClient();
@@ -248,6 +255,79 @@ const seed = async () => {
         amountMinor: 30000,
         currencyCode: "EUR",
         warningThresholdPercent: 80,
+      },
+    });
+
+    await database.fitnessPlan.upsert({
+      where: { id: SYNTHETIC_FITNESS_PLAN_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_FITNESS_PLAN_ID,
+        userId: user.id,
+        name: "Synthetischer Ganzkörperplan",
+        notes: "Lokaler Beispieldatensatz ohne Gesundheitsbewertung.",
+      },
+    });
+    await database.fitnessExercise.upsert({
+      where: { id: SYNTHETIC_FITNESS_EXERCISE_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_FITNESS_EXERCISE_ID,
+        userId: user.id,
+        name: "Synthetische Kniebeuge",
+      },
+    });
+    await database.fitnessPlanExercise.upsert({
+      where: { id: SYNTHETIC_FITNESS_PLAN_EXERCISE_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_FITNESS_PLAN_EXERCISE_ID,
+        userId: user.id,
+        planId: SYNTHETIC_FITNESS_PLAN_ID,
+        exerciseId: SYNTHETIC_FITNESS_EXERCISE_ID,
+        position: 0,
+        targetSets: 3,
+        targetRepetitions: 8,
+        targetWeightGrams: 60_000,
+      },
+    });
+    await database.fitnessSession.upsert({
+      where: { id: SYNTHETIC_FITNESS_SESSION_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_FITNESS_SESSION_ID,
+        userId: user.id,
+        planId: SYNTHETIC_FITNESS_PLAN_ID,
+        calendarEventId: event.id,
+        title: "Synthetisches Ganzkörpertraining",
+        status: "completed",
+        performedAt: new Date("2030-01-15T17:00:00.000Z"),
+        timezone: "Europe/Berlin",
+      },
+    });
+    await database.fitnessSet.upsert({
+      where: { id: SYNTHETIC_FITNESS_SET_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_FITNESS_SET_ID,
+        userId: user.id,
+        sessionId: SYNTHETIC_FITNESS_SESSION_ID,
+        exerciseId: SYNTHETIC_FITNESS_EXERCISE_ID,
+        setNumber: 1,
+        repetitions: 8,
+        weightGrams: 60_000,
+        completedAt: new Date("2030-01-15T17:15:00.000Z"),
+      },
+    });
+    await database.bodyWeightEntry.upsert({
+      where: { id: SYNTHETIC_BODY_WEIGHT_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_BODY_WEIGHT_ID,
+        userId: user.id,
+        measuredDate: new Date("2030-01-15T00:00:00.000Z"),
+        weightGrams: 75_000,
+        note: "Synthetischer Eintrag",
       },
     });
 

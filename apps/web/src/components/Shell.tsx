@@ -11,6 +11,7 @@ import {
   ProjectIcon,
   KnowledgeIcon,
   FinanceIcon,
+  FitnessIcon,
 } from "./Icons";
 
 export type View =
@@ -21,6 +22,7 @@ export type View =
   | "work"
   | "projects"
   | "finance"
+  | "fitness"
   | "knowledge"
   | "planning";
 
@@ -107,6 +109,14 @@ export const Shell = ({
         >
           <FinanceIcon />
           <span>Finanzen</span>
+        </button>
+        <button
+          className={view === "fitness" ? "nav-item active" : "nav-item"}
+          onClick={() => onViewChange("fitness")}
+          aria-current={view === "fitness" ? "page" : undefined}
+        >
+          <FitnessIcon />
+          <span>Fitness</span>
         </button>
         <button
           className={view === "knowledge" ? "nav-item active" : "nav-item"}
@@ -221,6 +231,14 @@ export const Shell = ({
       >
         <FinanceIcon />
         <span>Finanzen</span>
+      </button>
+      <button
+        className={view === "fitness" ? "active" : ""}
+        onClick={() => onViewChange("fitness")}
+        aria-current={view === "fitness" ? "page" : undefined}
+      >
+        <FitnessIcon />
+        <span>Fitness</span>
       </button>
       <button
         className={view === "knowledge" ? "active" : ""}

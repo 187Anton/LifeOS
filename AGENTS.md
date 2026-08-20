@@ -125,6 +125,13 @@ besitzgebundene Beziehung verknüpft. Die Beziehung kopiert keine Fachdaten:
 Aufgabenstatus und Fälligkeit bleiben im Aufgabenmodell, Start und Ende im
 Kalenderkern. Änderungen eines Objekts verändern das andere nicht automatisch.
 
+Fitnesspläne, Übungen, Einheiten, Sätze und Gewichtseinträge bleiben
+besitzgebunden und lokal. Messwerte werden als ganze Gramm, Sekunden, Meter
+beziehungsweise Wiederholungen gespeichert. Eine Trainingseinheit darf ein
+vorhandenes eigenes Kalenderereignis nur referenzieren; UID, ETag, Sync-Token
+und Ereignisinhalt werden dadurch nicht verändert. Fitnessauswertungen sind
+rein lesend und enthalten keine medizinische Bewertung.
+
 Das Organisations-Dashboard ist eine rein lesende, besitzgebundene Projektion
 vorhandener Aufgaben-, Kalender- und Projektdaten. Es speichert keine
 Kennzahlen, verwendet die Profilzeitzone für „heute“ und „überfällig“ und
@@ -549,3 +556,7 @@ gemeldet.
   Beträgen, expliziter Währung, reinen Buchungstagen, vorbereiteten
   Wiederholungen, Budgets, Auswertungen und eigenem Export nach PostgreSQL-/
   SQLite-, Recovery-, API-, Sidecar- und Desktop-/Mobiltests festgehalten.
+- **2026-08-20:** Lokale Fitnessverwaltung mit ganzzahligen Basiseinheiten,
+  rein lesenden Fortschrittswerten und eigenständigem Kalenderbezug ohne
+  medizinische Bewertung oder externe Übertragung nach PostgreSQL-/SQLite-,
+  Recovery-, API-, Sidecar- und Desktop-/Mobiltests festgehalten.

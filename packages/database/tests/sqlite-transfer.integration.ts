@@ -343,6 +343,49 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       warningThresholdPercent: 80,
     },
   });
+  const fitnessPlan = await source.fitnessPlan.create({
+    data: { userId: user.id, name: "Synthetischer Transferplan" },
+  });
+  const fitnessExercise = await source.fitnessExercise.create({
+    data: { userId: user.id, name: "Synthetische Transferübung" },
+  });
+  await source.fitnessPlanExercise.create({
+    data: {
+      userId: user.id,
+      planId: fitnessPlan.id,
+      exerciseId: fitnessExercise.id,
+      position: 0,
+      targetSets: 3,
+    },
+  });
+  const fitnessSession = await source.fitnessSession.create({
+    data: {
+      userId: user.id,
+      planId: fitnessPlan.id,
+      calendarEventId: event.id,
+      title: "Synthetische Transfereinheit",
+      status: "completed",
+      performedAt: new Date("2032-09-01T12:00:00.000Z"),
+      timezone: "Europe/Berlin",
+    },
+  });
+  const fitnessSet = await source.fitnessSet.create({
+    data: {
+      userId: user.id,
+      sessionId: fitnessSession.id,
+      exerciseId: fitnessExercise.id,
+      setNumber: 1,
+      repetitions: 10,
+      weightGrams: 50_000,
+    },
+  });
+  const bodyWeight = await source.bodyWeightEntry.create({
+    data: {
+      userId: user.id,
+      measuredDate: new Date("2032-09-01T00:00:00.000Z"),
+      weightGrams: 75_000,
+    },
+  });
 
   const importedDatabasePath = path.join(directory, "imported.sqlite");
   const importResult = await importPostgresToSqlite(
@@ -384,6 +427,12 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       financeCategories: true,
       financeTransactions: true,
       financeBudgets: true,
+      fitnessPlans: true,
+      fitnessExercises: true,
+      fitnessPlanExercises: true,
+      fitnessSessions: true,
+      fitnessSets: true,
+      bodyWeightEntries: true,
       auditEvents: true,
     },
   });
@@ -428,6 +477,14 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     "2032-12-31T00:00:00.000Z",
   );
   assert.equal(importedUser.financeBudgets[0]?.id, financeBudget.id);
+  assert.equal(importedUser.fitnessPlans[0]?.id, fitnessPlan.id);
+  assert.equal(importedUser.fitnessExercises[0]?.id, fitnessExercise.id);
+  assert.equal(importedUser.fitnessSessions[0]?.calendarEventId, event.id);
+  assert.equal(importedUser.fitnessSets[0]?.id, fitnessSet.id);
+  assert.equal(
+    importedUser.bodyWeightEntries[0]?.measuredDate.toISOString(),
+    "2032-09-01T00:00:00.000Z",
+  );
 
   const documents = path.join(directory, "documents-source");
   await mkdir(path.join(documents, user.id), { recursive: true });
@@ -474,6 +531,22 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     });
   assert.equal(restoredFinanceTransaction.amountMinor, 12_345);
   assert.equal(restoredFinanceTransaction.currencyCode, "EUR");
+  assert.equal(
+    (
+      await restored.fitnessSet.findUniqueOrThrow({
+        where: { id: fitnessSet.id },
+      })
+    ).weightGrams,
+    50_000,
+  );
+  assert.equal(
+    (
+      await restored.bodyWeightEntry.findUniqueOrThrow({
+        where: { id: bodyWeight.id },
+      })
+    ).weightGrams,
+    75_000,
+  );
   assert.equal(
     await restored.auditEvent.count({
       where: { userId: user.id, action: "after.backup" },

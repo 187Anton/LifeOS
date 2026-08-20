@@ -99,6 +99,88 @@ test("erzwingt ganzzahlige Beträge, Währungen und Besitzer im Finanzmodell", a
   );
 });
 
+test("erzwingt Fitnessbesitz, ganzzahlige Messwerte und eigenständige Kalenderbezüge", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalIds = [
+    `fitness-db-owner-${suffix}`,
+    `fitness-db-other-${suffix}`,
+  ];
+  t.after(async () => {
+    await database.user.deleteMany({
+      where: { externalId: { in: externalIds } },
+    });
+    await database.$disconnect();
+  });
+  const [owner, other] = await Promise.all(
+    externalIds.map((externalId) =>
+      database.user.create({
+        data: {
+          externalId,
+          displayName: "Synthetische Fitnessperson",
+          settings: { create: {} },
+        },
+      }),
+    ),
+  );
+  assert.ok(owner && other);
+  const plan = await database.fitnessPlan.create({
+    data: { userId: owner.id, name: "Synthetischer Plan" },
+  });
+  const exercise = await database.fitnessExercise.create({
+    data: { userId: owner.id, name: "Synthetische Übung" },
+  });
+  const session = await database.fitnessSession.create({
+    data: {
+      userId: owner.id,
+      planId: plan.id,
+      title: "Synthetische Einheit",
+      status: "completed",
+      performedAt: new Date("2032-05-12T16:00:00.000Z"),
+      timezone: "Europe/Berlin",
+    },
+  });
+  const set = await database.fitnessSet.create({
+    data: {
+      userId: owner.id,
+      sessionId: session.id,
+      exerciseId: exercise.id,
+      setNumber: 1,
+      repetitions: 8,
+      weightGrams: 60_000,
+    },
+  });
+  assert.equal(set.weightGrams, 60_000);
+  await assert.rejects(() =>
+    database.fitnessSet.create({
+      data: {
+        userId: other.id,
+        sessionId: session.id,
+        exerciseId: exercise.id,
+        setNumber: 2,
+        repetitions: 8,
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.fitnessSession.create({
+      data: {
+        userId: owner.id,
+        title: "Ungültiger Abschluss",
+        status: "completed",
+      },
+    }),
+  );
+  const storedWeight = await database.bodyWeightEntry.create({
+    data: {
+      userId: owner.id,
+      measuredDate: new Date("2032-05-12T00:00:00.000Z"),
+      weightGrams: 75_000,
+    },
+  });
+  assert.equal(Number.isInteger(storedWeight.weightGrams), true);
+});
+
 test("erzwingt Besitz und eindeutige Zeitformen im Studienmodell", async (t) => {
   const database = createDatabaseClient();
   const suffix = randomUUID();

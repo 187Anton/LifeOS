@@ -484,9 +484,24 @@ persönliche Antworten werden nicht im Browser gespeichert.
 
 ### 0.5.2 Fitness
 
-- Trainings-, Gewichts- und Messwerte lokal erfassen.
-- Zeitreihen und einfache Auswertungen anzeigen.
-- Sensible Daten besonders schützen und nicht extern übertragen.
+- **Umgesetzt (20. August 2026):** Besitzgebundene Trainingspläne, Übungen,
+  Zielwerte, geplante und abgeschlossene Einheiten, Sätze sowie Gewichtseinträge
+  lassen sich lokal anlegen, anzeigen, bearbeiten und soweit fachlich passend
+  reversibel archivieren.
+- Gewicht, Dauer, Distanz und Wiederholungen verwenden kontrollierte ganze
+  Basiseinheiten. Trainingshistorie, Volumen, Gewichtsverlauf und persönliche
+  Maxima sind rein lesende, einfache Fortschrittsauswertungen ohne Diagnose
+  oder medizinische Empfehlung.
+- Einheiten referenzieren vorhandene Kalenderereignisse ausschließlich über
+  eigene Kalender-ID und stabile UID. Ereignis, ETag und Sync-Token werden
+  nicht automatisch geändert.
+- PostgreSQL-/SQLite-Migration, synthetischer Seed, Import, Recovery, API,
+  responsive Oberfläche und Sicherheitsgrenzen sind im
+  [`Fitnessvertrag`](api/fitness.md) dokumentiert und automatisiert geprüft.
+
+Abschlusskriterium: Fitnessdaten funktionieren lokal, besitzgebunden und ohne
+externe Übertragung; Datenbankparität, Kalender-Unabhängigkeit, Recovery sowie
+Desktop-/Mobilbetrieb sind nachgewiesen.
 
 ### 0.5.3 ICS-Import und -Export
 

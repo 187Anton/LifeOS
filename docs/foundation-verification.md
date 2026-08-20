@@ -184,6 +184,16 @@ Das Ergebnis wird mit Datum, iPhone-Modell, iOS-Version, LifeOS-Commit und
 Abweichungen notiert. Ein fehlendes physisches Gerät ist eine dokumentierte
 Testgrenze und kein automatisierter Erfolgsnachweis.
 
+## Ergänzender Fitness-Nachweis 0.5.2
+
+Der Fitness-Nachweis ergänzt die allgemeine Matrix um `npm run db:test`,
+`npm run db:sqlite:test`, `npm run test:sqlite:api`, den
+PostgreSQL-zu-SQLite-Transfer-/Recovery-Test, `npm run
+desktop:verify:sidecar` sowie den Playwright-Ablauf „verwaltet Fitness lokal“.
+Er prüft ausschließlich synthetische Pläne, Übungen, Einheiten, Sätze und
+Gewichtswerte. Ein Kalenderbezug muss UID, ETag und Sync-Version unverändert
+lassen; Browser-Storage und externe Übertragung bleiben leer.
+
 ## Bekannte Grenzen und Folgearbeiten
 
 - LifeOS unterstützt im Fundament genau ein lokales Profil und keine
