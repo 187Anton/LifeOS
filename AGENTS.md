@@ -253,6 +253,10 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
 
 - Geldbeträge als Ganzzahl in kleinster Währungseinheit speichern, nie als
   unkontrollierte Fließkommazahl.
+- Finanzbuchungen und Budgets speichern zusätzlich eine explizite Währung und
+  reine Buchungs- beziehungsweise Periodentage. Wiederholungsangaben bereiten
+  Buchungen nur vor und erzeugen keine Datensätze automatisch; Finanz-Audits
+  enthalten weder Beträge noch Notizen und Finanzdaten sind keine KI-Quelle.
 - Zeitpunkte eindeutig mit Zeitzone behandeln; UTC-Speicherung und die
   Benutzerzeitzone nicht vermischen.
 - Kalendertage, etwa Prüfungstermine, als reine Datumswerte modellieren.
@@ -541,3 +545,7 @@ gemeldet.
   klartextfreier Interaktionspersistenz und bestätigungspflichtigen Vorschlägen
   nach PostgreSQL-/SQLite-, Recovery-, API- und Desktop-/Mobiltests
   festgehalten.
+- **2026-08-20:** Lokale besitzgebundene Finanzverwaltung mit ganzzahligen
+  Beträgen, expliziter Währung, reinen Buchungstagen, vorbereiteten
+  Wiederholungen, Budgets, Auswertungen und eigenem Export nach PostgreSQL-/
+  SQLite-, Recovery-, API-, Sidecar- und Desktop-/Mobiltests festgehalten.

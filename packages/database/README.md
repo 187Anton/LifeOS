@@ -57,6 +57,12 @@ Mac-App-Migration.
   Nachvollziehbarkeit und Audit. Die Migration
   `20260820150000_source_grounded_ai` ist für PostgreSQL und SQLite
   versioniert.
+- `FinanceCategory`, `FinanceTransaction` und `FinanceBudget` bilden den
+  lokalen Finanzbereich. Beträge sind positive ganze kleinste
+  Währungseinheiten, Währungen explizite dreistellige Codes und Buchungs- sowie
+  Budgettage reine Datumswerte. Zusammengesetzte Fremdschlüssel verhindern
+  fremde Kategorien; die Migration `20260820190000_finance_module` ist für
+  PostgreSQL und SQLite versioniert.
 - `AvailabilityWindow` speichert wöchentliche persönliche Verfügbarkeit als
   Wochentag, Start- und Endminute sowie IANA-Zeitzone. Gültigkeitsbedingungen
   und Besitzbezug werden zusätzlich in PostgreSQL erzwungen.
@@ -106,8 +112,8 @@ npm run db:verify:recovery
 - `db:migrate` wendet ausschließlich vorhandene, versionierte Migrationen an.
 - `db:seed` legt wiederholbar dieselbe synthetische Person, Einstellungen,
   einen Kalender, ein Ereignis, einen Projektanker, eine Aufgabe, deren
-  Beziehung, eine deaktivierte KI-Interaktion ohne Klartext und ein
-  Audit-Ereignis an.
+  Beziehung, synthetische Finanzkategorien, Buchung und Budget, eine
+  deaktivierte KI-Interaktion ohne Klartext und ein Audit-Ereignis an.
 - `db:test` speichert und liest einen eigenen synthetischen Datensatz und
   entfernt ihn anschließend wieder.
 - `db:backup` schreibt einen Custom-Format-Dump samt SHA-256-Prüfsumme in das
@@ -200,7 +206,7 @@ npm run db:sqlite:import
 ```
 
 Der Import liest PostgreSQL in einer schreibgeschützten konsistenten
-Transaktion, überträgt alle 25 Modelle in eine Stagingdatei und veröffentlicht
+Transaktion, überträgt alle vorhandenen Modelle in eine Stagingdatei und veröffentlicht
 das Ziel erst nach vollständigem Feld-, Fremdschlüssel- und
 Integritätsvergleich. Ein vorhandenes Ziel wird nie überschrieben. Für den
 echten Umzug soll der bisherige schreibende Betrieb pausiert werden; ändert

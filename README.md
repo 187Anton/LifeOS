@@ -319,8 +319,19 @@ Anbieter eingerichtet und es werden keine Daten nach außen übertragen.
 Vorschläge benötigen eine Bestätigung, und selbst diese Bestätigung ändert
 noch keine Fachdaten. Fragen, Antworten und Ausschnitte werden weder
 protokolliert noch im Klartext persistiert. Details stehen im
-[KI-Vertrag](docs/api/ai.md). Ein Produktions-Build erzeugt zusätzlich
-Manifest und Offline-App-Shell:
+[KI-Vertrag](docs/api/ai.md).
+
+Der Bereich **Finanzen** verwaltet Einnahmen, Ausgaben, Kategorien sowie
+Monats- und Jahresbudgets vollständig lokal. Geldbeträge werden als ganze
+kleinste Währungseinheiten gespeichert; Zeitraum- und Kategoriefilter,
+Monatsvergleich, Sparquote und Budgetwarnungen verändern keine Quelldaten. Ein
+versionierter JSON-Export enthält ausschließlich die Daten des angemeldeten
+Profils. Wiederholungen werden vorbereitet, aber nicht automatisch gebucht.
+Es gibt keine Bankanbindung, Steuer- oder Rechtsbewertung, KI-Freigabe oder
+externe Übertragung. Details stehen im
+[Finanzvertrag](docs/api/finance.md).
+
+Ein Produktions-Build erzeugt zusätzlich Manifest und Offline-App-Shell:
 
 ```bash
 npm run build --workspace @lifeos/web

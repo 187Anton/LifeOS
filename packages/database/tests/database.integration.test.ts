@@ -15,6 +15,90 @@ loadEnvironment({
   quiet: true,
 });
 
+test("erzwingt ganzzahlige Beträge, Währungen und Besitzer im Finanzmodell", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalIds = [
+    `finance-db-owner-${suffix}`,
+    `finance-db-other-${suffix}`,
+  ];
+  t.after(async () => {
+    await database.user.deleteMany({
+      where: { externalId: { in: externalIds } },
+    });
+    await database.$disconnect();
+  });
+  const [owner, other] = await Promise.all(
+    externalIds.map((externalId) =>
+      database.user.create({
+        data: {
+          externalId,
+          displayName: "Synthetische Finanzperson",
+          settings: { create: {} },
+        },
+      }),
+    ),
+  );
+  assert.ok(owner && other);
+  const category = await database.financeCategory.create({
+    data: {
+      userId: owner.id,
+      name: "Synthetische Ausgabe",
+      kind: "expense",
+    },
+  });
+  const transaction = await database.financeTransaction.create({
+    data: {
+      userId: owner.id,
+      categoryId: category.id,
+      kind: "expense",
+      bookingDate: new Date("2032-05-10T00:00:00.000Z"),
+      amountMinor: 10_001,
+      currencyCode: "EUR",
+    },
+  });
+  assert.equal(transaction.amountMinor, 10_001);
+  assert.equal(
+    transaction.bookingDate.toISOString(),
+    "2032-05-10T00:00:00.000Z",
+  );
+  await assert.rejects(() =>
+    database.financeTransaction.create({
+      data: {
+        userId: other.id,
+        categoryId: category.id,
+        kind: "expense",
+        bookingDate: new Date("2032-05-11T00:00:00.000Z"),
+        amountMinor: 500,
+        currencyCode: "EUR",
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.financeBudget.create({
+      data: {
+        userId: owner.id,
+        period: "month",
+        periodStart: new Date("2032-05-02T00:00:00.000Z"),
+        amountMinor: 20_000,
+        currencyCode: "EUR",
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.financeTransaction.create({
+      data: {
+        userId: owner.id,
+        categoryId: category.id,
+        kind: "expense",
+        bookingDate: new Date("2032-05-12T00:00:00.000Z"),
+        amountMinor: 500,
+        currencyCode: "eur",
+      },
+    }),
+  );
+});
+
 test("erzwingt Besitz und eindeutige Zeitformen im Studienmodell", async (t) => {
   const database = createDatabaseClient();
   const suffix = randomUUID();

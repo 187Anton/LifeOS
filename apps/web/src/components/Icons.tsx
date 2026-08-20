@@ -148,3 +148,10 @@ export const KnowledgeIcon = (props: IconProps) => (
     <path d="M20 5.5A3.5 3.5 0 0 0 16.5 2H12v18h4.5A3.5 3.5 0 0 1 20 23Z" />
   </Icon>
 );
+
+export const FinanceIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 7h16v11H4zM4 10h16M8 14h4" />
+    <path d="M6 7V5h12v2" />
+  </Icon>
+);

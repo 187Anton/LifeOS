@@ -464,9 +464,23 @@ Ziel: Weitere persönliche Bereiche ergänzen, ohne den lokalen Kern zu gefährd
 
 ### 0.5.1 Finanzen
 
-- Manuelle Buchungen und Kategorien erfassen.
-- Budgets und Auswertungszeiträume unterstützen.
-- Keine Bankanbindung im ersten Umsetzungsschritt.
+- **Umgesetzt (20. August 2026):** Einnahmen, Ausgaben und Kategorien lassen
+  sich besitzgebunden anlegen, bearbeiten und reversibel archivieren. Betrag,
+  Währung und Buchungsdatum werden serverseitig validiert; Geldwerte bleiben
+  in PostgreSQL und SQLite ganze kleinste Währungseinheiten.
+- Wiederkehrende Buchungen werden ohne automatische Erzeugung vorbereitet.
+  Monats- und Jahresbudgets, Zeitraum- und Kategoriefilter, Monatsvergleich,
+  Sparquote und nachvollziehbare Budgetwarnungen stehen lokal zur Verfügung.
+- Der versionierte JSON-Export enthält ausschließlich eigene Finanzdaten. Es
+  gibt keine Bankanbindung, Steuer- oder Rechtsbewertung, KI-Freigabe oder
+  externe Übertragung.
+- Responsive Oberfläche, synthetischer Seed, API-, Datenbank-, SQLite-,
+  Recovery- und Browsernachweise sowie Grenzen sind im
+  [`Finanzvertrag`](api/finance.md) dokumentiert.
+
+Abschlusskriterium: Der Finanzbereich ist lokal nutzbar, besitzgebunden,
+ganzzahlig ausgewertet und über PostgreSQL, SQLite, Backup und Restore geprüft;
+persönliche Antworten werden nicht im Browser gespeichert.
 
 ### 0.5.2 Fitness
 

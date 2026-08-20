@@ -12,6 +12,8 @@ Aktuell definiert es:
 - Profil-, Einstellungs- und Sitzungsantworten,
 - Kalender- und Ereignisantworten einschließlich UID, ETag und Sync-Token,
 - Projekte, Wissen und lokale Suchtreffer,
+- lokale Finanzkategorien, Buchungen, Budgets, Auswertungen und den
+  versionierten eigenen Export,
 - Status, Quellenreferenzen, Vorschläge und Metadaten der standardmäßig
   deaktivierten quellengestützten KI-Grundlage.
 

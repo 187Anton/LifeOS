@@ -52,6 +52,14 @@ import type {
   CreateAiQueryRequest,
   UpdateDocumentRequest,
   UpdateNoteRequest,
+  CreateFinanceBudgetRequest,
+  CreateFinanceCategoryRequest,
+  CreateFinanceTransactionRequest,
+  FinanceExportResponse,
+  FinanceOverviewResponse,
+  UpdateFinanceBudgetRequest,
+  UpdateFinanceCategoryRequest,
+  UpdateFinanceTransactionRequest,
 } from "@lifeos/contracts";
 
 const API_BASE = "/api/v1";
@@ -505,5 +513,60 @@ export const api = {
     return request<void>(`/planning/availability/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
+  },
+  getFinance(
+    from: string,
+    to: string,
+    currencyCode = "EUR",
+    categoryId?: string,
+  ) {
+    const query = new URLSearchParams({ from, to, currencyCode });
+    if (categoryId) query.set("categoryId", categoryId);
+    return request<FinanceOverviewResponse>(`/finance?${query.toString()}`);
+  },
+  createFinanceCategory(payload: CreateFinanceCategoryRequest) {
+    return request("/finance/categories", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFinanceCategory(id: string, payload: UpdateFinanceCategoryRequest) {
+    return request(`/finance/categories/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createFinanceTransaction(payload: CreateFinanceTransactionRequest) {
+    return request("/finance/transactions", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFinanceTransaction(
+    id: string,
+    payload: UpdateFinanceTransactionRequest,
+  ) {
+    return request(`/finance/transactions/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  createFinanceBudget(payload: CreateFinanceBudgetRequest) {
+    return request("/finance/budgets", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateFinanceBudget(id: string, payload: UpdateFinanceBudgetRequest) {
+    return request(`/finance/budgets/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  exportFinance(from: string, to: string, currencyCode = "EUR") {
+    const query = new URLSearchParams({ from, to, currencyCode });
+    return request<FinanceExportResponse>(
+      `/finance/export?${query.toString()}`,
+    );
   },
 };

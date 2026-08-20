@@ -798,3 +798,128 @@ export interface PlanningResponse {
   warnings: PlanningWarningResponse[];
   availabilityWindows: AvailabilityWindowResponse[];
 }
+
+export type FinanceCategoryKind = "income" | "expense";
+export type FinanceTransactionKind = "income" | "expense";
+export type FinanceRecurrenceFrequency = "weekly" | "monthly" | "yearly";
+export type FinanceBudgetPeriod = "month" | "year";
+
+export interface FinanceCategoryResponse {
+  id: string;
+  ownerId: string;
+  name: string;
+  kind: FinanceCategoryKind;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinanceTransactionResponse {
+  id: string;
+  ownerId: string;
+  categoryId: string;
+  kind: FinanceTransactionKind;
+  bookingDate: string;
+  amountMinor: number;
+  currencyCode: string;
+  note: string | null;
+  recurrenceFrequency: FinanceRecurrenceFrequency | null;
+  recurrenceInterval: number | null;
+  recurrenceEndDate: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinanceBudgetResponse {
+  id: string;
+  ownerId: string;
+  categoryId: string | null;
+  period: FinanceBudgetPeriod;
+  periodStart: string;
+  amountMinor: number;
+  currencyCode: string;
+  warningThresholdPercent: number;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinanceMonthSummaryResponse {
+  month: string;
+  incomeMinor: number;
+  expenseMinor: number;
+  balanceMinor: number;
+}
+
+export interface FinanceBudgetWarningResponse {
+  budgetId: string;
+  categoryId: string | null;
+  spentMinor: number;
+  limitMinor: number;
+  utilizationBasisPoints: number;
+  thresholdReached: boolean;
+  exceeded: boolean;
+}
+
+export interface FinanceAnalyticsResponse {
+  currencyCode: string;
+  incomeMinor: number;
+  expenseMinor: number;
+  balanceMinor: number;
+  savingsRateBasisPoints: number | null;
+  months: FinanceMonthSummaryResponse[];
+  budgetWarnings: FinanceBudgetWarningResponse[];
+}
+
+export interface FinanceOverviewResponse {
+  range: { from: string; to: string };
+  categories: FinanceCategoryResponse[];
+  transactions: FinanceTransactionResponse[];
+  budgets: FinanceBudgetResponse[];
+  analytics: FinanceAnalyticsResponse;
+}
+
+export interface CreateFinanceCategoryRequest {
+  name: string;
+  kind: FinanceCategoryKind;
+}
+export interface UpdateFinanceCategoryRequest extends Partial<CreateFinanceCategoryRequest> {
+  archived?: boolean;
+}
+
+export interface CreateFinanceTransactionRequest {
+  categoryId: string;
+  kind: FinanceTransactionKind;
+  bookingDate: string;
+  amountMinor: number;
+  currencyCode: string;
+  note?: string | null;
+  recurrenceFrequency?: FinanceRecurrenceFrequency | null;
+  recurrenceInterval?: number | null;
+  recurrenceEndDate?: string | null;
+}
+export interface UpdateFinanceTransactionRequest extends Partial<CreateFinanceTransactionRequest> {
+  archived?: boolean;
+}
+
+export interface CreateFinanceBudgetRequest {
+  categoryId?: string | null;
+  period: FinanceBudgetPeriod;
+  periodStart: string;
+  amountMinor: number;
+  currencyCode: string;
+  warningThresholdPercent?: number;
+}
+export interface UpdateFinanceBudgetRequest extends Partial<CreateFinanceBudgetRequest> {
+  archived?: boolean;
+}
+
+export interface FinanceExportResponse {
+  formatVersion: 1;
+  exportedAt: string;
+  range: { from: string; to: string };
+  categories: FinanceCategoryResponse[];
+  transactions: FinanceTransactionResponse[];
+  budgets: FinanceBudgetResponse[];
+}

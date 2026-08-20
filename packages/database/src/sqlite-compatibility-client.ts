@@ -8,6 +8,9 @@ const dateOnlyFields = new Set([
   "startsOn",
   "endsOn",
   "deadlineDate",
+  "bookingDate",
+  "recurrenceEndDate",
+  "periodStart",
 ]);
 const delegateNames = new Set([
   "user",
@@ -34,6 +37,9 @@ const delegateNames = new Set([
   "workTaskLink",
   "workTimeEntry",
   "availabilityWindow",
+  "financeCategory",
+  "financeTransaction",
+  "financeBudget",
   "auditEvent",
 ]);
 const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
