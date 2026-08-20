@@ -74,6 +74,11 @@ begrenzte ganzzahlige Basiseinheiten. Ein optionaler Kalenderbezug wird nur
 Sync-Token werden nicht verändert. Details stehen im
 [`Fitnessvertrag`](../../docs/api/fitness.md).
 
+Der lokale [`ICS-Vertrag`](../../docs/api/ics.md) ergänzt den Kalenderkern um
+Export sowie einen zweistufigen Import mit flüchtiger Vorschau. Dateien sind
+auf 2 MiB und 500 Ereignisse begrenzt; Konflikte, doppelte UIDs und ungültige
+Serien blockieren den atomaren Schreibschritt.
+
 Der Entwicklungsmodus mit automatischem Neustart lautet:
 
 ```bash
@@ -190,6 +195,9 @@ unset CALDAV_TEST_PASSWORD
 | `POST/PATCH/DELETE /api/v1/planning/availability`  | persönliche Verfügbarkeit verwalten                |
 | `/.well-known/caldav`                              | CalDAV-Discovery auf `/caldav/`                    |
 | `/caldav/…`                                        | WebDAV-/CalDAV-Ressourcen                          |
+| `POST /api/v1/calendars/:id/ics/preview`           | begrenzten ICS-Import ohne Schreiben prüfen        |
+| `POST /api/v1/calendars/:id/ics/commit`            | konfliktfreie Einmal-Vorschau atomar importieren   |
+| `GET /api/v1/calendars/:id/ics/export`             | eigene aktive Ereignisse als ICS exportieren       |
 
 Health greift absichtlich nicht auf die Datenbank zu. Readiness führt dagegen
 eine echte, ausschließlich lesende `SELECT 1`-Prüfung über den zentralen
@@ -233,6 +241,11 @@ gespeichert; bis zu zehn Erinnerungen werden als Minuten vor Beginn abgelegt.
 Jede Ereignisänderung erzeugt einen neuen ETag, erhöht `sequence` und den
 Kalender-`syncToken`. Löschungen sind Soft-Deletes und bleiben damit für die
 spätere CalDAV-Synchronisation nachvollziehbar.
+
+Der ICS-Import verwendet dieselben Regeln. Vor dem Schreiben zeigt er neue,
+unveränderte, konfliktbehaftete und ungültige Ereignisse. Vorhandene ETags
+werden nicht ersetzt; ein identischer erneuter Import wird ohne Duplikat
+übersprungen.
 
 ## Aufgabenvertrag
 

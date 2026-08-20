@@ -194,6 +194,15 @@ Er prüft ausschließlich synthetische Pläne, Übungen, Einheiten, Sätze und
 Gewichtswerte. Ein Kalenderbezug muss UID, ETag und Sync-Version unverändert
 lassen; Browser-Storage und externe Übertragung bleiben leer.
 
+## Ergänzender ICS-Nachweis 0.5.3
+
+Der ICS-Nachweis ergänzt die Kalender- und CalDAV-Suite um Vorschau, atomaren
+Commit und Export. Synthetische Fälle prüfen Zeitpunkte, `VTIMEZONE`, Ganztag,
+RRULE, Erinnerung, doppelte und abweichende UIDs, fehlerhafte Dateien,
+wiederholten Import, fremde Kalender, abgelaufene Vorschauen sowie die Grenzen
+von 2 MiB, 500 Ereignissen und 1000 Wiederholungen. PostgreSQL, SQLite,
+Browser- und Sidecar-Prüfung verwenden denselben `/api/v1`-Kalenderkern.
+
 ## Bekannte Grenzen und Folgearbeiten
 
 - LifeOS unterstützt im Fundament genau ein lokales Profil und keine

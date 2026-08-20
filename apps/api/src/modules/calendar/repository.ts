@@ -218,6 +218,21 @@ export class PrismaCalendarRepository {
     return mapEvent(event);
   }
 
+  async listExistingEventUids(
+    userId: string,
+    externalId: string,
+    uids: string[],
+  ): Promise<string[]> {
+    if (uids.length === 0) return [];
+    const calendar = await this.findCalendar(userId, externalId);
+    return (
+      await this.database.calendarEvent.findMany({
+        where: { userId, calendarId: calendar.id, uid: { in: uids } },
+        select: { uid: true },
+      })
+    ).map((event) => event.uid);
+  }
+
   async createEvent(
     userId: string,
     externalId: string,
@@ -250,6 +265,53 @@ export class PrismaCalendarRepository {
         },
       });
       return mapEvent(event);
+    });
+  }
+
+  async createEvents(
+    userId: string,
+    externalId: string,
+    inputs: Array<EventValues & { uid: string; etag: string }>,
+  ): Promise<CalendarEventResponse[]> {
+    if (inputs.length === 0) return [];
+    return this.database.$transaction(async (transaction) => {
+      const calendar = await transaction.calendar.findFirst({
+        where: { userId, externalId, deletedAt: null },
+      });
+      if (!calendar) throw new CalendarNotFoundError();
+      const uids = inputs.map((input) => input.uid);
+      const existing = await transaction.calendarEvent.count({
+        where: { userId, calendarId: calendar.id, uid: { in: uids } },
+      });
+      if (existing > 0)
+        throw Object.assign(new Error("Importkonflikt"), { code: "P2002" });
+      const changedCalendar = await transaction.calendar.update({
+        where: { id: calendar.id },
+        data: { syncToken: { increment: 1 } },
+        select: { syncToken: true },
+      });
+      await transaction.calendarEvent.createMany({
+        data: inputs.map((input) => ({
+          ...input,
+          userId,
+          calendarId: calendar.id,
+          syncVersion: changedCalendar.syncToken,
+        })),
+      });
+      await transaction.auditEvent.createMany({
+        data: inputs.map((input) => ({
+          userId,
+          action: "calendar.ics_import.event_created",
+          entityType: "CalendarEvent",
+          entityId: input.uid,
+        })),
+      });
+      return (
+        await transaction.calendarEvent.findMany({
+          where: { userId, calendarId: calendar.id, uid: { in: uids } },
+          orderBy: { uid: "asc" },
+        })
+      ).map(mapEvent);
     });
   }
 

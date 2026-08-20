@@ -18,6 +18,7 @@ Fachlogik wird schrittweise ergänzt.
 - ein einfach installierbares lokales Release als Veröffentlichungsziel
 - CalDAV-Server ab dem Fundament, damit Termine ohne installierte LifeOS-App
   in Apple Kalender sichtbar werden können
+- lokaler ICS-Import mit Vorschau und konfliktgeschützter Kalenderexport
 - lokale Speicherung und synthetische Beispieldaten
 - externe Integrationen und KI standardmäßig deaktiviert
 
@@ -85,7 +86,7 @@ spätere Ausbaustufe und soll keine zweite Benutzeroberfläche einführen.
 
 ```text
 apps/
-api/ Backend und CalDAV-Schnittstelle
+api/ Backend, CalDAV- sowie lokale ICS-Schnittstelle
 web/ responsive React-Weboberfläche und PWA-App-Shell
 
 packages/

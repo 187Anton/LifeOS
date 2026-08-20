@@ -11,6 +11,7 @@ Aktuell definiert es:
 - Health- und Readiness-Antworten,
 - Profil-, Einstellungs- und Sitzungsantworten,
 - Kalender- und Ereignisantworten einschließlich UID, ETag und Sync-Token,
+- ICS-Importvorschau, Konfliktstatus und atomaren Commit-Nachweis,
 - Projekte, Wissen und lokale Suchtreffer,
 - lokale Finanzkategorien, Buchungen, Budgets, Auswertungen und den
   versionierten eigenen Export,

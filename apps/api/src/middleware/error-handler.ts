@@ -13,7 +13,7 @@ export const notFoundHandler: RequestHandler = (_request, _response, next) => {
 
 export const errorHandler =
   (logger: Logger): ErrorRequestHandler =>
-  (error: unknown, _request, response, next) => {
+  (error: unknown, request, response, next) => {
     if (response.headersSent) {
       next(error);
       return;
@@ -43,7 +43,9 @@ export const errorHandler =
       apiError = new ApiError(
         413,
         "PAYLOAD_TOO_LARGE",
-        "Das Dokument überschreitet 25 MiB.",
+        request.path.endsWith("/ics/preview")
+          ? "Die iCalendar-Datei überschreitet 2 MiB."
+          : "Das Dokument überschreitet 25 MiB.",
       );
     } else {
       const errorName = error instanceof Error ? error.name : "UnknownError";

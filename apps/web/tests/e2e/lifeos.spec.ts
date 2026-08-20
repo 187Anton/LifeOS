@@ -896,6 +896,64 @@ const installApi = async (page: Page) => {
       return;
     }
     if (
+      path === "/api/v1/calendars/kalender-1/ics/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          previewId: "ics-preview-1",
+          expiresAt: "2034-03-01T10:15:00.000Z",
+          sourceSha256: "a".repeat(64),
+          totalEvents: 1,
+          creatableEvents: 1,
+          unchangedEvents: 0,
+          conflictingEvents: 0,
+          invalidEvents: 0,
+          canCommit: true,
+          items: [
+            {
+              index: 0,
+              uid: "imported-ics@lifeos.local",
+              title: "Importierter Testtermin",
+              action: "create",
+              message: "Das Ereignis kann neu angelegt werden.",
+              existingEtag: null,
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (
+      path === "/api/v1/calendars/kalender-1/ics/commit" &&
+      method === "POST"
+    ) {
+      events.push({
+        ...initialEvent,
+        uid: "imported-ics@lifeos.local",
+        title: "Importierter Testtermin",
+        etag: '"import-etag"',
+      });
+      await route.fulfill({
+        json: {
+          createdEvents: 1,
+          unchangedEvents: 0,
+          createdUids: ["imported-ics@lifeos.local"],
+        },
+      });
+      return;
+    }
+    if (
+      path === "/api/v1/calendars/kalender-1/ics/export" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        contentType: "text/calendar; charset=utf-8",
+        body: "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n",
+      });
+      return;
+    }
+    if (
       path === "/api/v1/tasks" &&
       request.url().includes("includeArchived=true") &&
       method === "GET"
@@ -1167,7 +1225,7 @@ test("verwaltet Fitness lokal und zeigt medizinische Grenzen", async ({
     .locator("..");
   await exerciseForm.getByLabel("Name").fill("Synthetische Kniebeuge");
   await exerciseForm.getByRole("button", { name: "Übung speichern" }).click();
-  await expect(page.getByRole("status")).toContainText("Übung wurde angelegt");
+  await expect(page.getByText("Die Übung wurde angelegt.")).toBeVisible();
   expect(
     await page.evaluate(() => ({
       local: Object.keys(localStorage),
@@ -1218,7 +1276,7 @@ test("zeigt die lokale Übersicht und speichert Termine ohne Browserpersistenz",
 
   await page.getByRole("button", { name: /Neuer Termin/ }).click();
   await page.getByLabel("Titel").fill("Synthetischer Arzttermin");
-  await page.getByLabel("Ort").fill("Praxis");
+  await page.getByLabel("Ort", { exact: true }).fill("Praxis");
   await page.getByRole("button", { name: "Termin anlegen" }).click();
   await expect(page.getByText("Synthetischer Arzttermin")).toBeVisible();
   await expect(page.getByRole("status")).toContainText("angelegt");
@@ -1249,6 +1307,44 @@ test("zeigt die lokale Übersicht und speichert Termine ohne Browserpersistenz",
   await expect(page.getByText("Fokusblock aktualisiert")).toHaveCount(0);
   await expect(page.getByRole("status")).toContainText("gelöscht");
 
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
+});
+
+test("prüft ICS-Dateien vor dem Import und exportiert lokal", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Kalender", exact: true })
+    .filter({ visible: true })
+    .click();
+
+  await page.getByLabel(/ICS-Datei für Vorschau/).setInputFiles({
+    name: "synthetischer-import.ics",
+    mimeType: "text/calendar",
+    buffer: (
+      globalThis as unknown as {
+        Buffer: { from(value: string): never };
+      }
+    ).Buffer.from(
+      "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:imported-ics@lifeos.local\r\nSUMMARY:Importierter Testtermin\r\nDTSTART:20340320T080000Z\r\nDTEND:20340320T090000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+    ),
+  });
+  await expect(page.getByText("Importierter Testtermin")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Vorschau verbindlich importieren" })
+    .click();
+  await expect(page.getByText(/1 Ereignisse importiert/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Kalender exportieren" }).click();
+  await expect(
+    page.getByText("Der lokale ICS-Export wurde erstellt."),
+  ).toBeVisible();
   expect(
     await page.evaluate(() => ({
       local: Object.keys(localStorage),

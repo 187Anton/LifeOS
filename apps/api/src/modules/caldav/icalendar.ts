@@ -200,6 +200,41 @@ export const serializeCalendarEvent = (
   return `${lines.flatMap(foldLine).join("\r\n")}\r\n`;
 };
 
+const extractComponentBlock = (source: string, name: string): string[] => {
+  const lines = source.split("\r\n");
+  const start = lines.indexOf(`BEGIN:${name}`);
+  const end = lines.indexOf(`END:${name}`, start + 1);
+  return start >= 0 && end > start ? lines.slice(start, end + 1) : [];
+};
+
+export const serializeCalendarEvents = (
+  events: CalendarEventResponse[],
+): string => {
+  const timezoneBlocks = new Map<string, string[]>();
+  const eventBlocks: string[][] = [];
+  for (const event of events) {
+    const serialized = serializeCalendarEvent(event);
+    const timezoneBlock = extractComponentBlock(serialized, "VTIMEZONE");
+    if (timezoneBlock.length) timezoneBlocks.set(event.timezone, timezoneBlock);
+    const eventBlock = extractComponentBlock(serialized, "VEVENT");
+    if (!eventBlock.length)
+      throw new Error(
+        `Das Ereignis ${event.uid} konnte nicht exportiert werden.`,
+      );
+    eventBlocks.push(eventBlock);
+  }
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "CALSCALE:GREGORIAN",
+    `PRODID:${PRODUCT_ID}`,
+    ...[...timezoneBlocks.values()].flat(),
+    ...eventBlocks.flat(),
+    "END:VCALENDAR",
+  ];
+  return `${lines.join("\r\n")}\r\n`;
+};
+
 const readString = (
   component: ICAL.Component,
   property: string,
@@ -394,6 +429,80 @@ export const parseCalendarEvent = (
       (left, right) => left - right,
     ),
   };
+};
+
+export interface ParsedCalendarDocumentEvent {
+  index: number;
+  uid: string | null;
+  title: string | null;
+  input: EventInput | null;
+  error: string | null;
+}
+
+export const parseCalendarEvents = (
+  source: string,
+  defaultTimezone: string,
+  maximumEvents = 500,
+): ParsedCalendarDocumentEvent[] => {
+  let calendar: ICAL.Component;
+  try {
+    calendar = ICAL.Component.fromString(source);
+  } catch {
+    throw new CalDavError(
+      400,
+      "Die Datei ist kein gültiges iCalendar-Dokument.",
+    );
+  }
+  if (calendar.name !== "vcalendar")
+    throw new CalDavError(
+      400,
+      "Es wird genau ein VCALENDAR-Dokument erwartet.",
+    );
+  const components = calendar.getAllSubcomponents("vevent");
+  if (components.length === 0)
+    throw new CalDavError(400, "Die iCalendar-Datei enthält kein VEVENT.");
+  if (components.length > maximumEvents)
+    throw new CalDavError(
+      400,
+      `Die iCalendar-Datei darf höchstens ${maximumEvents} Ereignisse enthalten.`,
+    );
+  const calendarTimezone = readString(calendar, "x-wr-timezone");
+  const timezoneBlocks = calendar
+    .getAllSubcomponents("vtimezone")
+    .map((component) => component.toString());
+  return components.map((component, index) => {
+    const uid = readString(component, "uid")?.trim() || null;
+    const title = readString(component, "summary")?.trim() || null;
+    const isolated = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "CALSCALE:GREGORIAN",
+      ...(calendarTimezone
+        ? [`X-WR-TIMEZONE:${escapeText(calendarTimezone)}`]
+        : []),
+      ...timezoneBlocks,
+      component.toString(),
+      "END:VCALENDAR",
+    ].join("\r\n");
+    try {
+      return {
+        index,
+        uid,
+        title,
+        input: parseCalendarEvent(isolated, defaultTimezone),
+        error: null,
+      };
+    } catch (error) {
+      return {
+        index,
+        uid,
+        title,
+        input: null,
+        error:
+          error instanceof Error ? error.message : "Das Ereignis ist ungültig.",
+      };
+    }
+  });
 };
 
 export const parseUtcCalendarTimestamp = (value: string): Date | null => {

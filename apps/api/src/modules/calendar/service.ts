@@ -143,6 +143,22 @@ export class CalendarService {
     }
   }
 
+  async listExistingEventUids(
+    userId: string,
+    calendarId: string,
+    uids: string[],
+  ) {
+    try {
+      return await this.repository.listExistingEventUids(
+        userId,
+        calendarId,
+        uids,
+      );
+    } catch (error) {
+      this.rethrow(error);
+    }
+  }
+
   async createEvent(userId: string, calendarId: string, input: EventInput) {
     try {
       return await this.repository.createEvent(userId, calendarId, {
@@ -150,6 +166,22 @@ export class CalendarService {
         uid: input.uid ?? `${randomUUID()}@lifeos.local`,
         etag: etag(),
       });
+    } catch (error) {
+      this.rethrow(error);
+    }
+  }
+
+  async importEvents(userId: string, calendarId: string, inputs: EventInput[]) {
+    try {
+      return await this.repository.createEvents(
+        userId,
+        calendarId,
+        inputs.map((input) => ({
+          ...eventValues(input),
+          uid: input.uid ?? `${randomUUID()}@lifeos.local`,
+          etag: etag(),
+        })),
+      );
     } catch (error) {
       this.rethrow(error);
     }

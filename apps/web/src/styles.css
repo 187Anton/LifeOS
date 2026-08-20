@@ -35,6 +35,82 @@
   gap: 1.2rem;
 }
 
+.ics-panel {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.4rem;
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--surface);
+}
+
+.ics-panel .section-heading,
+.file-picker,
+.ics-preview {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.ics-panel .section-heading {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.ics-panel .section-heading h2,
+.ics-panel .section-heading p {
+  margin: 0;
+}
+
+.file-picker {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.ics-preview table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+}
+
+.ics-preview th,
+.ics-preview td {
+  padding: 0.65rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.ics-preview code {
+  overflow-wrap: anywhere;
+}
+
+.ics-action {
+  display: inline-flex;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: var(--sage);
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.ics-action.conflict,
+.ics-action.invalid {
+  color: var(--danger);
+  background: #f8ded9;
+}
+
+@media (max-width: 620px) {
+  .ics-panel .section-heading {
+    grid-template-columns: 1fr;
+  }
+}
+
 .fitness-page .page-heading {
   margin-bottom: 0.5rem;
 }
