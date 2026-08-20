@@ -146,6 +146,17 @@ try {
     mode: "read_only_import",
     connections: [],
   });
+  const github = await fetch(`${first.baseUrl}/api/v1/integrations/github`, {
+    headers: { cookie },
+  });
+  assert.equal(github.status, 200);
+  assert.deepEqual(await github.json(), {
+    available: false,
+    networkDefault: "disabled",
+    mode: "read_only",
+    apiHost: "api.github.com",
+    connections: [],
+  });
 
   await stopSidecar(running, first.output);
   running = undefined;
@@ -167,6 +178,7 @@ try {
     "20260820190000_finance_module",
     "20260820200000_fitness_module",
     "20260820210000_external_caldav",
+    "20260820220000_github_integration",
   ]);
   database.close();
   assert.equal((await stat(databasePath)).mode & 0o777, 0o600);

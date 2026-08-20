@@ -13,6 +13,7 @@ export type ApiErrorCode =
   | "SERVICE_NOT_READY"
   | "PAYLOAD_TOO_LARGE"
   | "EXTERNAL_SERVICE_ERROR"
+  | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
 export interface ApiErrorDetail {
@@ -1179,4 +1180,100 @@ export interface CommitExternalCalDavImportRequest {
 
 export interface ExternalCalDavImportCommitResponse extends IcsImportCommitResponse {
   mappedEvents: number;
+}
+
+export type GitHubIntegrationStatus = "disabled" | "ready" | "error";
+
+export interface GitHubRateLimitResponse {
+  remaining: number | null;
+  resetAt: string | null;
+}
+
+export interface GitHubConnectionResponse {
+  id: string;
+  name: string;
+  enabled: boolean;
+  readOnly: true;
+  status: GitHubIntegrationStatus;
+  tokenConfigured: true;
+  accountLogin: string | null;
+  lastErrorCode: string | null;
+  lastTestedAt: string | null;
+  lastFetchedAt: string | null;
+  rateLimit: GitHubRateLimitResponse;
+}
+
+export interface GitHubIntegrationOverviewResponse {
+  available: boolean;
+  networkDefault: "disabled";
+  mode: "read_only";
+  apiHost: "api.github.com";
+  connections: GitHubConnectionResponse[];
+}
+
+export interface CreateGitHubConnectionRequest {
+  name: string;
+  token: string;
+}
+
+export interface GitHubRepositorySummaryResponse {
+  id: string;
+  owner: string;
+  name: string;
+  fullName: string;
+  description: string | null;
+  private: boolean;
+  archived: boolean;
+  defaultBranch: string;
+  updatedAt: string;
+}
+
+export interface GitHubIssueSummaryResponse {
+  number: number;
+  title: string;
+  state: "open" | "closed";
+  updatedAt: string;
+}
+
+export interface GitHubPullRequestSummaryResponse extends GitHubIssueSummaryResponse {
+  draft: boolean;
+}
+
+export interface GitHubCommitSummaryResponse {
+  sha: string;
+  message: string;
+  authoredAt: string | null;
+  authorLogin: string | null;
+}
+
+export interface GitHubReleaseSummaryResponse {
+  tagName: string;
+  name: string | null;
+  draft: boolean;
+  prerelease: boolean;
+  publishedAt: string | null;
+}
+
+export interface GitHubCiRunSummaryResponse {
+  id: string;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  headBranch: string | null;
+  updatedAt: string;
+}
+
+export interface GitHubRepositoryListResponse {
+  repositories: GitHubRepositorySummaryResponse[];
+  rateLimit: GitHubRateLimitResponse;
+}
+
+export interface GitHubRepositorySnapshotResponse {
+  repository: GitHubRepositorySummaryResponse;
+  issues: GitHubIssueSummaryResponse[];
+  pullRequests: GitHubPullRequestSummaryResponse[];
+  commits: GitHubCommitSummaryResponse[];
+  releases: GitHubReleaseSummaryResponse[];
+  ciRuns: GitHubCiRunSummaryResponse[];
+  rateLimit: GitHubRateLimitResponse;
 }

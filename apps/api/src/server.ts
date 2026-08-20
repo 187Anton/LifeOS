@@ -76,6 +76,10 @@ import { HttpExternalCalDavClient } from "./modules/external-caldav/client.js";
 import { PrismaExternalCalDavRepository } from "./modules/external-caldav/repository.js";
 import { createExternalCalDavRouter } from "./modules/external-caldav/router.js";
 import { ExternalCalDavService } from "./modules/external-caldav/service.js";
+import { HttpGitHubReadClient } from "./modules/github-integration/client.js";
+import { PrismaGitHubIntegrationRepository } from "./modules/github-integration/repository.js";
+import { createGitHubIntegrationRouter } from "./modules/github-integration/router.js";
+import { GitHubIntegrationService } from "./modules/github-integration/service.js";
 
 const main = async (): Promise<void> => {
   loadLocalEnvironment();
@@ -103,6 +107,11 @@ const main = async (): Promise<void> => {
     new PrismaExternalCalDavRepository(database),
     new HttpExternalCalDavClient(),
     ics,
+    config.integrationSecretKey,
+  );
+  const github = new GitHubIntegrationService(
+    new PrismaGitHubIntegrationRepository(database),
+    new HttpGitHubReadClient(),
     config.integrationSecretKey,
   );
   const documentStorage = new LocalDocumentStorage(config.storagePath);
@@ -175,6 +184,7 @@ const main = async (): Promise<void> => {
       createFitnessRouter({ authentication, fitness }),
       createIcsRouter({ authentication, ics }),
       createExternalCalDavRouter({ authentication, externalCalDav }),
+      createGitHubIntegrationRouter({ authentication, github }),
       createKnowledgeRouter({ authentication, knowledge }),
       createSearchRouter({ authentication, search }),
       createAiRouter({ authentication, ai }),

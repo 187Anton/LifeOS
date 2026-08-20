@@ -552,9 +552,29 @@ bleiben ausdrücklich offen.
 
 ### 0.5.5 Optionale GitHub-Integration
 
-- Issues und Pull Requests nur nach expliziter Aktivierung einlesen.
-- Keine Schreibaktionen ohne Bestätigung.
-- Token und Berechtigungen minimal halten.
+- Als standardmäßig deaktivierte, ausschließlich lesende Integration
+  umgesetzt. Ohne getrennten lokalen `INTEGRATION_SECRET_KEY` ist sie nicht
+  verfügbar; eine Verbindung muss vor jedem Netzwerkpfad bewusst aktiviert
+  sein.
+- Token werden ausschließlich im Backend AES-256-GCM-verschlüsselt und nie an
+  die Oberfläche zurückgegeben. Widerruf entfernt den Chiffretext. Fine-grained
+  Tokens sollen auf ausgewählte Repositories und lesende Rechte für Metadata,
+  Contents, Issues, Pull requests und Actions begrenzt werden.
+- Repository-Metadaten, Issues, Pull Requests, Commits, Releases und CI-Status
+  werden über den festen Ursprung `api.github.com` mit GET, Timeouts,
+  Antwort-/Mengenlimits und begrenzten gleichursprünglichen Weiterleitungen
+  gelesen. Rate Limits und Fehler bleiben sichtbar.
+- Fremde Inhalte werden nur als begrenzter Text dargestellt, nicht dauerhaft
+  kopiert und lösen keine Anweisung oder Schreibaktion aus. PostgreSQL,
+  SQLite, Transfer, Recovery, Besitzgrenzen, Widerruf, synthetischer Adapter
+  sowie Desktop-/Mobilbedienung sind im
+  [`GitHub-Integrationsvertrag`](api/github-integration.md) dokumentiert.
+
+Abschlusskriterium: Der Netzwerkzugriff erfolgt ausschließlich nach expliziter
+Aktivierung, das Token bleibt serverseitig verschlüsselt und die fünf
+Metadatenbereiche sind lesbar, ohne externe Inhalte zu persistieren. OAuth,
+Webhooks, Hintergrundsynchronisation und sämtliche GitHub-Schreibaktionen
+bleiben ausdrücklich außerhalb dieses Stands.
 
 ### 0.5.6 Abschluss und produktionsnahe Demo
 

@@ -19,6 +19,7 @@ type ReadClient = Pick<
   | "externalCalDavConnection"
   | "externalCalDavCalendar"
   | "externalCalDavEventMapping"
+  | "gitHubConnection"
   | "calendar"
   | "calendarEvent"
   | "project"
@@ -73,6 +74,9 @@ const readDataset = async (database: ReadClient) => ({
     await database.externalCalDavEventMapping.findMany({
       orderBy: { id: "asc" },
     }),
+  gitHubConnections: await database.gitHubConnection.findMany({
+    orderBy: { id: "asc" },
+  }),
   calendars: await database.calendar.findMany({ orderBy: { id: "asc" } }),
   calendarEvents: await database.calendarEvent.findMany({
     orderBy: { id: "asc" },
@@ -226,6 +230,10 @@ const insertDataset = async (
     if (dataset.externalCalDavEventMappings.length)
       await transaction.externalCalDavEventMapping.createMany({
         data: dataset.externalCalDavEventMappings,
+      });
+    if (dataset.gitHubConnections.length)
+      await transaction.gitHubConnection.createMany({
+        data: dataset.gitHubConnections,
       });
     if (dataset.projects.length)
       await transaction.project.createMany({ data: dataset.projects });

@@ -420,6 +420,17 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       localEventUid: event.uid,
     },
   });
+  const gitHubConnection = await source.gitHubConnection.create({
+    data: {
+      userId: user.id,
+      name: "Synthetischer GitHub-Transferzugang",
+      tokenEncrypted: "synthetic-encrypted-token",
+      secretIv: "synthetic-iv",
+      secretTag: "synthetic-tag",
+      accountLogin: "synthetic-owner",
+      rateLimitRemaining: 4_999,
+    },
+  });
 
   const importedDatabasePath = path.join(directory, "imported.sqlite");
   const importResult = await importPostgresToSqlite(
@@ -442,6 +453,7 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       externalCalDavConnections: true,
       externalCalDavCalendars: true,
       externalCalDavMappings: true,
+      githubConnections: true,
       sessions: true,
       calendars: { include: { events: true } },
       projects: true,
@@ -486,6 +498,7 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     importedUser.externalCalDavMappings[0]?.id,
     externalCalDavMapping.id,
   );
+  assert.equal(importedUser.githubConnections[0]?.id, gitHubConnection.id);
   assert.equal(importedUser.calendars[0]?.events[0]?.uid, event.uid);
   assert.equal(
     importedUser.tasks[0]?.dueDate?.toISOString(),
@@ -603,6 +616,14 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       })
     ).remoteEtag,
     '"synthetic-remote-etag"',
+  );
+  assert.equal(
+    (
+      await restored.gitHubConnection.findUniqueOrThrow({
+        where: { id: gitHubConnection.id },
+      })
+    ).accountLogin,
+    "synthetic-owner",
   );
   assert.equal(
     await restored.auditEvent.count({

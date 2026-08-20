@@ -216,6 +216,19 @@ Kalender und Zuordnungen. Playwright prüft Desktop und Smartphone ohne
 Browser-Storage. Der Sidecar-Nachweis startet ohne Integrationsschlüssel und
 erwartet deshalb `available: false` sowie ausbleibende externe Übertragung.
 
+## Ergänzender GitHub-Nachweis 0.5.5
+
+Der GitHub-Nachweis verwendet ausschließlich einen synthetischen Adapter und
+keine produktiven Tokens. API-Tests prüfen fehlende Sitzung, fremde IDs,
+standardmäßige Deaktivierung, verschlüsselten Chiffretext, Einmalübertragung,
+maximal fünf Verbindungen, widerrufene Verbindungen, ungültige Eingaben,
+Berechtigungs- und Rate-Limit-Fehler sowie die flüchtige Ausgabe aller fünf
+Metadatenbereiche. Datenbank-, SQLite-, Transfer- und Recovery-Prüfungen
+vergleichen nur Konfiguration und Status, weil externe Inhalte bewusst nicht
+persistiert werden. Playwright prüft Desktop und Smartphone ohne
+Browser-Storage. Der Sidecar startet ohne Integrationsschlüssel und muss
+`available: false` melden.
+
 ## Bekannte Grenzen und Folgearbeiten
 
 - LifeOS unterstützt im Fundament genau ein lokales Profil und keine

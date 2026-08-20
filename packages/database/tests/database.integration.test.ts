@@ -260,6 +260,69 @@ test("erzwingt verschlüsselte read-only-CalDAV-Verbindungen und Besitzergrenzen
   );
 });
 
+test("erzwingt verschlüsselte read-only-GitHub-Verbindungen und Besitzergrenzen", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalIds = [
+    `github-db-owner-${suffix}`,
+    `github-db-other-${suffix}`,
+  ];
+  t.after(async () => {
+    await database.user.deleteMany({
+      where: { externalId: { in: externalIds } },
+    });
+    await database.$disconnect();
+  });
+  const [owner, other] = await Promise.all(
+    externalIds.map((externalId) =>
+      database.user.create({
+        data: {
+          externalId,
+          displayName: "Synthetische GitHub-Person",
+          settings: { create: {} },
+        },
+      }),
+    ),
+  );
+  assert.ok(owner && other);
+  const connection = await database.gitHubConnection.create({
+    data: {
+      userId: owner.id,
+      name: "Synthetischer GitHub-Zugang",
+      tokenEncrypted: "synthetic-encrypted-token",
+      secretIv: "synthetic-iv",
+      secretTag: "synthetic-tag",
+      rateLimitRemaining: 50,
+    },
+  });
+  assert.equal(connection.readOnly, true);
+  assert.equal(connection.userId, owner.id);
+  await assert.rejects(() =>
+    database.gitHubConnection.create({
+      data: {
+        userId: owner.id,
+        name: "Ungültiger Schreibzugang",
+        tokenEncrypted: "synthetic-encrypted-token",
+        secretIv: "synthetic-iv",
+        secretTag: "synthetic-tag",
+        readOnly: false,
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.gitHubConnection.create({
+      data: {
+        userId: other.id,
+        name: "Ungültiges Limit",
+        tokenEncrypted: "synthetic-encrypted-token",
+        secretIv: "synthetic-iv",
+        secretTag: "synthetic-tag",
+        rateLimitRemaining: -1,
+      },
+    }),
+  );
+});
+
 test("erzwingt Besitz und eindeutige Zeitformen im Studienmodell", async (t) => {
   const database = createDatabaseClient();
   const suffix = randomUUID();

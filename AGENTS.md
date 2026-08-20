@@ -166,6 +166,17 @@ bleiben im gemeinsamen Kalenderkern. Schreiben, Löschspiegelung,
 bidirektionale oder automatische Synchronisation und echte Apple-Zugänge sind
 weiterhin offen.
 
+Die erste geprüfte GitHub-Integration ist ebenfalls optional, standardmäßig
+deaktiviert und ausschließlich lesend. Das Fine-grained Token liegt nur
+AES-256-GCM-verschlüsselt im Backend und wird nie wieder ausgegeben. Der
+Netzwerkclient verwendet ausschließlich GET am festen Ursprung
+`api.github.com` mit Zeit-, Größen-, Mengen- und Weiterleitungsgrenzen;
+Repository-Inhalte werden nicht persistiert und gelten als nicht
+vertrauenswürdig. OAuth, Webhooks, Hintergrundsynchronisation und sämtliche
+GitHub-Schreibaktionen bleiben offen. Ohne sicheren lokalen
+Integrationsschlüssel, insbesondere im Mac-Sidecar ohne Schlüsselbundpfad,
+bleibt die Funktion vollständig nicht verfügbar.
+
 ### 3.4 Local-First-Betrieb
 
 Der erste Betrieb erfolgt vollständig lokal:
@@ -587,3 +598,9 @@ gemeldet.
   rein lesenden Fortschrittswerten und eigenständigem Kalenderbezug ohne
   medizinische Bewertung oder externe Übertragung nach PostgreSQL-/SQLite-,
   Recovery-, API-, Sidecar- und Desktop-/Mobiltests festgehalten.
+- **2026-08-20:** Optionale, standardmäßig deaktivierte GitHub-Leseintegration
+  mit verschlüsseltem Backend-Token, festem API-Ursprung, minimalen
+  Fine-grained-Rechten, Zeit-/Größen-/Mengenlimits und ausschließlich
+  flüchtigen Repository-Metadaten nach PostgreSQL-/SQLite-, Recovery-, API-,
+  Sidecar- und Desktop-/Mobiltests festgehalten; OAuth, Webhooks,
+  Schlüsselbundpfad und Schreibaktionen bleiben offen.

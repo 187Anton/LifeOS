@@ -98,6 +98,10 @@ Anfragekörper, Cookies oder Zugangsdaten.
   Schlüsselbundpfad vollständig nicht verfügbar. Der Sidecar-Test bestätigt
   den sicheren Status `available: false`; eine spätere Aktivierung darf keinen
   Schlüssel aus dem Repository oder Browser-Storage verwenden.
+- Dasselbe gilt für die optionale GitHub-Integration: Der Sidecar-Test erwartet
+  ohne nativen Schlüsselbundpfad `available: false`, eine leere
+  Verbindungsliste und ausbleibende Netzwerkaktivität. Produktive Tokens sind
+  nicht Teil des Desktop-Nachweises.
 - Das Entfernen der isolierten App-Kopien ließ SQLite-Daten und Update-Backup
   unangetastet; die erhaltene Datenbank bestand anschließend erneut ihre
   Integritätsprüfung.

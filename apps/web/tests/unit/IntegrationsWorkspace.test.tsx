@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   previewExternalCalDavImport: vi.fn(),
   commitExternalCalDavImport: vi.fn(),
   revokeExternalCalDav: vi.fn(),
+  getGitHubIntegration: vi.fn(),
 }));
 
 vi.mock("../../src/api", () => ({
@@ -51,6 +52,13 @@ describe("optionale Integrationen", () => {
       networkDefault: "disabled",
       mode: "read_only_import",
       connections: [connection],
+    });
+    mocks.getGitHubIntegration.mockResolvedValue({
+      available: false,
+      networkDefault: "disabled",
+      mode: "read_only",
+      apiHost: "api.github.com",
+      connections: [],
     });
   });
 

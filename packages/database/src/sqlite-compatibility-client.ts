@@ -22,6 +22,7 @@ const delegateNames = new Set([
   "externalCalDavConnection",
   "externalCalDavCalendar",
   "externalCalDavEventMapping",
+  "gitHubConnection",
   "calendar",
   "calendarEvent",
   "project",

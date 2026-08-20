@@ -7,6 +7,7 @@ import type {
 import { useEffect, useState } from "react";
 
 import { api, ApiClientError } from "../api";
+import { GitHubIntegrationPanel } from "./GitHubIntegrationPanel";
 
 const message = (error: unknown) =>
   error instanceof ApiClientError
@@ -287,6 +288,7 @@ export const IntegrationsWorkspace = ({
           }
         />
       ))}
+      <GitHubIntegrationPanel />
     </main>
   );
 };
@@ -328,7 +330,7 @@ const ConnectionCard = ({
   onCancelRevoke: () => void;
   onRevoke: () => void;
 }) => (
-  <section className="study-section integration-card">
+  <section className="study-section integration-card external-caldav-card">
     <div className="section-heading">
       <div>
         <h2>{connection.name}</h2>

@@ -77,6 +77,11 @@ Mac-App-Migration.
   liegen nur als AES-256-GCM-Chiffretext, Initialisierungswert und
   Authentifizierungstag vor. Die Migration
   `20260820210000_external_caldav` ist für PostgreSQL und SQLite versioniert.
+- `GitHubConnection` speichert ausschließlich eine besitzgebundene,
+  standardmäßig deaktivierte read-only-Verbindung. Das Token liegt als
+  AES-256-GCM-Chiffretext, Initialisierungswert und Authentifizierungstag vor;
+  Repository-Inhalte werden nicht persistiert. Die Migration
+  `20260820220000_github_integration` ist für PostgreSQL und SQLite versioniert.
 - `AvailabilityWindow` speichert wöchentliche persönliche Verfügbarkeit als
   Wochentag, Start- und Endminute sowie IANA-Zeitzone. Gültigkeitsbedingungen
   und Besitzbezug werden zusätzlich in PostgreSQL erzwungen.

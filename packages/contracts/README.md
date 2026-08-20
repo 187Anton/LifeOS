@@ -19,6 +19,9 @@ Aktuell definiert es:
   einfache Fortschrittsauswertungen,
 - ausschließlich redigierte externe CalDAV-Verbindungen, Kalenderlisten sowie
   kurzlebige read-only-Importvorschauen und Commit-Nachweise,
+- ausschließlich redigierte GitHub-Verbindungen, Rate-Limit-Metadaten und
+  flüchtige lesende Zusammenfassungen für Repositories, Issues, Pull Requests,
+  Commits, Releases und CI-Läufe,
 - Status, Quellenreferenzen, Vorschläge und Metadaten der standardmäßig
   deaktivierten quellengestützten KI-Grundlage.
 

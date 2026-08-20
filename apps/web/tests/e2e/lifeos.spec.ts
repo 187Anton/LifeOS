@@ -183,6 +183,21 @@ const installApi = async (page: Page) => {
       importedEventCount: 0,
     },
   ];
+  const githubConnections: Array<Record<string, unknown>> = [
+    {
+      id: "github-connection-1",
+      name: "Synthetischer GitHub-Zugang",
+      enabled: false,
+      readOnly: true,
+      status: "disabled",
+      tokenConfigured: true,
+      accountLogin: null,
+      lastErrorCode: null,
+      lastTestedAt: null,
+      lastFetchedAt: null,
+      rateLimit: { remaining: null, resetAt: null },
+    },
+  ];
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -203,6 +218,139 @@ const installApi = async (page: Page) => {
           networkDefault: "disabled",
           mode: "read_only_import",
           connections: externalCalDavConnections,
+        },
+      });
+      return;
+    }
+    if (path === "/api/v1/integrations/github" && method === "GET") {
+      await route.fulfill({
+        json: {
+          available: true,
+          networkDefault: "disabled",
+          mode: "read_only",
+          apiHost: "api.github.com",
+          connections: githubConnections,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/api/v1/integrations/github/github-connection-1" &&
+      method === "PATCH"
+    ) {
+      const payload = request.postDataJSON() as { enabled: boolean };
+      Object.assign(githubConnections[0]!, {
+        enabled: payload.enabled,
+        status: payload.enabled ? "ready" : "disabled",
+      });
+      await route.fulfill({ json: githubConnections[0] });
+      return;
+    }
+    if (
+      path === "/api/v1/integrations/github/github-connection-1/test" &&
+      method === "POST"
+    ) {
+      Object.assign(githubConnections[0]!, {
+        accountLogin: "synthetic-owner",
+        lastTestedAt: "2034-03-01T10:00:00.000Z",
+        rateLimit: { remaining: 4_999, resetAt: null },
+      });
+      await route.fulfill({
+        json: {
+          reachable: true,
+          accountLogin: "synthetic-owner",
+          rateLimit: { remaining: 4_999, resetAt: null },
+        },
+      });
+      return;
+    }
+    if (
+      path === "/api/v1/integrations/github/github-connection-1/repositories" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          repositories: [
+            {
+              id: "github-repository-1",
+              owner: "synthetic-owner",
+              name: "synthetic-repository",
+              fullName: "synthetic-owner/synthetic-repository",
+              description: "Nur synthetische Metadaten",
+              private: true,
+              archived: false,
+              defaultBranch: "main",
+              updatedAt: "2034-03-01T10:00:00.000Z",
+            },
+          ],
+          rateLimit: { remaining: 4_998, resetAt: null },
+        },
+      });
+      return;
+    }
+    if (
+      path ===
+        "/api/v1/integrations/github/github-connection-1/repositories/synthetic-owner/synthetic-repository" &&
+      method === "GET"
+    ) {
+      await route.fulfill({
+        json: {
+          repository: {
+            id: "github-repository-1",
+            owner: "synthetic-owner",
+            name: "synthetic-repository",
+            fullName: "synthetic-owner/synthetic-repository",
+            description: "Nur synthetische Metadaten",
+            private: true,
+            archived: false,
+            defaultBranch: "main",
+            updatedAt: "2034-03-01T10:00:00.000Z",
+          },
+          issues: [
+            {
+              number: 11,
+              title: "Synthetisches Issue",
+              state: "open",
+              updatedAt: "2034-03-01T10:00:00.000Z",
+            },
+          ],
+          pullRequests: [
+            {
+              number: 12,
+              title: "Synthetischer Pull Request",
+              state: "open",
+              draft: false,
+              updatedAt: "2034-03-01T10:00:00.000Z",
+            },
+          ],
+          commits: [
+            {
+              sha: "a".repeat(40),
+              message: "Synthetischer Commit",
+              authoredAt: null,
+              authorLogin: "synthetic-owner",
+            },
+          ],
+          releases: [
+            {
+              tagName: "v-test",
+              name: "Synthetisches Release",
+              draft: false,
+              prerelease: true,
+              publishedAt: null,
+            },
+          ],
+          ciRuns: [
+            {
+              id: "ci-1",
+              name: "Repository checks",
+              status: "completed",
+              conclusion: "success",
+              headBranch: "main",
+              updatedAt: "2034-03-01T10:00:00.000Z",
+            },
+          ],
+          rateLimit: { remaining: 4_992, resetAt: null },
         },
       });
       return;
@@ -1485,28 +1633,86 @@ test("aktiviert externe CalDAV-Importe nur kontrolliert und read-only", async ({
   await expect(
     page.getByRole("heading", { name: "Integrationen", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Deaktiviert", { exact: true })).toBeVisible();
+  const externalCalDav = page.locator(".external-caldav-card");
   await expect(
-    page.getByRole("button", { name: "Verbindung testen" }),
+    externalCalDav.getByText("Deaktiviert", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    externalCalDav.getByRole("button", { name: "Verbindung testen" }),
   ).toBeDisabled();
 
-  await page.getByRole("button", { name: "Read-only aktivieren" }).click();
-  await expect(page.getByText("Aktiv · nur Lesen")).toBeVisible();
-  await page.getByRole("button", { name: "Verbindung testen" }).click();
+  await externalCalDav
+    .getByRole("button", { name: "Read-only aktivieren" })
+    .click();
+  await expect(externalCalDav.getByText("Aktiv · nur Lesen")).toBeVisible();
+  await externalCalDav
+    .getByRole("button", { name: "Verbindung testen" })
+    .click();
   await expect(page.getByRole("status")).toContainText("erfolgreich getestet");
-  await page.getByRole("button", { name: "Kalender auflisten" }).click();
-  await page
+  await externalCalDav
+    .getByRole("button", { name: "Kalender auflisten" })
+    .click();
+  await externalCalDav
     .getByLabel("Externer Kalender")
     .selectOption("external-calendar-1");
-  await page.getByRole("button", { name: "Importvorschau erstellen" }).click();
+  await externalCalDav
+    .getByRole("button", { name: "Importvorschau erstellen" })
+    .click();
   await expect(page.getByText(/1 Ereignisse: 1 neu/)).toBeVisible();
-  await page
+  await externalCalDav
     .getByRole("button", { name: "Read-only-Import bestätigen" })
     .click();
   await expect(page.getByRole("status")).toContainText("read-only importiert");
-  await page.getByRole("button", { name: "Verbindung deaktivieren" }).click();
-  await expect(page.getByText("Deaktiviert", { exact: true })).toBeVisible();
+  await externalCalDav
+    .getByRole("button", { name: "Verbindung deaktivieren" })
+    .click();
+  await expect(
+    externalCalDav.getByText("Deaktiviert", { exact: true }),
+  ).toBeVisible();
 
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
+});
+
+test("liest GitHub-Metadaten nur nach Aktivierung und ohne Browserpersistenz", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Integrationen", exact: true })
+    .filter({ visible: true })
+    .click();
+  const github = page.locator(".github-integration-panel");
+
+  await expect(
+    github.getByRole("heading", { name: "GitHub-Integration" }),
+  ).toBeVisible();
+  await expect(github.getByText("Deaktiviert", { exact: true })).toBeVisible();
+  await expect(
+    github.getByRole("button", { name: "Verbindung testen" }),
+  ).toBeDisabled();
+  await github.getByRole("button", { name: "Read-only aktivieren" }).click();
+  await github.getByRole("button", { name: "Verbindung testen" }).click();
+  await expect(github.getByRole("status")).toContainText(
+    "erfolgreich getestet",
+  );
+  await github.getByRole("button", { name: "Repositories laden" }).click();
+  await github
+    .getByLabel("Repository")
+    .selectOption("synthetic-owner/synthetic-repository");
+  await github.getByRole("button", { name: "Aktuellen Stand lesen" }).click();
+
+  await expect(github.getByText(/Synthetisches Issue/)).toBeVisible();
+  await expect(github.getByText(/Synthetischer Pull Request/)).toBeVisible();
+  await expect(github.getByText(/Synthetischer Commit/)).toBeVisible();
+  await expect(github.getByText(/Synthetisches Release/)).toBeVisible();
+  await expect(github.getByText(/Repository checks/)).toBeVisible();
+  await github.getByRole("button", { name: "GitHub deaktivieren" }).click();
+  await expect(github.getByText("Deaktiviert", { exact: true })).toBeVisible();
   expect(
     await page.evaluate(() => ({
       local: Object.keys(localStorage),

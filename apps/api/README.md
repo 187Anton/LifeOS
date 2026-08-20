@@ -88,6 +88,15 @@ read-only-Import verwendet werden. Schreiben und automatische Synchronisation
 sind nicht implementiert. Routen, Limits und offene Grenzen dokumentiert der
 [`externe CalDAV-Vertrag`](../../docs/api/external-caldav.md).
 
+Die optionale GitHub-Integration unter `/api/v1/integrations/github` verwendet
+denselben lokalen Verschlüsselungsschlüssel, bleibt aber strikt lesend und auf
+`api.github.com` begrenzt. Neue Verbindungen sind deaktiviert. Erst nach
+Aktivierung dürfen Verbindung, maximal 50 Repositories und begrenzte
+Metadaten zu Issues, Pull Requests, Commits, Releases und CI geprüft werden.
+Tokens werden nie ausgegeben; externe Inhalte werden nicht persistiert.
+Routen, Berechtigungen, Limits und offene Grenzen stehen im
+[`GitHub-Integrationsvertrag`](../../docs/api/github-integration.md).
+
 Der Entwicklungsmodus mit automatischem Neustart lautet:
 
 ```bash
