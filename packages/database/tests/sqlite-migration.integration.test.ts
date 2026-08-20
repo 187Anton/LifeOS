@@ -69,6 +69,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
     "20260820190000_finance_module",
     "20260820200000_fitness_module",
     "20260820210000_external_caldav",
+    "20260820220000_github_integration",
   ]);
 
   const database = createSqliteDatabaseClient(databaseUrl);
@@ -77,7 +78,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const migrationRows = await database.$queryRawUnsafe<
     Array<{ name: string; checksum: string }>
   >('SELECT "name", "checksum" FROM "_lifeos_migrations"');
-  assert.equal(migrationRows.length, 9);
+  assert.equal(migrationRows.length, 10);
   assert.equal(migrationRows[0]?.name, "20260809190000_sqlite_foundation");
   assert.match(migrationRows[0]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[1]?.name, "20260809203000_product_modules");
@@ -96,6 +97,8 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   assert.match(migrationRows[7]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[8]?.name, "20260820210000_external_caldav");
   assert.match(migrationRows[8]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[9]?.name, "20260820220000_github_integration");
+  assert.match(migrationRows[9]?.checksum ?? "", /^[0-9a-f]{64}$/);
 
   const foreignKeys = await database.$queryRawUnsafe<
     Array<{ foreign_keys: bigint }>
@@ -465,6 +468,50 @@ test("erzwingt read-only-CalDAV und Besitzergrenzen in SQLite", async (t) => {
         connectionId: connection.id,
         href: "/calendars/foreign/",
         displayName: "Fremder Kalender",
+      },
+    }),
+  );
+});
+
+test("erzwingt verschlüsselte read-only-GitHub-Verbindungen in SQLite", async (t) => {
+  const databaseUrl = await createIsolatedDatabase(t);
+  await migrateSqliteDatabase(databaseUrl);
+  await seedSqliteDatabase(databaseUrl);
+  const fixture = await readSqliteSeedFixture();
+  const database = createSqliteDatabaseClient(databaseUrl);
+  t.after(async () => database.$disconnect());
+  const connection = await database.gitHubConnection.create({
+    data: {
+      userId: fixture.user.id,
+      name: "Synthetischer GitHub-Zugang",
+      tokenEncrypted: "synthetic-encrypted-token",
+      secretIv: "synthetic-iv",
+      secretTag: "synthetic-tag",
+      rateLimitRemaining: 50,
+    },
+  });
+  assert.equal(connection.readOnly, true);
+  await assert.rejects(() =>
+    database.gitHubConnection.create({
+      data: {
+        userId: fixture.user.id,
+        name: "Ungültiger Schreibzugang",
+        tokenEncrypted: "synthetic-encrypted-token",
+        secretIv: "synthetic-iv",
+        secretTag: "synthetic-tag",
+        readOnly: false,
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.gitHubConnection.create({
+      data: {
+        userId: fixture.user.id,
+        name: "Ungültiges Limit",
+        tokenEncrypted: "synthetic-encrypted-token",
+        secretIv: "synthetic-iv",
+        secretTag: "synthetic-tag",
+        rateLimitRemaining: -1,
       },
     }),
   );

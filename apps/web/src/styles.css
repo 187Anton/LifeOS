@@ -120,6 +120,33 @@
   gap: 1rem;
 }
 
+.github-integration-panel {
+  margin-top: 1.5rem;
+}
+
+.github-connection-card {
+  margin-top: 1rem;
+}
+
+.github-snapshot {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--surface);
+}
+
+.github-snapshot section,
+.github-snapshot ul {
+  margin: 0;
+}
+
+.github-snapshot li {
+  overflow-wrap: anywhere;
+}
+
 .integration-card .button-row {
   display: flex;
   flex-wrap: wrap;

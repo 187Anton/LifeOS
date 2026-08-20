@@ -21,6 +21,13 @@ Dieses Repository ist zunächst für eine persönliche, lokale Anwendung gedacht
   private, Link-Local- und Metadata-Adressen sowie ursprungsfremde
   Weiterleitungen geschützt. Fremde XML-/ICS-Inhalte gelten als nicht
   vertrauenswürdig und unterliegen Größen-, Mengen- und Zeitlimits.
+- GitHub-Verbindungen bleiben bis zur bewussten Aktivierung netzwerkfrei und
+  sind auf GET-Anfragen an `api.github.com` begrenzt. Tokens werden nur
+  AES-256-GCM-verschlüsselt im Backend gespeichert, nie wieder ausgegeben und
+  beim lokalen Widerruf gelöscht. Externe Texte bleiben nicht vertrauenswürdig,
+  werden begrenzt und dürfen keine Schreibaktion auslösen. Ein Fine-grained
+  Token muss außerhalb von LifeOS zusätzlich auf ausgewählte Repositories und
+  minimale Leserechte beschränkt werden.
 
 ## Secret-Prüfung
 

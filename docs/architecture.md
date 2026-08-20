@@ -301,6 +301,14 @@ stabile externe UID-/ETag-Zuordnungen bleiben Integrationsmetadaten. Eine
 bidirektionale Synchronisation oder iCloud-Schreibintegration ist nicht Teil
 dieses Stands.
 
+Die optionale GitHub-Integration folgt derselben bewussten Aktivierungsgrenze,
+ist aber auf den festen Ursprung `api.github.com` und GET-Anfragen beschränkt.
+Ein Fine-grained Token liegt nur als AES-256-GCM-Chiffretext im Backend.
+Persistiert werden redigierter Verbindungsstatus und Rate-Limit-Metadaten;
+Repository-, Issue-, Pull-Request-, Commit-, Release- und CI-Inhalte bleiben
+flüchtig. Externe Texte sind nicht vertrauenswürdig und können weder
+Systemanweisungen noch GitHub- oder LifeOS-Schreibaktionen auslösen.
+
 Lokaler ICS-Import und -Export verwenden ebenfalls den gemeinsamen
 Kalender-Service. Der Import hält nur eine kurzlebige, besitzgebundene Vorschau
 im API-Prozess und schreibt neue Ereignisse erst nach Bestätigung atomar.

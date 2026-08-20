@@ -21,6 +21,7 @@ model User {
   externalCalDavConnections ExternalCalDavConnection[]
   externalCalDavCalendars   ExternalCalDavCalendar[]
   externalCalDavMappings    ExternalCalDavEventMapping[]
+  githubConnections         GitHubConnection[]
   sessions                  UserSession[]
   calendars                 Calendar[]
   projects                  Project[]
@@ -161,6 +162,31 @@ model ExternalCalDavEventMapping {
   @@unique([connectionId, remoteHref])
   @@unique([externalCalendarId, remoteUid])
   @@unique([localCalendarId, localEventUid])
+  @@index([userId])
+}
+
+model GitHubConnection {
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @db.Uuid
+  name               String    @db.VarChar(100)
+  tokenEncrypted     String    @db.Text
+  secretIv           String    @db.VarChar(64)
+  secretTag          String    @db.VarChar(64)
+  enabled            Boolean   @default(false)
+  readOnly           Boolean   @default(true)
+  status             String    @default("disabled") @db.VarChar(30)
+  accountLogin       String?   @db.VarChar(100)
+  lastErrorCode      String?   @db.VarChar(100)
+  lastTestedAt       DateTime? @db.Timestamptz(3)
+  lastFetchedAt      DateTime? @db.Timestamptz(3)
+  rateLimitRemaining Int?
+  rateLimitResetAt   DateTime? @db.Timestamptz(3)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(3)
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@unique([id, userId])
   @@index([userId])
 }
 

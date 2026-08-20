@@ -380,3 +380,20 @@ formuliert werden.
   Apple-Zugang, kein Mac-Schlüsselbundpfad, kein bidirektionales Schreiben und
   keine Hintergrundsynchronisation wurden geprüft oder als freigegeben
   behauptet.
+
+## 20. August 2026 – Roadmap 0.5.5: deaktivierte GitHub-Leseintegration
+
+- **Befund:** Auch ein lesendes GitHub-Token benötigt einen sicheren lokalen
+  Geheimnispfad. Der Mac-Prototyp darf ohne native Schlüsselbundfreigabe kein
+  aus der Umgebung geerbtes Token oder Integrationsschlüssel verwenden.
+- **Entscheidung:** Der Sidecar erhält keinen `INTEGRATION_SECRET_KEY`. Der
+  authentifizierte GitHub-Status muss deshalb `available: false`, den
+  Netzwerkstandard `disabled` und eine leere Verbindungsliste liefern.
+  Produktive Tokens, OAuth und GitHub-Schreibaktionen bleiben ausgeschlossen.
+- **Verifikation:** Der Sidecar-Nachweis wendet alle zehn SQLite-Migrationen
+  einschließlich `20260820220000_github_integration` an und prüft den sicheren
+  Status vor dem zweiten Start. API, Datenbank, Recovery und Browser verwenden
+  nur synthetische Daten beziehungsweise Adapter.
+- **Grenzen:** Kein produktives Token, keine echte GitHub-Anmeldung, keine
+  native Schlüsselbundablage, keine Webhooks, keine Hintergrundsynchronisation
+  und keine Schreibberechtigung wurden geprüft oder freigegeben.

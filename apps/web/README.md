@@ -46,6 +46,9 @@ aktuell folgende Abläufe ab:
 - optionale, standardmäßig deaktivierte externe CalDAV-Verbindung mit
   Status, bewusstem Aktivieren, Test, Kalenderliste sowie bestätigter
   read-only-Importvorschau ohne Zugangsdaten im Frontend,
+- optionale, standardmäßig deaktivierte GitHub-Leseverbindung mit Test,
+  Repository-Auswahl sowie flüchtigen Issues, Pull Requests, Commits, Releases
+  und CI-Status ohne Schreibaktion,
 - verständliche Lade-, Leer-, Erfolgs- und Fehlerzustände.
 
 ## Lokal starten
@@ -86,6 +89,8 @@ Importstatus bleiben flüchtig und werden nicht im Browser gespeichert.
 Dasselbe gilt für externe CalDAV-Formulare, Status und Vorschauen. Benutzername
 und Passwort werden nur beim Konfigurieren an die lokale API gesendet, danach
 aus dem Formular entfernt und niemals wieder an die Oberfläche geliefert.
+Das GitHub-Token folgt derselben Einmalübertragung. Repository-Inhalte und
+Rate-Limit-Status bleiben React-Zustand und werden nicht im Browser gespeichert.
 
 Die Oberfläche lädt keine externen Schriftarten oder anderen notwendigen
 Assets. Manifest-Icons liegen versioniert unter `public/icons/`.

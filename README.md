@@ -353,6 +353,15 @@ automatische oder bidirektionale Synchronisation und keine Schreibaktion zum
 externen Dienst. Details und offene Grenzen stehen im
 [externen CalDAV-Vertrag](docs/api/external-caldav.md).
 
+Im selben Bereich kann optional eine ausschließlich lesende GitHub-Verbindung
+eingerichtet werden. Sie bleibt ohne `INTEGRATION_SECRET_KEY` und bis zur
+bewussten Aktivierung netzwerkfrei. Das Token wird nur verschlüsselt im
+Backend gespeichert und nie wieder ausgegeben. Danach lassen sich
+Repository-Metadaten, Issues, Pull Requests, Commits, Releases und CI-Status
+flüchtig anzeigen; LifeOS speichert diese Inhalte nicht dauerhaft und führt
+keine GitHub-Schreibaktion aus. Details, Berechtigungen, Limits und offene
+Grenzen stehen im [GitHub-Integrationsvertrag](docs/api/github-integration.md).
+
 Ein Produktions-Build erzeugt zusätzlich Manifest und Offline-App-Shell:
 
 ```bash

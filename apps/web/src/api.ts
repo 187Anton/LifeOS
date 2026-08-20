@@ -80,6 +80,11 @@ import type {
   ExternalCalDavImportCommitResponse,
   ExternalCalDavImportPreviewResponse,
   ExternalCalDavOverviewResponse,
+  CreateGitHubConnectionRequest,
+  GitHubConnectionResponse,
+  GitHubIntegrationOverviewResponse,
+  GitHubRepositoryListResponse,
+  GitHubRepositorySnapshotResponse,
 } from "@lifeos/contracts";
 
 const API_BASE = "/api/v1";
@@ -756,6 +761,50 @@ export const api = {
   revokeExternalCalDav(connectionId: string) {
     return request<void>(
       `/integrations/caldav/${encodeURIComponent(connectionId)}`,
+      { method: "DELETE" },
+    );
+  },
+  getGitHubIntegration() {
+    return request<GitHubIntegrationOverviewResponse>("/integrations/github");
+  },
+  createGitHubConnection(payload: CreateGitHubConnectionRequest) {
+    return request<GitHubConnectionResponse>("/integrations/github", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  setGitHubConnectionEnabled(connectionId: string, enabled: boolean) {
+    return request<GitHubConnectionResponse>(
+      `/integrations/github/${encodeURIComponent(connectionId)}`,
+      { method: "PATCH", body: JSON.stringify({ enabled }) },
+    );
+  },
+  testGitHubConnection(connectionId: string) {
+    return request<{
+      reachable: true;
+      accountLogin: string;
+      rateLimit: { remaining: number | null; resetAt: string | null };
+    }>(`/integrations/github/${encodeURIComponent(connectionId)}/test`, {
+      method: "POST",
+    });
+  },
+  listGitHubRepositories(connectionId: string) {
+    return request<GitHubRepositoryListResponse>(
+      `/integrations/github/${encodeURIComponent(connectionId)}/repositories`,
+    );
+  },
+  getGitHubRepositorySnapshot(
+    connectionId: string,
+    owner: string,
+    repository: string,
+  ) {
+    return request<GitHubRepositorySnapshotResponse>(
+      `/integrations/github/${encodeURIComponent(connectionId)}/repositories/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}`,
+    );
+  },
+  revokeGitHubConnection(connectionId: string) {
+    return request<void>(
+      `/integrations/github/${encodeURIComponent(connectionId)}`,
       { method: "DELETE" },
     );
   },
