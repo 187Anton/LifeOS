@@ -19,3 +19,6 @@ Alle relevanten Änderungen werden hier kurz und nachvollziehbar dokumentiert.
   Datenprüfung sowie manuelles PostgreSQL-Backup mit Prüfsumme ergänzt.
 - Reproduzierbare lokale Demo, Apple-Kalender-Testmatrix und konkrete Grenzen
   des Fundaments dokumentiert.
+- Roadmap 0.5 um lokale Finanzen, Fitness, sicheren ICS-Transfer, optionalen
+  externen CalDAV-read-only-Import und eine optionale GitHub-Leseintegration
+  ergänzt; PostgreSQL, SQLite, Recovery, Browser und Mac-Sidecar stabilisiert.

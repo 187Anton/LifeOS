@@ -229,6 +229,24 @@ persistiert werden. Playwright prüft Desktop und Smartphone ohne
 Browser-Storage. Der Sidecar startet ohne Integrationsschlüssel und muss
 `available: false` melden.
 
+## Roadmap-0.5-Stabilisierung und lokale Demo
+
+Der Abschlusslauf kombiniert die vollständige automatisierte Suite mit einer
+real gestarteten, gebauten LifeOS-Oberfläche an einem gemeinsamen
+Loopback-Ursprung. Eine neue temporäre SQLite-Datei erhielt alle zehn
+Migrationen und ausschließlich synthetische Seed-Daten. Im Browser wurden
+Finanz-Anlage, Änderung, Auswertung und Export, Fitness-Fortschritt sowie
+ICS-Vorschau, Commit und Export geprüft. Externes CalDAV und GitHub meldeten
+ohne Integrationsschlüssel `available: false`; der Browser protokollierte keine
+Konsolenfehler. Das temporäre Demo-Verzeichnis wurde anschließend entfernt.
+
+Die Demo reproduzierte außerdem eine Constraint-Verletzung beim Widerruf einer
+zukünftig datierten synthetischen Sitzung. Der korrigierte Bootstrap verwendet
+nun je Sitzung frühestens deren Erzeugungszeitpunkt. Unit-Test und realer
+SQLite-Bootstrap mit einer 2030-Sitzung belegen diesen Recovery-Randfall. Die
+vollständige Matrix und offene Gates dokumentiert
+[`roadmap-05-local-demo.md`](roadmap-05-local-demo.md).
+
 ## Bekannte Grenzen und Folgearbeiten
 
 - LifeOS unterstützt im Fundament genau ein lokales Profil und keine

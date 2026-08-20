@@ -578,10 +578,24 @@ bleiben ausdrücklich außerhalb dieses Stands.
 
 ### 0.5.6 Abschluss und produktionsnahe Demo
 
-- Sicherheits- und Datenschutzreview durchführen.
-- Backups und Wiederherstellung testen.
-- Rückwärtskompatibilität von API, Datenmodell, CalDAV-UIDs und ETags prüfen.
-- Lokale Demo mit vollständiger Start-, Update- und Backup-Anleitung erstellen.
+- **Abgeschlossen (20. August 2026):** Die Sicherheits- und Datenschutzmatrix
+  prüft Authentifizierung, Besitz, fremde IDs, Limits, Timeouts, widerrufene
+  Zugänge, fehlende Berechtigungen, Secret-Scan und standardmäßig ausbleibende
+  externe Übertragung.
+- PostgreSQL und SQLite wenden alle versionierten Migrationen an. Seed,
+  Neustart, vollständiger Fachmodelltransfer, Backup und Restore in neue Ziele
+  sowie der gebündelte Node-22-Sidecar sind reproduzierbar geprüft.
+- Die reale lokale Browserdemo legte Finanzdaten an, änderte und wertete sie
+  aus, löste den eigenen Export aus, ergänzte einen Fitnessfortschritt und
+  führte ICS-Vorschau, bestätigten Import und Export am gemeinsamen
+  Kalenderkern aus. CalDAV und GitHub blieben ohne Schlüssel vollständig
+  deaktiviert.
+- Ein im Demoablauf entdeckter Uhrzeitfehler beim Widerruf zukünftiger
+  synthetischer Sitzungen wurde providerunabhängig behoben und mit Unit- sowie
+  SQLite-Bootstrap-Test abgesichert.
+- Ablauf, Prüfmatrix, Update-/Recovery-Regeln und offene Release-Gates stehen
+  im [`lokalen Roadmap-0.5-Nachweis`](roadmap-05-local-demo.md).
 
 Abschlusskriterium: Die zusätzlichen Bereiche bleiben optional, lokal und
 deaktivierbar; der Kalender- und Aufgaben-Kern bleibt unabhängig nutzbar.
+Roadmap 0.5 ist damit fachlich und technisch abgeschlossen.

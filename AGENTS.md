@@ -312,7 +312,8 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
 - Das lokale Passwort wird mit gesalzenem `scrypt` gespeichert. Sitzungen
   verwenden zufällige Tokens, von denen nur SHA-256-Hashes, Ablauf und
   Widerrufsstatus persistiert werden; Passwortwechsel widerrufen ältere
-  Zugangsversionen.
+  Zugangsversionen. Ein Widerruf liegt auch bei vorauseilender System- oder
+  Fixture-Uhr niemals vor dem Erzeugungszeitpunkt der Sitzung.
 - CalDAV-Zugang und externe Integrationszugänge separat widerrufbar machen.
 - CalDAV verwendet einen eigenen gehashten lokalen Zugang. Ereignisänderungen
   schreiben Kalender-`syncToken` und Ereignis-`syncVersion` atomar; iCalendar-
@@ -604,3 +605,7 @@ gemeldet.
   flüchtigen Repository-Metadaten nach PostgreSQL-/SQLite-, Recovery-, API-,
   Sidecar- und Desktop-/Mobiltests festgehalten; OAuth, Webhooks,
   Schlüsselbundpfad und Schreibaktionen bleiben offen.
+- **2026-08-20:** Uhrzeitsicheren Sitzungswiderruf beim Passwort-Bootstrap nach
+  reproduzierter zukünftiger SQLite-Fixture-Sitzung festgehalten; Unit-Test,
+  realer SQLite-Bootstrap und vollständige Roadmap-0.5-Demo bestätigen den
+  providerunabhängigen Ablauf.

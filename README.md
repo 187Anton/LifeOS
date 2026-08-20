@@ -362,6 +362,12 @@ flüchtig anzeigen; LifeOS speichert diese Inhalte nicht dauerhaft und führt
 keine GitHub-Schreibaktion aus. Details, Berechtigungen, Limits und offene
 Grenzen stehen im [GitHub-Integrationsvertrag](docs/api/github-integration.md).
 
+Der vollständige synthetische Abschlusslauf für Finanzen, Fitness, ICS,
+optionale Integrationen, PostgreSQL, SQLite, Recovery, Browser und Mac-Sidecar
+ist im [lokalen Roadmap-0.5-Nachweis](docs/roadmap-05-local-demo.md)
+dokumentiert. Dort sind auch Update-/Backup-Schritte und ausdrücklich offene
+externe Release-Gates getrennt aufgeführt.
+
 Ein Produktions-Build erzeugt zusätzlich Manifest und Offline-App-Shell:
 
 ```bash

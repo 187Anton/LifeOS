@@ -397,3 +397,26 @@ formuliert werden.
 - **Grenzen:** Kein produktives Token, keine echte GitHub-Anmeldung, keine
   native Schlüsselbundablage, keine Webhooks, keine Hintergrundsynchronisation
   und keine Schreibberechtigung wurden geprüft oder freigegeben.
+
+## 20. August 2026 – Roadmap 0.5.6: Stabilisierung und lokale Demo
+
+- **Befund:** Der fachliche Stand benötigt neben Mock-E2E einen echten lokalen
+  Browserlauf gegen SQLite. Dabei zeigte der zukünftige synthetische Seed eine
+  Constraint-Verletzung im pauschalen Sitzungswiderruf.
+- **Entscheidung:** Sitzungen werden beim Passwort-Bootstrap einzeln und nie
+  vor `createdAt` widerrufen. Die Demo verwendet einen neuen temporären
+  Datenpfad und keinen Integrationsschlüssel; CalDAV- und GitHub-Clients
+  bleiben dadurch sicher netzwerkfrei.
+- **Verifikation:** Gebaute Weboberfläche und API liefen am gemeinsamen
+  Loopback-Ursprung. Finanz-Anlage/Änderung/Auswertung/Export,
+  Fitness-Fortschritt und ICS-Vorschau/Commit/Export waren erfolgreich;
+  Integrationen meldeten `available: false` und der Browser keine
+  Konsolenfehler. Der Sidecar startete mit allen zehn Migrationen zweimal.
+  Nach Installation der zuvor fehlenden lokalen Rust-1.97.1-Toolchain wurden
+  das ARM64-DMG neu gebaut und mit `desktop:verify:dmg` geprüft. DMG-Prüfsumme,
+  kopierte App, ad-hoc Signaturstruktur und zweimaliger Node-22.23.2-
+  Sidecar-Start bestanden; die SHA-256-Prüfsumme lautet
+  `e79acef81ecb42544e708868db3bad8fa3d8d4eaa90e3946dfa8d3dd1455ee83`.
+- **Grenzen:** Produktive externe Zugänge, Schlüsselbund, physischer
+  Apple-Kalender, Developer-ID, Notarisierung, sauberer zweiter Mac und
+  Intel-/Universal-Build bleiben offen.
