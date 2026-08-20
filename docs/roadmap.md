@@ -434,13 +434,29 @@ archivierte und gelöschte Inhalte erscheinen nicht.
 
 ### 0.4.4 Quellengestützte KI
 
-- KI-Funktionen zunächst deaktiviert lassen.
-- Lokale Quellen und verwendete Textstellen sichtbar machen.
-- Externe Verarbeitung nur nach ausdrücklicher Freigabe ermöglichen.
-- Antworten ohne Quellen nicht als verlässlich markieren.
+- **Umgesetzt (20. August 2026):** Ein providerunabhängiger KI-Servicevertrag,
+  lokale Anfrage-/Antwortstrukturen und ein deaktivierter Adapter bereiten
+  quellengestützte Antworten vor. Im produktiven Server ist kein Anbieter
+  aktiv; externe Verarbeitung und externe API-Aufrufe sind technisch
+  blockiert.
+- Die Quellenaufbereitung übernimmt ausschließlich eigene, aktive und
+  ausdrücklich für die lokale Suche freigegebene Inhalte. Quellen,
+  Textausschnitte, Freigabestatus, fehlende beziehungsweise unzureichende
+  Belege und mögliche Widersprüche werden sichtbar ausgewiesen.
+- Regelbasierte Prompt-Injection-Erkennung schließt verdächtige Textstellen als
+  Adapterkontext aus. Fragen, Antworten und Ausschnitte werden nicht im
+  Klartext persistiert oder protokolliert; Interaktionen speichern nur
+  geschützte Fingerabdrücke und technische Metadaten.
+- Schreibende Ergebnisse sind ausschließlich Vorschläge mit zwingender
+  Bestätigung. Auch die Bestätigung protokolliert nur die Freigabe und führt
+  keine Fachänderung aus. Details und Grenzen stehen im
+  [`KI-Vertrag`](api/ai.md).
 
 Abschlusskriterium: Projekte und Wissen sind lokal durchsuchbar; KI bleibt
-erklärbar, abschaltbar und bestätigt externe Übertragungen ausdrücklich.
+erklärbar, vollständig abschaltbar und ohne ausdrücklich implementierte
+externe Freigabe übertragungsfrei. PostgreSQL-/SQLite-Persistenz,
+Besitzgrenzen, Recovery, Browser-/Mac-App-Vertrag und datensparsame Audits sind
+automatisiert geprüft.
 
 ## 0.5 Finanzen, Fitness und Integrationen
 

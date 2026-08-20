@@ -153,6 +153,25 @@ führenden Quelle; das Aufheben der Freigabe wirkt deshalb unmittelbar. Kleine,
 ausdrücklich unterstützte Textdokumente erhalten beim lokalen Upload einen
 begrenzt extrahierten UTF-8-Text. Binärformate werden nicht interpretiert.
 
+## Quellengestützte KI-Grundlage
+
+Das KI-Modul hängt ausschließlich vom providerunabhängigen lokalen Suchvertrag
+ab. Es besitzt keinen eigenen Wissensbestand und übernimmt nur besitzgebundene,
+aktive Quellen mit ausdrücklicher Suchfreigabe. Suchfreigabe und externe
+Verarbeitungsfreigabe bleiben getrennt. Der produktive Server verwendet einen
+deaktivierten Adapter; externe Übertragung ist in dieser Ausbaustufe nicht
+verdrahtet.
+
+Quelleninhalte gelten als nicht vertrauenswürdig. Eine konservative
+regelbasierte Prüfung markiert Prompt-Injection-Muster und mögliche
+Widersprüche, bevor ein Adapter aufgerufen werden dürfte. Der persistierte
+`AiInteraction` enthält nur zufällig geschützte Fingerabdrücke,
+Quellenreferenzen, Freigabe- und Ergebnisstatus sowie technische Zähler, aber
+keine Fragen, Antworten oder Ausschnitte im Klartext. Antwortquellen bleiben
+in der aktuellen API-Antwort sichtbar. Vorschläge sind getrennte,
+bestätigungspflichtige Entwürfe; ihre Bestätigung erzeugt ein wertfreies Audit,
+aber keine automatische Fachänderung.
+
 ## Aufgaben-Termin-Beziehung
 
 Aufgabe, geplante Bearbeitungszeit und tatsächlich stattfindender Termin

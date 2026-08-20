@@ -2137,6 +2137,56 @@ input[readonly] {
 .local-search {
   margin-bottom: 1rem;
 }
+.grounded-ai {
+  margin-bottom: 1rem;
+}
+.grounded-ai > header {
+  align-items: flex-start;
+}
+.ai-response,
+.ai-source,
+.ai-suggestion {
+  display: grid;
+  gap: 0.55rem;
+}
+.ai-response {
+  margin-top: 1rem;
+}
+.information-banner {
+  margin: 0;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--sage);
+}
+.ai-source,
+.ai-suggestion {
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+}
+.ai-source > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.ai-source p,
+.ai-answer,
+.ai-suggestion p {
+  margin: 0;
+}
+.ai-answer {
+  padding: 0.9rem;
+  border-left: 4px solid var(--forest-soft);
+  background: var(--surface);
+}
+.ai-source span,
+.ai-source small,
+.ai-response > small,
+.ai-suggestion small {
+  color: var(--muted);
+}
 .local-search-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -30,6 +30,12 @@ aktuell folgende Abläufe ab:
   Arbeit mit Bereichsfiltern,
 - erklärbare Konflikt- und Überlastungshinweise sowie persönliche
   Verfügbarkeitsfenster ohne automatische Verschiebungen,
+- Projekte mit Zielen, Meilensteinen, Fortschritt und reinen Verknüpfungen zu
+  Aufgaben und Kalenderereignissen,
+- lokale Markdown-Notizen und Dokumente sowie eine besitzgebundene Suche über
+  ausdrücklich freigegebene Inhalte,
+- lokale KI-Quellenaufbereitung mit sichtbaren Textstellen und Warnungen bei
+  dauerhaft deaktiviertem Anbieter und ohne externe Übertragung,
 - verständliche Lade-, Leer-, Erfolgs- und Fehlerzustände.
 
 ## Lokal starten
@@ -59,7 +65,8 @@ Die statische App-Shell bleibt nach dem ersten Laden offline aufrufbar. API-
 Antworten und persönliche Kalenderdaten werden bewusst nicht im Service-Worker,
 `localStorage` oder `sessionStorage` gespeichert. Ohne erreichbare lokale API
 kann die Shell deshalb keine Aufgaben oder Kalenderdaten laden. Aufgabenfilter,
-Suche und geöffnete Editoren sind ausschließlich flüchtiger React-Zustand. Die
+Suche, KI-Quellenantworten und geöffnete Editoren sind ausschließlich
+flüchtiger React-Zustand. Die
 Sitzung bleibt in einem vom Backend gesetzten `HttpOnly`-Cookie.
 
 Die Oberfläche lädt keine externen Schriftarten oder anderen notwendigen

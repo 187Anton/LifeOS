@@ -1,5 +1,7 @@
 import type {
   ApiErrorResponse,
+  AiQueryResponse,
+  AiStatusResponse,
   CalendarEventResponse,
   CalendarResponse,
   CreateTaskEventLinkRequest,
@@ -46,6 +48,8 @@ import type {
   NoteDetailResponse,
   NoteResponse,
   SearchResponse,
+  ConfirmAiSuggestionResponse,
+  CreateAiQueryRequest,
   UpdateDocumentRequest,
   UpdateNoteRequest,
 } from "@lifeos/contracts";
@@ -316,6 +320,21 @@ export const api = {
   },
   search(query: string) {
     return request<SearchResponse>(`/search?q=${encodeURIComponent(query)}`);
+  },
+  getAiStatus() {
+    return request<AiStatusResponse>("/ai/status");
+  },
+  createAiQuery(payload: CreateAiQueryRequest) {
+    return request<AiQueryResponse>("/ai/queries", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  confirmAiSuggestion(interactionId: string, suggestionId: string) {
+    return request<ConfirmAiSuggestionResponse>(
+      `/ai/interactions/${encodeURIComponent(interactionId)}/suggestions/${encodeURIComponent(suggestionId)}/confirm`,
+      { method: "POST" },
+    );
   },
   createProjectItem(
     projectId: string,

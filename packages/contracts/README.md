@@ -8,9 +8,12 @@ Aktuell definiert es:
 - die API-Version `v1`,
 - den Fehlervertragsstand `1`,
 - stabile Fehlercodes und Validierungsdetails,
-- Health- und Readiness-Antworten.
-- Profil-, Einstellungs- und Sitzungsantworten.
-- Kalender- und Ereignisantworten einschließlich UID, ETag und Sync-Token.
+- Health- und Readiness-Antworten,
+- Profil-, Einstellungs- und Sitzungsantworten,
+- Kalender- und Ereignisantworten einschließlich UID, ETag und Sync-Token,
+- Projekte, Wissen und lokale Suchtreffer,
+- Status, Quellenreferenzen, Vorschläge und Metadaten der standardmäßig
+  deaktivierten quellengestützten KI-Grundlage.
 
 Der Fehlervertragsstand wird getrennt von der Routen-Version geführt. Dadurch
 kann ein Client das Format eindeutig erkennen, ohne dass jede ergänzte

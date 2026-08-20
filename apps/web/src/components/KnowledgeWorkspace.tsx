@@ -6,6 +6,7 @@ import type {
   StudyModuleResponse,
   SearchResponse,
   SearchResultResponse,
+  AiQueryResponse,
   UpdateDocumentRequest,
   UpdateNoteRequest,
 } from "@lifeos/contracts";
@@ -25,6 +26,9 @@ interface Props {
   search: SearchResponse | null;
   searchLoading: boolean;
   searchError: string | null;
+  aiResponse: AiQueryResponse | null;
+  aiLoading: boolean;
+  aiError: string | null;
   onReload: () => void;
   onSelectNote: (id: string) => void;
   onCreateNote: (value: CreateNoteRequest) => Promise<void>;
@@ -35,6 +39,11 @@ interface Props {
   onDeleteDocument: (id: string) => Promise<void>;
   onSearch: (query: string) => Promise<void>;
   onOpenSearchResult: (result: SearchResultResponse) => void;
+  onPrepareAiSources: (query: string) => Promise<void>;
+  onConfirmAiSuggestion: (
+    interactionId: string,
+    suggestionId: string,
+  ) => Promise<void>;
 }
 
 const emptyNote = {
@@ -66,6 +75,7 @@ export const KnowledgeWorkspace = (props: Props) => {
   const [documentStudyModuleId, setDocumentStudyModuleId] = useState("");
   const [documentSearchEnabled, setDocumentSearchEnabled] = useState(false);
   const [query, setQuery] = useState("");
+  const [aiQuery, setAiQuery] = useState("");
 
   const notePayload = (): CreateNoteRequest => ({
     title: note.title,
@@ -202,6 +212,110 @@ export const KnowledgeWorkspace = (props: Props) => {
                 >
                   Quelle öffnen
                 </a>
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section
+        className="study-section grounded-ai"
+        aria-labelledby="grounded-ai-heading"
+      >
+        <header>
+          <div>
+            <p className="eyebrow">Quellengestützte KI-Grundlage</p>
+            <h2 id="grounded-ai-heading">Lokal vorbereitet, deaktiviert</h2>
+            <p>
+              Der produktive KI-Adapter ist standardmäßig aus. Du kannst lokal
+              prüfen, welche freigegebenen Quellen geeignet wären; es werden
+              keine Daten nach außen übertragen und keine Änderungen automatisch
+              ausgeführt.
+            </p>
+          </div>
+          <span className="status-pill">Deaktiviert</span>
+        </header>
+        <form
+          className="local-search-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void props.onPrepareAiSources(aiQuery);
+          }}
+        >
+          <label>
+            Frage für die lokale Quellenprüfung
+            <textarea
+              required
+              rows={3}
+              maxLength={200}
+              value={aiQuery}
+              onChange={(event) => setAiQuery(event.target.value)}
+            />
+          </label>
+          <button className="secondary-button" disabled={props.aiLoading}>
+            {props.aiLoading
+              ? "Quellen werden geprüft …"
+              : "Quellen lokal vorbereiten"}
+          </button>
+        </form>
+        {props.aiError ? (
+          <p className="error-banner" role="alert">
+            {props.aiError}
+          </p>
+        ) : null}
+        {props.aiResponse ? (
+          <div className="ai-response" aria-live="polite">
+            <p className="information-banner">{props.aiResponse.message}</p>
+            <small>
+              Anbieter: {props.aiResponse.metadata.providerId ?? "keiner"} ·
+              Externe Übertragung: nein · Nutzbare Quellen:{" "}
+              {props.aiResponse.metadata.usableSourceCount}
+            </small>
+            {props.aiResponse.answer ? (
+              <p className="ai-answer">{props.aiResponse.answer}</p>
+            ) : null}
+            {props.aiResponse.sources.map((source) => (
+              <article
+                className="ai-source"
+                key={`${source.contentType}-${source.id}`}
+              >
+                <div>
+                  <strong>{source.title}</strong>
+                  <span>{contentTypeLabel(source.contentType)}</span>
+                </div>
+                <p>{source.excerpt}</p>
+                <small>
+                  Freigabe: lokale Suche
+                  {source.usedForResponse
+                    ? " · Als Antwortquelle verwendet"
+                    : " · Nicht als Antwortquelle verwendet"}
+                  {source.warning === "untrusted_instructions"
+                    ? " · Nicht vertrauenswürdige Anweisung erkannt"
+                    : source.warning === "possible_conflict"
+                      ? " · Möglicher Widerspruch"
+                      : ""}
+                </small>
+              </article>
+            ))}
+            {props.aiResponse.suggestions.map((suggestion) => (
+              <article className="ai-suggestion" key={suggestion.id}>
+                <p>{suggestion.summary}</p>
+                <button
+                  className="secondary-button"
+                  disabled={props.aiLoading}
+                  onClick={() =>
+                    void props.onConfirmAiSuggestion(
+                      props.aiResponse!.interactionId,
+                      suggestion.id,
+                    )
+                  }
+                >
+                  Vorschlag bestätigen
+                </button>
+                <small>
+                  Die Bestätigung protokolliert nur die Freigabe; die
+                  Fachänderung wird weiterhin nicht automatisch ausgeführt.
+                </small>
               </article>
             ))}
           </div>

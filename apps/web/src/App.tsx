@@ -38,6 +38,7 @@ import type {
   UpdateNoteRequest,
   SearchResponse,
   SearchResultResponse,
+  AiQueryResponse,
 } from "@lifeos/contracts";
 import { useCallback, useEffect, useState } from "react";
 
@@ -92,6 +93,7 @@ export const App = () => {
   );
   const [noteDetail, setNoteDetail] = useState<NoteDetailResponse | null>(null);
   const [search, setSearch] = useState<SearchResponse | null>(null);
+  const [aiResponse, setAiResponse] = useState<AiQueryResponse | null>(null);
   const [planningRange, setPlanningRange] = useState<DateRange>(() =>
     weekRange("Europe/Berlin", 1),
   );
@@ -128,6 +130,8 @@ export const App = () => {
   const [knowledgeSuccess, setKnowledgeSuccess] = useState<string | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [taskSuccess, setTaskSuccess] = useState<string | null>(null);
 
@@ -333,6 +337,45 @@ export const App = () => {
     [loadNote, loadProject],
   );
 
+  const prepareAiSources = useCallback(async (query: string) => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      setAiResponse(await api.createAiQuery({ query }));
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401)
+        setSession("anonymous");
+      else setAiError(errorMessage(error));
+    } finally {
+      setAiLoading(false);
+    }
+  }, []);
+
+  const confirmAiSuggestion = useCallback(
+    async (interactionId: string, suggestionId: string) => {
+      setAiLoading(true);
+      setAiError(null);
+      try {
+        await api.confirmAiSuggestion(interactionId, suggestionId);
+        setAiResponse((current) =>
+          current
+            ? {
+                ...current,
+                suggestions: current.suggestions.filter(
+                  (suggestion) => suggestion.id !== suggestionId,
+                ),
+              }
+            : current,
+        );
+      } catch (error) {
+        setAiError(errorMessage(error));
+      } finally {
+        setAiLoading(false);
+      }
+    },
+    [],
+  );
+
   const loadAuthenticatedData = useCallback(async () => {
     const [loadedProfile, loadedCalendars, loadedTasks, loadedLinks] =
       await Promise.all([
@@ -445,6 +488,8 @@ export const App = () => {
     setNoteDetail(null);
     setSearch(null);
     setSearchError(null);
+    setAiResponse(null);
+    setAiError(null);
     setSelectedCalendarId(null);
     setLoginError(null);
   };
@@ -1068,9 +1113,14 @@ export const App = () => {
           search={search}
           searchLoading={searchLoading}
           searchError={searchError}
+          aiResponse={aiResponse}
+          aiLoading={aiLoading}
+          aiError={aiError}
           onReload={() => void loadKnowledge(noteDetail?.id)}
           onSearch={runSearch}
           onOpenSearchResult={openSearchResult}
+          onPrepareAiSources={prepareAiSources}
+          onConfirmAiSuggestion={confirmAiSuggestion}
           onSelectNote={(id) => void loadNote(id)}
           onCreateNote={(value: CreateNoteRequest) =>
             changeKnowledge(

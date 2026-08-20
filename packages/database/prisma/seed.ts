@@ -22,6 +22,7 @@ const SYNTHETIC_PROJECT_GOAL_ID = "00000000-0000-4000-8000-000000000008";
 const SYNTHETIC_PROJECT_MILESTONE_ID = "00000000-0000-4000-8000-000000000009";
 const SYNTHETIC_PROJECT_EVENT_LINK_ID = "00000000-0000-4000-8000-000000000010";
 const SYNTHETIC_NOTE_ID = "00000000-0000-4000-8000-000000000011";
+const SYNTHETIC_AI_INTERACTION_ID = "00000000-0000-4000-8000-000000000012";
 
 const seed = async () => {
   const database = createDatabaseClient();
@@ -189,6 +190,37 @@ const seed = async () => {
             category: "Dokumentation",
             tags: ["synthetisch", "projekt"],
           },
+        },
+      },
+    });
+
+    await database.aiInteraction.upsert({
+      where: { id: SYNTHETIC_AI_INTERACTION_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_AI_INTERACTION_ID,
+        userId: user.id,
+        requestHash: "a".repeat(64),
+        status: "disabled",
+        processingMode: "local",
+        externalTransferOccurred: false,
+        sourceReferences: [
+          {
+            sourceType: "note",
+            sourceId: SYNTHETIC_NOTE_ID,
+            sourceUpdatedAt: "2030-01-01T00:00:00.000Z",
+            excerptHash: "b".repeat(64),
+            releaseStatus: "search_enabled",
+            usedForResponse: false,
+            warning: null,
+          },
+        ],
+        responseMetadata: {
+          messageCode: "disabled",
+          answerHash: null,
+          sourceCount: 1,
+          usableSourceCount: 1,
+          suggestions: [],
         },
       },
     });

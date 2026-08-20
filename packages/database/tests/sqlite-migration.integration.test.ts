@@ -38,6 +38,7 @@ const readMigrationSnapshot = async (
         orderBy: { id: "asc" },
         include: { events: { orderBy: { id: "asc" } } },
       },
+      aiInteractions: { orderBy: { id: "asc" } },
       auditEvents: { orderBy: { id: "asc" } },
     },
   });
@@ -55,6 +56,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
     "20260812100000_projects_milestones",
     "20260812190000_local_documents_notes",
     "20260820100000_local_search",
+    "20260820150000_source_grounded_ai",
   ]);
 
   const database = createSqliteDatabaseClient(databaseUrl);
@@ -63,7 +65,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const migrationRows = await database.$queryRawUnsafe<
     Array<{ name: string; checksum: string }>
   >('SELECT "name", "checksum" FROM "_lifeos_migrations"');
-  assert.equal(migrationRows.length, 5);
+  assert.equal(migrationRows.length, 6);
   assert.equal(migrationRows[0]?.name, "20260809190000_sqlite_foundation");
   assert.match(migrationRows[0]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[1]?.name, "20260809203000_product_modules");
@@ -74,6 +76,8 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   assert.match(migrationRows[3]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[4]?.name, "20260820100000_local_search");
   assert.match(migrationRows[4]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[5]?.name, "20260820150000_source_grounded_ai");
+  assert.match(migrationRows[5]?.checksum ?? "", /^[0-9a-f]{64}$/);
 
   const foreignKeys = await database.$queryRawUnsafe<
     Array<{ foreign_keys: bigint }>

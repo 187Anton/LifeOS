@@ -61,5 +61,6 @@ bleiben suchbar. Es findet keine externe Übertragung statt.
 
 Die Suche besitzt noch keine Wortstammbildung, Synonyme, Tippfehlertoleranz,
 OCR oder Extraktion aus PDF- beziehungsweise Office-Dateien. Suchtreffer sind
-keine automatisch geprüften KI-Quellen. Eine spätere quellengestützte Funktion
-muss Freigabe und Eignung nochmals prüfen und Quellen sichtbar ausweisen.
+keine automatisch verwendeten KI-Quellen. Die
+[`quellengestützte KI-Grundlage`](ai.md) prüft Freigabe und Eignung nochmals,
+weist Quellen sichtbar aus und bleibt standardmäßig deaktiviert.

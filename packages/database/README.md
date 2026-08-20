@@ -50,6 +50,13 @@ Mac-App-Migration.
   eine standardmäßig deaktivierte `searchEnabled`-Freigabe. Die Migration
   `20260820100000_local_search` ergänzt diese Felder und die nur für aktive
   Datensätze verwendeten Zugriffspfade in PostgreSQL und SQLite.
+- `AiInteraction` hält den besitzgebundenen technischen Nachweis einer lokalen
+  Quellenaufbereitung. Fragen, Antworten und Textausschnitte werden nicht im
+  Klartext gespeichert; zufällig geschützte SHA-256-Fingerabdrücke,
+  Quellen-IDs, Status, Zähler und Bestätigungsmetadaten genügen für
+  Nachvollziehbarkeit und Audit. Die Migration
+  `20260820150000_source_grounded_ai` ist für PostgreSQL und SQLite
+  versioniert.
 - `AvailabilityWindow` speichert wöchentliche persönliche Verfügbarkeit als
   Wochentag, Start- und Endminute sowie IANA-Zeitzone. Gültigkeitsbedingungen
   und Besitzbezug werden zusätzlich in PostgreSQL erzwungen.
@@ -99,7 +106,8 @@ npm run db:verify:recovery
 - `db:migrate` wendet ausschließlich vorhandene, versionierte Migrationen an.
 - `db:seed` legt wiederholbar dieselbe synthetische Person, Einstellungen,
   einen Kalender, ein Ereignis, einen Projektanker, eine Aufgabe, deren
-  Beziehung und ein Audit-Ereignis an.
+  Beziehung, eine deaktivierte KI-Interaktion ohne Klartext und ein
+  Audit-Ereignis an.
 - `db:test` speichert und liest einen eigenen synthetischen Datensatz und
   entfernt ihn anschließend wieder.
 - `db:backup` schreibt einen Custom-Format-Dump samt SHA-256-Prüfsumme in das

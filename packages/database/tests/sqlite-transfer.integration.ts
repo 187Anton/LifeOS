@@ -282,6 +282,35 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       metadata: { source: "synthetic-m4" },
     },
   });
+  const aiInteraction = await source.aiInteraction.create({
+    data: {
+      userId: user.id,
+      requestHash: createHash("sha256")
+        .update("synthetic-ai-query")
+        .digest("hex"),
+      status: "disabled",
+      processingMode: "local",
+      externalTransferOccurred: false,
+      sourceReferences: [
+        {
+          sourceType: "note",
+          sourceId: note.id,
+          sourceUpdatedAt: "2032-09-01T12:00:00.000Z",
+          excerptHash: createHash("sha256").update("excerpt").digest("hex"),
+          releaseStatus: "search_enabled",
+          usedForResponse: false,
+          warning: null,
+        },
+      ],
+      responseMetadata: {
+        messageCode: "disabled",
+        answerHash: null,
+        sourceCount: 1,
+        usableSourceCount: 1,
+        suggestions: [],
+      },
+    },
+  });
 
   const importedDatabasePath = path.join(directory, "imported.sqlite");
   const importResult = await importPostgresToSqlite(
@@ -319,6 +348,7 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       workTaskLinks: true,
       workTimeEntries: true,
       availabilityWindows: true,
+      aiInteractions: true,
       auditEvents: true,
     },
   });
@@ -347,6 +377,8 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   assert.equal(importedUser.projects[0]?.searchEnabled, true);
   assert.equal(importedUser.studyModules[0]?.searchEnabled, true);
   assert.equal(importedUser.workProjects[0]?.searchEnabled, true);
+  assert.equal(importedUser.aiInteractions[0]?.id, aiInteraction.id);
+  assert.equal(importedUser.aiInteractions[0]?.externalTransferOccurred, false);
 
   const documents = path.join(directory, "documents-source");
   await mkdir(path.join(documents, user.id), { recursive: true });

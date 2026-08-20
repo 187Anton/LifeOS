@@ -268,6 +268,7 @@ const SYNTHETIC_PROJECT_GOAL_ID = "00000000-0000-4000-8000-000000000108";
 const SYNTHETIC_PROJECT_MILESTONE_ID = "00000000-0000-4000-8000-000000000109";
 const SYNTHETIC_PROJECT_EVENT_LINK_ID = "00000000-0000-4000-8000-000000000110";
 const SYNTHETIC_NOTE_ID = "00000000-0000-4000-8000-000000000111";
+const SYNTHETIC_AI_INTERACTION_ID = "00000000-0000-4000-8000-000000000112";
 
 export const seedSqliteDatabase = async (
   databaseUrl = process.env.SQLITE_DATABASE_URL,
@@ -437,6 +438,38 @@ export const seedSqliteDatabase = async (
               createdAt: toDate(fixture.user.createdAt),
             },
           },
+        },
+      });
+      await transaction.aiInteraction.upsert({
+        where: { id: SYNTHETIC_AI_INTERACTION_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_AI_INTERACTION_ID,
+          userId: fixture.user.id,
+          requestHash: "a".repeat(64),
+          status: "disabled",
+          processingMode: "local",
+          externalTransferOccurred: false,
+          sourceReferences: [
+            {
+              sourceType: "note",
+              sourceId: SYNTHETIC_NOTE_ID,
+              sourceUpdatedAt: fixture.user.updatedAt,
+              excerptHash: "b".repeat(64),
+              releaseStatus: "search_enabled",
+              usedForResponse: false,
+              warning: null,
+            },
+          ],
+          responseMetadata: {
+            messageCode: "disabled",
+            answerHash: null,
+            sourceCount: 1,
+            usableSourceCount: 1,
+            suggestions: [],
+          },
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
         },
       });
       await transaction.auditEvent.upsert({

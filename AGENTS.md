@@ -310,6 +310,12 @@ persistiert und gelten nicht automatisch als geprüfte KI-Quellen. Vektorsuche
 oder `pgvector` erst ergänzen, wenn ein konkreter Nutzen durch Tests oder echte
 Suchfälle belegt ist.
 
+Die Suchfreigabe ist keine Freigabe für externe KI-Verarbeitung. Der produktive
+KI-Adapter bleibt deaktiviert, bis Anbieter und externe Datenfreigabe getrennt
+implementiert und geprüft sind. KI-Interaktionen und Audits speichern keinen
+Prompt-, Antwort- oder Quellenausschnitt im Klartext. Bestätigte Vorschläge
+erzeugen ohne eine weitere bestätigte Fachaktion keine Datenänderung.
+
 ## 6. Entwicklungsregeln
 
 Vor jeder Änderung:
@@ -530,3 +536,8 @@ gemeldet.
   aktive und ausdrücklich freigegebene Inhalte ohne persistierten
   Schattenindex nach PostgreSQL-/SQLite-, Recovery-, API- und
   Desktop-/Mobiltests festgehalten.
+- **2026-08-20:** Standardmäßig deaktivierte quellengestützte KI-Grundlage mit
+  getrennter externer Freigabe, nicht vertrauenswürdigen Quellen,
+  klartextfreier Interaktionspersistenz und bestätigungspflichtigen Vorschlägen
+  nach PostgreSQL-/SQLite-, Recovery-, API- und Desktop-/Mobiltests
+  festgehalten.

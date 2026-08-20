@@ -80,7 +80,9 @@ FROM (
   UNION ALL
   SELECT 9, 'task-event-link|' || id::text || '|' || "userId"::text || '|' || "taskId"::text || '|' || "calendarEventId"::text FROM "TaskEventLink"
   UNION ALL
-  SELECT 10, 'audit-count|' || count(*)::text FROM "AuditEvent"
+  SELECT 10, 'ai-interaction|' || id::text || '|' || "userId"::text || '|' || status || '|' || "processingMode" || '|' || "externalTransferOccurred"::text || '|' || "requestHash" || '|' || jsonb_array_length("sourceReferences")::text FROM "AiInteraction"
+  UNION ALL
+  SELECT 11, 'audit-count|' || count(*)::text FROM "AuditEvent"
 ) AS stable_values
 ORDER BY ordinal, value;
 SQL

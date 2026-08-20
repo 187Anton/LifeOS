@@ -522,6 +522,52 @@ const installApi = async (page: Page) => {
       await route.fulfill({ json: { query, results } });
       return;
     }
+    if (path === "/api/v1/ai/queries" && method === "POST") {
+      const payload = request.postDataJSON() as { query?: string };
+      const query = payload.query ?? "";
+      const normalized = query.toLocaleLowerCase("de-DE");
+      const sources = notes
+        .filter(
+          (note) =>
+            note.searchEnabled === true &&
+            `${String(note.title)} ${String(note.content)}`
+              .toLocaleLowerCase("de-DE")
+              .includes(normalized),
+        )
+        .map((note) => ({
+          id: note.id,
+          title: note.title,
+          contentType: "note",
+          source: { type: "note", id: note.id, title: note.title },
+          updatedAt: note.updatedAt,
+          excerpt: note.content,
+          detailPath: `/knowledge/notes/${String(note.id)}`,
+          releaseStatus: "search_enabled",
+          usedForResponse: false,
+          warning: null,
+        }));
+      await route.fulfill({
+        status: 201,
+        json: {
+          interactionId: "0d13cbed-0370-4478-a9fc-02997639ff6a",
+          status: "disabled",
+          message:
+            "Die quellengestützte KI ist standardmäßig deaktiviert. Es wurden keine Daten übertragen.",
+          answer: null,
+          sources,
+          suggestions: [],
+          metadata: {
+            providerId: null,
+            processingMode: "local",
+            externalTransferOccurred: false,
+            sourceCount: sources.length,
+            usableSourceCount: sources.length,
+            requestHash: "a".repeat(64),
+          },
+        },
+      });
+      return;
+    }
     if (path === "/api/v1/notes" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       const created = {
@@ -1137,6 +1183,21 @@ test("verwaltet lokale Notizen und Dokumente auf Desktop und Smartphone", async 
   );
   await sourceLink.click();
   await expect(page.getByText("Version 2").first()).toBeVisible();
+  await page
+    .getByLabel("Frage für die lokale Quellenprüfung")
+    .fill("synthetischer Inhalt");
+  await page.getByRole("button", { name: "Quellen lokal vorbereiten" }).click();
+  await expect(
+    page.getByText(
+      "Die quellengestützte KI ist standardmäßig deaktiviert. Es wurden keine Daten übertragen.",
+    ),
+  ).toBeVisible();
+  await expect(page.locator(".ai-response")).toContainText(
+    "Synthetische Wissensnotiz Version 2",
+  );
+  await expect(page.locator(".ai-response")).toContainText(
+    "Anbieter: keiner · Externe Übertragung: nein",
+  );
   await page.getByLabel("Datei").evaluate((element) => {
     const transfer = new DataTransfer();
     transfer.items.add(

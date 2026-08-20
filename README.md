@@ -309,7 +309,17 @@ CSV- und JSON-Dokumente werden beim Upload lokal als UTF-8-Text extrahiert;
 andere Formate bleiben über ihre Metadaten auffindbar. Suchanfragen,
 Suchergebnisse und kombinierbare Aufgaben-, Arbeitsbereichs-, Status- und
 Zeitraumfilter bleiben flüchtiger UI-Zustand. Details und Grenzen stehen im
-[Suchvertrag](docs/api/search.md). Ein Produktions-Build erzeugt zusätzlich
+[Suchvertrag](docs/api/search.md).
+
+Die **quellengestützte KI-Grundlage** bereitet für eine Frage ausschließlich
+eigene, aktive und für die lokale Suche freigegebene Quellen auf. Sie zeigt
+Quellen, Textausschnitte, Freigabestatus und Sicherheitswarnungen sichtbar an.
+Der produktive Adapter ist standardmäßig deaktiviert; es ist kein externer
+Anbieter eingerichtet und es werden keine Daten nach außen übertragen.
+Vorschläge benötigen eine Bestätigung, und selbst diese Bestätigung ändert
+noch keine Fachdaten. Fragen, Antworten und Ausschnitte werden weder
+protokolliert noch im Klartext persistiert. Details stehen im
+[KI-Vertrag](docs/api/ai.md). Ein Produktions-Build erzeugt zusätzlich
 Manifest und Offline-App-Shell:
 
 ```bash

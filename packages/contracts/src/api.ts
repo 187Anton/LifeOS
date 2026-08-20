@@ -647,6 +647,72 @@ export interface SearchResponse {
   results: SearchResultResponse[];
 }
 
+export type AiInteractionStatus =
+  | "disabled"
+  | "no_sources"
+  | "insufficient_sources"
+  | "conflicting_sources"
+  | "unsafe_sources"
+  | "external_release_required"
+  | "provider_missing"
+  | "ready";
+
+export interface AiStatusResponse {
+  enabled: boolean;
+  providerId: string | null;
+  processingMode: "local" | "external" | null;
+  externalTransferEnabled: boolean;
+}
+
+export interface CreateAiQueryRequest {
+  query: string;
+  minimumSources?: number;
+}
+
+export interface AiSourceReferenceResponse {
+  id: string;
+  title: string;
+  contentType: SearchContentType;
+  source: SearchSourceResponse;
+  updatedAt: string;
+  excerpt: string;
+  detailPath: string;
+  releaseStatus: "search_enabled";
+  usedForResponse: boolean;
+  warning: "untrusted_instructions" | "possible_conflict" | null;
+}
+
+export interface AiSuggestionResponse {
+  id: string;
+  actionType: string;
+  summary: string;
+  requiresConfirmation: true;
+}
+
+export interface AiQueryResponse {
+  interactionId: string;
+  status: AiInteractionStatus;
+  message: string;
+  answer: string | null;
+  sources: AiSourceReferenceResponse[];
+  suggestions: AiSuggestionResponse[];
+  metadata: {
+    providerId: string | null;
+    processingMode: "local" | "external" | null;
+    externalTransferOccurred: false;
+    sourceCount: number;
+    usableSourceCount: number;
+    requestHash: string;
+  };
+}
+
+export interface ConfirmAiSuggestionResponse {
+  interactionId: string;
+  suggestionId: string;
+  status: "confirmed";
+  domainChangesApplied: false;
+}
+
 export interface CreateWorkTaskLinkRequest {
   contextId: string;
   projectId?: string | null;
