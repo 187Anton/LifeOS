@@ -72,6 +72,8 @@ import type {
   UpdateFitnessSessionRequest,
   UpdateFitnessSetRequest,
   UpsertFitnessPlanExerciseRequest,
+  IcsImportCommitResponse,
+  IcsImportPreviewResponse,
 } from "@lifeos/contracts";
 
 const API_BASE = "/api/v1";
@@ -137,6 +139,21 @@ const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+};
+
+const requestText = async (path: string): Promise<string> => {
+  const response = await fetch(`${API_BASE}${path}`, {
+    credentials: "include",
+    headers: { Accept: "text/calendar" },
+  });
+  if (!response.ok) {
+    throw new ApiClientError(
+      response.status,
+      "HTTP_ERROR",
+      "Die lokale Kalenderdatei konnte nicht erstellt werden.",
+    );
+  }
+  return response.text();
 };
 
 export const api = {
@@ -663,5 +680,26 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
+  },
+  previewIcsImport(calendarId: string, source: string) {
+    return request<IcsImportPreviewResponse>(
+      `/calendars/${encodeURIComponent(calendarId)}/ics/preview`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "text/calendar; charset=utf-8" },
+        body: source,
+      },
+    );
+  },
+  commitIcsImport(calendarId: string, previewId: string) {
+    return request<IcsImportCommitResponse>(
+      `/calendars/${encodeURIComponent(calendarId)}/ics/commit`,
+      { method: "POST", body: JSON.stringify({ previewId }) },
+    );
+  },
+  exportIcs(calendarId: string) {
+    return requestText(
+      `/calendars/${encodeURIComponent(calendarId)}/ics/export`,
+    );
   },
 };

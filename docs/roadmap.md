@@ -505,9 +505,22 @@ Desktop-/Mobilbetrieb sind nachgewiesen.
 
 ### 0.5.3 ICS-Import und -Export
 
-- iCalendar-Dateien importieren und exportieren.
-- UID, Zeitzone und Wiederholungsregeln möglichst verlustarm behandeln.
-- Importkonflikte vor dem Schreiben anzeigen.
+- **Umgesetzt (20. August 2026):** Eigene Kalender lassen sich lokal als
+  RFC-5545-iCalendar-Datei exportieren; begrenzte ICS-Dateien werden vor jedem
+  Import vollständig geprüft und als Vorschau angezeigt.
+- Stabile UIDs, `VTIMEZONE`, zeitgebundene und ganztägige Ereignisse,
+  begrenzte Wiederholungen und DISPLAY-Erinnerungen werden verlustarm
+  übernommen. Wiederholter Import identischer Daten erzeugt keine Duplikate.
+- Doppelte, gelöschte oder abweichend vorhandene UIDs sowie ungültige
+  Ereignisse blockieren den atomaren Schreibschritt. Lokale ETags und
+  Sync-Daten werden nicht ungefragt überschrieben.
+- Besitzgrenzen, 2-MiB-/500-Ereignis-Limits, kurzlebige Einmal-Vorschauen,
+  PostgreSQL-/SQLite-Parität und die responsive Bedienung sind im
+  [`ICS-Vertrag`](api/ics.md) dokumentiert und automatisiert geprüft.
+
+Abschlusskriterium: Import und Export verwenden ausschließlich den vorhandenen
+Kalenderkern; Konflikte sind vor dem Schreiben sichtbar, identische Importe
+sind idempotent und persönliche Kalenderdaten bleiben lokal.
 
 ### 0.5.4 Externe CalDAV-Integration
 

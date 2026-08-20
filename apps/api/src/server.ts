@@ -67,6 +67,11 @@ import { FinanceService } from "./modules/finance/service.js";
 import { PrismaFitnessRepository } from "./modules/fitness/repository.js";
 import { createFitnessRouter } from "./modules/fitness/router.js";
 import { FitnessService } from "./modules/fitness/service.js";
+import {
+  createIcsPreviewRouter,
+  createIcsRouter,
+} from "./modules/ics/router.js";
+import { IcsImportService } from "./modules/ics/service.js";
 
 const main = async (): Promise<void> => {
   loadLocalEnvironment();
@@ -89,6 +94,7 @@ const main = async (): Promise<void> => {
   const projects = new ProjectService(new PrismaProjectRepository(database));
   const finance = new FinanceService(new PrismaFinanceRepository(database));
   const fitness = new FitnessService(new PrismaFitnessRepository(database));
+  const ics = new IcsImportService(calendars);
   const documentStorage = new LocalDocumentStorage(config.storagePath);
   await documentStorage.initialize();
   const knowledge = new KnowledgeService(
@@ -126,6 +132,7 @@ const main = async (): Promise<void> => {
     ],
     rawModuleRouters: [
       createDocumentUploadRouter({ authentication, knowledge }),
+      createIcsPreviewRouter({ authentication, ics }),
     ],
     moduleRouters: [
       createProfileRouter({
@@ -156,6 +163,7 @@ const main = async (): Promise<void> => {
       createProjectRouter({ authentication, projects }),
       createFinanceRouter({ authentication, finance }),
       createFitnessRouter({ authentication, fitness }),
+      createIcsRouter({ authentication, ics }),
       createKnowledgeRouter({ authentication, knowledge }),
       createSearchRouter({ authentication, search }),
       createAiRouter({ authentication, ai }),

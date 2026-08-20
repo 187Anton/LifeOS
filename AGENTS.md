@@ -247,6 +247,12 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
   Datenbank ausführen; veraltete ETags liefern einen Konflikt und dürfen
   neuere Daten nicht überschreiben.
 - CalDAV-Änderungen dürfen keine Duplikate auf Apple-Geräten erzeugen.
+- Lokale ICS-Importe verwenden ausschließlich den gemeinsamen Kalenderkern,
+  zeigen vor jedem Schreiben eine kurzlebige besitzgebundene Vorschau und
+  importieren neue Ereignisse atomar. Dateien sind auf 2 MiB und 500
+  Ereignisse begrenzt; doppelte oder abweichend vorhandene UIDs sowie
+  unbegrenzte Serien blockieren den Import, statt ETags oder Sync-Daten zu
+  überschreiben.
 - Umbenennungen interner Felder über Migrationen und kompatible API-/CalDAV-
   Abbildung umsetzen.
 - Vor einem Update prüfen, ob die Anwendung und die Datenbankmigration
@@ -552,6 +558,10 @@ gemeldet.
   klartextfreier Interaktionspersistenz und bestätigungspflichtigen Vorschlägen
   nach PostgreSQL-/SQLite-, Recovery-, API- und Desktop-/Mobiltests
   festgehalten.
+- **2026-08-20:** Lokalen ICS-Import mit verpflichtender kurzlebiger Vorschau,
+  atomarem Commit, Größen-/Mengen-/Seriengrenzen und konfliktfreiem Export nach
+  PostgreSQL-/SQLite-, CalDAV-, Recovery-, API-, Desktop-/Mobil- und
+  Sidecar-Tests festgehalten.
 - **2026-08-20:** Lokale besitzgebundene Finanzverwaltung mit ganzzahligen
   Beträgen, expliziter Währung, reinen Buchungstagen, vorbereiteten
   Wiederholungen, Budgets, Auswertungen und eigenem Export nach PostgreSQL-/

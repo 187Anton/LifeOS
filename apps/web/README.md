@@ -16,6 +16,7 @@ aktuell folgende Abläufe ab:
   Termine,
 - Zeitzone, Ort, Beschreibung, Erinnerung und einfache RRULE-Eingabe,
 - verständliche ETag-Konflikte ohne stilles Überschreiben,
+- lokaler ICS-Import mit verpflichtender Vorschau sowie eigener ICS-Export,
 - Aufgaben und Termine in beiden Editoren verknüpfen und wieder trennen,
 - nicht mehr verfügbare verknüpfte Objekte nachvollziehbar anzeigen,
 - Organisations-Dashboard mit heutigen und nächsten Terminen, offenen,
@@ -77,6 +78,8 @@ Sitzung bleibt in einem vom Backend gesetzten `HttpOnly`-Cookie. Auch
 Finanzfilter, Buchungsformulare, Auswertungen und Exporte bleiben flüchtig oder
 werden nur als bewusst heruntergeladene lokale Datei erzeugt.
 Dasselbe gilt für Fitnessformulare, Kalenderzuordnungen und Auswertungen.
+ICS-Dateien werden nur für die aktuelle Vorschau gelesen; Vorschauinhalt und
+Importstatus bleiben flüchtig und werden nicht im Browser gespeichert.
 
 Die Oberfläche lädt keine externen Schriftarten oder anderen notwendigen
 Assets. Manifest-Icons liegen versioniert unter `public/icons/`.
@@ -102,4 +105,5 @@ getrennte Zeitarten, kombinierte Studien- und Arbeitswochen, Bereichsfilter,
 Konflikt- und Kapazitätswarnungen, fehlende Browserpersistenz, horizontalen
 Überlauf, Finanzkennzahlen, Buchungserfassung, Budgetwarnungen sowie lokale
 Fitnesserfassung und deren medizinische Abgrenzung auf Desktop und Smartphone
-sowie Manifest, Service Worker und Offline-App-Shell.
+sowie ICS-Vorschau, bestätigten Import, Export, Manifest, Service Worker und
+Offline-App-Shell.

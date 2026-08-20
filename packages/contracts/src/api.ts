@@ -108,6 +108,40 @@ export interface CalendarEventResponse {
   updatedAt: string;
 }
 
+export type IcsImportAction = "create" | "unchanged" | "conflict" | "invalid";
+
+export interface IcsImportPreviewItemResponse {
+  index: number;
+  uid: string | null;
+  title: string | null;
+  action: IcsImportAction;
+  message: string;
+  existingEtag: string | null;
+}
+
+export interface IcsImportPreviewResponse {
+  previewId: string;
+  expiresAt: string;
+  sourceSha256: string;
+  totalEvents: number;
+  creatableEvents: number;
+  unchangedEvents: number;
+  conflictingEvents: number;
+  invalidEvents: number;
+  canCommit: boolean;
+  items: IcsImportPreviewItemResponse[];
+}
+
+export interface CommitIcsImportRequest {
+  previewId: string;
+}
+
+export interface IcsImportCommitResponse {
+  createdEvents: number;
+  unchangedEvents: number;
+  createdUids: string[];
+}
+
 export type TaskStatus =
   "open" | "in_progress" | "blocked" | "done" | "cancelled";
 
