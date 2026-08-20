@@ -155,3 +155,9 @@ export const FinanceIcon = (props: IconProps) => (
     <path d="M6 7V5h12v2" />
   </Icon>
 );
+
+export const FitnessIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M7 8v8M4 10v4M17 8v8M20 10v4M7 12h10" />
+  </Icon>
+);

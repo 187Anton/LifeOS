@@ -38,6 +38,12 @@ type ReadClient = Pick<
   | "financeCategory"
   | "financeTransaction"
   | "financeBudget"
+  | "fitnessPlan"
+  | "fitnessExercise"
+  | "fitnessPlanExercise"
+  | "fitnessSession"
+  | "fitnessSet"
+  | "bodyWeightEntry"
   | "aiInteraction"
   | "auditEvent"
 >;
@@ -96,6 +102,20 @@ const readDataset = async (database: ReadClient) => ({
     orderBy: { id: "asc" },
   }),
   financeBudgets: await database.financeBudget.findMany({
+    orderBy: { id: "asc" },
+  }),
+  fitnessPlans: await database.fitnessPlan.findMany({ orderBy: { id: "asc" } }),
+  fitnessExercises: await database.fitnessExercise.findMany({
+    orderBy: { id: "asc" },
+  }),
+  fitnessPlanExercises: await database.fitnessPlanExercise.findMany({
+    orderBy: { id: "asc" },
+  }),
+  fitnessSessions: await database.fitnessSession.findMany({
+    orderBy: { id: "asc" },
+  }),
+  fitnessSets: await database.fitnessSet.findMany({ orderBy: { id: "asc" } }),
+  bodyWeightEntries: await database.bodyWeightEntry.findMany({
     orderBy: { id: "asc" },
   }),
   aiInteractions: await database.aiInteraction.findMany({
@@ -241,6 +261,26 @@ const insertDataset = async (
     if (dataset.financeBudgets.length)
       await transaction.financeBudget.createMany({
         data: dataset.financeBudgets,
+      });
+    if (dataset.fitnessPlans.length)
+      await transaction.fitnessPlan.createMany({ data: dataset.fitnessPlans });
+    if (dataset.fitnessExercises.length)
+      await transaction.fitnessExercise.createMany({
+        data: dataset.fitnessExercises,
+      });
+    if (dataset.fitnessPlanExercises.length)
+      await transaction.fitnessPlanExercise.createMany({
+        data: dataset.fitnessPlanExercises,
+      });
+    if (dataset.fitnessSessions.length)
+      await transaction.fitnessSession.createMany({
+        data: dataset.fitnessSessions,
+      });
+    if (dataset.fitnessSets.length)
+      await transaction.fitnessSet.createMany({ data: dataset.fitnessSets });
+    if (dataset.bodyWeightEntries.length)
+      await transaction.bodyWeightEntry.createMany({
+        data: dataset.bodyWeightEntries,
       });
     if (dataset.aiInteractions.length)
       await transaction.aiInteraction.createMany({

@@ -11,6 +11,7 @@ const dateOnlyFields = new Set([
   "bookingDate",
   "recurrenceEndDate",
   "periodStart",
+  "measuredDate",
 ]);
 const delegateNames = new Set([
   "user",
@@ -40,6 +41,12 @@ const delegateNames = new Set([
   "financeCategory",
   "financeTransaction",
   "financeBudget",
+  "fitnessPlan",
+  "fitnessExercise",
+  "fitnessPlanExercise",
+  "fitnessSession",
+  "fitnessSet",
+  "bodyWeightEntry",
   "auditEvent",
 ]);
 const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;

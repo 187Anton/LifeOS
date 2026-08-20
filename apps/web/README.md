@@ -39,6 +39,9 @@ aktuell folgende Abläufe ab:
 - lokale Finanzverwaltung mit Kategorien, Buchungen, vorbereiteten
   Wiederholungen, Monats-/Jahresbudgets, Filtern, Monatsvergleich, Sparquote,
   Warnungen und eigenem JSON-Export,
+- lokale Fitnessverwaltung mit Trainingsplänen, Übungen, Zielwerten, Einheiten,
+  Sätzen, Gewichtseinträgen, Verlauf und persönlichen Bestleistungen ohne
+  Gesundheitsbewertung,
 - verständliche Lade-, Leer-, Erfolgs- und Fehlerzustände.
 
 ## Lokal starten
@@ -73,6 +76,7 @@ flüchtiger React-Zustand. Die
 Sitzung bleibt in einem vom Backend gesetzten `HttpOnly`-Cookie. Auch
 Finanzfilter, Buchungsformulare, Auswertungen und Exporte bleiben flüchtig oder
 werden nur als bewusst heruntergeladene lokale Datei erzeugt.
+Dasselbe gilt für Fitnessformulare, Kalenderzuordnungen und Auswertungen.
 
 Die Oberfläche lädt keine externen Schriftarten oder anderen notwendigen
 Assets. Manifest-Icons liegen versioniert unter `public/icons/`.
@@ -96,5 +100,6 @@ Aufgaben-Termin-Verknüpfung und -Trennung, Dashboard-Schnellaktionen und
 Aktualisierung, Studienplanung, Arbeitskontexte, Projekte, Aufgabenbezug,
 getrennte Zeitarten, kombinierte Studien- und Arbeitswochen, Bereichsfilter,
 Konflikt- und Kapazitätswarnungen, fehlende Browserpersistenz, horizontalen
-Überlauf, Finanzkennzahlen, Buchungserfassung und Budgetwarnungen sowie
-Manifest, Service Worker und Offline-App-Shell.
+Überlauf, Finanzkennzahlen, Buchungserfassung, Budgetwarnungen sowie lokale
+Fitnesserfassung und deren medizinische Abgrenzung auf Desktop und Smartphone
+sowie Manifest, Service Worker und Offline-App-Shell.

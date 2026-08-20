@@ -14,6 +14,8 @@ Aktuell definiert es:
 - Projekte, Wissen und lokale Suchtreffer,
 - lokale Finanzkategorien, Buchungen, Budgets, Auswertungen und den
   versionierten eigenen Export,
+- lokale Trainingspläne, Übungen, Einheiten, Sätze, Gewichtseinträge und
+  einfache Fortschrittsauswertungen,
 - Status, Quellenreferenzen, Vorschläge und Metadaten der standardmäßig
   deaktivierten quellengestützten KI-Grundlage.
 

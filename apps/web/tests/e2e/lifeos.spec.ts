@@ -165,6 +165,7 @@ const installApi = async (page: Page) => {
       updatedAt: "2032-01-01T00:00:00.000Z",
     },
   ];
+  const fitnessExercises: Array<Record<string, unknown>> = [];
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -1057,6 +1058,40 @@ const installApi = async (page: Page) => {
       await route.fulfill({ status: 201, json: created });
       return;
     }
+    if (path === "/api/v1/fitness" && method === "GET") {
+      await route.fulfill({
+        json: {
+          plans: [],
+          exercises: fitnessExercises,
+          planExercises: [],
+          sessions: [],
+          sets: [],
+          bodyWeights: [],
+          analytics: {
+            completedSessionCount: 0,
+            completedSetCount: 0,
+            volumeGramRepetitions: 0,
+            weightChangeGrams: null,
+            personalBests: [],
+          },
+        },
+      });
+      return;
+    }
+    if (path === "/api/v1/fitness/exercises" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const created = {
+        ...payload,
+        id: `fitness-exercise-${fitnessExercises.length + 1}`,
+        ownerId: profile.id,
+        archivedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      fitnessExercises.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
     await route.fulfill({
       status: 404,
       json: { error: { code: "NOT_FOUND", message: "Nicht gefunden" } },
@@ -1104,6 +1139,35 @@ test("verwaltet Finanzen lokal, ganzzahlig und ohne Browserpersistenz", async ({
   await expect(
     transactionList.getByText("−10,01 €", { exact: true }),
   ).toBeVisible();
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
+});
+
+test("verwaltet Fitness lokal und zeigt medizinische Grenzen", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Fitness", exact: true })
+    .filter({ visible: true })
+    .click();
+
+  await expect(
+    page.getByRole("heading", { name: "Fitness", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/weder Diagnosen noch medizinische Empfehlungen/),
+  ).toBeVisible();
+  const exerciseForm = page
+    .getByRole("heading", { name: "Übung anlegen" })
+    .locator("..");
+  await exerciseForm.getByLabel("Name").fill("Synthetische Kniebeuge");
+  await exerciseForm.getByRole("button", { name: "Übung speichern" }).click();
+  await expect(page.getByRole("status")).toContainText("Übung wurde angelegt");
   expect(
     await page.evaluate(() => ({
       local: Object.keys(localStorage),

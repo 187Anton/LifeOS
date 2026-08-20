@@ -331,6 +331,16 @@ Es gibt keine Bankanbindung, Steuer- oder Rechtsbewertung, KI-Freigabe oder
 externe Übertragung. Details stehen im
 [Finanzvertrag](docs/api/finance.md).
 
+Der Bereich **Fitness** verwaltet Trainingspläne, Übungen, Einheiten, Sätze und
+Gewichtseinträge vollständig lokal. Gewichte, Wiederholungen, Dauer und Distanz
+werden als kontrollierte ganze Basiseinheiten gespeichert. Historie,
+Trainingsvolumen, Gewichtsverlauf und persönliche Bestleistungen sind einfache
+rein lesende Auswertungen und ausdrücklich keine Diagnose oder medizinische
+Empfehlung. Eine Einheit kann einen vorhandenen Termin über Kalender-ID und
+stabile UID referenzieren; der Termin samt ETag und Sync-Token bleibt
+unverändert. Es gibt keine ungefragte externe Übertragung. Details stehen im
+[Fitnessvertrag](docs/api/fitness.md).
+
 Ein Produktions-Build erzeugt zusätzlich Manifest und Offline-App-Shell:
 
 ```bash

@@ -63,6 +63,13 @@ Mac-App-Migration.
   Budgettage reine Datumswerte. Zusammengesetzte Fremdschlüssel verhindern
   fremde Kategorien; die Migration `20260820190000_finance_module` ist für
   PostgreSQL und SQLite versioniert.
+- `FitnessPlan`, `FitnessExercise`, `FitnessPlanExercise`, `FitnessSession`,
+  `FitnessSet` und `BodyWeightEntry` bilden die lokale Trainingsverwaltung.
+  Messwerte sind ganze Gramm, Sekunden, Meter beziehungsweise Wiederholungen;
+  reine Gewichtstage bleiben Datumswerte. Zusammengesetzte Fremdschlüssel
+  verhindern fremde Plan-, Übungs-, Einheits- oder Kalenderbezüge. Die
+  Migration `20260820200000_fitness_module` ist für PostgreSQL und SQLite
+  versioniert.
 - `AvailabilityWindow` speichert wöchentliche persönliche Verfügbarkeit als
   Wochentag, Start- und Endminute sowie IANA-Zeitzone. Gültigkeitsbedingungen
   und Besitzbezug werden zusätzlich in PostgreSQL erzwungen.
@@ -112,7 +119,8 @@ npm run db:verify:recovery
 - `db:migrate` wendet ausschließlich vorhandene, versionierte Migrationen an.
 - `db:seed` legt wiederholbar dieselbe synthetische Person, Einstellungen,
   einen Kalender, ein Ereignis, einen Projektanker, eine Aufgabe, deren
-  Beziehung, synthetische Finanzkategorien, Buchung und Budget, eine
+  Beziehung, synthetische Finanzkategorien, Buchung und Budget, einen
+  Trainingsplan samt Übung, Einheit, Satz und Gewichtseintrag, eine
   deaktivierte KI-Interaktion ohne Klartext und ein Audit-Ereignis an.
 - `db:test` speichert und liest einen eigenen synthetischen Datensatz und
   entfernt ihn anschließend wieder.

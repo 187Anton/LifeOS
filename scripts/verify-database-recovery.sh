@@ -88,7 +88,17 @@ FROM (
   UNION ALL
   SELECT 13, 'finance-budget|' || id::text || '|' || coalesce("categoryId"::text, '') || '|' || period::text || '|' || "periodStart"::text || '|' || "amountMinor"::text || '|' || "warningThresholdPercent"::text FROM "FinanceBudget"
   UNION ALL
-  SELECT 14, 'audit-count|' || count(*)::text FROM "AuditEvent"
+  SELECT 14, 'fitness-plan|' || id::text || '|' || "userId"::text || '|' || name || '|' || coalesce("archivedAt"::text, '') FROM "FitnessPlan"
+  UNION ALL
+  SELECT 15, 'fitness-exercise|' || id::text || '|' || "userId"::text || '|' || name || '|' || coalesce("archivedAt"::text, '') FROM "FitnessExercise"
+  UNION ALL
+  SELECT 16, 'fitness-session|' || id::text || '|' || "userId"::text || '|' || title || '|' || status::text || '|' || coalesce("calendarEventId"::text, '') || '|' || coalesce("performedAt"::text, '') FROM "FitnessSession"
+  UNION ALL
+  SELECT 17, 'fitness-set|' || id::text || '|' || "sessionId"::text || '|' || "exerciseId"::text || '|' || "setNumber"::text || '|' || coalesce(repetitions::text, '') || '|' || coalesce("weightGrams"::text, '') FROM "FitnessSet"
+  UNION ALL
+  SELECT 18, 'body-weight|' || id::text || '|' || "measuredDate"::text || '|' || "weightGrams"::text || '|' || coalesce("archivedAt"::text, '') FROM "BodyWeightEntry"
+  UNION ALL
+  SELECT 19, 'audit-count|' || count(*)::text FROM "AuditEvent"
 ) AS stable_values
 ORDER BY ordinal, value;
 SQL

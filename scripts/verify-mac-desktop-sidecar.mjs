@@ -135,6 +135,7 @@ try {
     "20260820100000_local_search",
     "20260820150000_source_grounded_ai",
     "20260820190000_finance_module",
+    "20260820200000_fitness_module",
   ]);
   database.close();
   assert.equal((await stat(databasePath)).mode & 0o777, 0o600);

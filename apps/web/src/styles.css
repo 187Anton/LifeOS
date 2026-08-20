@@ -30,6 +30,126 @@
   gap: 1rem;
 }
 
+.fitness-page {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.fitness-page .page-heading {
+  margin-bottom: 0.5rem;
+}
+
+.fitness-page .metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.fitness-page .metric-card {
+  min-height: 125px;
+  display: grid;
+  align-content: center;
+}
+
+.fitness-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.workspace-panel {
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: 0 10px 35px rgba(36, 53, 48, 0.04);
+}
+
+.workspace-panel > h2,
+.workspace-panel > h3 {
+  margin-top: 0;
+}
+
+.workspace-panel > h3:not(:first-child) {
+  margin-top: 1.25rem;
+}
+
+.stacked-form,
+.record-list,
+.record-card,
+.record-card > div {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.stacked-form + .stacked-form {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.stacked-form label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 650;
+}
+
+.stacked-form small,
+.record-card p,
+.record-card small {
+  color: var(--muted);
+}
+
+.form-grid.compact {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.record-list {
+  margin-top: 0.75rem;
+}
+
+.record-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  background: #fff;
+}
+
+.record-card p {
+  margin: 0;
+}
+
+.empty-state {
+  padding: 0.9rem;
+  border-radius: 0.8rem;
+  color: var(--muted);
+  background: var(--paper);
+}
+
+@media (max-width: 980px) {
+  .fitness-grid,
+  .fitness-page .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .fitness-grid,
+  .fitness-page .metric-grid,
+  .form-grid.compact {
+    grid-template-columns: 1fr;
+  }
+
+  .record-card {
+    grid-template-columns: 1fr;
+  }
+}
+
 .finance-filters,
 .finance-metrics,
 .finance-grid,

@@ -67,6 +67,13 @@ Die API bindet standardmäßig nur an `127.0.0.1:3000`. Ein Start mit fehlender
 oder ungültiger Konfiguration endet verständlich und ohne Ausgabe von
 Konfigurationswerten.
 
+Der lokale Fitnessvertrag unter `/api/v1/fitness` prüft Sitzung und Besitz für
+jede Route. Pläne, Übungen, Einheiten, Sätze und Gewichtseinträge verwenden
+begrenzte ganzzahlige Basiseinheiten. Ein optionaler Kalenderbezug wird nur
+über eigene Kalender-ID und stabile Ereignis-UID aufgelöst; Ereignis, ETag und
+Sync-Token werden nicht verändert. Details stehen im
+[`Fitnessvertrag`](../../docs/api/fitness.md).
+
 Der Entwicklungsmodus mit automatischem Neustart lautet:
 
 ```bash
