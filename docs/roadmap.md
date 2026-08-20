@@ -524,10 +524,31 @@ sind idempotent und persönliche Kalenderdaten bleiben lokal.
 
 ### 0.5.4 Externe CalDAV-Integration
 
-- Bestehende iCloud-/CalDAV-Kalender optional als externe Quelle anbinden.
-- Zugangsdaten ausschließlich lokal und verschlüsselt konfigurieren.
-- Externe Synchronisierung vom lokalen LifeOS-Kern trennen.
-- Konflikt- und Löschverhalten zuerst mit Testdaten prüfen.
+- **Umgesetzt (20. August 2026):** Externe CalDAV-Kalender lassen sich als
+  optionale, standardmäßig deaktivierte read-only-Quelle konfigurieren,
+  testen, auflisten und nach Vorschau manuell in einen eigenen
+  LifeOS-Kalender importieren.
+- Zugangsdaten bleiben ausschließlich im Backend und werden mit einem
+  getrennten lokalen AES-256-GCM-Schlüssel verschlüsselt. Ohne Schlüssel ist
+  die Funktion vollständig nicht verfügbar; Widerruf löscht Chiffretext und
+  Integrationsdaten.
+- HTTPS, Zertifikatsprüfung, DNS-/IP-Prüfung mit fest gebundener Zieladresse,
+  gleichursprüngliche begrenzte Weiterleitungen, Timeouts sowie Antwort- und
+  Mengenlimits schützen den optionalen Netzwerkpfad. Private, Loopback-,
+  Link-Local- und Metadata-Ziele werden abgewiesen.
+- Fremde ICS-Inhalte werden begrenzt validiert. Abweichende UIDs bleiben vor
+  dem Schreiben sichtbare Konflikte; stabile externe UID-/ETag-Zuordnungen
+  verändern lokale ETags und Sync-Tokens nicht.
+- PostgreSQL-/SQLite-Persistenz, Transfer, Recovery, synthetischer Adapter,
+  Besitzgrenzen, Widerruf sowie Desktop-/Mobilbedienung sind im
+  [`externen CalDAV-Vertrag`](api/external-caldav.md) dokumentiert und
+  automatisiert geprüft.
+
+Abschlusskriterium: Der externe Netzwerkpfad ist nur nach bewusster
+Aktivierung nutzbar, importiert ausschließlich nach Vorschau und Bestätigung
+und kann vollständig widerrufen werden. Bidirektionale Synchronisation,
+Schreiben, Löschspiegelung, echte Apple-Zugänge und der Mac-Schlüsselbundpfad
+bleiben ausdrücklich offen.
 
 ### 0.5.5 Optionale GitHub-Integration
 

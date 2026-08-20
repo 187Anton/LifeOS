@@ -72,6 +72,10 @@ import {
   createIcsRouter,
 } from "./modules/ics/router.js";
 import { IcsImportService } from "./modules/ics/service.js";
+import { HttpExternalCalDavClient } from "./modules/external-caldav/client.js";
+import { PrismaExternalCalDavRepository } from "./modules/external-caldav/repository.js";
+import { createExternalCalDavRouter } from "./modules/external-caldav/router.js";
+import { ExternalCalDavService } from "./modules/external-caldav/service.js";
 
 const main = async (): Promise<void> => {
   loadLocalEnvironment();
@@ -95,6 +99,12 @@ const main = async (): Promise<void> => {
   const finance = new FinanceService(new PrismaFinanceRepository(database));
   const fitness = new FitnessService(new PrismaFitnessRepository(database));
   const ics = new IcsImportService(calendars);
+  const externalCalDav = new ExternalCalDavService(
+    new PrismaExternalCalDavRepository(database),
+    new HttpExternalCalDavClient(),
+    ics,
+    config.integrationSecretKey,
+  );
   const documentStorage = new LocalDocumentStorage(config.storagePath);
   await documentStorage.initialize();
   const knowledge = new KnowledgeService(
@@ -164,6 +174,7 @@ const main = async (): Promise<void> => {
       createFinanceRouter({ authentication, finance }),
       createFitnessRouter({ authentication, fitness }),
       createIcsRouter({ authentication, ics }),
+      createExternalCalDavRouter({ authentication, externalCalDav }),
       createKnowledgeRouter({ authentication, knowledge }),
       createSearchRouter({ authentication, search }),
       createAiRouter({ authentication, ai }),

@@ -386,6 +386,40 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       weightGrams: 75_000,
     },
   });
+  const externalCalDavConnection = await source.externalCalDavConnection.create(
+    {
+      data: {
+        userId: user.id,
+        name: "Synthetische Transferverbindung",
+        baseUrl: "https://calendar.example.test/caldav/",
+        credentialsEncrypted: "synthetic-encrypted-payload",
+        secretIv: "synthetic-iv",
+        secretTag: "synthetic-tag",
+        enabled: false,
+        readOnly: true,
+      },
+    },
+  );
+  const externalCalDavCalendar = await source.externalCalDavCalendar.create({
+    data: {
+      userId: user.id,
+      connectionId: externalCalDavConnection.id,
+      href: "/calendars/personal/",
+      displayName: "Synthetischer Transferkalender",
+    },
+  });
+  const externalCalDavMapping = await source.externalCalDavEventMapping.create({
+    data: {
+      userId: user.id,
+      connectionId: externalCalDavConnection.id,
+      externalCalendarId: externalCalDavCalendar.id,
+      remoteHref: "/calendars/personal/event.ics",
+      remoteUid: event.uid,
+      remoteEtag: '"synthetic-remote-etag"',
+      localCalendarId: calendar.externalId,
+      localEventUid: event.uid,
+    },
+  });
 
   const importedDatabasePath = path.join(directory, "imported.sqlite");
   const importResult = await importPostgresToSqlite(
@@ -405,6 +439,9 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       settings: true,
       credential: true,
       calDavCredential: true,
+      externalCalDavConnections: true,
+      externalCalDavCalendars: true,
+      externalCalDavMappings: true,
       sessions: true,
       calendars: { include: { events: true } },
       projects: true,
@@ -437,6 +474,18 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     },
   });
   assert.equal(importedUser.id, user.id);
+  assert.equal(
+    importedUser.externalCalDavConnections[0]?.id,
+    externalCalDavConnection.id,
+  );
+  assert.equal(
+    importedUser.externalCalDavCalendars[0]?.id,
+    externalCalDavCalendar.id,
+  );
+  assert.equal(
+    importedUser.externalCalDavMappings[0]?.id,
+    externalCalDavMapping.id,
+  );
   assert.equal(importedUser.calendars[0]?.events[0]?.uid, event.uid);
   assert.equal(
     importedUser.tasks[0]?.dueDate?.toISOString(),
@@ -546,6 +595,14 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       })
     ).weightGrams,
     75_000,
+  );
+  assert.equal(
+    (
+      await restored.externalCalDavEventMapping.findUniqueOrThrow({
+        where: { id: externalCalDavMapping.id },
+      })
+    ).remoteEtag,
+    '"synthetic-remote-etag"',
   );
   assert.equal(
     await restored.auditEvent.count({

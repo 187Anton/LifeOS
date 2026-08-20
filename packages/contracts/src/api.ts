@@ -12,6 +12,7 @@ export type ApiErrorCode =
   | "NOT_FOUND"
   | "SERVICE_NOT_READY"
   | "PAYLOAD_TOO_LARGE"
+  | "EXTERNAL_SERVICE_ERROR"
   | "INTERNAL_ERROR";
 
 export interface ApiErrorDetail {
@@ -1125,4 +1126,57 @@ export interface CreateBodyWeightEntryRequest {
 }
 export interface UpdateBodyWeightEntryRequest extends Partial<CreateBodyWeightEntryRequest> {
   archived?: boolean;
+}
+
+export type ExternalCalDavStatus = "disabled" | "ready" | "error" | "revoked";
+
+export interface ExternalCalDavCalendarResponse {
+  id: string;
+  displayName: string;
+}
+
+export interface ExternalCalDavConnectionResponse {
+  id: string;
+  name: string;
+  baseUrl: string;
+  enabled: boolean;
+  readOnly: true;
+  status: ExternalCalDavStatus;
+  credentialsConfigured: boolean;
+  lastErrorCode: string | null;
+  lastTestedAt: string | null;
+  lastSyncAt: string | null;
+  revokedAt: string | null;
+  calendars: ExternalCalDavCalendarResponse[];
+  importedEventCount: number;
+}
+
+export interface ExternalCalDavOverviewResponse {
+  available: boolean;
+  networkDefault: "disabled";
+  mode: "read_only_import";
+  connections: ExternalCalDavConnectionResponse[];
+}
+
+export interface CreateExternalCalDavConnectionRequest {
+  name: string;
+  baseUrl: string;
+  username: string;
+  password: string;
+}
+
+export interface ExternalCalDavImportPreviewResponse {
+  externalImportId: string;
+  expiresAt: string;
+  localCalendarId: string;
+  externalCalendarId: string;
+  preview: IcsImportPreviewResponse;
+}
+
+export interface CommitExternalCalDavImportRequest {
+  externalImportId: string;
+}
+
+export interface ExternalCalDavImportCommitResponse extends IcsImportCommitResponse {
+  mappedEvents: number;
 }

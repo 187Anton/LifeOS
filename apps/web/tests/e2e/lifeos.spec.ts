@@ -166,6 +166,23 @@ const installApi = async (page: Page) => {
     },
   ];
   const fitnessExercises: Array<Record<string, unknown>> = [];
+  const externalCalDavConnections: Array<Record<string, unknown>> = [
+    {
+      id: "external-caldav-1",
+      name: "Synthetischer CalDAV-Dienst",
+      baseUrl: "https://calendar.example.test/caldav/",
+      enabled: false,
+      readOnly: true,
+      status: "disabled",
+      credentialsConfigured: true,
+      lastErrorCode: null,
+      lastTestedAt: null,
+      lastSyncAt: null,
+      revokedAt: null,
+      calendars: [],
+      importedEventCount: 0,
+    },
+  ];
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -177,6 +194,109 @@ const installApi = async (page: Page) => {
     }
     if (path === "/api/v1/profile" && method === "GET") {
       await route.fulfill({ json: profile });
+      return;
+    }
+    if (path === "/api/v1/integrations/caldav" && method === "GET") {
+      await route.fulfill({
+        json: {
+          available: true,
+          networkDefault: "disabled",
+          mode: "read_only_import",
+          connections: externalCalDavConnections,
+        },
+      });
+      return;
+    }
+    if (
+      path === "/api/v1/integrations/caldav/external-caldav-1" &&
+      method === "PATCH"
+    ) {
+      const payload = request.postDataJSON() as { enabled: boolean };
+      Object.assign(externalCalDavConnections[0]!, {
+        enabled: payload.enabled,
+        status: payload.enabled ? "ready" : "disabled",
+      });
+      await route.fulfill({ json: externalCalDavConnections[0] });
+      return;
+    }
+    if (
+      path === "/api/v1/integrations/caldav/external-caldav-1/test" &&
+      method === "POST"
+    ) {
+      Object.assign(externalCalDavConnections[0]!, {
+        status: "ready",
+        lastTestedAt: "2034-03-01T10:00:00.000Z",
+      });
+      await route.fulfill({ json: { reachable: true, calendarCount: 1 } });
+      return;
+    }
+    if (
+      path === "/api/v1/integrations/caldav/external-caldav-1/calendars" &&
+      method === "GET"
+    ) {
+      const remoteCalendar = {
+        id: "external-calendar-1",
+        displayName: "Externer Testkalender",
+        href: "/caldav/test/",
+        etag: '"remote-calendar-etag"',
+        lastFetchedAt: "2034-03-01T10:00:00.000Z",
+      };
+      externalCalDavConnections[0]!.calendars = [remoteCalendar];
+      await route.fulfill({ json: [remoteCalendar] });
+      return;
+    }
+    if (
+      path ===
+        "/api/v1/integrations/caldav/external-caldav-1/imports/preview" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          externalImportId: "external-import-1",
+          expiresAt: "2034-03-01T10:15:00.000Z",
+          localCalendarId: calendar.id,
+          externalCalendarId: "external-calendar-1",
+          preview: {
+            previewId: "external-ics-preview-1",
+            expiresAt: "2034-03-01T10:15:00.000Z",
+            sourceSha256: "b".repeat(64),
+            totalEvents: 1,
+            creatableEvents: 1,
+            unchangedEvents: 0,
+            conflictingEvents: 0,
+            invalidEvents: 0,
+            canCommit: true,
+            items: [
+              {
+                index: 0,
+                uid: "external-event@lifeos.local",
+                title: "Externer synthetischer Termin",
+                action: "create",
+                message: "Das Ereignis kann neu angelegt werden.",
+                existingEtag: null,
+              },
+            ],
+          },
+        },
+      });
+      return;
+    }
+    if (
+      path === "/api/v1/integrations/caldav/external-caldav-1/imports/commit" &&
+      method === "POST"
+    ) {
+      Object.assign(externalCalDavConnections[0]!, {
+        lastSyncAt: "2034-03-01T10:05:00.000Z",
+        importedEventCount: 1,
+      });
+      await route.fulfill({
+        json: {
+          createdEvents: 1,
+          unchangedEvents: 0,
+          createdUids: ["external-event@lifeos.local"],
+          mappedEvents: 1,
+        },
+      });
       return;
     }
     if (path === "/api/v1/study" && method === "GET") {
@@ -1345,6 +1465,48 @@ test("prüft ICS-Dateien vor dem Import und exportiert lokal", async ({
   await expect(
     page.getByText("Der lokale ICS-Export wurde erstellt."),
   ).toBeVisible();
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
+});
+
+test("aktiviert externe CalDAV-Importe nur kontrolliert und read-only", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Integrationen", exact: true })
+    .filter({ visible: true })
+    .click();
+
+  await expect(
+    page.getByRole("heading", { name: "Integrationen", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Deaktiviert", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Verbindung testen" }),
+  ).toBeDisabled();
+
+  await page.getByRole("button", { name: "Read-only aktivieren" }).click();
+  await expect(page.getByText("Aktiv · nur Lesen")).toBeVisible();
+  await page.getByRole("button", { name: "Verbindung testen" }).click();
+  await expect(page.getByRole("status")).toContainText("erfolgreich getestet");
+  await page.getByRole("button", { name: "Kalender auflisten" }).click();
+  await page
+    .getByLabel("Externer Kalender")
+    .selectOption("external-calendar-1");
+  await page.getByRole("button", { name: "Importvorschau erstellen" }).click();
+  await expect(page.getByText(/1 Ereignisse: 1 neu/)).toBeVisible();
+  await page
+    .getByRole("button", { name: "Read-only-Import bestätigen" })
+    .click();
+  await expect(page.getByRole("status")).toContainText("read-only importiert");
+  await page.getByRole("button", { name: "Verbindung deaktivieren" }).click();
+  await expect(page.getByText("Deaktiviert", { exact: true })).toBeVisible();
+
   expect(
     await page.evaluate(() => ({
       local: Object.keys(localStorage),

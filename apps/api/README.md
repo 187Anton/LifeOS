@@ -79,6 +79,15 @@ Export sowie einen zweistufigen Import mit flüchtiger Vorschau. Dateien sind
 auf 2 MiB und 500 Ereignisse begrenzt; Konflikte, doppelte UIDs und ungültige
 Serien blockieren den atomaren Schreibschritt.
 
+Die optionale externe CalDAV-Integration unter `/api/v1/integrations/caldav`
+ist ohne `INTEGRATION_SECRET_KEY` vollständig nicht verfügbar. Konfigurationen
+bleiben zunächst deaktiviert; Zugangsdaten werden AES-256-GCM-verschlüsselt
+und nie wieder ausgegeben. Nur aktivierte Verbindungen dürfen über den
+SSRF-geschützten HTTPS-Client getestet, aufgelistet und für einen bestätigten
+read-only-Import verwendet werden. Schreiben und automatische Synchronisation
+sind nicht implementiert. Routen, Limits und offene Grenzen dokumentiert der
+[`externe CalDAV-Vertrag`](../../docs/api/external-caldav.md).
+
 Der Entwicklungsmodus mit automatischem Neustart lautet:
 
 ```bash

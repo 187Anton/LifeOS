@@ -17,6 +17,8 @@ Aktuell definiert es:
   versionierten eigenen Export,
 - lokale Trainingspläne, Übungen, Einheiten, Sätze, Gewichtseinträge und
   einfache Fortschrittsauswertungen,
+- ausschließlich redigierte externe CalDAV-Verbindungen, Kalenderlisten sowie
+  kurzlebige read-only-Importvorschauen und Commit-Nachweise,
 - Status, Quellenreferenzen, Vorschläge und Metadaten der standardmäßig
   deaktivierten quellengestützten KI-Grundlage.
 

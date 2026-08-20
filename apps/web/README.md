@@ -43,6 +43,9 @@ aktuell folgende Abläufe ab:
 - lokale Fitnessverwaltung mit Trainingsplänen, Übungen, Zielwerten, Einheiten,
   Sätzen, Gewichtseinträgen, Verlauf und persönlichen Bestleistungen ohne
   Gesundheitsbewertung,
+- optionale, standardmäßig deaktivierte externe CalDAV-Verbindung mit
+  Status, bewusstem Aktivieren, Test, Kalenderliste sowie bestätigter
+  read-only-Importvorschau ohne Zugangsdaten im Frontend,
 - verständliche Lade-, Leer-, Erfolgs- und Fehlerzustände.
 
 ## Lokal starten
@@ -80,6 +83,9 @@ werden nur als bewusst heruntergeladene lokale Datei erzeugt.
 Dasselbe gilt für Fitnessformulare, Kalenderzuordnungen und Auswertungen.
 ICS-Dateien werden nur für die aktuelle Vorschau gelesen; Vorschauinhalt und
 Importstatus bleiben flüchtig und werden nicht im Browser gespeichert.
+Dasselbe gilt für externe CalDAV-Formulare, Status und Vorschauen. Benutzername
+und Passwort werden nur beim Konfigurieren an die lokale API gesendet, danach
+aus dem Formular entfernt und niemals wieder an die Oberfläche geliefert.
 
 Die Oberfläche lädt keine externen Schriftarten oder anderen notwendigen
 Assets. Manifest-Icons liegen versioniert unter `public/icons/`.
@@ -106,4 +112,6 @@ Konflikt- und Kapazitätswarnungen, fehlende Browserpersistenz, horizontalen
 Überlauf, Finanzkennzahlen, Buchungserfassung, Budgetwarnungen sowie lokale
 Fitnesserfassung und deren medizinische Abgrenzung auf Desktop und Smartphone
 sowie ICS-Vorschau, bestätigten Import, Export, Manifest, Service Worker und
-Offline-App-Shell.
+Offline-App-Shell. Der Integrationsablauf prüft zusätzlich den deaktivierten
+Ausgangszustand, bewusstes Aktivieren, Test, Kalenderliste, Vorschau,
+bestätigten read-only-Import, erneutes Deaktivieren und leeren Browser-Storage.

@@ -68,6 +68,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
     "20260820150000_source_grounded_ai",
     "20260820190000_finance_module",
     "20260820200000_fitness_module",
+    "20260820210000_external_caldav",
   ]);
 
   const database = createSqliteDatabaseClient(databaseUrl);
@@ -76,7 +77,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const migrationRows = await database.$queryRawUnsafe<
     Array<{ name: string; checksum: string }>
   >('SELECT "name", "checksum" FROM "_lifeos_migrations"');
-  assert.equal(migrationRows.length, 8);
+  assert.equal(migrationRows.length, 9);
   assert.equal(migrationRows[0]?.name, "20260809190000_sqlite_foundation");
   assert.match(migrationRows[0]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[1]?.name, "20260809203000_product_modules");
@@ -93,6 +94,8 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   assert.match(migrationRows[6]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[7]?.name, "20260820200000_fitness_module");
   assert.match(migrationRows[7]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[8]?.name, "20260820210000_external_caldav");
+  assert.match(migrationRows[8]?.checksum ?? "", /^[0-9a-f]{64}$/);
 
   const foreignKeys = await database.$queryRawUnsafe<
     Array<{ foreign_keys: bigint }>
@@ -400,6 +403,68 @@ test("erzwingt Fitnessbesitz und ganzzahlige Messwerte in SQLite", async (t) => 
         userId: fixture.user.id,
         title: "Ungültiger Abschluss",
         status: "completed",
+      },
+    }),
+  );
+});
+
+test("erzwingt read-only-CalDAV und Besitzergrenzen in SQLite", async (t) => {
+  const databaseUrl = await createIsolatedDatabase(t);
+  await migrateSqliteDatabase(databaseUrl);
+  await seedSqliteDatabase(databaseUrl);
+  const fixture = await readSqliteSeedFixture();
+  const database = createSqliteDatabaseClient(databaseUrl);
+  t.after(async () => database.$disconnect());
+  const connection = await database.externalCalDavConnection.create({
+    data: {
+      userId: fixture.user.id,
+      name: "Synthetische externe Verbindung",
+      baseUrl: "https://calendar.example.test/caldav/",
+      credentialsEncrypted: "synthetic-encrypted-payload",
+      secretIv: "synthetic-iv",
+      secretTag: "synthetic-tag",
+    },
+  });
+  const calendar = await database.externalCalDavCalendar.create({
+    data: {
+      userId: fixture.user.id,
+      connectionId: connection.id,
+      href: "/calendars/personal/",
+      displayName: "Synthetischer externer Kalender",
+    },
+  });
+  const mapping = await database.externalCalDavEventMapping.create({
+    data: {
+      userId: fixture.user.id,
+      connectionId: connection.id,
+      externalCalendarId: calendar.id,
+      remoteHref: "/calendars/personal/event.ics",
+      remoteUid: "remote-event@example.test",
+      localCalendarId: fixture.calendar.externalId,
+      localEventUid: fixture.events[0]!.uid,
+    },
+  });
+  assert.equal(mapping.remoteUid, "remote-event@example.test");
+  await assert.rejects(() =>
+    database.externalCalDavConnection.create({
+      data: {
+        userId: fixture.user.id,
+        name: "Ungültiger Schreibzugang",
+        baseUrl: "https://calendar.example.test/write/",
+        credentialsEncrypted: "synthetic-encrypted-payload",
+        secretIv: "synthetic-iv",
+        secretTag: "synthetic-tag",
+        readOnly: false,
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.externalCalDavCalendar.create({
+      data: {
+        userId: "00000000-0000-4000-8000-000000000999",
+        connectionId: connection.id,
+        href: "/calendars/foreign/",
+        displayName: "Fremder Kalender",
       },
     }),
   );

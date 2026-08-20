@@ -356,3 +356,27 @@ formuliert werden.
 - **Nächster Schritt:** Kleinen Dokumentations-Commit erstellen, den gesamten
   Unterschied zu `origin/develop` prüfen und – bei gültiger GitHub-
   Authentifizierung – als Draft-PR nach `develop` veröffentlichen.
+
+## 20. August 2026 – Roadmap 0.5.4: sicher deaktivierter Integrationspfad
+
+- **Befund:** Die externe CalDAV-Integration benötigt einen getrennten
+  Verschlüsselungsschlüssel. Die Mac-App stellt bewusst noch keinen
+  Schlüsselbundpfad bereit und darf deshalb nicht versehentlich mit einem
+  über die Elternumgebung geerbten Zugang nach außen kommunizieren.
+- **Entscheidung:** Der Sidecar erhält keinen `INTEGRATION_SECRET_KEY`. Sein
+  authentifizierter Statusendpunkt muss `available: false`,
+  `networkDefault: disabled` und eine leere Verbindungsliste liefern. Ein
+  späterer nativer Aktivierungspfad benötigt eine eigene geprüfte
+  Schlüsselbund-Integration.
+- **Verifikation:** `npm run desktop:verify:sidecar` baute Web und API, wendete
+  alle neun SQLite-Migrationen einschließlich
+  `20260820210000_external_caldav` an, richtete nur ein synthetisches Profil
+  ein, prüfte den deaktivierten Integrationsstatus und startete den
+  gebündelten Node-22.23.2-Sidecar zweimal ohne Homebrew-Pfad. Zusätzlich
+  bestanden der gebaute SQLite-Neustart, 72 SQLite-API-Fälle, PostgreSQL- und
+  SQLite-Recovery sowie der externe CalDAV-Browserablauf auf Desktop und
+  Smartphone.
+- **Grenzen:** Keine produktive externe CalDAV-Verbindung, kein echter
+  Apple-Zugang, kein Mac-Schlüsselbundpfad, kein bidirektionales Schreiben und
+  keine Hintergrundsynchronisation wurden geprüft oder als freigegeben
+  behauptet.
