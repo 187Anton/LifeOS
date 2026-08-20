@@ -35,6 +35,7 @@ type ReadClient = Pick<
   | "workTaskLink"
   | "workTimeEntry"
   | "availabilityWindow"
+  | "aiInteraction"
   | "auditEvent"
 >;
 
@@ -83,6 +84,9 @@ const readDataset = async (database: ReadClient) => ({
     orderBy: { id: "asc" },
   }),
   availabilityWindows: await database.availabilityWindow.findMany({
+    orderBy: { id: "asc" },
+  }),
+  aiInteractions: await database.aiInteraction.findMany({
     orderBy: { id: "asc" },
   }),
   auditEvents: await database.auditEvent.findMany({ orderBy: { id: "asc" } }),
@@ -213,6 +217,16 @@ const insertDataset = async (
     if (dataset.availabilityWindows.length)
       await transaction.availabilityWindow.createMany({
         data: dataset.availabilityWindows,
+      });
+    if (dataset.aiInteractions.length)
+      await transaction.aiInteraction.createMany({
+        data: dataset.aiInteractions.map((interaction) => ({
+          ...interaction,
+          sourceReferences:
+            interaction.sourceReferences as Prisma.InputJsonValue,
+          responseMetadata:
+            interaction.responseMetadata as Prisma.InputJsonValue,
+        })),
       });
     if (dataset.auditEvents.length)
       await transaction.auditEvent.createMany({

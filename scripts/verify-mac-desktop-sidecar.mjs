@@ -133,6 +133,7 @@ try {
     "20260812100000_projects_milestones",
     "20260812190000_local_documents_notes",
     "20260820100000_local_search",
+    "20260820150000_source_grounded_ai",
   ]);
   database.close();
   assert.equal((await stat(databasePath)).mode & 0o777, 0o600);

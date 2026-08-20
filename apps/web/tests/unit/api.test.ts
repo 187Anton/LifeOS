@@ -224,4 +224,64 @@ describe("API-Client", () => {
     expect(init.method).toBeUndefined();
     expect(init.body).toBeUndefined();
   });
+
+  it("verwendet für KI-Quellen und Bestätigung nur den lokalen v1-Vertrag", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            enabled: false,
+            providerId: null,
+            processingMode: "local",
+            externalTransferEnabled: false,
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            interactionId: "interaktion-1",
+            status: "disabled",
+            sources: [],
+            suggestions: [],
+          }),
+          { status: 201, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            interactionId: "interaktion-1",
+            suggestionId: "vorschlag-1",
+            status: "confirmed",
+            domainChangesApplied: false,
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.getAiStatus();
+    await api.createAiQuery({ query: "Synthetische lokale Frage" });
+    await api.confirmAiSuggestion("interaktion/1", "vorschlag/1");
+
+    const calls = fetchMock.mock.calls as unknown as Array<
+      [string, RequestInit]
+    >;
+    expect(calls.map(([url]) => url)).toEqual([
+      "/api/v1/ai/status",
+      "/api/v1/ai/queries",
+      "/api/v1/ai/interactions/interaktion%2F1/suggestions/vorschlag%2F1/confirm",
+    ]);
+    expect(calls.map(([, init]) => init.credentials)).toEqual([
+      "include",
+      "include",
+      "include",
+    ]);
+    expect(JSON.parse(calls[1]?.[1].body as string)).toEqual({
+      query: "Synthetische lokale Frage",
+    });
+  });
 });
