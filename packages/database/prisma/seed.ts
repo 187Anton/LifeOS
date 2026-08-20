@@ -21,6 +21,7 @@ const SYNTHETIC_TASK_EVENT_LINK_ID = "00000000-0000-4000-8000-000000000007";
 const SYNTHETIC_PROJECT_GOAL_ID = "00000000-0000-4000-8000-000000000008";
 const SYNTHETIC_PROJECT_MILESTONE_ID = "00000000-0000-4000-8000-000000000009";
 const SYNTHETIC_PROJECT_EVENT_LINK_ID = "00000000-0000-4000-8000-000000000010";
+const SYNTHETIC_NOTE_ID = "00000000-0000-4000-8000-000000000011";
 
 const seed = async () => {
   const database = createDatabaseClient();
@@ -162,6 +163,31 @@ const seed = async () => {
         userId: user.id,
         projectId: project.id,
         calendarEventId: event.id,
+      },
+    });
+
+    await database.note.upsert({
+      where: { id: SYNTHETIC_NOTE_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_NOTE_ID,
+        userId: user.id,
+        projectId: project.id,
+        title: "Synthetische Projektnotiz",
+        content: "# Beispiel\n\nLokale Markdown-Notiz ohne persönliche Daten.",
+        category: "Dokumentation",
+        tags: ["synthetisch", "projekt"],
+        versions: {
+          create: {
+            user: { connect: { id: user.id } },
+            version: 1,
+            title: "Synthetische Projektnotiz",
+            content:
+              "# Beispiel\n\nLokale Markdown-Notiz ohne persönliche Daten.",
+            category: "Dokumentation",
+            tags: ["synthetisch", "projekt"],
+          },
+        },
       },
     });
 

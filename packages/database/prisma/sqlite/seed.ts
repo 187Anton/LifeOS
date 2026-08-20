@@ -267,6 +267,7 @@ const SYNTHETIC_PROJECT_ID = "00000000-0000-4000-8000-000000000106";
 const SYNTHETIC_PROJECT_GOAL_ID = "00000000-0000-4000-8000-000000000108";
 const SYNTHETIC_PROJECT_MILESTONE_ID = "00000000-0000-4000-8000-000000000109";
 const SYNTHETIC_PROJECT_EVENT_LINK_ID = "00000000-0000-4000-8000-000000000110";
+const SYNTHETIC_NOTE_ID = "00000000-0000-4000-8000-000000000111";
 
 export const seedSqliteDatabase = async (
   databaseUrl = process.env.SQLITE_DATABASE_URL,
@@ -406,6 +407,34 @@ export const seedSqliteDatabase = async (
           projectId: SYNTHETIC_PROJECT_ID,
           calendarEventId: firstEvent.id,
           createdAt: toDate(fixture.user.createdAt),
+        },
+      });
+      await transaction.note.upsert({
+        where: { id: SYNTHETIC_NOTE_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_NOTE_ID,
+          userId: fixture.user.id,
+          projectId: SYNTHETIC_PROJECT_ID,
+          title: "Synthetische SQLite-Projektnotiz",
+          content:
+            "# Beispiel\n\nLokale Markdown-Notiz ohne persönliche Daten.",
+          category: "Dokumentation",
+          tags: ["synthetisch", "projekt"],
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+          versions: {
+            create: {
+              user: { connect: { id: fixture.user.id } },
+              version: 1,
+              title: "Synthetische SQLite-Projektnotiz",
+              content:
+                "# Beispiel\n\nLokale Markdown-Notiz ohne persönliche Daten.",
+              category: "Dokumentation",
+              tags: ["synthetisch", "projekt"],
+              createdAt: toDate(fixture.user.createdAt),
+            },
+          },
         },
       });
       await transaction.auditEvent.upsert({

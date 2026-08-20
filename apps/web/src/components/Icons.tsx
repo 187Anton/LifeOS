@@ -141,3 +141,10 @@ export const ProjectIcon = (props: IconProps) => (
     <path d="M8 13h8M12 10v6" />
   </Icon>
 );
+
+export const KnowledgeIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H12v18H7.5A3.5 3.5 0 0 0 4 23Z" />
+    <path d="M20 5.5A3.5 3.5 0 0 0 16.5 2H12v18h4.5A3.5 3.5 0 0 1 20 23Z" />
+  </Icon>
+);

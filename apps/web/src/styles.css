@@ -2128,6 +2128,92 @@ input[readonly] {
   }
 }
 
+.knowledge-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1.5fr);
+  gap: 1rem;
+  align-items: start;
+}
+.knowledge-items,
+.document-list,
+.version-list {
+  display: grid;
+  gap: 0.65rem;
+}
+.knowledge-list > .secondary-button {
+  margin-bottom: 0.8rem;
+}
+.knowledge-item {
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: inherit;
+  background: var(--paper);
+  text-align: left;
+}
+.knowledge-item.active {
+  border-color: var(--forest);
+  box-shadow: inset 3px 0 var(--forest);
+}
+.knowledge-item span,
+.knowledge-item small,
+.document-card p,
+.document-card small,
+.version-list span {
+  color: var(--muted);
+}
+.knowledge-editor,
+.knowledge-editor label,
+.document-upload,
+.document-upload label {
+  display: grid;
+  gap: 0.45rem;
+}
+.knowledge-editor {
+  gap: 0.9rem;
+}
+.documents-section {
+  margin-top: 1rem;
+}
+.document-upload {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  margin-bottom: 1rem;
+}
+.document-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.document-card p {
+  margin: 0.25rem 0;
+}
+.checkbox-row {
+  display: flex !important;
+  align-items: center;
+  grid-auto-flow: column;
+  justify-content: start;
+}
+.checkbox-row input {
+  width: auto;
+}
+.version-list {
+  margin: 0.75rem 0 0;
+  padding-left: 1.5rem;
+}
+.version-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 @media (max-width: 780px) {
   .login-page {
     grid-template-columns: 1fr;
@@ -2181,7 +2267,7 @@ input[readonly] {
     bottom: 0;
     left: 0;
     display: grid;
-    grid-template-columns: repeat(7, minmax(68px, 1fr));
+    grid-template-columns: repeat(8, minmax(68px, 1fr));
     overflow-x: auto;
     border-top: 1px solid var(--line);
     background: rgba(255, 253, 248, 0.96);
@@ -2199,6 +2285,14 @@ input[readonly] {
   }
   .project-layout {
     grid-template-columns: 1fr;
+  }
+  .knowledge-grid,
+  .document-upload {
+    grid-template-columns: 1fr;
+  }
+  .document-card {
+    align-items: stretch;
+    flex-direction: column;
   }
   .project-detail .study-section > header,
   .project-progress,

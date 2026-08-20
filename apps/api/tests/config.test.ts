@@ -13,6 +13,7 @@ const validEnvironment = {
   API_PORT: "3000",
   DATABASE_URL: "postgresql://lifeos:synthetic@127.0.0.1:5432/lifeos",
   WEB_ORIGIN: "http://localhost:5173",
+  STORAGE_PATH: "/private/tmp/lifeos-synthetic-documents",
   LOG_LEVEL: "warn",
   SHUTDOWN_TIMEOUT_MS: "5000",
 };
@@ -27,6 +28,7 @@ test("liest eine gültige lokale API-Konfiguration", () => {
     databaseProvider: "postgresql",
     databaseUrl: validEnvironment.DATABASE_URL,
     webOrigin: validEnvironment.WEB_ORIGIN,
+    storagePath: validEnvironment.STORAGE_PATH,
     logLevel: "warn",
     shutdownTimeoutMs: 5000,
     sessionTtlHours: 24,
@@ -81,6 +83,17 @@ test("weist relative Desktop-Ressourcenpfade zurück", () => {
   );
 });
 
+test("weist ein relatives Dokumentenverzeichnis zurück", () => {
+  assert.throws(
+    () => parseConfig({ ...validEnvironment, STORAGE_PATH: "./documents" }),
+    (error: unknown) => {
+      assert.ok(error instanceof ConfigurationError);
+      assert.deepEqual(error.fields, ["STORAGE_PATH"]);
+      return true;
+    },
+  );
+});
+
 test("weist relative SQLite-Pfade zurück", () => {
   assert.throws(
     () =>
@@ -105,7 +118,7 @@ test("meldet fehlende Pflichtwerte ohne deren Inhalte auszugeben", () => {
       }),
     (error: unknown) => {
       assert.ok(error instanceof ConfigurationError);
-      assert.deepEqual(error.fields, ["DATABASE_URL"]);
+      assert.deepEqual(error.fields, ["DATABASE_URL", "STORAGE_PATH"]);
       assert.doesNotMatch(error.message, /synthetic/);
       return true;
     },

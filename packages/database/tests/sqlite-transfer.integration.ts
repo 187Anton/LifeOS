@@ -167,6 +167,45 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       documentReferences: ["documents/study/module.txt"],
     },
   });
+  const note = await source.note.create({
+    data: {
+      userId: user.id,
+      projectId: project.id,
+      studyModuleId: module.id,
+      title: "Synthetische Transfernotiz",
+      content: "# Transfer\n\nNur synthetische Inhalte.",
+      category: "Test",
+      tags: ["transfer"],
+      searchEnabled: true,
+      versions: {
+        create: {
+          user: { connect: { id: user.id } },
+          version: 1,
+          title: "Synthetische Transfernotiz",
+          content: "# Transfer\n\nNur synthetische Inhalte.",
+          category: "Test",
+          tags: ["transfer"],
+        },
+      },
+    },
+  });
+  const storageKey = `${randomUUID()}.txt`;
+  await source.document.create({
+    data: {
+      userId: user.id,
+      projectId: project.id,
+      studyModuleId: module.id,
+      storageKey,
+      fileName: "transfer.txt",
+      mimeType: "text/plain",
+      byteSize: 24,
+      sha256: createHash("sha256")
+        .update("synthetisches Dokument\n")
+        .digest("hex"),
+      modifiedAt: new Date("2032-09-01T12:00:00.000Z"),
+      searchEnabled: true,
+    },
+  });
   await source.studyEntry.create({
     data: {
       userId: user.id,
@@ -269,6 +308,8 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       studyPrograms: true,
       studyModules: true,
       studyEntries: true,
+      notes: { include: { versions: true } },
+      documents: true,
       workContexts: true,
       workProjects: true,
       workTaskLinks: true,
@@ -292,12 +333,15 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   );
   assert.equal(importedUser.projectMilestones.length, 1);
   assert.equal(importedUser.projectEventLinks[0]?.calendarEventId, event.id);
+  assert.equal(importedUser.notes[0]?.id, note.id);
+  assert.equal(importedUser.notes[0]?.versions.length, 1);
+  assert.equal(importedUser.documents[0]?.storageKey, storageKey);
 
   const documents = path.join(directory, "documents-source");
-  await mkdir(path.join(documents, "study"), { recursive: true });
+  await mkdir(path.join(documents, user.id), { recursive: true });
   await writeFile(
-    path.join(documents, "study", "module.txt"),
-    "synthetisches Modul\n",
+    path.join(documents, user.id, storageKey),
+    "synthetisches Dokument\n",
   );
   await writeFile(path.join(documents, "notiz.txt"), "synthetische Notiz\n");
   const backupDirectory = path.join(directory, "backup");
@@ -340,8 +384,8 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   );
   await restored.$disconnect();
   assert.equal(
-    await readFile(path.join(restoredDocuments, "study", "module.txt"), "utf8"),
-    "synthetisches Modul\n",
+    await readFile(path.join(restoredDocuments, user.id, storageKey), "utf8"),
+    "synthetisches Dokument\n",
   );
 
   const tamperedBackup = path.join(directory, "backup-tampered");

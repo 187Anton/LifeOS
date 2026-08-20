@@ -134,6 +134,16 @@ Fortschritt wird bei jeder Abfrage gleichgewichtet aus aktiven Zielen,
 Meilensteinen und Aufgaben berechnet; er wird nicht als Schattenkennzahl
 persistiert. Ohne berücksichtigte Daten lautet der Zustand `no_data`.
 
+## Lokales Wissen
+
+Das Wissensmodul hält Notizen und Dokumentmetadaten in derselben relationalen
+Datenbank. Notizversionen werden nur bei Inhaltsänderungen ergänzt. Projekt-
+und Studienverknüpfungen sind besitzgeprüfte Referenzen und kopieren keine
+Fachdaten. Dokumentinhalte liegen hinter einer lokalen Storage-Schnittstelle
+außerhalb des Repositorys; Frontend-Dateinamen werden nur als Metadaten
+behandelt. Der Server erzeugt opake Schlüssel, begrenzt alle Zugriffe auf das
+konfigurierte Verzeichnis und lehnt symbolische Links ab.
+
 ## Aufgaben-Termin-Beziehung
 
 Aufgabe, geplante Bearbeitungszeit und tatsächlich stattfindender Termin

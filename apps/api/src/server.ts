@@ -17,6 +17,13 @@ import { CalendarService } from "./modules/calendar/service.js";
 import { PrismaDashboardRepository } from "./modules/dashboard/repository.js";
 import { createDashboardRouter } from "./modules/dashboard/router.js";
 import { DashboardService } from "./modules/dashboard/service.js";
+import { PrismaKnowledgeRepository } from "./modules/knowledge/repository.js";
+import {
+  createDocumentUploadRouter,
+  createKnowledgeRouter,
+} from "./modules/knowledge/router.js";
+import { KnowledgeService } from "./modules/knowledge/service.js";
+import { LocalDocumentStorage } from "./modules/knowledge/storage.js";
 import { PrismaPlanningRepository } from "./modules/planning/repository.js";
 import { createPlanningRouter } from "./modules/planning/router.js";
 import { PlanningService } from "./modules/planning/service.js";
@@ -65,6 +72,12 @@ const main = async (): Promise<void> => {
   const work = new WorkService(new PrismaWorkRepository(database));
   const planning = new PlanningService(new PrismaPlanningRepository(database));
   const projects = new ProjectService(new PrismaProjectRepository(database));
+  const documentStorage = new LocalDocumentStorage(config.storagePath);
+  await documentStorage.initialize();
+  const knowledge = new KnowledgeService(
+    new PrismaKnowledgeRepository(database),
+    documentStorage,
+  );
   const taskEventLinks = new TaskEventLinkService(
     new PrismaTaskEventLinkRepository(database),
   );
@@ -87,6 +100,9 @@ const main = async (): Promise<void> => {
         repository: calDavRepository,
         calendars,
       }),
+    ],
+    rawModuleRouters: [
+      createDocumentUploadRouter({ authentication, knowledge }),
     ],
     moduleRouters: [
       createProfileRouter({
@@ -115,6 +131,7 @@ const main = async (): Promise<void> => {
       createWorkRouter({ authentication, work }),
       createPlanningRouter({ authentication, planning }),
       createProjectRouter({ authentication, projects }),
+      createKnowledgeRouter({ authentication, knowledge }),
     ],
   });
   let runningServer: Awaited<ReturnType<typeof startApiServer>>;

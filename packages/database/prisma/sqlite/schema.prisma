@@ -24,6 +24,9 @@ model User {
   projectGoals        ProjectGoal[]
   projectMilestones   ProjectMilestone[]
   projectEventLinks   ProjectEventLink[]
+  notes               Note[]
+  noteVersions        NoteVersion[]
+  documents           Document[]
   tasks               Task[]
   taskEventLinks      TaskEventLink[]
   studyPrograms       StudyProgram[]
@@ -194,6 +197,8 @@ model Project {
   milestones  ProjectMilestone[]
   tasks       Task[]
   eventLinks  ProjectEventLink[]
+  notes       Note[]
+  documents   Document[]
 
   @@unique([id, userId])
   @@index([userId, deletedAt, archivedAt])
@@ -360,10 +365,82 @@ model StudyModule {
   user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   program            StudyProgram @relation(fields: [programId, userId], references: [id, userId], onDelete: NoAction)
   entries            StudyEntry[]
+  knowledgeNotes     Note[]
+  documents          Document[]
 
   @@unique([id, userId])
   @@index([userId, archivedAt])
   @@index([programId])
+}
+
+model Note {
+  id            String        @id @default(uuid())
+  userId        String
+  projectId     String?
+  studyModuleId String?
+  title         String
+  content       String
+  format        String        @default("markdown")
+  category      String?
+  tags          Json          @default("[]")
+  version       Int           @default(1)
+  searchEnabled Boolean       @default(false)
+  archivedAt    DateTime?
+  deletedAt     DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project       Project?      @relation(fields: [projectId, userId], references: [id, userId], onDelete: NoAction)
+  studyModule   StudyModule?  @relation(fields: [studyModuleId, userId], references: [id, userId], onDelete: NoAction)
+  versions      NoteVersion[]
+
+  @@unique([id, userId])
+  @@index([userId, deletedAt, archivedAt])
+  @@index([projectId])
+  @@index([studyModuleId])
+}
+
+model NoteVersion {
+  id        String   @id @default(uuid())
+  userId    String
+  noteId    String
+  version   Int
+  title     String
+  content   String
+  category  String?
+  tags      Json     @default("[]")
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note      Note     @relation(fields: [noteId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([noteId, version])
+  @@index([userId, noteId])
+}
+
+model Document {
+  id            String       @id @default(uuid())
+  userId        String
+  projectId     String?
+  studyModuleId String?
+  storageKey    String       @unique
+  fileName      String
+  mimeType      String
+  byteSize      Int
+  sha256        String
+  modifiedAt    DateTime
+  searchEnabled Boolean      @default(false)
+  archivedAt    DateTime?
+  deletedAt     DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project       Project?     @relation(fields: [projectId, userId], references: [id, userId], onDelete: NoAction)
+  studyModule   StudyModule? @relation(fields: [studyModuleId, userId], references: [id, userId], onDelete: NoAction)
+
+  @@unique([id, userId])
+  @@index([userId, deletedAt, archivedAt])
+  @@index([projectId])
+  @@index([studyModuleId])
 }
 
 model StudyEntry {

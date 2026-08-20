@@ -9,6 +9,7 @@ import {
   WorkIcon,
   PlanIcon,
   ProjectIcon,
+  KnowledgeIcon,
 } from "./Icons";
 
 export type View =
@@ -18,6 +19,7 @@ export type View =
   | "study"
   | "work"
   | "projects"
+  | "knowledge"
   | "planning";
 
 interface ShellProps {
@@ -95,6 +97,14 @@ export const Shell = ({
         >
           <CalendarIcon />
           <span>Kalender</span>
+        </button>
+        <button
+          className={view === "knowledge" ? "nav-item active" : "nav-item"}
+          onClick={() => onViewChange("knowledge")}
+          aria-current={view === "knowledge" ? "page" : undefined}
+        >
+          <KnowledgeIcon />
+          <span>Wissen</span>
         </button>
         <button
           className={view === "planning" ? "nav-item active" : "nav-item"}
@@ -193,6 +203,14 @@ export const Shell = ({
       >
         <CalendarIcon />
         <span>Kalender</span>
+      </button>
+      <button
+        className={view === "knowledge" ? "active" : ""}
+        onClick={() => onViewChange("knowledge")}
+        aria-current={view === "knowledge" ? "page" : undefined}
+      >
+        <KnowledgeIcon />
+        <span>Wissen</span>
       </button>
       <button
         className={view === "planning" ? "active" : ""}

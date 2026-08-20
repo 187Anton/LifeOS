@@ -34,6 +34,17 @@ export const errorHandler =
         "INVALID_JSON",
         "Der Anfragekörper enthält kein gültiges JSON.",
       );
+    } else if (
+      error &&
+      typeof error === "object" &&
+      "type" in error &&
+      error.type === "entity.too.large"
+    ) {
+      apiError = new ApiError(
+        413,
+        "PAYLOAD_TOO_LARGE",
+        "Das Dokument überschreitet 25 MiB.",
+      );
     } else {
       const errorName = error instanceof Error ? error.name : "UnknownError";
       logger.error("http.request.failed", { requestId, errorName });

@@ -31,6 +31,11 @@ import type {
   ProjectOverviewResponse,
   UpdateProjectItemRequest,
   UpdateProjectRequest,
+  CreateNoteRequest,
+  KnowledgeOverviewResponse,
+  NoteDetailResponse,
+  UpdateDocumentRequest,
+  UpdateNoteRequest,
 } from "@lifeos/contracts";
 import { useCallback, useEffect, useState } from "react";
 
@@ -45,6 +50,7 @@ import { StudyWorkspace } from "./components/StudyWorkspace";
 import { WorkWorkspace } from "./components/WorkWorkspace";
 import { PlanningWorkspace } from "./components/PlanningWorkspace";
 import { ProjectWorkspace } from "./components/ProjectWorkspace";
+import { KnowledgeWorkspace } from "./components/KnowledgeWorkspace";
 import { weekRange, type DateRange } from "./planning";
 
 type SessionState = "checking" | "anonymous" | "authenticated";
@@ -79,6 +85,10 @@ export const App = () => {
   );
   const [projectDetail, setProjectDetail] =
     useState<ProjectDetailResponse | null>(null);
+  const [knowledge, setKnowledge] = useState<KnowledgeOverviewResponse | null>(
+    null,
+  );
+  const [noteDetail, setNoteDetail] = useState<NoteDetailResponse | null>(null);
   const [planningRange, setPlanningRange] = useState<DateRange>(() =>
     weekRange("Europe/Berlin", 1),
   );
@@ -110,6 +120,9 @@ export const App = () => {
   const [projectLoading, setProjectLoading] = useState(false);
   const [projectError, setProjectError] = useState<string | null>(null);
   const [projectSuccess, setProjectSuccess] = useState<string | null>(null);
+  const [knowledgeLoading, setKnowledgeLoading] = useState(false);
+  const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
+  const [knowledgeSuccess, setKnowledgeSuccess] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [taskSuccess, setTaskSuccess] = useState<string | null>(null);
 
@@ -243,6 +256,37 @@ export const App = () => {
     }
   }, []);
 
+  const loadKnowledge = useCallback(async (preferredNoteId?: string) => {
+    setKnowledgeLoading(true);
+    setKnowledgeError(null);
+    try {
+      const overview = await api.getKnowledge(true);
+      setKnowledge(overview);
+      const selected =
+        overview.notes.find((entry) => entry.id === preferredNoteId) ??
+        overview.notes[0];
+      setNoteDetail(selected ? await api.getNote(selected.id) : null);
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401)
+        setSession("anonymous");
+      else setKnowledgeError(errorMessage(error));
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  }, []);
+
+  const loadNote = useCallback(async (noteId: string) => {
+    setKnowledgeLoading(true);
+    setKnowledgeError(null);
+    try {
+      setNoteDetail(await api.getNote(noteId));
+    } catch (error) {
+      setKnowledgeError(errorMessage(error));
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  }, []);
+
   const loadAuthenticatedData = useCallback(async () => {
     const [loadedProfile, loadedCalendars, loadedTasks, loadedLinks] =
       await Promise.all([
@@ -273,12 +317,14 @@ export const App = () => {
       loadWork(),
       loadPlanning(currentPlanningRange),
       loadProjects(),
+      loadKnowledge(),
     ]);
   }, [
     loadDashboard,
     loadEvents,
     loadPlanning,
     loadProjects,
+    loadKnowledge,
     loadStudy,
     loadWork,
   ]);
@@ -349,6 +395,8 @@ export const App = () => {
     setPlanning(null);
     setProjects(null);
     setProjectDetail(null);
+    setKnowledge(null);
+    setNoteDetail(null);
     setSelectedCalendarId(null);
     setLoginError(null);
   };
@@ -629,6 +677,30 @@ export const App = () => {
       ]);
     } catch (error) {
       setProjectError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const changeKnowledge = async (
+    operation: () => Promise<unknown>,
+    message: string,
+    preferredNoteId?: string,
+  ) => {
+    setSaving(true);
+    setKnowledgeError(null);
+    setKnowledgeSuccess(null);
+    try {
+      const result = await operation();
+      const createdId =
+        result && typeof result === "object" && "id" in result
+          ? String(result.id)
+          : undefined;
+      setKnowledgeSuccess(message);
+      await loadKnowledge(preferredNoteId ?? createdId ?? noteDetail?.id);
+    } catch (error) {
+      setKnowledgeError(errorMessage(error));
       throw error;
     } finally {
       setSaving(false);
@@ -931,6 +1003,57 @@ export const App = () => {
             changeProject(
               () => api.unlinkProjectEvent(projectId, calendarId, eventUid),
               "Die Terminverknüpfung wurde entfernt.",
+            )
+          }
+        />
+      ) : view === "knowledge" ? (
+        <KnowledgeWorkspace
+          key={noteDetail?.id ?? "new-note"}
+          overview={knowledge}
+          detail={noteDetail}
+          projects={projects?.projects ?? []}
+          modules={study?.modules ?? []}
+          loading={knowledgeLoading}
+          saving={saving}
+          error={knowledgeError}
+          success={knowledgeSuccess}
+          onReload={() => void loadKnowledge(noteDetail?.id)}
+          onSelectNote={(id) => void loadNote(id)}
+          onCreateNote={(value: CreateNoteRequest) =>
+            changeKnowledge(
+              () => api.createNote(value),
+              "Die Notiz wurde angelegt.",
+            )
+          }
+          onUpdateNote={(id: string, value: UpdateNoteRequest) =>
+            changeKnowledge(
+              () => api.updateNote(id, value),
+              "Die Notiz wurde aktualisiert.",
+              id,
+            )
+          }
+          onDeleteNote={(id: string) =>
+            changeKnowledge(
+              () => api.deleteNote(id),
+              "Die Notiz wurde gelöscht.",
+            )
+          }
+          onUploadDocument={(file: File, links: UpdateDocumentRequest) =>
+            changeKnowledge(
+              () => api.uploadDocument(file, links),
+              "Das Dokument wurde lokal abgelegt.",
+            )
+          }
+          onUpdateDocument={(id: string, value: UpdateDocumentRequest) =>
+            changeKnowledge(
+              () => api.updateDocument(id, value),
+              "Das Dokument wurde aktualisiert.",
+            )
+          }
+          onDeleteDocument={(id: string) =>
+            changeKnowledge(
+              () => api.deleteDocument(id),
+              "Das Dokument wurde sicher gelöscht.",
             )
           }
         />

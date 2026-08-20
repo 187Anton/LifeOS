@@ -291,6 +291,16 @@ lokal verwaltet; Arbeitsaufgaben bleiben dabei im gemeinsamen Aufgabenmodell.
 Eine gemeinsame Wochen- und Agendaansicht verbindet diese Daten mit Aufgaben
 und Kalender, zeigt Konflikte sowie nachvollziehbare Überlastungsursachen und
 verwaltet optionale wöchentliche Verfügbarkeitsfenster.
+
+Der Bereich **Wissen** verwaltet Markdown-Notizen und lokale Dokumente.
+Notizen können kategorisiert, getaggt, versioniert und mit Projekten oder
+Studienmodulen verknüpft werden. Dokumente werden bis 25 MiB im absoluten
+`STORAGE_PATH` außerhalb des Repositorys gespeichert; die API verwendet nur
+interne, validierte Schlüssel. Archivierung ist reversibel, Löschen entfernt
+Dokumentmetadaten logisch und den lokalen Binärinhalt physisch. Die Option
+„Für lokale Suche freigeben“ ist standardmäßig aus. Die Mac-App verwendet
+automatisch ihr privates Anwendungs-Dokumentverzeichnis.
+
 Suche und kombinierbare Aufgaben-, Arbeitsbereichs-, Status- und Zeitraumfilter
 bleiben flüchtiger UI-Zustand. Ein Produktions-Build erzeugt zusätzlich
 Manifest und Offline-App-Shell:
