@@ -60,6 +60,7 @@ const moduleCreate = z.strictObject({
     .array(z.string().trim().min(1).max(1000))
     .max(20)
     .optional(),
+  searchEnabled: z.boolean().optional(),
   ...common,
 });
 const moduleUpdate = moduleCreate

@@ -10,5 +10,5 @@ export default defineConfig({
   // Workspace-Quellen werden gebündelt; Prisma und der CommonJS-Treiber
   // bleiben reguläre Node-Laufzeitabhängigkeiten.
   noExternal: ["@lifeos/contracts", "@lifeos/database"],
-  external: ["pg", /^@prisma\//],
+  external: ["pg", "better-sqlite3", /^@prisma\//],
 });

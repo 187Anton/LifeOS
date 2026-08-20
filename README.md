@@ -282,15 +282,44 @@ npm run web:dev
 ```
 
 Die Oberfläche ist unter `http://127.0.0.1:5173` erreichbar. Sie verwendet
-einen lokalen API-Proxy und zeigt Aufgaben, Kalender, Studium sowie Arbeit und
-Praxis auf Desktop und Smartphone an. Arbeitskontexte, Projekte, Ziele,
+einen lokalen API-Proxy und zeigt Aufgaben, Kalender, Studium, Arbeit und
+persönliche Projekte auf Desktop und Smartphone an. Projektziele,
+Meilensteine, Risiken, berechneter Fortschritt sowie reine Verknüpfungen zu
+Aufgaben und Kalenderereignissen sind lokal verfügbar. Arbeitskontexte, Projekte, Ziele,
 Fristen und getrennte geplante beziehungsweise tatsächliche Zeitblöcke werden
 lokal verwaltet; Arbeitsaufgaben bleiben dabei im gemeinsamen Aufgabenmodell.
 Eine gemeinsame Wochen- und Agendaansicht verbindet diese Daten mit Aufgaben
 und Kalender, zeigt Konflikte sowie nachvollziehbare Überlastungsursachen und
 verwaltet optionale wöchentliche Verfügbarkeitsfenster.
-Suche und kombinierbare Aufgaben-, Arbeitsbereichs-, Status- und Zeitraumfilter
-bleiben flüchtiger UI-Zustand. Ein Produktions-Build erzeugt zusätzlich
+
+Der Bereich **Wissen** verwaltet Markdown-Notizen und lokale Dokumente.
+Notizen können kategorisiert, getaggt, versioniert und mit Projekten oder
+Studienmodulen verknüpft werden. Dokumente werden bis 25 MiB im absoluten
+`STORAGE_PATH` außerhalb des Repositorys gespeichert; die API verwendet nur
+interne, validierte Schlüssel. Archivierung ist reversibel, Löschen entfernt
+Dokumentmetadaten logisch und den lokalen Binärinhalt physisch. Die Option
+„Für lokale Suche freigeben“ ist standardmäßig aus. Die Mac-App verwendet
+automatisch ihr privates Anwendungs-Dokumentverzeichnis.
+
+Die lokale Suche im Bereich **Wissen** berücksichtigt nur eigene, aktive und
+ausdrücklich freigegebene Projekte, Ziele, Meilensteine, Notizen, Dokumente,
+Studienmodule, Studieneinträge und Arbeitsprojekte. Treffer zeigen Quelle,
+Änderungsdatum, Ausschnitt und Treffergrund. Zulässige kleine Text-, Markdown-,
+CSV- und JSON-Dokumente werden beim Upload lokal als UTF-8-Text extrahiert;
+andere Formate bleiben über ihre Metadaten auffindbar. Suchanfragen,
+Suchergebnisse und kombinierbare Aufgaben-, Arbeitsbereichs-, Status- und
+Zeitraumfilter bleiben flüchtiger UI-Zustand. Details und Grenzen stehen im
+[Suchvertrag](docs/api/search.md).
+
+Die **quellengestützte KI-Grundlage** bereitet für eine Frage ausschließlich
+eigene, aktive und für die lokale Suche freigegebene Quellen auf. Sie zeigt
+Quellen, Textausschnitte, Freigabestatus und Sicherheitswarnungen sichtbar an.
+Der produktive Adapter ist standardmäßig deaktiviert; es ist kein externer
+Anbieter eingerichtet und es werden keine Daten nach außen übertragen.
+Vorschläge benötigen eine Bestätigung, und selbst diese Bestätigung ändert
+noch keine Fachdaten. Fragen, Antworten und Ausschnitte werden weder
+protokolliert noch im Klartext persistiert. Details stehen im
+[KI-Vertrag](docs/api/ai.md). Ein Produktions-Build erzeugt zusätzlich
 Manifest und Offline-App-Shell:
 
 ```bash

@@ -62,6 +62,7 @@ export class StudyService {
         grade: input.grade ?? null,
         notes: input.notes ?? null,
         documentReferences: input.documentReferences ?? [],
+        searchEnabled: input.searchEnabled ?? false,
       }),
     );
   }

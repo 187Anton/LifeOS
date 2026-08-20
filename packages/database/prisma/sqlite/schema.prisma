@@ -21,6 +21,12 @@ model User {
   sessions            UserSession[]
   calendars           Calendar[]
   projects            Project[]
+  projectGoals        ProjectGoal[]
+  projectMilestones   ProjectMilestone[]
+  projectEventLinks   ProjectEventLink[]
+  notes               Note[]
+  noteVersions        NoteVersion[]
+  documents           Document[]
   tasks               Task[]
   taskEventLinks      TaskEventLink[]
   studyPrograms       StudyProgram[]
@@ -31,6 +37,7 @@ model User {
   workTaskLinks       WorkTaskLink[]
   workTimeEntries     WorkTimeEntry[]
   availabilityWindows AvailabilityWindow[]
+  aiInteractions      AiInteraction[]
   auditEvents         AuditEvent[]
 }
 
@@ -124,6 +131,7 @@ model CalendarEvent {
   taskLinks       TaskEventLink[]
   studyEntries    StudyEntry[]
   workProjects    WorkProject[]
+  projectLinks    ProjectEventLink[]
 
   @@unique([id, userId])
   @@unique([calendarId, uid])
@@ -158,18 +166,102 @@ enum TaskArea {
   personal
 }
 
+enum ProjectStatus {
+  planned
+  active
+  paused
+  completed
+  cancelled
+}
+
+enum ProjectItemStatus {
+  open
+  in_progress
+  completed
+  cancelled
+}
+
 model Project {
-  id         String    @id @default(uuid())
-  userId     String
-  title      String
-  archivedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tasks      Task[]
+  id          String        @id @default(uuid())
+  userId      String
+  title       String
+  description String?
+  status      ProjectStatus @default(planned)
+  risk        String?
+  dueDate     String?
+  searchEnabled Boolean     @default(false)
+  archivedAt  DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals       ProjectGoal[]
+  milestones  ProjectMilestone[]
+  tasks       Task[]
+  eventLinks  ProjectEventLink[]
+  notes       Note[]
+  documents   Document[]
 
   @@unique([id, userId])
-  @@index([userId, archivedAt])
+  @@index([userId, deletedAt, archivedAt])
+  @@index([userId, status, dueDate])
+}
+
+model ProjectGoal {
+  id          String            @id @default(uuid())
+  userId      String
+  projectId   String
+  title       String
+  description String?
+  status      ProjectItemStatus @default(open)
+  risk        String?
+  dueDate     String?
+  archivedAt  DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project           @relation(fields: [projectId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([id, userId])
+  @@index([userId, projectId, deletedAt, archivedAt])
+  @@index([userId, status, dueDate])
+}
+
+model ProjectMilestone {
+  id          String            @id @default(uuid())
+  userId      String
+  projectId   String
+  title       String
+  description String?
+  status      ProjectItemStatus @default(open)
+  risk        String?
+  dueDate     String?
+  archivedAt  DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project           @relation(fields: [projectId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([id, userId])
+  @@index([userId, projectId, deletedAt, archivedAt])
+  @@index([userId, status, dueDate])
+}
+
+model ProjectEventLink {
+  id              String        @id @default(uuid())
+  userId          String
+  projectId       String
+  calendarEventId String
+  createdAt       DateTime      @default(now())
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project         Project       @relation(fields: [projectId, userId], references: [id, userId], onDelete: Cascade)
+  calendarEvent   CalendarEvent @relation(fields: [calendarEventId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([userId, projectId, calendarEventId])
+  @@index([userId, projectId])
+  @@index([userId, calendarEventId])
 }
 
 model Task {
@@ -269,16 +361,90 @@ model StudyModule {
   grade              String?
   notes              String?
   documentReferences Json         @default("[]")
+  searchEnabled       Boolean      @default(false)
   archivedAt         DateTime?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
   user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   program            StudyProgram @relation(fields: [programId, userId], references: [id, userId], onDelete: NoAction)
   entries            StudyEntry[]
+  knowledgeNotes     Note[]
+  documents          Document[]
 
   @@unique([id, userId])
   @@index([userId, archivedAt])
   @@index([programId])
+}
+
+model Note {
+  id            String        @id @default(uuid())
+  userId        String
+  projectId     String?
+  studyModuleId String?
+  title         String
+  content       String
+  format        String        @default("markdown")
+  category      String?
+  tags          Json          @default("[]")
+  version       Int           @default(1)
+  searchEnabled Boolean       @default(false)
+  archivedAt    DateTime?
+  deletedAt     DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project       Project?      @relation(fields: [projectId, userId], references: [id, userId], onDelete: NoAction)
+  studyModule   StudyModule?  @relation(fields: [studyModuleId, userId], references: [id, userId], onDelete: NoAction)
+  versions      NoteVersion[]
+
+  @@unique([id, userId])
+  @@index([userId, deletedAt, archivedAt])
+  @@index([projectId])
+  @@index([studyModuleId])
+}
+
+model NoteVersion {
+  id        String   @id @default(uuid())
+  userId    String
+  noteId    String
+  version   Int
+  title     String
+  content   String
+  category  String?
+  tags      Json     @default("[]")
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note      Note     @relation(fields: [noteId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([noteId, version])
+  @@index([userId, noteId])
+}
+
+model Document {
+  id            String       @id @default(uuid())
+  userId        String
+  projectId     String?
+  studyModuleId String?
+  storageKey    String       @unique
+  fileName      String
+  mimeType      String
+  byteSize      Int
+  sha256        String
+  modifiedAt    DateTime
+  searchEnabled Boolean      @default(false)
+  extractedText String?
+  archivedAt    DateTime?
+  deletedAt     DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project       Project?     @relation(fields: [projectId, userId], references: [id, userId], onDelete: NoAction)
+  studyModule   StudyModule? @relation(fields: [studyModuleId, userId], references: [id, userId], onDelete: NoAction)
+
+  @@unique([id, userId])
+  @@index([userId, deletedAt, archivedAt])
+  @@index([projectId])
+  @@index([studyModuleId])
 }
 
 model StudyEntry {
@@ -361,6 +527,7 @@ model WorkProject {
   deadlineDate    String?
   calendarEventId String?
   notes           String?
+  searchEnabled   Boolean      @default(false)
   archivedAt      DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -451,4 +618,22 @@ model AuditEvent {
 
   @@index([userId, occurredAt])
   @@index([entityType, entityId])
+}
+
+model AiInteraction {
+  id                       String   @id @default(uuid())
+  userId                   String
+  requestHash              String
+  status                   String
+  providerId               String?
+  processingMode           String   @default("local")
+  externalTransferOccurred Boolean  @default(false)
+  sourceReferences         Json
+  responseMetadata         Json
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([id, userId])
+  @@index([userId, createdAt])
 }

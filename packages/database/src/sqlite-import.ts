@@ -19,6 +19,12 @@ type ReadClient = Pick<
   | "calendar"
   | "calendarEvent"
   | "project"
+  | "projectGoal"
+  | "projectMilestone"
+  | "projectEventLink"
+  | "note"
+  | "noteVersion"
+  | "document"
   | "task"
   | "taskEventLink"
   | "studyProgram"
@@ -29,6 +35,7 @@ type ReadClient = Pick<
   | "workTaskLink"
   | "workTimeEntry"
   | "availabilityWindow"
+  | "aiInteraction"
   | "auditEvent"
 >;
 
@@ -49,6 +56,16 @@ const readDataset = async (database: ReadClient) => ({
     orderBy: { id: "asc" },
   }),
   projects: await database.project.findMany({ orderBy: { id: "asc" } }),
+  projectGoals: await database.projectGoal.findMany({ orderBy: { id: "asc" } }),
+  projectMilestones: await database.projectMilestone.findMany({
+    orderBy: { id: "asc" },
+  }),
+  projectEventLinks: await database.projectEventLink.findMany({
+    orderBy: { id: "asc" },
+  }),
+  notes: await database.note.findMany({ orderBy: { id: "asc" } }),
+  noteVersions: await database.noteVersion.findMany({ orderBy: { id: "asc" } }),
+  documents: await database.document.findMany({ orderBy: { id: "asc" } }),
   tasks: await database.task.findMany({ orderBy: { id: "asc" } }),
   taskEventLinks: await database.taskEventLink.findMany({
     orderBy: { id: "asc" },
@@ -67,6 +84,9 @@ const readDataset = async (database: ReadClient) => ({
     orderBy: { id: "asc" },
   }),
   availabilityWindows: await database.availabilityWindow.findMany({
+    orderBy: { id: "asc" },
+  }),
+  aiInteractions: await database.aiInteraction.findMany({
     orderBy: { id: "asc" },
   }),
   auditEvents: await database.auditEvent.findMany({ orderBy: { id: "asc" } }),
@@ -152,11 +172,21 @@ const insertDataset = async (
       });
     if (dataset.projects.length)
       await transaction.project.createMany({ data: dataset.projects });
+    if (dataset.projectGoals.length)
+      await transaction.projectGoal.createMany({ data: dataset.projectGoals });
+    if (dataset.projectMilestones.length)
+      await transaction.projectMilestone.createMany({
+        data: dataset.projectMilestones,
+      });
     if (dataset.tasks.length)
       await transaction.task.createMany({ data: dataset.tasks });
     if (dataset.taskEventLinks.length)
       await transaction.taskEventLink.createMany({
         data: dataset.taskEventLinks,
+      });
+    if (dataset.projectEventLinks.length)
+      await transaction.projectEventLink.createMany({
+        data: dataset.projectEventLinks,
       });
     if (dataset.studyPrograms.length)
       await transaction.studyProgram.createMany({
@@ -164,6 +194,12 @@ const insertDataset = async (
       });
     if (dataset.studyModules.length)
       await transaction.studyModule.createMany({ data: dataset.studyModules });
+    if (dataset.notes.length)
+      await transaction.note.createMany({ data: dataset.notes });
+    if (dataset.noteVersions.length)
+      await transaction.noteVersion.createMany({ data: dataset.noteVersions });
+    if (dataset.documents.length)
+      await transaction.document.createMany({ data: dataset.documents });
     if (dataset.studyEntries.length)
       await transaction.studyEntry.createMany({ data: dataset.studyEntries });
     if (dataset.workContexts.length)
@@ -181,6 +217,16 @@ const insertDataset = async (
     if (dataset.availabilityWindows.length)
       await transaction.availabilityWindow.createMany({
         data: dataset.availabilityWindows,
+      });
+    if (dataset.aiInteractions.length)
+      await transaction.aiInteraction.createMany({
+        data: dataset.aiInteractions.map((interaction) => ({
+          ...interaction,
+          sourceReferences:
+            interaction.sourceReferences as Prisma.InputJsonValue,
+          responseMetadata:
+            interaction.responseMetadata as Prisma.InputJsonValue,
+        })),
       });
     if (dataset.auditEvents.length)
       await transaction.auditEvent.createMany({

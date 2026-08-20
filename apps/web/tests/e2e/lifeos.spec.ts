@@ -110,6 +110,16 @@ const installApi = async (page: Page) => {
     timeEntries: [] as Array<Record<string, unknown>>,
     history: [] as Array<Record<string, unknown>>,
   };
+  const projects: Array<Record<string, unknown>> = [];
+  const notes: Array<Record<string, unknown>> = [];
+  const documents: Array<Record<string, unknown>> = [];
+  const projectItems = new Map<
+    string,
+    {
+      goals: Array<Record<string, unknown>>;
+      milestones: Array<Record<string, unknown>>;
+    }
+  >();
   const availability: Array<Record<string, unknown>> = [];
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -478,6 +488,298 @@ const installApi = async (page: Page) => {
       await route.fulfill({ json: [calendar] });
       return;
     }
+    if (path === "/api/v1/projects" && method === "GET") {
+      await route.fulfill({ json: { projects } });
+      return;
+    }
+    if (path === "/api/v1/knowledge" && method === "GET") {
+      await route.fulfill({ json: { notes, documents } });
+      return;
+    }
+    if (path === "/api/v1/search" && method === "GET") {
+      const query = new URL(request.url()).searchParams.get("q") ?? "";
+      const normalized = query.toLocaleLowerCase("de-DE");
+      const results = notes
+        .filter(
+          (note) =>
+            note.searchEnabled === true &&
+            `${String(note.title)} ${String(note.content)}`
+              .toLocaleLowerCase("de-DE")
+              .includes(normalized),
+        )
+        .map((note) => ({
+          id: note.id,
+          title: note.title,
+          contentType: "note",
+          source: { type: "note", id: note.id, title: note.title },
+          updatedAt: note.updatedAt,
+          snippet: note.content,
+          matchReason: "content",
+          detailPath: `/knowledge/notes/${String(note.id)}`,
+          ownerId: profile.id,
+          searchEnabled: true,
+        }));
+      await route.fulfill({ json: { query, results } });
+      return;
+    }
+    if (path === "/api/v1/ai/queries" && method === "POST") {
+      const payload = request.postDataJSON() as { query?: string };
+      const query = payload.query ?? "";
+      const normalized = query.toLocaleLowerCase("de-DE");
+      const sources = notes
+        .filter(
+          (note) =>
+            note.searchEnabled === true &&
+            `${String(note.title)} ${String(note.content)}`
+              .toLocaleLowerCase("de-DE")
+              .includes(normalized),
+        )
+        .map((note) => ({
+          id: note.id,
+          title: note.title,
+          contentType: "note",
+          source: { type: "note", id: note.id, title: note.title },
+          updatedAt: note.updatedAt,
+          excerpt: note.content,
+          detailPath: `/knowledge/notes/${String(note.id)}`,
+          releaseStatus: "search_enabled",
+          usedForResponse: false,
+          warning: null,
+        }));
+      await route.fulfill({
+        status: 201,
+        json: {
+          interactionId: "0d13cbed-0370-4478-a9fc-02997639ff6a",
+          status: "disabled",
+          message:
+            "Die quellengestützte KI ist standardmäßig deaktiviert. Es wurden keine Daten übertragen.",
+          answer: null,
+          sources,
+          suggestions: [],
+          metadata: {
+            providerId: null,
+            processingMode: "local",
+            externalTransferOccurred: false,
+            sourceCount: sources.length,
+            usableSourceCount: sources.length,
+            requestHash: "a".repeat(64),
+          },
+        },
+      });
+      return;
+    }
+    if (path === "/api/v1/notes" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const created = {
+        id: `note-${notes.length + 1}`,
+        ownerId: profile.id,
+        ...payload,
+        format: "markdown",
+        category: payload.category ?? null,
+        tags: payload.tags ?? [],
+        version: 1,
+        searchEnabled: payload.searchEnabled ?? false,
+        project: null,
+        studyModule: null,
+        archivedAt: null,
+        createdAt: "2032-01-01T00:00:00.000Z",
+        updatedAt: "2032-01-01T00:00:00.000Z",
+      };
+      notes.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    const noteMatch = path.match(/^\/api\/v1\/notes\/([^/]+)$/);
+    if (noteMatch && method === "GET") {
+      const note = notes.find((value) => value.id === noteMatch[1]);
+      await route.fulfill({
+        json: {
+          ...note,
+          versions: [
+            {
+              version: note?.version,
+              title: note?.title,
+              content: note?.content,
+              category: note?.category,
+              tags: note?.tags,
+              createdAt: note?.createdAt,
+            },
+          ],
+        },
+      });
+      return;
+    }
+    if (noteMatch && method === "PATCH") {
+      const note = notes.find((value) => value.id === noteMatch[1])!;
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const versioned = "title" in payload || "content" in payload;
+      Object.assign(note, payload, {
+        version: versioned ? Number(note.version) + 1 : note.version,
+        archivedAt:
+          payload.archived === undefined
+            ? note.archivedAt
+            : payload.archived
+              ? "2032-01-02T00:00:00.000Z"
+              : null,
+        updatedAt: "2032-01-02T00:00:00.000Z",
+      });
+      await route.fulfill({ json: note });
+      return;
+    }
+    if (path === "/api/v1/documents" && method === "POST") {
+      const url = new URL(request.url());
+      const created = {
+        id: `document-${documents.length + 1}`,
+        ownerId: profile.id,
+        fileName: url.searchParams.get("fileName"),
+        mimeType:
+          request.headers()["content-type"] ?? "application/octet-stream",
+        byteSize: new TextEncoder().encode(request.postData() ?? "").byteLength,
+        sha256: "a".repeat(64),
+        modifiedAt: "2032-01-01T00:00:00.000Z",
+        searchEnabled: false,
+        project: null,
+        studyModule: null,
+        archivedAt: null,
+        createdAt: "2032-01-01T00:00:00.000Z",
+        updatedAt: "2032-01-01T00:00:00.000Z",
+        contentUrl: `/api/v1/documents/document-${documents.length + 1}/content`,
+      };
+      documents.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    if (path === "/api/v1/projects" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const id = `project-${projects.length + 1}`;
+      const created = {
+        id,
+        ownerId: profile.id,
+        ...payload,
+        description: payload.description ?? null,
+        status: payload.status ?? "planned",
+        risk: payload.risk ?? null,
+        dueDate: payload.dueDate ?? null,
+        archivedAt: null,
+        createdAt: "2032-01-01T00:00:00.000Z",
+        updatedAt: "2032-01-01T00:00:00.000Z",
+        progress: {
+          state: "no_data",
+          percent: null,
+          completedItems: 0,
+          totalItems: 0,
+          breakdown: {
+            goals: { completed: 0, total: 0 },
+            milestones: { completed: 0, total: 0 },
+            tasks: { completed: 0, total: 0 },
+          },
+        },
+      };
+      projects.push(created);
+      projectItems.set(id, { goals: [], milestones: [] });
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    const projectMatch = path.match(/^\/api\/v1\/projects\/([^/]+)$/);
+    if (projectMatch && method === "PATCH") {
+      const project = projects.find((value) => value.id === projectMatch[1])!;
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      Object.assign(project, payload, {
+        archivedAt:
+          payload.archived === undefined
+            ? project.archivedAt
+            : payload.archived
+              ? "2032-01-02T00:00:00.000Z"
+              : null,
+        updatedAt: "2032-01-02T00:00:00.000Z",
+      });
+      await route.fulfill({ json: project });
+      return;
+    }
+    if (projectMatch && method === "GET") {
+      const project = projects.find((value) => value.id === projectMatch[1]);
+      const items = projectItems.get(projectMatch[1] ?? "") ?? {
+        goals: [],
+        milestones: [],
+      };
+      await route.fulfill({
+        json: {
+          project,
+          ...items,
+          tasks: [],
+          calendarEvents: [],
+          progress: project?.progress,
+        },
+      });
+      return;
+    }
+    const projectItemMatch = path.match(
+      /^\/api\/v1\/projects\/([^/]+)\/(goals|milestones)$/,
+    );
+    if (projectItemMatch && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const items = projectItems.get(projectItemMatch[1] ?? "")!;
+      const collection = items[projectItemMatch[2] as "goals" | "milestones"];
+      const created = {
+        id: `${projectItemMatch[2]}-${collection.length + 1}`,
+        ownerId: profile.id,
+        projectId: projectItemMatch[1],
+        ...payload,
+        description: null,
+        risk: null,
+        dueDate: payload.dueDate ?? null,
+        archivedAt: null,
+        createdAt: "2032-01-01T00:00:00.000Z",
+        updatedAt: "2032-01-01T00:00:00.000Z",
+      };
+      collection.push(created);
+      const project = projects.find(
+        (value) => value.id === projectItemMatch[1],
+      );
+      if (project)
+        project.progress = {
+          state: "available",
+          percent: payload.status === "completed" ? 100 : 0,
+          completedItems: payload.status === "completed" ? 1 : 0,
+          totalItems: 1,
+          breakdown: {
+            goals: {
+              completed: payload.status === "completed" ? 1 : 0,
+              total: projectItemMatch[2] === "goals" ? 1 : 0,
+            },
+            milestones: {
+              completed: 0,
+              total: projectItemMatch[2] === "milestones" ? 1 : 0,
+            },
+            tasks: { completed: 0, total: 0 },
+          },
+        };
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    const projectItemDetailMatch = path.match(
+      /^\/api\/v1\/projects\/([^/]+)\/(goals|milestones)\/([^/]+)$/,
+    );
+    if (projectItemDetailMatch && method === "PATCH") {
+      const items = projectItems.get(projectItemDetailMatch[1] ?? "")!;
+      const collection =
+        items[projectItemDetailMatch[2] as "goals" | "milestones"];
+      const item = collection.find(
+        (value) => value.id === projectItemDetailMatch[3],
+      )!;
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      Object.assign(item, payload, {
+        archivedAt:
+          payload.archived === undefined
+            ? item.archivedAt
+            : payload.archived
+              ? "2032-01-02T00:00:00.000Z"
+              : null,
+        updatedAt: "2032-01-02T00:00:00.000Z",
+      });
+      await route.fulfill({ json: item });
+      return;
+    }
     if (path === "/api/v1/dashboard" && method === "GET") {
       await route.fulfill({
         json: {
@@ -791,6 +1093,129 @@ test("bleibt auf Desktop und Smartphone ohne horizontalen Überlauf bedienbar", 
       page.getByRole("navigation", { name: "Hauptnavigation" }),
     ).toBeVisible();
   }
+});
+
+test("verwaltet Projekte und Fortschritt auf Desktop und Smartphone", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Projekte" })
+    .filter({ visible: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Ziele und Fortschritt im Blick" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Projekt", exact: true }).click();
+  await page.getByLabel("Bezeichnung").fill("Synthetisches E2E-Projekt");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(
+    page.getByText("Synthetisches E2E-Projekt").first(),
+  ).toBeVisible();
+  await expect(page.getByText("Noch keine Fortschrittsdaten")).toBeVisible();
+  await page.getByRole("button", { name: "Ziel hinzufügen" }).click();
+  await page.getByLabel("Bezeichnung").fill("Synthetisches E2E-Ziel");
+  await page
+    .locator(".study-form")
+    .getByLabel("Status")
+    .selectOption("completed");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Synthetisches E2E-Ziel")).toBeVisible();
+  await expect(
+    page.getByText("1 von 1 aktiven Einträgen abgeschlossen"),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Projekt bearbeiten" }).click();
+  await page.getByLabel("Bezeichnung").fill("Bearbeitetes E2E-Projekt");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(
+    page.getByText("Bearbeitetes E2E-Projekt").first(),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Synthetisches E2E-Ziel archivieren" })
+    .click();
+  await expect(
+    page.getByRole("button", {
+      name: "Synthetisches E2E-Ziel wiederherstellen",
+    }),
+  ).toBeVisible();
+  const overflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test("verwaltet lokale Notizen und Dokumente auf Desktop und Smartphone", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Wissen" })
+    .filter({ visible: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Notizen & Dokumente" }),
+  ).toBeVisible();
+  await page.getByLabel("Titel").fill("Synthetische Wissensnotiz");
+  await page
+    .getByLabel("Inhalt (Markdown)")
+    .fill("# Lokal\n\nNur synthetischer Inhalt.");
+  await page.getByLabel("Für lokale Suche freigeben").first().check();
+  await page.getByRole("button", { name: "Notiz anlegen" }).click();
+  await expect(
+    page.getByText("Synthetische Wissensnotiz").first(),
+  ).toBeVisible();
+  await page.getByLabel("Titel").fill("Synthetische Wissensnotiz Version 2");
+  await page.getByRole("button", { name: "Änderung speichern" }).click();
+  await expect(page.getByText("Version 2").first()).toBeVisible();
+  await page.getByLabel("Suchbegriff").fill("synthetischer Inhalt");
+  await page.getByRole("button", { name: "Suchen" }).click();
+  const searchResult = page.locator(".search-result");
+  await expect(searchResult).toContainText(
+    "Synthetische Wissensnotiz Version 2",
+  );
+  await expect(searchResult).toContainText("Eigener, freigegebener Inhalt");
+  const sourceLink = searchResult.getByRole("link", { name: "Quelle öffnen" });
+  await expect(sourceLink).toHaveAttribute(
+    "href",
+    /\/knowledge\/notes\/note-1/,
+  );
+  await sourceLink.click();
+  await expect(page.getByText("Version 2").first()).toBeVisible();
+  await page
+    .getByLabel("Frage für die lokale Quellenprüfung")
+    .fill("synthetischer Inhalt");
+  await page.getByRole("button", { name: "Quellen lokal vorbereiten" }).click();
+  await expect(
+    page.getByText(
+      "Die quellengestützte KI ist standardmäßig deaktiviert. Es wurden keine Daten übertragen.",
+    ),
+  ).toBeVisible();
+  await expect(page.locator(".ai-response")).toContainText(
+    "Synthetische Wissensnotiz Version 2",
+  );
+  await expect(page.locator(".ai-response")).toContainText(
+    "Anbieter: keiner · Externe Übertragung: nein",
+  );
+  await page.getByLabel("Datei").evaluate((element) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(
+      new File(["Synthetisches Dokument"], "synthetisch.txt", {
+        type: "text/plain",
+      }),
+    );
+    (element as HTMLInputElement).files = transfer.files;
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.getByRole("button", { name: "Lokal ablegen" }).click();
+  await expect(page.getByText("synthetisch.txt")).toBeVisible();
+  const overflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
 });
 
 test("aktualisiert das Dashboard nach Schnellaktionen aus gespeicherten Daten", async ({

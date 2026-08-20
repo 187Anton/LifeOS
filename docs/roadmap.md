@@ -373,31 +373,90 @@ Ziel: Eigene Projekte und lokale Wissensquellen strukturiert nutzen.
 
 ### 0.4.1 Projekte und Meilensteine
 
-- Projekte, Ziele und Meilensteine verwalten.
-- Aufgaben und Termine mit Projekten verknüpfen.
-- Fortschritt aus nachvollziehbaren Daten berechnen.
+- **Umgesetzt (12. August 2026):** Besitzgebundene Projekte, Ziele und
+  Meilensteine können angelegt, angezeigt, bearbeitet, archiviert, reaktiviert
+  und per Löschmarkierung ausgeblendet werden. Status, optionale Risiken und
+  reine Fälligkeitstage sind in PostgreSQL und SQLite versioniert.
+- Aufgaben und Kalenderereignisse werden ausschließlich referenziert. Aufgabe,
+  Kalender-UID und ETag bleiben in ihren führenden Modulen; fremde oder
+  ungültige Referenzen weist die API zurück.
+- Der Fortschritt ist eine gleichgewichtete Projektion aktiver, nicht
+  abgebrochener Ziele, Meilensteine und Aufgaben. Ohne Datengrundlage zeigt die
+  Oberfläche „noch nicht messbar“. Formel und Vertrag sind in
+  [`docs/api/projects.md`](api/projects.md) festgelegt.
+- Responsive Projektübersicht und Detailansicht, synthetische Seeds sowie Unit-,
+  API-, PostgreSQL-/SQLite-Datenbank- und Desktop-/Mobiltests wurden ergänzt.
+
+Abschlusskriterium: Projektverwaltung und Verknüpfungen funktionieren lokal;
+PostgreSQL- und SQLite-Parität, Migration, Import und Recovery werden durch die
+automatisierten Prüfungen des Teilabschnitts nachgewiesen.
 
 ### 0.4.2 Lokale Dokumente und Notizen
 
-- Dokumente und Notizen lokal verwalten.
-- Dateipfade, Metadaten und Löschvorgänge sicher behandeln.
-- Keine automatische externe Übertragung einführen.
+- **Umgesetzt (12. August 2026):** Besitzgebundene Markdown-Notizen mit
+  Kategorien, Tags, Projekt-/Studienmodulbezug, Versionen, Suchfreigabe,
+  Archivierung und Soft-Delete stehen in PostgreSQL und SQLite bereit.
+- Dokumente werden über eine lokale Storage-Schnittstelle außerhalb des
+  Repositorys abgelegt. Opaque interne Schlüssel, serverseitige
+  Pfadbegrenzung, Symlink-Schutz, `0700`-Verzeichnisse, `0600`-Dateien,
+  SHA-256 und eine Grenze von 25 MiB sichern die Ablage ab.
+- Die responsive Wissensoberfläche unterstützt Anlage, Änderung,
+  Versionsanzeige, Archivierung, Wiederherstellung, Upload, Download und
+  Löschung. Persönliche Inhalte werden nicht im Browser gespeichert.
+- PostgreSQL→SQLite-Import sowie SQLite-Backup und -Restore umfassen die neuen
+  Modelle und Dokumentdateien; alle Nachweise verwenden synthetische Daten.
+
+Abschlusskriterium: Notiz- und Dokumentverwaltung funktionieren lokal in
+Browser und Mac-Sidecar; Besitz-, Pfad-, Archivierungs-, Lösch-, Migrations-
+und Recovery-Regeln sind automatisiert geprüft.
 
 ### 0.4.3 Suche
 
-- Volltextsuche über freigegebene lokale Inhalte ergänzen.
-- Treffer mit Quelle, Änderungsdatum und Inhaltstyp anzeigen.
-- Zugriffs- und Löschregeln in Suchergebnissen berücksichtigen.
+- **Umgesetzt (20. August 2026):** Die providerunabhängige lokale Suche erfasst
+  ausdrücklich freigegebene Projekte samt aktiven Zielen und Meilensteinen,
+  Notizen, Dokumentmetadaten und sicher extrahierten Text sowie freigegebene
+  Studienmodule, Studieneinträge und Arbeitsprojekte.
+- Jeder Treffer nennt Titel, Inhaltstyp, führende Quelle, Änderungsdatum,
+  Ausschnitt, Treffergrund und Detailpfad. Die responsive Oberfläche öffnet die
+  führenden Fachdaten, ohne Treffer im Browser zu persistieren.
+- Besitzergrenzen, Freigabe, Archivierung und Löschmarkierung werden vor der
+  Bewertung serverseitig gefiltert. PostgreSQL und SQLite verwenden denselben
+  deterministischen Vertrag und dieselbe Gewichtung; es gibt keinen externen
+  Suchdienst und keinen separaten Schattenindex.
+- Der genaue Vertrag, die Text-Extraktionsgrenze und bewusst fehlende
+  unscharfe beziehungsweise sprachabhängige Suche sind in
+  [`docs/api/search.md`](api/search.md) dokumentiert und durch Unit-, API-,
+  PostgreSQL-/SQLite- sowie Desktop-/Mobiltests festgelegt.
+
+Abschlusskriterium: Freigegebene lokale Inhalte sind besitzgebunden mit
+vergleichbaren Ergebnissen auf PostgreSQL und SQLite durchsuchbar; private,
+archivierte und gelöschte Inhalte erscheinen nicht.
 
 ### 0.4.4 Quellengestützte KI
 
-- KI-Funktionen zunächst deaktiviert lassen.
-- Lokale Quellen und verwendete Textstellen sichtbar machen.
-- Externe Verarbeitung nur nach ausdrücklicher Freigabe ermöglichen.
-- Antworten ohne Quellen nicht als verlässlich markieren.
+- **Umgesetzt (20. August 2026):** Ein providerunabhängiger KI-Servicevertrag,
+  lokale Anfrage-/Antwortstrukturen und ein deaktivierter Adapter bereiten
+  quellengestützte Antworten vor. Im produktiven Server ist kein Anbieter
+  aktiv; externe Verarbeitung und externe API-Aufrufe sind technisch
+  blockiert.
+- Die Quellenaufbereitung übernimmt ausschließlich eigene, aktive und
+  ausdrücklich für die lokale Suche freigegebene Inhalte. Quellen,
+  Textausschnitte, Freigabestatus, fehlende beziehungsweise unzureichende
+  Belege und mögliche Widersprüche werden sichtbar ausgewiesen.
+- Regelbasierte Prompt-Injection-Erkennung schließt verdächtige Textstellen als
+  Adapterkontext aus. Fragen, Antworten und Ausschnitte werden nicht im
+  Klartext persistiert oder protokolliert; Interaktionen speichern nur
+  geschützte Fingerabdrücke und technische Metadaten.
+- Schreibende Ergebnisse sind ausschließlich Vorschläge mit zwingender
+  Bestätigung. Auch die Bestätigung protokolliert nur die Freigabe und führt
+  keine Fachänderung aus. Details und Grenzen stehen im
+  [`KI-Vertrag`](api/ai.md).
 
 Abschlusskriterium: Projekte und Wissen sind lokal durchsuchbar; KI bleibt
-erklärbar, abschaltbar und bestätigt externe Übertragungen ausdrücklich.
+erklärbar, vollständig abschaltbar und ohne ausdrücklich implementierte
+externe Freigabe übertragungsfrei. PostgreSQL-/SQLite-Persistenz,
+Besitzgrenzen, Recovery, Browser-/Mac-App-Vertrag und datensparsame Audits sind
+automatisiert geprüft.
 
 ## 0.5 Finanzen, Fitness und Integrationen
 

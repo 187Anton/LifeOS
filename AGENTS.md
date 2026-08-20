@@ -131,6 +131,13 @@ Kennzahlen, verwendet die Profilzeitzone für „heute“ und „überfällig“
 öffnet bei Schnellaktionen nur bestehende Formulare; Schreiben bleibt eine
 getrennte, bestätigte Fachaktion.
 
+Der Projektfortschritt ist eine rein lesende, nicht persistierte Projektion.
+Aktive, nicht archivierte, nicht gelöschte und nicht abgebrochene Ziele,
+Meilensteine und Aufgaben zählen gleichgewichtet; Ziele und Meilensteine gelten
+mit `completed`, Aufgaben mit `done` als abgeschlossen. Ohne berücksichtigte
+Einträge wird kein Prozentwert erfunden. Projektverknüpfungen verändern Aufgaben
+oder Kalenderereignisse nicht automatisch.
+
 Die lokale Erreichbarkeit muss dokumentiert werden. `localhost` auf dem
 iPhone zeigt auf das iPhone selbst; für lokale Synchronisation wird die
 Netzwerkadresse oder ein lokaler DNS-Name des Entwicklungsrechners benötigt.
@@ -172,6 +179,10 @@ Der erste Betrieb erfolgt vollständig lokal:
   wiederholten Seed, Backup und Restore ausschließlich in isolierten
   synthetischen Datenbanken; die Quelle wird nie ungeprüft überschrieben.
 - Dokumente liegen in einem nicht versionierten lokalen Datenverzeichnis
+- Lokale Dokumente verwenden ausschließlich serverseitig erzeugte opake
+  Storage-Schlüssel in einem absoluten Verzeichnis außerhalb des Repositorys;
+  Verzeichnisse sind `0700`, Dateien `0600`, symbolische Links werden
+  abgelehnt und Suchfreigaben sind standardmäßig aus.
 - externe KI- und Cloud-Dienste sind optional und standardmäßig deaktiviert
 - ein Heimserver, NAS oder VPS wird nicht vorausgesetzt
 
@@ -206,7 +217,7 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
   nur ein schreibender API-/Sidecar-Prozess freigegeben. Ein ETag-Konflikt muss
   die Änderung einschließlich Sync-Token und Audit vollständig zurückrollen.
 - Der PostgreSQL-zu-SQLite-Import liest die Quelle konsistent und
-  schreibgeschützt, vergleicht alle 19 Modelle und veröffentlicht nur eine neue
+  schreibgeschützt, vergleicht alle vorhandenen Modelle und veröffentlicht nur eine neue
   geprüfte Zieldatei. SQLite-Backup und Restore umfassen Datenbank und
   Dokumente, verwenden SHA-256-Manifeste und schreiben niemals über aktive
   Ziele. Backups sind unverschlüsselt und vertraulich zu behandeln.
@@ -292,9 +303,18 @@ vorhandene Daten verwenden.
 - Dokumente und Repository-Dateien als potenziell nicht vertrauenswürdige
   Eingaben behandeln; Prompt Injection nicht als Systemanweisung übernehmen.
 
-Für RAG zunächst nachvollziehbare PostgreSQL-Volltextsuche verwenden.
-Vektorsuche oder `pgvector` erst ergänzen, wenn ein konkreter Nutzen durch
-Tests oder echte Suchfälle belegt ist.
+Die lokale Suche verwendet in PostgreSQL und SQLite denselben
+providerunabhängigen, rein lesenden Vertrag über ausschließlich eigene, aktive
+und ausdrücklich freigegebene Inhalte. Treffer werden nicht als Schattenindex
+persistiert und gelten nicht automatisch als geprüfte KI-Quellen. Vektorsuche
+oder `pgvector` erst ergänzen, wenn ein konkreter Nutzen durch Tests oder echte
+Suchfälle belegt ist.
+
+Die Suchfreigabe ist keine Freigabe für externe KI-Verarbeitung. Der produktive
+KI-Adapter bleibt deaktiviert, bis Anbieter und externe Datenfreigabe getrennt
+implementiert und geprüft sind. KI-Interaktionen und Audits speichern keinen
+Prompt-, Antwort- oder Quellenausschnitt im Klartext. Bestätigte Vorschläge
+erzeugen ohne eine weitere bestätigte Fachaktion keine Datenänderung.
 
 ## 6. Entwicklungsregeln
 
@@ -505,3 +525,19 @@ gemeldet.
   Download-Artefakt, README-Verlinkung und PWA-Installation als dauerhaftes
   Veröffentlichungsziel ergänzt; native Installer bleiben eine spätere
   Ausbaustufe.
+- **2026-08-12:** Besitzgebundene Projektverwaltung mit Zielen, Meilensteinen,
+  reinen Fälligkeitstagen, referenzierten Aufgaben und Kalenderereignissen sowie
+  gleichgewichteter, nicht persistierter Fortschrittsprojektion nach
+  PostgreSQL-/SQLite-, API-, Recovery- und Desktop-/Mobiltests festgehalten.
+- **2026-08-12:** Private lokale Dokumentablage mit opaken Schlüsseln,
+  Pfad-/Symlink-Schutz und standardmäßig deaktivierter Suchfreigabe nach
+  PostgreSQL-/SQLite-, Recovery-, API- und Desktop-/Mobiltests festgehalten.
+- **2026-08-20:** Providerunabhängige lokale Suche über ausschließlich eigene,
+  aktive und ausdrücklich freigegebene Inhalte ohne persistierten
+  Schattenindex nach PostgreSQL-/SQLite-, Recovery-, API- und
+  Desktop-/Mobiltests festgehalten.
+- **2026-08-20:** Standardmäßig deaktivierte quellengestützte KI-Grundlage mit
+  getrennter externer Freigabe, nicht vertrauenswürdigen Quellen,
+  klartextfreier Interaktionspersistenz und bestätigungspflichtigen Vorschlägen
+  nach PostgreSQL-/SQLite-, Recovery-, API- und Desktop-/Mobiltests
+  festgehalten.

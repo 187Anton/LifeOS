@@ -11,6 +11,7 @@ export type ApiErrorCode =
   | "CONFLICT"
   | "NOT_FOUND"
   | "SERVICE_NOT_READY"
+  | "PAYLOAD_TOO_LARGE"
   | "INTERNAL_ERROR";
 
 export interface ApiErrorDetail {
@@ -208,6 +209,186 @@ export interface DashboardResponse {
   projects: DashboardProjectResponse[];
 }
 
+export type ProjectStatus =
+  "planned" | "active" | "paused" | "completed" | "cancelled";
+export type ProjectItemStatus =
+  "open" | "in_progress" | "completed" | "cancelled";
+
+interface ProjectOwnedRecordResponse {
+  id: string;
+  ownerId: string;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectResponse extends ProjectOwnedRecordResponse {
+  title: string;
+  description: string | null;
+  status: ProjectStatus;
+  risk: string | null;
+  dueDate: string | null;
+  searchEnabled: boolean;
+}
+
+export interface ProjectItemResponse extends ProjectOwnedRecordResponse {
+  projectId: string;
+  title: string;
+  description: string | null;
+  status: ProjectItemStatus;
+  risk: string | null;
+  dueDate: string | null;
+}
+
+export interface ProjectProgressResponse {
+  state: "available" | "no_data";
+  percent: number | null;
+  completedItems: number;
+  totalItems: number;
+  breakdown: {
+    goals: { completed: number; total: number };
+    milestones: { completed: number; total: number };
+    tasks: { completed: number; total: number };
+  };
+}
+
+export interface ProjectTaskSummaryResponse {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  dueDate: string | null;
+}
+
+export interface ProjectEventSummaryResponse {
+  calendarId: string;
+  uid: string;
+  title: string;
+  startsAt: string | null;
+  startDate: string | null;
+  etag: string;
+}
+
+export interface ProjectDetailResponse {
+  project: ProjectResponse;
+  goals: ProjectItemResponse[];
+  milestones: ProjectItemResponse[];
+  tasks: ProjectTaskSummaryResponse[];
+  calendarEvents: ProjectEventSummaryResponse[];
+  progress: ProjectProgressResponse;
+}
+
+export interface ProjectOverviewResponse {
+  projects: Array<ProjectResponse & { progress: ProjectProgressResponse }>;
+}
+
+export interface CreateProjectRequest {
+  title: string;
+  description?: string | null;
+  status?: ProjectStatus;
+  risk?: string | null;
+  dueDate?: string | null;
+  searchEnabled?: boolean;
+}
+export interface UpdateProjectRequest extends Partial<CreateProjectRequest> {
+  archived?: boolean;
+}
+export interface CreateProjectItemRequest {
+  title: string;
+  description?: string | null;
+  status?: ProjectItemStatus;
+  risk?: string | null;
+  dueDate?: string | null;
+}
+export interface UpdateProjectItemRequest extends Partial<CreateProjectItemRequest> {
+  archived?: boolean;
+}
+export interface CreateProjectTaskLinkRequest {
+  taskId: string;
+}
+export interface CreateProjectEventLinkRequest {
+  calendarId: string;
+  eventUid: string;
+}
+
+export interface KnowledgeLinkSummaryResponse {
+  id: string;
+  title: string;
+}
+
+export interface NoteVersionResponse {
+  version: number;
+  title: string;
+  content: string;
+  category: string | null;
+  tags: string[];
+  createdAt: string;
+}
+
+export interface NoteResponse {
+  id: string;
+  ownerId: string;
+  title: string;
+  content: string;
+  format: "markdown";
+  category: string | null;
+  tags: string[];
+  version: number;
+  searchEnabled: boolean;
+  project: KnowledgeLinkSummaryResponse | null;
+  studyModule: KnowledgeLinkSummaryResponse | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NoteDetailResponse extends NoteResponse {
+  versions: NoteVersionResponse[];
+}
+
+export interface DocumentResponse {
+  id: string;
+  ownerId: string;
+  fileName: string;
+  mimeType: string;
+  byteSize: number;
+  sha256: string;
+  modifiedAt: string;
+  searchEnabled: boolean;
+  project: KnowledgeLinkSummaryResponse | null;
+  studyModule: KnowledgeLinkSummaryResponse | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  contentUrl: string;
+}
+
+export interface KnowledgeOverviewResponse {
+  notes: NoteResponse[];
+  documents: DocumentResponse[];
+}
+
+export interface CreateNoteRequest {
+  title: string;
+  content: string;
+  format?: "markdown";
+  category?: string | null;
+  tags?: string[];
+  projectId?: string | null;
+  studyModuleId?: string | null;
+  searchEnabled?: boolean;
+}
+
+export interface UpdateNoteRequest extends Partial<CreateNoteRequest> {
+  archived?: boolean;
+}
+
+export interface UpdateDocumentRequest {
+  projectId?: string | null;
+  studyModuleId?: string | null;
+  searchEnabled?: boolean;
+  archived?: boolean;
+}
+
 export type StudyStatus =
   "planned" | "active" | "completed" | "paused" | "cancelled";
 export type StudyEntryKind = "lecture" | "exam" | "submission" | "learning";
@@ -237,6 +418,7 @@ export interface StudyModuleResponse extends StudyRecordResponse {
   grade: string | null;
   notes: string | null;
   documentReferences: string[];
+  searchEnabled: boolean;
 }
 
 export interface StudyEntryResponse extends StudyRecordResponse {
@@ -297,6 +479,7 @@ export interface CreateStudyModuleRequest {
   grade?: string | null;
   notes?: string | null;
   documentReferences?: string[];
+  searchEnabled?: boolean;
 }
 export interface UpdateStudyModuleRequest extends Partial<CreateStudyModuleRequest> {
   archived?: boolean;
@@ -351,6 +534,7 @@ export interface WorkProjectResponse extends WorkRecordResponse {
   deadlineDate: string | null;
   calendarEventId: string | null;
   notes: string | null;
+  searchEnabled: boolean;
 }
 
 export interface WorkTaskLinkResponse {
@@ -423,9 +607,110 @@ export interface CreateWorkProjectRequest {
   deadlineDate?: string | null;
   calendarEventId?: string | null;
   notes?: string | null;
+  searchEnabled?: boolean;
 }
 export interface UpdateWorkProjectRequest extends Partial<CreateWorkProjectRequest> {
   archived?: boolean;
+}
+
+export type SearchContentType =
+  | "project"
+  | "project_goal"
+  | "project_milestone"
+  | "note"
+  | "document"
+  | "study_module"
+  | "study_entry"
+  | "work_project";
+
+export interface SearchSourceResponse {
+  type: "project" | "note" | "document" | "study_module" | "work_project";
+  id: string;
+  title: string;
+}
+
+export interface SearchResultResponse {
+  id: string;
+  title: string;
+  contentType: SearchContentType;
+  source: SearchSourceResponse;
+  updatedAt: string;
+  snippet: string;
+  matchReason: "title" | "content" | "metadata";
+  detailPath: string;
+  ownerId: string;
+  searchEnabled: true;
+}
+
+export interface SearchResponse {
+  query: string;
+  results: SearchResultResponse[];
+}
+
+export type AiInteractionStatus =
+  | "disabled"
+  | "no_sources"
+  | "insufficient_sources"
+  | "conflicting_sources"
+  | "unsafe_sources"
+  | "external_release_required"
+  | "provider_missing"
+  | "ready";
+
+export interface AiStatusResponse {
+  enabled: boolean;
+  providerId: string | null;
+  processingMode: "local" | "external" | null;
+  externalTransferEnabled: boolean;
+}
+
+export interface CreateAiQueryRequest {
+  query: string;
+  minimumSources?: number;
+}
+
+export interface AiSourceReferenceResponse {
+  id: string;
+  title: string;
+  contentType: SearchContentType;
+  source: SearchSourceResponse;
+  updatedAt: string;
+  excerpt: string;
+  detailPath: string;
+  releaseStatus: "search_enabled";
+  usedForResponse: boolean;
+  warning: "untrusted_instructions" | "possible_conflict" | null;
+}
+
+export interface AiSuggestionResponse {
+  id: string;
+  actionType: string;
+  summary: string;
+  requiresConfirmation: true;
+}
+
+export interface AiQueryResponse {
+  interactionId: string;
+  status: AiInteractionStatus;
+  message: string;
+  answer: string | null;
+  sources: AiSourceReferenceResponse[];
+  suggestions: AiSuggestionResponse[];
+  metadata: {
+    providerId: string | null;
+    processingMode: "local" | "external" | null;
+    externalTransferOccurred: false;
+    sourceCount: number;
+    usableSourceCount: number;
+    requestHash: string;
+  };
+}
+
+export interface ConfirmAiSuggestionResponse {
+  interactionId: string;
+  suggestionId: string;
+  status: "confirmed";
+  domainChangesApplied: false;
 }
 
 export interface CreateWorkTaskLinkRequest {

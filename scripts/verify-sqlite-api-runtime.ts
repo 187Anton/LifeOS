@@ -50,6 +50,7 @@ const waitForReady = async (baseUrl: string, child: ChildProcess) => {
 };
 
 const startServer = async (databaseUrl: string, port: number) => {
+  const databasePath = decodeURIComponent(databaseUrl.slice("file:".length));
   const child = spawn(process.execPath, [builtServer], {
     cwd: repositoryRoot,
     env: {
@@ -58,6 +59,11 @@ const startServer = async (databaseUrl: string, port: number) => {
       API_HOST: "127.0.0.1",
       API_PORT: String(port),
       DATABASE_URL: databaseUrl,
+      SQLITE_MIGRATIONS_PATH: path.join(
+        repositoryRoot,
+        "packages/database/prisma/sqlite/migrations",
+      ),
+      STORAGE_PATH: path.join(path.dirname(databasePath), "documents"),
       WEB_ORIGIN: `http://127.0.0.1:${port}`,
       LOG_LEVEL: "error",
       SHUTDOWN_TIMEOUT_MS: "1000",

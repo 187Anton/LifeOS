@@ -244,9 +244,9 @@ UTC-Zeitpunkt plus Zeitzone gespeichert. Geschätzte Dauern sind ganzzahlige
 Minuten zwischen 1 und 525600.
 
 Elternaufgaben und der optionale Projektanker müssen demselben Besitzer
-gehören. Zyklen in der Aufgabenhierarchie werden abgelehnt. Die vollständige
-Projektverwaltung folgt erst in Roadmap 0.4; der jetzige Projektanker schafft
-nur eine stabile, besitzgesicherte Relation. Archivierung ist umkehrbar,
+gehören. Zyklen in der Aufgabenhierarchie werden abgelehnt. Der Projektanker
+verweist auf die besitzgebundene Projektverwaltung mit Zielen und
+Meilensteinen. Archivierung ist umkehrbar,
 `DELETE` setzt dagegen eine Löschmarkierung. Erstellen, Ändern und Löschen
 erzeugen wertfreie Audit-Ereignisse.
 
@@ -366,6 +366,15 @@ weitergegeben.
   Aufgabenbeziehungen sowie geplante und tatsächliche Zeit mit Besitzprüfung.
 - `modules/planning/` projiziert vorhandene Fachobjekte besitzgebunden und
   erkennt Konflikte beziehungsweise Überlastung mit transparenten Regeln.
+- `modules/search/` projiziert ausschließlich eigene, aktive und ausdrücklich
+  freigegebene Fachdaten mit einem providerunabhängigen lokalen Suchvertrag;
+  es persistiert weder Suchindex noch Suchanfragen oder Treffer.
+- `modules/ai/` bereitet ausschließlich diese lokalen Quellen auf, kennzeichnet
+  unsichere oder widersprüchliche Ausschnitte und persistiert nur geschützte
+  Fingerabdrücke und technische Metadaten. Der produktive Adapter ist
+  deaktiviert; externe Verarbeitung und automatische Fachänderungen finden
+  nicht statt. Der Vertrag ist in [`docs/api/ai.md`](../../docs/api/ai.md)
+  beschrieben.
 - `modules/caldav/` übersetzt den gemeinsamen Kalenderkern in WebDAV-XML und
   RFC-5545-iCalendar; Zugang, Parser und Transport bleiben von der REST-API
   getrennt.

@@ -24,9 +24,11 @@ Mac-App-Migration.
   einem Kalender eines anderen Benutzers zugeordnet wird. UID und ETag bleiben
   stabil bzw. versionsbezogen; Wiederholungsregeln und bis zu zehn
   Erinnerungszeitpunkte werden verlustarm gespeichert.
-- `Project` ist zunächst ein kleiner, besitzgebundener Projektanker für
-  Aufgaben. Die vollständige Projekt- und Meilensteinverwaltung bleibt
-  Roadmap 0.4 vorbehalten.
+- `Project`, `ProjectGoal`, `ProjectMilestone` und `ProjectEventLink` bilden die
+  besitzgebundene Projektverwaltung. Projekte, Ziele und Meilensteine besitzen
+  Status, optionales Risiko, reines Fälligkeitsdatum sowie reversible Archiv-
+  und Löschzeitpunkte. Aufgaben und Kalenderereignisse werden referenziert,
+  nicht kopiert.
 - `Task` speichert Titel, Beschreibung, Status, Priorität, Fälligkeit,
   optionale Startplanung, ganzzahlige Dauerminuten, Tags, Bereich,
   Projekt-/Elternbezug sowie Abschluss-, Archivierungs- und Löschzeitpunkte.
@@ -35,6 +37,26 @@ Mac-App-Migration.
 - `TaskEventLink` speichert ausschließlich die besitzgebundene Beziehung
   zwischen Aufgabe und Kalenderereignis. Eine zusammengesetzte Eindeutigkeit
   verhindert Duplikate; Fachdaten werden nicht kopiert.
+- `Note` speichert Markdown-Inhalte, Kategorie, Tags, optionale Projekt- und
+  Studienmodulbezüge sowie eine ausdrücklich gesetzte Suchfreigabe.
+  `NoteVersion` hält bei Inhaltsänderungen den nachvollziehbaren Stand; beide
+  Modelle bleiben besitzgebunden und Notizen sind archiv- sowie soft-löschbar.
+- `Document` enthält ausschließlich besitzgebundene Metadaten, Prüfsumme und
+  einen opaken Storage-Schlüssel. Der Binärinhalt liegt außerhalb des
+  Repositorys im privaten lokalen Dokumentverzeichnis. Ein optionaler,
+  größenbegrenzter `extractedText` enthält nur lokal aus freigegebenen
+  UTF-8-Textformaten gewonnenen Inhalt.
+- `Project`, `StudyModule` und `WorkProject` besitzen wie `Note` und `Document`
+  eine standardmäßig deaktivierte `searchEnabled`-Freigabe. Die Migration
+  `20260820100000_local_search` ergänzt diese Felder und die nur für aktive
+  Datensätze verwendeten Zugriffspfade in PostgreSQL und SQLite.
+- `AiInteraction` hält den besitzgebundenen technischen Nachweis einer lokalen
+  Quellenaufbereitung. Fragen, Antworten und Textausschnitte werden nicht im
+  Klartext gespeichert; zufällig geschützte SHA-256-Fingerabdrücke,
+  Quellen-IDs, Status, Zähler und Bestätigungsmetadaten genügen für
+  Nachvollziehbarkeit und Audit. Die Migration
+  `20260820150000_source_grounded_ai` ist für PostgreSQL und SQLite
+  versioniert.
 - `AvailabilityWindow` speichert wöchentliche persönliche Verfügbarkeit als
   Wochentag, Start- und Endminute sowie IANA-Zeitzone. Gültigkeitsbedingungen
   und Besitzbezug werden zusätzlich in PostgreSQL erzwungen.
@@ -84,7 +106,8 @@ npm run db:verify:recovery
 - `db:migrate` wendet ausschließlich vorhandene, versionierte Migrationen an.
 - `db:seed` legt wiederholbar dieselbe synthetische Person, Einstellungen,
   einen Kalender, ein Ereignis, einen Projektanker, eine Aufgabe, deren
-  Beziehung und ein Audit-Ereignis an.
+  Beziehung, eine deaktivierte KI-Interaktion ohne Klartext und ein
+  Audit-Ereignis an.
 - `db:test` speichert und liest einen eigenen synthetischen Datensatz und
   entfernt ihn anschließend wieder.
 - `db:backup` schreibt einen Custom-Format-Dump samt SHA-256-Prüfsumme in das
@@ -177,7 +200,7 @@ npm run db:sqlite:import
 ```
 
 Der Import liest PostgreSQL in einer schreibgeschützten konsistenten
-Transaktion, überträgt alle 19 Modelle in eine Stagingdatei und veröffentlicht
+Transaktion, überträgt alle 25 Modelle in eine Stagingdatei und veröffentlicht
 das Ziel erst nach vollständigem Feld-, Fremdschlüssel- und
 Integritätsvergleich. Ein vorhandenes Ziel wird nie überschrieben. Für den
 echten Umzug soll der bisherige schreibende Betrieb pausiert werden; ändert

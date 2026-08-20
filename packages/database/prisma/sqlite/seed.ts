@@ -263,6 +263,13 @@ const toDate = (value: string) => new Date(value);
 const toNullableDate = (value: NullableTimestamp) =>
   value === null ? null : toDate(value);
 
+const SYNTHETIC_PROJECT_ID = "00000000-0000-4000-8000-000000000106";
+const SYNTHETIC_PROJECT_GOAL_ID = "00000000-0000-4000-8000-000000000108";
+const SYNTHETIC_PROJECT_MILESTONE_ID = "00000000-0000-4000-8000-000000000109";
+const SYNTHETIC_PROJECT_EVENT_LINK_ID = "00000000-0000-4000-8000-000000000110";
+const SYNTHETIC_NOTE_ID = "00000000-0000-4000-8000-000000000111";
+const SYNTHETIC_AI_INTERACTION_ID = "00000000-0000-4000-8000-000000000112";
+
 export const seedSqliteDatabase = async (
   databaseUrl = process.env.SQLITE_DATABASE_URL,
   fixturePath = process.env.SQLITE_SEED_SOURCE || defaultSqliteSeedFixturePath,
@@ -344,6 +351,127 @@ export const seedSqliteDatabase = async (
           },
         });
       }
+      await transaction.project.upsert({
+        where: { id: SYNTHETIC_PROJECT_ID },
+        update: { searchEnabled: true },
+        create: {
+          id: SYNTHETIC_PROJECT_ID,
+          userId: fixture.user.id,
+          title: "Synthetisches SQLite-Projekt",
+          description: "Lokales Beispielprojekt für reproduzierbare Tests.",
+          status: "active",
+          risk: "Nur synthetischer Testrisikohinweis.",
+          dueDate: "2030-03-31",
+          searchEnabled: true,
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.projectGoal.upsert({
+        where: { id: SYNTHETIC_PROJECT_GOAL_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_PROJECT_GOAL_ID,
+          userId: fixture.user.id,
+          projectId: SYNTHETIC_PROJECT_ID,
+          title: "Synthetisches SQLite-Projektziel",
+          status: "in_progress",
+          dueDate: "2030-02-28",
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.projectMilestone.upsert({
+        where: { id: SYNTHETIC_PROJECT_MILESTONE_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_PROJECT_MILESTONE_ID,
+          userId: fixture.user.id,
+          projectId: SYNTHETIC_PROJECT_ID,
+          title: "Synthetischer SQLite-Meilenstein",
+          status: "completed",
+          dueDate: "2030-01-31",
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      const firstEvent = fixture.events[0];
+      requireCondition(
+        firstEvent,
+        "Ein Kalenderereignis für das Projekt fehlt.",
+      );
+      await transaction.projectEventLink.upsert({
+        where: { id: SYNTHETIC_PROJECT_EVENT_LINK_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_PROJECT_EVENT_LINK_ID,
+          userId: fixture.user.id,
+          projectId: SYNTHETIC_PROJECT_ID,
+          calendarEventId: firstEvent.id,
+          createdAt: toDate(fixture.user.createdAt),
+        },
+      });
+      await transaction.note.upsert({
+        where: { id: SYNTHETIC_NOTE_ID },
+        update: { searchEnabled: true },
+        create: {
+          id: SYNTHETIC_NOTE_ID,
+          userId: fixture.user.id,
+          projectId: SYNTHETIC_PROJECT_ID,
+          title: "Synthetische SQLite-Projektnotiz",
+          content:
+            "# Beispiel\n\nLokale Markdown-Notiz ohne persönliche Daten.",
+          category: "Dokumentation",
+          tags: ["synthetisch", "projekt"],
+          searchEnabled: true,
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+          versions: {
+            create: {
+              user: { connect: { id: fixture.user.id } },
+              version: 1,
+              title: "Synthetische SQLite-Projektnotiz",
+              content:
+                "# Beispiel\n\nLokale Markdown-Notiz ohne persönliche Daten.",
+              category: "Dokumentation",
+              tags: ["synthetisch", "projekt"],
+              createdAt: toDate(fixture.user.createdAt),
+            },
+          },
+        },
+      });
+      await transaction.aiInteraction.upsert({
+        where: { id: SYNTHETIC_AI_INTERACTION_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_AI_INTERACTION_ID,
+          userId: fixture.user.id,
+          requestHash: "a".repeat(64),
+          status: "disabled",
+          processingMode: "local",
+          externalTransferOccurred: false,
+          sourceReferences: [
+            {
+              sourceType: "note",
+              sourceId: SYNTHETIC_NOTE_ID,
+              sourceUpdatedAt: fixture.user.updatedAt,
+              excerptHash: "b".repeat(64),
+              releaseStatus: "search_enabled",
+              usedForResponse: false,
+              warning: null,
+            },
+          ],
+          responseMetadata: {
+            messageCode: "disabled",
+            answerHash: null,
+            sourceCount: 1,
+            usableSourceCount: 1,
+            suggestions: [],
+          },
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
       await transaction.auditEvent.upsert({
         where: { id: fixture.auditEvent.id },
         update: {},

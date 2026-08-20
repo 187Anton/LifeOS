@@ -17,9 +17,19 @@ import { CalendarService } from "./modules/calendar/service.js";
 import { PrismaDashboardRepository } from "./modules/dashboard/repository.js";
 import { createDashboardRouter } from "./modules/dashboard/router.js";
 import { DashboardService } from "./modules/dashboard/service.js";
+import { PrismaKnowledgeRepository } from "./modules/knowledge/repository.js";
+import {
+  createDocumentUploadRouter,
+  createKnowledgeRouter,
+} from "./modules/knowledge/router.js";
+import { KnowledgeService } from "./modules/knowledge/service.js";
+import { LocalDocumentStorage } from "./modules/knowledge/storage.js";
 import { PrismaPlanningRepository } from "./modules/planning/repository.js";
 import { createPlanningRouter } from "./modules/planning/router.js";
 import { PlanningService } from "./modules/planning/service.js";
+import { PrismaProjectRepository } from "./modules/projects/repository.js";
+import { createProjectRouter } from "./modules/projects/router.js";
+import { ProjectService } from "./modules/projects/service.js";
 import { PrismaProfileRepository } from "./modules/profile/repository.js";
 import { createProfileRouter } from "./modules/profile/router.js";
 import {
@@ -42,6 +52,15 @@ import { createDatabaseReadinessProbe } from "./readiness.js";
 import { PrismaSetupRepository } from "./modules/setup/repository.js";
 import { createSetupRouter } from "./modules/setup/router.js";
 import { SetupService } from "./modules/setup/service.js";
+import { PrismaSearchRepository } from "./modules/search/repository.js";
+import { createSearchRouter } from "./modules/search/router.js";
+import { LocalSearchService } from "./modules/search/service.js";
+import { PrismaAiInteractionRepository } from "./modules/ai/repository.js";
+import { createAiRouter } from "./modules/ai/router.js";
+import {
+  DisabledAiProviderAdapter,
+  SourceGroundedAiService,
+} from "./modules/ai/service.js";
 
 const main = async (): Promise<void> => {
   loadLocalEnvironment();
@@ -61,6 +80,19 @@ const main = async (): Promise<void> => {
   const study = new StudyService(new PrismaStudyRepository(database));
   const work = new WorkService(new PrismaWorkRepository(database));
   const planning = new PlanningService(new PrismaPlanningRepository(database));
+  const projects = new ProjectService(new PrismaProjectRepository(database));
+  const documentStorage = new LocalDocumentStorage(config.storagePath);
+  await documentStorage.initialize();
+  const knowledge = new KnowledgeService(
+    new PrismaKnowledgeRepository(database),
+    documentStorage,
+  );
+  const search = new LocalSearchService(new PrismaSearchRepository(database));
+  const ai = new SourceGroundedAiService(
+    search,
+    new PrismaAiInteractionRepository(database),
+    { enabled: false, adapter: new DisabledAiProviderAdapter() },
+  );
   const taskEventLinks = new TaskEventLinkService(
     new PrismaTaskEventLinkRepository(database),
   );
@@ -83,6 +115,9 @@ const main = async (): Promise<void> => {
         repository: calDavRepository,
         calendars,
       }),
+    ],
+    rawModuleRouters: [
+      createDocumentUploadRouter({ authentication, knowledge }),
     ],
     moduleRouters: [
       createProfileRouter({
@@ -110,6 +145,10 @@ const main = async (): Promise<void> => {
       createStudyRouter({ authentication, study }),
       createWorkRouter({ authentication, work }),
       createPlanningRouter({ authentication, planning }),
+      createProjectRouter({ authentication, projects }),
+      createKnowledgeRouter({ authentication, knowledge }),
+      createSearchRouter({ authentication, search }),
+      createAiRouter({ authentication, ai }),
     ],
   });
   let runningServer: Awaited<ReturnType<typeof startApiServer>>;

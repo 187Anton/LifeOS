@@ -38,6 +38,7 @@ const readMigrationSnapshot = async (
         orderBy: { id: "asc" },
         include: { events: { orderBy: { id: "asc" } } },
       },
+      aiInteractions: { orderBy: { id: "asc" } },
       auditEvents: { orderBy: { id: "asc" } },
     },
   });
@@ -52,6 +53,10 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   assert.deepEqual(firstMigration.appliedNow, [
     "20260809190000_sqlite_foundation",
     "20260809203000_product_modules",
+    "20260812100000_projects_milestones",
+    "20260812190000_local_documents_notes",
+    "20260820100000_local_search",
+    "20260820150000_source_grounded_ai",
   ]);
 
   const database = createSqliteDatabaseClient(databaseUrl);
@@ -60,11 +65,19 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const migrationRows = await database.$queryRawUnsafe<
     Array<{ name: string; checksum: string }>
   >('SELECT "name", "checksum" FROM "_lifeos_migrations"');
-  assert.equal(migrationRows.length, 2);
+  assert.equal(migrationRows.length, 6);
   assert.equal(migrationRows[0]?.name, "20260809190000_sqlite_foundation");
   assert.match(migrationRows[0]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[1]?.name, "20260809203000_product_modules");
   assert.match(migrationRows[1]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[2]?.name, "20260812100000_projects_milestones");
+  assert.match(migrationRows[2]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[3]?.name, "20260812190000_local_documents_notes");
+  assert.match(migrationRows[3]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[4]?.name, "20260820100000_local_search");
+  assert.match(migrationRows[4]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[5]?.name, "20260820150000_source_grounded_ai");
+  assert.match(migrationRows[5]?.checksum ?? "", /^[0-9a-f]{64}$/);
 
   const foreignKeys = await database.$queryRawUnsafe<
     Array<{ foreign_keys: bigint }>
@@ -240,6 +253,94 @@ test("weist fremden Besitz, gemischte Zeitformen und ungültige Erinnerungen ab"
         externalId: "sqlite-second-primary-calendar",
         name: "Unzulässiger zweiter Primärkalender",
         isPrimary: true,
+      },
+    }),
+  );
+});
+
+test("speichert Projektziele und Meilensteine mit reinen Fälligkeitstagen und Besitzergrenzen", async (t) => {
+  const databaseUrl = await createIsolatedDatabase(t);
+  await migrateSqliteDatabase(databaseUrl);
+  await seedSqliteDatabase(databaseUrl);
+  const fixture = await readSqliteSeedFixture();
+  const database = createSqliteDatabaseClient(databaseUrl);
+  t.after(async () => database.$disconnect());
+  const project = await database.project.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+    include: { goals: true, milestones: true, eventLinks: true },
+  });
+  assert.equal(project.dueDate, "2030-03-31");
+  assert.equal(project.goals[0]?.dueDate, "2030-02-28");
+  assert.equal(project.milestones[0]?.dueDate, "2030-01-31");
+  assert.equal(project.eventLinks.length, 1);
+  await assert.rejects(() =>
+    database.projectGoal.create({
+      data: {
+        userId: "fremder-besitzer",
+        projectId: project.id,
+        title: "Unzulässiges fremdes Ziel",
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.projectMilestone.create({
+      data: {
+        userId: fixture.user.id,
+        projectId: project.id,
+        title: "Ungültiges Datum",
+        dueDate: "31.01.2030",
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.projectGoal.update({
+      where: { id: project.goals[0]!.id },
+      data: { archivedAt: new Date("2000-01-01T00:00:00.000Z") },
+    }),
+  );
+  await assert.rejects(() =>
+    database.project.update({
+      where: { id: project.id },
+      data: { deletedAt: new Date("2000-01-01T00:00:00.000Z") },
+    }),
+  );
+});
+
+test("speichert Notizversionen und Dokumentmetadaten mit Besitzergrenzen", async (t) => {
+  const databaseUrl = await createIsolatedDatabase(t);
+  await migrateSqliteDatabase(databaseUrl);
+  await seedSqliteDatabase(databaseUrl);
+  const fixture = await readSqliteSeedFixture();
+  const database = createSqliteDatabaseClient(databaseUrl);
+  t.after(async () => database.$disconnect());
+  const seeded = await database.note.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+    include: { versions: true },
+  });
+  assert.equal(seeded.format, "markdown");
+  assert.equal(seeded.versions.length, 1);
+  assert.equal(seeded.searchEnabled, true);
+
+  await assert.rejects(() =>
+    database.note.create({
+      data: {
+        userId: fixture.user.id,
+        projectId: "00000000-0000-4000-8000-000000000999",
+        title: "Ungültige Verknüpfung",
+        content: "synthetisch",
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.document.create({
+      data: {
+        userId: "00000000-0000-4000-8000-000000000999",
+        storageKey: "00000000-0000-4000-8000-000000000801.txt",
+        fileName: "synthetisch.txt",
+        mimeType: "text/plain",
+        byteSize: 12,
+        sha256: "a".repeat(64),
+        modifiedAt: new Date(),
       },
     }),
   );

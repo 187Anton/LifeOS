@@ -101,7 +101,32 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     },
   });
   const project = await source.project.create({
-    data: { userId: user.id, title: "Synthetischer Projektanker" },
+    data: {
+      userId: user.id,
+      title: "Synthetischer Projektanker",
+      description: "Transferprojekt",
+      status: "active",
+      dueDate: new Date("2032-12-31T00:00:00.000Z"),
+      searchEnabled: true,
+    },
+  });
+  await source.projectGoal.create({
+    data: {
+      userId: user.id,
+      projectId: project.id,
+      title: "Synthetisches Transferziel",
+      status: "in_progress",
+      dueDate: new Date("2032-10-31T00:00:00.000Z"),
+    },
+  });
+  await source.projectMilestone.create({
+    data: {
+      userId: user.id,
+      projectId: project.id,
+      title: "Synthetischer Transfermeilenstein",
+      status: "completed",
+      dueDate: new Date("2032-09-30T00:00:00.000Z"),
+    },
   });
   const task = await source.task.create({
     data: {
@@ -119,6 +144,9 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   });
   await source.taskEventLink.create({
     data: { userId: user.id, taskId: task.id, calendarEventId: event.id },
+  });
+  await source.projectEventLink.create({
+    data: { userId: user.id, projectId: project.id, calendarEventId: event.id },
   });
   const program = await source.studyProgram.create({
     data: {
@@ -138,6 +166,47 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       status: "active",
       credits: 6.5,
       documentReferences: ["documents/study/module.txt"],
+      searchEnabled: true,
+    },
+  });
+  const note = await source.note.create({
+    data: {
+      userId: user.id,
+      projectId: project.id,
+      studyModuleId: module.id,
+      title: "Synthetische Transfernotiz",
+      content: "# Transfer\n\nNur synthetische Inhalte.",
+      category: "Test",
+      tags: ["transfer"],
+      searchEnabled: true,
+      versions: {
+        create: {
+          user: { connect: { id: user.id } },
+          version: 1,
+          title: "Synthetische Transfernotiz",
+          content: "# Transfer\n\nNur synthetische Inhalte.",
+          category: "Test",
+          tags: ["transfer"],
+        },
+      },
+    },
+  });
+  const storageKey = `${randomUUID()}.txt`;
+  await source.document.create({
+    data: {
+      userId: user.id,
+      projectId: project.id,
+      studyModuleId: module.id,
+      storageKey,
+      fileName: "transfer.txt",
+      mimeType: "text/plain",
+      byteSize: 24,
+      sha256: createHash("sha256")
+        .update("synthetisches Dokument\n")
+        .digest("hex"),
+      modifiedAt: new Date("2032-09-01T12:00:00.000Z"),
+      searchEnabled: true,
+      extractedText: "Synthetisch extrahierter Transfertext.",
     },
   });
   await source.studyEntry.create({
@@ -170,6 +239,7 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       status: "active",
       deadlineDate: new Date("2032-10-01T00:00:00.000Z"),
       calendarEventId: event.id,
+      searchEnabled: true,
     },
   });
   await source.workTaskLink.create({
@@ -212,6 +282,35 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       metadata: { source: "synthetic-m4" },
     },
   });
+  const aiInteraction = await source.aiInteraction.create({
+    data: {
+      userId: user.id,
+      requestHash: createHash("sha256")
+        .update("synthetic-ai-query")
+        .digest("hex"),
+      status: "disabled",
+      processingMode: "local",
+      externalTransferOccurred: false,
+      sourceReferences: [
+        {
+          sourceType: "note",
+          sourceId: note.id,
+          sourceUpdatedAt: "2032-09-01T12:00:00.000Z",
+          excerptHash: createHash("sha256").update("excerpt").digest("hex"),
+          releaseStatus: "search_enabled",
+          usedForResponse: false,
+          warning: null,
+        },
+      ],
+      responseMetadata: {
+        messageCode: "disabled",
+        answerHash: null,
+        sourceCount: 1,
+        usableSourceCount: 1,
+        suggestions: [],
+      },
+    },
+  });
 
   const importedDatabasePath = path.join(directory, "imported.sqlite");
   const importResult = await importPostgresToSqlite(
@@ -234,16 +333,22 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       sessions: true,
       calendars: { include: { events: true } },
       projects: true,
+      projectGoals: true,
+      projectMilestones: true,
+      projectEventLinks: true,
       tasks: true,
       taskEventLinks: true,
       studyPrograms: true,
       studyModules: true,
       studyEntries: true,
+      notes: { include: { versions: true } },
+      documents: true,
       workContexts: true,
       workProjects: true,
       workTaskLinks: true,
       workTimeEntries: true,
       availabilityWindows: true,
+      aiInteractions: true,
       auditEvents: true,
     },
   });
@@ -256,12 +361,30 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   assert.deepEqual(importedUser.studyModules[0]?.documentReferences, [
     "documents/study/module.txt",
   ]);
+  assert.equal(
+    importedUser.projectGoals[0]?.dueDate?.toISOString(),
+    "2032-10-31T00:00:00.000Z",
+  );
+  assert.equal(importedUser.projectMilestones.length, 1);
+  assert.equal(importedUser.projectEventLinks[0]?.calendarEventId, event.id);
+  assert.equal(importedUser.notes[0]?.id, note.id);
+  assert.equal(importedUser.notes[0]?.versions.length, 1);
+  assert.equal(importedUser.documents[0]?.storageKey, storageKey);
+  assert.equal(
+    importedUser.documents[0]?.extractedText,
+    "Synthetisch extrahierter Transfertext.",
+  );
+  assert.equal(importedUser.projects[0]?.searchEnabled, true);
+  assert.equal(importedUser.studyModules[0]?.searchEnabled, true);
+  assert.equal(importedUser.workProjects[0]?.searchEnabled, true);
+  assert.equal(importedUser.aiInteractions[0]?.id, aiInteraction.id);
+  assert.equal(importedUser.aiInteractions[0]?.externalTransferOccurred, false);
 
   const documents = path.join(directory, "documents-source");
-  await mkdir(path.join(documents, "study"), { recursive: true });
+  await mkdir(path.join(documents, user.id), { recursive: true });
   await writeFile(
-    path.join(documents, "study", "module.txt"),
-    "synthetisches Modul\n",
+    path.join(documents, user.id, storageKey),
+    "synthetisches Dokument\n",
   );
   await writeFile(path.join(documents, "notiz.txt"), "synthetische Notiz\n");
   const backupDirectory = path.join(directory, "backup");
@@ -304,8 +427,8 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   );
   await restored.$disconnect();
   assert.equal(
-    await readFile(path.join(restoredDocuments, "study", "module.txt"), "utf8"),
-    "synthetisches Modul\n",
+    await readFile(path.join(restoredDocuments, user.id, storageKey), "utf8"),
+    "synthetisches Dokument\n",
   );
 
   const tamperedBackup = path.join(directory, "backup-tampered");

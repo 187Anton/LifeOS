@@ -8,10 +8,19 @@ import {
   TaskIcon,
   WorkIcon,
   PlanIcon,
+  ProjectIcon,
+  KnowledgeIcon,
 } from "./Icons";
 
 export type View =
-  "dashboard" | "tasks" | "calendar" | "study" | "work" | "planning";
+  | "dashboard"
+  | "tasks"
+  | "calendar"
+  | "study"
+  | "work"
+  | "projects"
+  | "knowledge"
+  | "planning";
 
 interface ShellProps {
   children: ReactNode;
@@ -74,12 +83,28 @@ export const Shell = ({
           <span>Arbeit</span>
         </button>
         <button
+          className={view === "projects" ? "nav-item active" : "nav-item"}
+          onClick={() => onViewChange("projects")}
+          aria-current={view === "projects" ? "page" : undefined}
+        >
+          <ProjectIcon />
+          <span>Projekte</span>
+        </button>
+        <button
           className={view === "calendar" ? "nav-item active" : "nav-item"}
           onClick={() => onViewChange("calendar")}
           aria-current={view === "calendar" ? "page" : undefined}
         >
           <CalendarIcon />
           <span>Kalender</span>
+        </button>
+        <button
+          className={view === "knowledge" ? "nav-item active" : "nav-item"}
+          onClick={() => onViewChange("knowledge")}
+          aria-current={view === "knowledge" ? "page" : undefined}
+        >
+          <KnowledgeIcon />
+          <span>Wissen</span>
         </button>
         <button
           className={view === "planning" ? "nav-item active" : "nav-item"}
@@ -164,12 +189,28 @@ export const Shell = ({
         <span>Arbeit</span>
       </button>
       <button
+        className={view === "projects" ? "active" : ""}
+        onClick={() => onViewChange("projects")}
+        aria-current={view === "projects" ? "page" : undefined}
+      >
+        <ProjectIcon />
+        <span>Projekte</span>
+      </button>
+      <button
         className={view === "calendar" ? "active" : ""}
         onClick={() => onViewChange("calendar")}
         aria-current={view === "calendar" ? "page" : undefined}
       >
         <CalendarIcon />
         <span>Kalender</span>
+      </button>
+      <button
+        className={view === "knowledge" ? "active" : ""}
+        onClick={() => onViewChange("knowledge")}
+        aria-current={view === "knowledge" ? "page" : undefined}
+      >
+        <KnowledgeIcon />
+        <span>Wissen</span>
       </button>
       <button
         className={view === "planning" ? "active" : ""}

@@ -127,9 +127,50 @@ setzen den Abschlusszeitpunkt passend zum Status. Archivierung ist umkehrbar,
 während Löschen eine datenschutzgerechte Löschmarkierung setzt. Jede
 schreibende Änderung erzeugt ein wertfreies Audit-Ereignis.
 
-Der `Project`-Datensatz ist in Phase 0.2 nur ein stabiler, besitzgebundener
-Anker für die optionale Aufgabenrelation. Projekt-CRUD, Ziele und Meilensteine
-gehören weiterhin in Roadmap 0.4 und werden nicht vorweggenommen.
+Das Projektmodul erweitert den besitzgebundenen Aufgabenanker um Projekt-CRUD,
+Ziele, Meilensteine, Risiken, Archivierung und Löschmarkierungen. Aufgaben- und
+Kalenderverknüpfungen speichern nur Besitzer und stabile Referenzen. Der
+Fortschritt wird bei jeder Abfrage gleichgewichtet aus aktiven Zielen,
+Meilensteinen und Aufgaben berechnet; er wird nicht als Schattenkennzahl
+persistiert. Ohne berücksichtigte Daten lautet der Zustand `no_data`.
+
+## Lokales Wissen
+
+Das Wissensmodul hält Notizen und Dokumentmetadaten in derselben relationalen
+Datenbank. Notizversionen werden nur bei Inhaltsänderungen ergänzt. Projekt-
+und Studienverknüpfungen sind besitzgeprüfte Referenzen und kopieren keine
+Fachdaten. Dokumentinhalte liegen hinter einer lokalen Storage-Schnittstelle
+außerhalb des Repositorys; Frontend-Dateinamen werden nur als Metadaten
+behandelt. Der Server erzeugt opake Schlüssel, begrenzt alle Zugriffe auf das
+konfigurierte Verzeichnis und lehnt symbolische Links ab.
+
+Die lokale Suche ist eine besitzgebundene, rein lesende Projektion dieser
+Fachdaten. Sie lädt nur aktive Datensätze mit ausdrücklicher Suchfreigabe und
+bewertet normalisierte Suchwörter mit derselben deterministischen Logik auf
+PostgreSQL und SQLite. Ergebnisse werden nicht als eigener Index persistiert.
+Projektziele, Meilensteine und Studieneinträge erben die Freigabe ihrer
+führenden Quelle; das Aufheben der Freigabe wirkt deshalb unmittelbar. Kleine,
+ausdrücklich unterstützte Textdokumente erhalten beim lokalen Upload einen
+begrenzt extrahierten UTF-8-Text. Binärformate werden nicht interpretiert.
+
+## Quellengestützte KI-Grundlage
+
+Das KI-Modul hängt ausschließlich vom providerunabhängigen lokalen Suchvertrag
+ab. Es besitzt keinen eigenen Wissensbestand und übernimmt nur besitzgebundene,
+aktive Quellen mit ausdrücklicher Suchfreigabe. Suchfreigabe und externe
+Verarbeitungsfreigabe bleiben getrennt. Der produktive Server verwendet einen
+deaktivierten Adapter; externe Übertragung ist in dieser Ausbaustufe nicht
+verdrahtet.
+
+Quelleninhalte gelten als nicht vertrauenswürdig. Eine konservative
+regelbasierte Prüfung markiert Prompt-Injection-Muster und mögliche
+Widersprüche, bevor ein Adapter aufgerufen werden dürfte. Der persistierte
+`AiInteraction` enthält nur zufällig geschützte Fingerabdrücke,
+Quellenreferenzen, Freigabe- und Ergebnisstatus sowie technische Zähler, aber
+keine Fragen, Antworten oder Ausschnitte im Klartext. Antwortquellen bleiben
+in der aktuellen API-Antwort sichtbar. Vorschläge sind getrennte,
+bestätigungspflichtige Entwürfe; ihre Bestätigung erzeugt ein wertfreies Audit,
+aber keine automatische Fachänderung.
 
 ## Aufgaben-Termin-Beziehung
 

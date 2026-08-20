@@ -25,6 +25,20 @@ import type {
   WorkOverviewResponse,
   CreateAvailabilityWindowRequest,
   PlanningResponse,
+  CreateProjectItemRequest,
+  CreateProjectRequest,
+  ProjectDetailResponse,
+  ProjectOverviewResponse,
+  UpdateProjectItemRequest,
+  UpdateProjectRequest,
+  CreateNoteRequest,
+  KnowledgeOverviewResponse,
+  NoteDetailResponse,
+  UpdateDocumentRequest,
+  UpdateNoteRequest,
+  SearchResponse,
+  SearchResultResponse,
+  AiQueryResponse,
 } from "@lifeos/contracts";
 import { useCallback, useEffect, useState } from "react";
 
@@ -38,6 +52,8 @@ import { TaskWorkspace } from "./components/TaskWorkspace";
 import { StudyWorkspace } from "./components/StudyWorkspace";
 import { WorkWorkspace } from "./components/WorkWorkspace";
 import { PlanningWorkspace } from "./components/PlanningWorkspace";
+import { ProjectWorkspace } from "./components/ProjectWorkspace";
+import { KnowledgeWorkspace } from "./components/KnowledgeWorkspace";
 import { weekRange, type DateRange } from "./planning";
 
 type SessionState = "checking" | "anonymous" | "authenticated";
@@ -67,6 +83,17 @@ export const App = () => {
   const [study, setStudy] = useState<StudyOverviewResponse | null>(null);
   const [work, setWork] = useState<WorkOverviewResponse | null>(null);
   const [planning, setPlanning] = useState<PlanningResponse | null>(null);
+  const [projects, setProjects] = useState<ProjectOverviewResponse | null>(
+    null,
+  );
+  const [projectDetail, setProjectDetail] =
+    useState<ProjectDetailResponse | null>(null);
+  const [knowledge, setKnowledge] = useState<KnowledgeOverviewResponse | null>(
+    null,
+  );
+  const [noteDetail, setNoteDetail] = useState<NoteDetailResponse | null>(null);
+  const [search, setSearch] = useState<SearchResponse | null>(null);
+  const [aiResponse, setAiResponse] = useState<AiQueryResponse | null>(null);
   const [planningRange, setPlanningRange] = useState<DateRange>(() =>
     weekRange("Europe/Berlin", 1),
   );
@@ -95,6 +122,16 @@ export const App = () => {
   const [planningLoading, setPlanningLoading] = useState(false);
   const [planningError, setPlanningError] = useState<string | null>(null);
   const [planningSuccess, setPlanningSuccess] = useState<string | null>(null);
+  const [projectLoading, setProjectLoading] = useState(false);
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const [projectSuccess, setProjectSuccess] = useState<string | null>(null);
+  const [knowledgeLoading, setKnowledgeLoading] = useState(false);
+  const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
+  const [knowledgeSuccess, setKnowledgeSuccess] = useState<string | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [taskSuccess, setTaskSuccess] = useState<string | null>(null);
 
@@ -194,6 +231,151 @@ export const App = () => {
     }
   }, []);
 
+  const loadProject = useCallback(async (projectId: string) => {
+    setProjectLoading(true);
+    setProjectError(null);
+    try {
+      setProjectDetail(await api.getProject(projectId));
+    } catch (error) {
+      setProjectError(errorMessage(error));
+      setProjectDetail(null);
+    } finally {
+      setProjectLoading(false);
+    }
+  }, []);
+
+  const loadProjects = useCallback(async (preferredProjectId?: string) => {
+    setProjectLoading(true);
+    setProjectError(null);
+    try {
+      const overview = await api.listProjects(true);
+      setProjects(overview);
+      const selected =
+        overview.projects.find(
+          (project) => project.id === preferredProjectId,
+        ) ?? overview.projects[0];
+      if (selected) setProjectDetail(await api.getProject(selected.id));
+      else setProjectDetail(null);
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401)
+        setSession("anonymous");
+      else setProjectError(errorMessage(error));
+    } finally {
+      setProjectLoading(false);
+    }
+  }, []);
+
+  const loadKnowledge = useCallback(async (preferredNoteId?: string) => {
+    setKnowledgeLoading(true);
+    setKnowledgeError(null);
+    try {
+      const overview = await api.getKnowledge(true);
+      setKnowledge(overview);
+      const selected =
+        overview.notes.find((entry) => entry.id === preferredNoteId) ??
+        overview.notes[0];
+      setNoteDetail(selected ? await api.getNote(selected.id) : null);
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401)
+        setSession("anonymous");
+      else setKnowledgeError(errorMessage(error));
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  }, []);
+
+  const loadNote = useCallback(async (noteId: string) => {
+    setKnowledgeLoading(true);
+    setKnowledgeError(null);
+    try {
+      setNoteDetail(await api.getNote(noteId));
+    } catch (error) {
+      setKnowledgeError(errorMessage(error));
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  }, []);
+
+  const runSearch = useCallback(async (query: string) => {
+    setSearchLoading(true);
+    setSearchError(null);
+    try {
+      setSearch(await api.search(query));
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401)
+        setSession("anonymous");
+      else setSearchError(errorMessage(error));
+      setSearch(null);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  const openSearchResult = useCallback(
+    (result: SearchResultResponse) => {
+      if (
+        result.contentType === "project" ||
+        result.contentType === "project_goal" ||
+        result.contentType === "project_milestone"
+      ) {
+        setView("projects");
+        void loadProject(result.source.id);
+      } else if (result.contentType === "note") {
+        setView("knowledge");
+        void loadNote(result.source.id);
+      } else if (
+        result.contentType === "study_module" ||
+        result.contentType === "study_entry"
+      ) {
+        setView("study");
+      } else if (result.contentType === "work_project") {
+        setView("work");
+      } else {
+        setView("knowledge");
+      }
+    },
+    [loadNote, loadProject],
+  );
+
+  const prepareAiSources = useCallback(async (query: string) => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      setAiResponse(await api.createAiQuery({ query }));
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401)
+        setSession("anonymous");
+      else setAiError(errorMessage(error));
+    } finally {
+      setAiLoading(false);
+    }
+  }, []);
+
+  const confirmAiSuggestion = useCallback(
+    async (interactionId: string, suggestionId: string) => {
+      setAiLoading(true);
+      setAiError(null);
+      try {
+        await api.confirmAiSuggestion(interactionId, suggestionId);
+        setAiResponse((current) =>
+          current
+            ? {
+                ...current,
+                suggestions: current.suggestions.filter(
+                  (suggestion) => suggestion.id !== suggestionId,
+                ),
+              }
+            : current,
+        );
+      } catch (error) {
+        setAiError(errorMessage(error));
+      } finally {
+        setAiLoading(false);
+      }
+    },
+    [],
+  );
+
   const loadAuthenticatedData = useCallback(async () => {
     const [loadedProfile, loadedCalendars, loadedTasks, loadedLinks] =
       await Promise.all([
@@ -223,8 +405,18 @@ export const App = () => {
       loadStudy(),
       loadWork(),
       loadPlanning(currentPlanningRange),
+      loadProjects(),
+      loadKnowledge(),
     ]);
-  }, [loadDashboard, loadEvents, loadPlanning, loadStudy, loadWork]);
+  }, [
+    loadDashboard,
+    loadEvents,
+    loadPlanning,
+    loadProjects,
+    loadKnowledge,
+    loadStudy,
+    loadWork,
+  ]);
 
   useEffect(() => {
     // Der initiale API-Aufruf klärt zuerst die einmalige lokale Einrichtung.
@@ -290,6 +482,14 @@ export const App = () => {
     setStudy(null);
     setWork(null);
     setPlanning(null);
+    setProjects(null);
+    setProjectDetail(null);
+    setKnowledge(null);
+    setNoteDetail(null);
+    setSearch(null);
+    setSearchError(null);
+    setAiResponse(null);
+    setAiError(null);
     setSelectedCalendarId(null);
     setLoginError(null);
   };
@@ -552,6 +752,54 @@ export const App = () => {
     void loadPlanning(range);
   };
 
+  const changeProject = async (
+    operation: () => Promise<unknown>,
+    message: string,
+  ) => {
+    const selectedProjectId = projectDetail?.project.id;
+    setSaving(true);
+    setProjectError(null);
+    setProjectSuccess(null);
+    try {
+      await operation();
+      setProjectSuccess(message);
+      await Promise.all([
+        loadProjects(selectedProjectId),
+        loadTasks(),
+        loadDashboard(),
+      ]);
+    } catch (error) {
+      setProjectError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const changeKnowledge = async (
+    operation: () => Promise<unknown>,
+    message: string,
+    preferredNoteId?: string,
+  ) => {
+    setSaving(true);
+    setKnowledgeError(null);
+    setKnowledgeSuccess(null);
+    try {
+      const result = await operation();
+      const createdId =
+        result && typeof result === "object" && "id" in result
+          ? String(result.id)
+          : undefined;
+      setKnowledgeSuccess(message);
+      await loadKnowledge(preferredNoteId ?? createdId ?? noteDetail?.id);
+    } catch (error) {
+      setKnowledgeError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (session === "checking") {
     return (
       <main className="boot-screen" role="status">
@@ -753,6 +1001,162 @@ export const App = () => {
             changePlanning(
               () => api.deleteAvailability(id),
               "Die persönliche Verfügbarkeit wurde entfernt.",
+            )
+          }
+        />
+      ) : view === "projects" ? (
+        <ProjectWorkspace
+          overview={projects}
+          detail={projectDetail}
+          tasks={tasks}
+          calendars={calendars}
+          events={events}
+          loading={projectLoading}
+          saving={saving}
+          error={projectError}
+          success={projectSuccess}
+          onReload={() => void loadProjects()}
+          onSelect={(id) => void loadProject(id)}
+          onCreateProject={(value: CreateProjectRequest) =>
+            changeProject(
+              () => api.createProject(value),
+              "Das Projekt wurde angelegt.",
+            )
+          }
+          onUpdateProject={(id: string, value: UpdateProjectRequest) =>
+            changeProject(
+              () => api.updateProject(id, value),
+              "Das Projekt wurde aktualisiert.",
+            )
+          }
+          onDeleteProject={(id: string) =>
+            changeProject(
+              () => api.deleteProject(id),
+              "Das Projekt wurde gelöscht.",
+            )
+          }
+          onCreateItem={(
+            projectId: string,
+            kind: "goals" | "milestones",
+            value: CreateProjectItemRequest,
+          ) =>
+            changeProject(
+              () => api.createProjectItem(projectId, kind, value),
+              "Der Projekteintrag wurde angelegt.",
+            )
+          }
+          onUpdateItem={(
+            projectId: string,
+            kind: "goals" | "milestones",
+            itemId: string,
+            value: UpdateProjectItemRequest,
+          ) =>
+            changeProject(
+              () => api.updateProjectItem(projectId, kind, itemId, value),
+              "Der Projekteintrag wurde aktualisiert.",
+            )
+          }
+          onDeleteItem={(
+            projectId: string,
+            kind: "goals" | "milestones",
+            itemId: string,
+          ) =>
+            changeProject(
+              () => api.deleteProjectItem(projectId, kind, itemId),
+              "Der Projekteintrag wurde gelöscht.",
+            )
+          }
+          onLinkTask={(projectId: string, taskId: string) =>
+            changeProject(
+              () => api.linkProjectTask(projectId, { taskId }),
+              "Die Aufgabe wurde verknüpft.",
+            )
+          }
+          onUnlinkTask={(projectId: string, taskId: string) =>
+            changeProject(
+              () => api.unlinkProjectTask(projectId, taskId),
+              "Die Aufgabenverknüpfung wurde entfernt.",
+            )
+          }
+          onLinkEvent={(
+            projectId: string,
+            calendarId: string,
+            eventUid: string,
+          ) =>
+            changeProject(
+              () => api.linkProjectEvent(projectId, { calendarId, eventUid }),
+              "Der Termin wurde verknüpft.",
+            )
+          }
+          onUnlinkEvent={(
+            projectId: string,
+            calendarId: string,
+            eventUid: string,
+          ) =>
+            changeProject(
+              () => api.unlinkProjectEvent(projectId, calendarId, eventUid),
+              "Die Terminverknüpfung wurde entfernt.",
+            )
+          }
+        />
+      ) : view === "knowledge" ? (
+        <KnowledgeWorkspace
+          key={noteDetail?.id ?? "new-note"}
+          overview={knowledge}
+          detail={noteDetail}
+          projects={projects?.projects ?? []}
+          modules={study?.modules ?? []}
+          loading={knowledgeLoading}
+          saving={saving}
+          error={knowledgeError}
+          success={knowledgeSuccess}
+          search={search}
+          searchLoading={searchLoading}
+          searchError={searchError}
+          aiResponse={aiResponse}
+          aiLoading={aiLoading}
+          aiError={aiError}
+          onReload={() => void loadKnowledge(noteDetail?.id)}
+          onSearch={runSearch}
+          onOpenSearchResult={openSearchResult}
+          onPrepareAiSources={prepareAiSources}
+          onConfirmAiSuggestion={confirmAiSuggestion}
+          onSelectNote={(id) => void loadNote(id)}
+          onCreateNote={(value: CreateNoteRequest) =>
+            changeKnowledge(
+              () => api.createNote(value),
+              "Die Notiz wurde angelegt.",
+            )
+          }
+          onUpdateNote={(id: string, value: UpdateNoteRequest) =>
+            changeKnowledge(
+              () => api.updateNote(id, value),
+              "Die Notiz wurde aktualisiert.",
+              id,
+            )
+          }
+          onDeleteNote={(id: string) =>
+            changeKnowledge(
+              () => api.deleteNote(id),
+              "Die Notiz wurde gelöscht.",
+            )
+          }
+          onUploadDocument={(file: File, links: UpdateDocumentRequest) =>
+            changeKnowledge(
+              () => api.uploadDocument(file, links),
+              "Das Dokument wurde lokal abgelegt.",
+            )
+          }
+          onUpdateDocument={(id: string, value: UpdateDocumentRequest) =>
+            changeKnowledge(
+              () => api.updateDocument(id, value),
+              "Das Dokument wurde aktualisiert.",
+            )
+          }
+          onDeleteDocument={(id: string) =>
+            changeKnowledge(
+              () => api.deleteDocument(id),
+              "Das Dokument wurde sicher gelöscht.",
             )
           }
         />

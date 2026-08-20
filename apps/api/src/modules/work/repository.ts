@@ -46,6 +46,7 @@ export interface ProjectValues {
   deadlineDate: Date | null;
   calendarEventId: string | null;
   notes: string | null;
+  searchEnabled: boolean;
 }
 export interface TaskLinkValues {
   contextId: string;
@@ -139,6 +140,7 @@ const mapProject = (record: WorkProjectModel): WorkProjectResponse => ({
   deadlineDate: day(record.deadlineDate),
   calendarEventId: record.calendarEventId,
   notes: record.notes,
+  searchEnabled: record.searchEnabled,
 });
 const mapTaskLink = (record: WorkTaskLinkModel): WorkTaskLinkResponse => ({
   id: record.id,

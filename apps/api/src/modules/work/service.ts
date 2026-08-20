@@ -108,6 +108,7 @@ export class WorkService {
         deadlineDate: day(input.deadlineDate),
         calendarEventId: input.calendarEventId ?? null,
         notes: input.notes ?? null,
+        searchEnabled: input.searchEnabled ?? false,
       }),
     );
   }

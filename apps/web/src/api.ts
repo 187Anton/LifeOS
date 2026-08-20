@@ -1,5 +1,7 @@
 import type {
   ApiErrorResponse,
+  AiQueryResponse,
+  AiStatusResponse,
   CalendarEventResponse,
   CalendarResponse,
   CreateTaskEventLinkRequest,
@@ -30,8 +32,26 @@ import type {
   CreateAvailabilityWindowRequest,
   PlanningArea,
   PlanningResponse,
+  CreateProjectEventLinkRequest,
+  CreateProjectItemRequest,
+  CreateProjectRequest,
+  CreateProjectTaskLinkRequest,
+  ProjectDetailResponse,
+  ProjectOverviewResponse,
+  UpdateProjectItemRequest,
+  UpdateProjectRequest,
   UpdateAvailabilityWindowRequest,
   UpdateTaskRequest,
+  CreateNoteRequest,
+  DocumentResponse,
+  KnowledgeOverviewResponse,
+  NoteDetailResponse,
+  NoteResponse,
+  SearchResponse,
+  ConfirmAiSuggestionResponse,
+  CreateAiQueryRequest,
+  UpdateDocumentRequest,
+  UpdateNoteRequest,
 } from "@lifeos/contracts";
 
 const API_BASE = "/api/v1";
@@ -214,6 +234,162 @@ export const api = {
     return request<void>(`/tasks/${encodeURIComponent(taskId)}`, {
       method: "DELETE",
     });
+  },
+  listProjects(includeArchived = true) {
+    return request<ProjectOverviewResponse>(
+      `/projects?includeArchived=${includeArchived ? "true" : "false"}`,
+    );
+  },
+  getProject(projectId: string) {
+    return request<ProjectDetailResponse>(
+      `/projects/${encodeURIComponent(projectId)}`,
+    );
+  },
+  createProject(payload: CreateProjectRequest) {
+    return request("/projects", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateProject(projectId: string, payload: UpdateProjectRequest) {
+    return request(`/projects/${encodeURIComponent(projectId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteProject(projectId: string) {
+    return request<void>(`/projects/${encodeURIComponent(projectId)}`, {
+      method: "DELETE",
+    });
+  },
+  getKnowledge(includeArchived = true) {
+    return request<KnowledgeOverviewResponse>(
+      `/knowledge?includeArchived=${includeArchived ? "true" : "false"}`,
+    );
+  },
+  getNote(noteId: string) {
+    return request<NoteDetailResponse>(`/notes/${encodeURIComponent(noteId)}`);
+  },
+  createNote(payload: CreateNoteRequest) {
+    return request<NoteResponse>("/notes", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateNote(noteId: string, payload: UpdateNoteRequest) {
+    return request<NoteResponse>(`/notes/${encodeURIComponent(noteId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteNote(noteId: string) {
+    return request<void>(`/notes/${encodeURIComponent(noteId)}`, {
+      method: "DELETE",
+    });
+  },
+  uploadDocument(
+    file: File,
+    links: {
+      projectId?: string | null;
+      studyModuleId?: string | null;
+      searchEnabled?: boolean;
+    } = {},
+  ) {
+    const query = new URLSearchParams({
+      fileName: file.name,
+      searchEnabled: links.searchEnabled ? "true" : "false",
+    });
+    if (links.projectId) query.set("projectId", links.projectId);
+    if (links.studyModuleId) query.set("studyModuleId", links.studyModuleId);
+    return request<DocumentResponse>(`/documents?${query.toString()}`, {
+      method: "POST",
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+      body: file,
+    });
+  },
+  updateDocument(documentId: string, payload: UpdateDocumentRequest) {
+    return request<DocumentResponse>(
+      `/documents/${encodeURIComponent(documentId)}`,
+      { method: "PATCH", body: JSON.stringify(payload) },
+    );
+  },
+  deleteDocument(documentId: string) {
+    return request<void>(`/documents/${encodeURIComponent(documentId)}`, {
+      method: "DELETE",
+    });
+  },
+  search(query: string) {
+    return request<SearchResponse>(`/search?q=${encodeURIComponent(query)}`);
+  },
+  getAiStatus() {
+    return request<AiStatusResponse>("/ai/status");
+  },
+  createAiQuery(payload: CreateAiQueryRequest) {
+    return request<AiQueryResponse>("/ai/queries", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  confirmAiSuggestion(interactionId: string, suggestionId: string) {
+    return request<ConfirmAiSuggestionResponse>(
+      `/ai/interactions/${encodeURIComponent(interactionId)}/suggestions/${encodeURIComponent(suggestionId)}/confirm`,
+      { method: "POST" },
+    );
+  },
+  createProjectItem(
+    projectId: string,
+    kind: "goals" | "milestones",
+    payload: CreateProjectItemRequest,
+  ) {
+    return request(`/projects/${encodeURIComponent(projectId)}/${kind}`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateProjectItem(
+    projectId: string,
+    kind: "goals" | "milestones",
+    itemId: string,
+    payload: UpdateProjectItemRequest,
+  ) {
+    return request(
+      `/projects/${encodeURIComponent(projectId)}/${kind}/${encodeURIComponent(itemId)}`,
+      { method: "PATCH", body: JSON.stringify(payload) },
+    );
+  },
+  deleteProjectItem(
+    projectId: string,
+    kind: "goals" | "milestones",
+    itemId: string,
+  ) {
+    return request<void>(
+      `/projects/${encodeURIComponent(projectId)}/${kind}/${encodeURIComponent(itemId)}`,
+      { method: "DELETE" },
+    );
+  },
+  linkProjectTask(projectId: string, payload: CreateProjectTaskLinkRequest) {
+    return request<void>(
+      `/projects/${encodeURIComponent(projectId)}/task-links`,
+      { method: "POST", body: JSON.stringify(payload) },
+    );
+  },
+  unlinkProjectTask(projectId: string, taskId: string) {
+    return request<void>(
+      `/projects/${encodeURIComponent(projectId)}/task-links/${encodeURIComponent(taskId)}`,
+      { method: "DELETE" },
+    );
+  },
+  linkProjectEvent(projectId: string, payload: CreateProjectEventLinkRequest) {
+    return request(`/projects/${encodeURIComponent(projectId)}/event-links`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  unlinkProjectEvent(projectId: string, calendarId: string, eventUid: string) {
+    return request<void>(
+      `/projects/${encodeURIComponent(projectId)}/event-links/${encodeURIComponent(calendarId)}/${encodeURIComponent(eventUid)}`,
+      { method: "DELETE" },
+    );
   },
   getStudy(includeArchived = true) {
     return request<StudyOverviewResponse>(

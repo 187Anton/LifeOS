@@ -69,6 +69,7 @@ const startSidecar = async (databasePath, port) => {
       WEB_ORIGIN: baseUrl,
       WEB_DIST_PATH: path.join(resources, "web"),
       SQLITE_MIGRATIONS_PATH: path.join(resources, "sqlite-migrations"),
+      STORAGE_PATH: path.join(path.dirname(databasePath), "documents"),
       LOG_LEVEL: "error",
       SHUTDOWN_TIMEOUT_MS: "1000",
       SESSION_TTL_HOURS: "1",
@@ -123,9 +124,17 @@ try {
   assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
   assert.equal(database.pragma("journal_mode", { simple: true }), "wal");
   const applied = database
-    .prepare('SELECT COUNT(*) AS count FROM "_lifeos_migrations"')
-    .get();
-  assert.equal(applied.count, 2);
+    .prepare('SELECT "name" FROM "_lifeos_migrations" ORDER BY "name"')
+    .all()
+    .map(({ name }) => name);
+  assert.deepEqual(applied, [
+    "20260809190000_sqlite_foundation",
+    "20260809203000_product_modules",
+    "20260812100000_projects_milestones",
+    "20260812190000_local_documents_notes",
+    "20260820100000_local_search",
+    "20260820150000_source_grounded_ai",
+  ]);
   database.close();
   assert.equal((await stat(databasePath)).mode & 0o777, 0o600);
 

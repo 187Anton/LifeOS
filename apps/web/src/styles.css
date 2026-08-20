@@ -96,6 +96,83 @@ p {
   display: grid;
   gap: 1rem;
 }
+.project-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.75fr) minmax(0, 2fr);
+  gap: 1rem;
+  align-items: start;
+}
+.project-list,
+.project-detail {
+  display: grid;
+  gap: 1rem;
+}
+.project-list-item {
+  display: grid;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  background: #fff;
+  text-align: left;
+}
+.project-list-item.active {
+  border-color: var(--forest-soft);
+  background: var(--sage);
+}
+.project-list-item span,
+.project-progress span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.project-list-item progress,
+.project-progress progress {
+  width: 100%;
+  accent-color: var(--forest-soft);
+}
+.project-detail .study-section > header,
+.project-progress,
+.project-linked-row,
+.inline-link-form {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+.project-progress {
+  margin-top: 1rem;
+}
+.project-progress strong {
+  white-space: nowrap;
+}
+.risk-note {
+  margin: 1rem 0 0;
+  color: var(--danger);
+}
+.inline-link-form {
+  margin: 1rem 0;
+}
+.inline-link-form select {
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+.inline-link-form button {
+  padding: 0.65rem 0.85rem;
+  border: 0;
+  border-radius: 10px;
+  color: white;
+  background: var(--forest);
+}
+.project-linked-row {
+  padding: 0.65rem 0;
+  border-top: 1px solid var(--line);
+}
 .study-section,
 .study-form {
   padding: 1.25rem;
@@ -460,9 +537,15 @@ p {
   .record-actions {
     width: 100%;
   }
+  .record-actions {
+    flex-wrap: wrap;
+  }
   .study-actions button,
   .record-actions select {
     flex: 1;
+  }
+  .record-actions select {
+    min-width: 0;
   }
   .study-form-grid {
     grid-template-columns: 1fr;
@@ -2045,6 +2128,181 @@ input[readonly] {
   }
 }
 
+.knowledge-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1.5fr);
+  gap: 1rem;
+  align-items: start;
+}
+.local-search {
+  margin-bottom: 1rem;
+}
+.grounded-ai {
+  margin-bottom: 1rem;
+}
+.grounded-ai > header {
+  align-items: flex-start;
+}
+.ai-response,
+.ai-source,
+.ai-suggestion {
+  display: grid;
+  gap: 0.55rem;
+}
+.ai-response {
+  margin-top: 1rem;
+}
+.information-banner {
+  margin: 0;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--sage);
+}
+.ai-source,
+.ai-suggestion {
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+}
+.ai-source > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.ai-source p,
+.ai-answer,
+.ai-suggestion p {
+  margin: 0;
+}
+.ai-answer {
+  padding: 0.9rem;
+  border-left: 4px solid var(--forest-soft);
+  background: var(--surface);
+}
+.ai-source span,
+.ai-source small,
+.ai-response > small,
+.ai-suggestion small {
+  color: var(--muted);
+}
+.local-search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+.local-search-form label,
+.search-results {
+  display: grid;
+  gap: 0.55rem;
+}
+.search-results {
+  margin-top: 1rem;
+}
+.search-result {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+}
+.search-result-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.search-result-heading h3,
+.search-result p {
+  margin: 0.25rem 0 0;
+}
+.search-result small,
+.search-result time {
+  color: var(--muted);
+}
+.knowledge-items,
+.document-list,
+.version-list {
+  display: grid;
+  gap: 0.65rem;
+}
+.knowledge-list > .secondary-button {
+  margin-bottom: 0.8rem;
+}
+.knowledge-item {
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: inherit;
+  background: var(--paper);
+  text-align: left;
+}
+.knowledge-item.active {
+  border-color: var(--forest);
+  box-shadow: inset 3px 0 var(--forest);
+}
+.knowledge-item span,
+.knowledge-item small,
+.document-card p,
+.document-card small,
+.version-list span {
+  color: var(--muted);
+}
+.knowledge-editor,
+.knowledge-editor label,
+.document-upload,
+.document-upload label {
+  display: grid;
+  gap: 0.45rem;
+}
+.knowledge-editor {
+  gap: 0.9rem;
+}
+.documents-section {
+  margin-top: 1rem;
+}
+.document-upload {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  margin-bottom: 1rem;
+}
+.document-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.document-card p {
+  margin: 0.25rem 0;
+}
+.checkbox-row {
+  display: flex !important;
+  align-items: center;
+  grid-auto-flow: column;
+  justify-content: start;
+}
+.checkbox-row input {
+  width: auto;
+}
+.version-list {
+  margin: 0.75rem 0 0;
+  padding-left: 1.5rem;
+}
+.version-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 @media (max-width: 780px) {
   .login-page {
     grid-template-columns: 1fr;
@@ -2098,7 +2356,8 @@ input[readonly] {
     bottom: 0;
     left: 0;
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(8, minmax(68px, 1fr));
+    overflow-x: auto;
     border-top: 1px solid var(--line);
     background: rgba(255, 253, 248, 0.96);
     backdrop-filter: blur(12px);
@@ -2112,6 +2371,24 @@ input[readonly] {
     color: var(--muted);
     background: transparent;
     font-size: 0.7rem;
+  }
+  .project-layout {
+    grid-template-columns: 1fr;
+  }
+  .knowledge-grid,
+  .document-upload,
+  .local-search-form {
+    grid-template-columns: 1fr;
+  }
+  .document-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .project-detail .study-section > header,
+  .project-progress,
+  .inline-link-form {
+    align-items: stretch;
+    flex-direction: column;
   }
   .mobile-navigation button.active {
     color: var(--forest);

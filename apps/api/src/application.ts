@@ -15,6 +15,7 @@ interface ApplicationDependencies {
   webDistPath?: string | undefined;
   moduleRouters?: Router[];
   rootRouters?: Router[];
+  rawModuleRouters?: Router[];
 }
 
 export const createApplication = ({
@@ -24,6 +25,7 @@ export const createApplication = ({
   webDistPath,
   moduleRouters = [],
   rootRouters = [],
+  rawModuleRouters = [],
 }: ApplicationDependencies): Express => {
   const application = express();
 
@@ -50,11 +52,16 @@ export const createApplication = ({
     }
     next();
   });
-  application.use(express.json({ limit: "64kb" }));
   for (const router of rootRouters) {
     application.use(router);
   }
   application.use("/api/v1", createHealthRouter(readinessProbe));
+
+  for (const router of rawModuleRouters) {
+    application.use("/api/v1", router);
+  }
+
+  application.use(express.json({ limit: "64kb" }));
 
   for (const router of moduleRouters) {
     application.use("/api/v1", router);
