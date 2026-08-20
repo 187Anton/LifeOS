@@ -342,6 +342,17 @@ stabile UID referenzieren; der Termin samt ETag und Sync-Token bleibt
 unverändert. Es gibt keine ungefragte externe Übertragung. Details stehen im
 [Fitnessvertrag](docs/api/fitness.md).
 
+Der Bereich **Integrationen** kann einen externen CalDAV-Dienst als
+standardmäßig deaktivierte read-only-Quelle anbinden. Zugangsdaten erreichen
+nur die lokale API und liegen dort AES-256-GCM-verschlüsselt; ohne den
+separaten lokalen `INTEGRATION_SECRET_KEY` bleibt die Funktion vollständig
+aus. Nach ausdrücklicher Aktivierung lassen sich Verbindung und Kalender
+kontrolliert prüfen. Ereignisse werden erst nach Importvorschau und erneuter
+Bestätigung in den vorhandenen Kalenderkern übernommen. Es gibt keine
+automatische oder bidirektionale Synchronisation und keine Schreibaktion zum
+externen Dienst. Details und offene Grenzen stehen im
+[externen CalDAV-Vertrag](docs/api/external-caldav.md).
+
 Ein Produktions-Build erzeugt zusätzlich Manifest und Offline-App-Shell:
 
 ```bash

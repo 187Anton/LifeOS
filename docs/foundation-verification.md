@@ -203,6 +203,19 @@ wiederholten Import, fremde Kalender, abgelaufene Vorschauen sowie die Grenzen
 von 2 MiB, 500 Ereignissen und 1000 Wiederholungen. PostgreSQL, SQLite,
 Browser- und Sidecar-Prüfung verwenden denselben `/api/v1`-Kalenderkern.
 
+## Ergänzender externer CalDAV-Nachweis 0.5.4
+
+Der externe CalDAV-Nachweis verwendet ausschließlich einen synthetischen
+Adapter und keine produktiven Zugangsdaten. API-Tests prüfen fehlende Sitzung,
+fremde IDs, standardmäßige Deaktivierung, AES-256-GCM-Chiffretext,
+verbotene HTTP-/Loopback-/Private-/Metadata-Ziele, Timeoutfehler ohne fremden
+Antwortkörper, ungültige ICS-Ressourcen, maximal 20 Verbindungen, manuelle
+Vorschau, bestätigten Import, stabile UID-/ETag-Zuordnung und vollständigen
+Widerruf. Datenbank-, SQLite- und Recovery-Tests vergleichen Verbindung,
+Kalender und Zuordnungen. Playwright prüft Desktop und Smartphone ohne
+Browser-Storage. Der Sidecar-Nachweis startet ohne Integrationsschlüssel und
+erwartet deshalb `available: false` sowie ausbleibende externe Übertragung.
+
 ## Bekannte Grenzen und Folgearbeiten
 
 - LifeOS unterstützt im Fundament genau ein lokales Profil und keine

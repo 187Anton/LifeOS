@@ -292,8 +292,14 @@ Kalender im selben vertrauenswürdigen Netz ist eine bewusste Betriebsart mit
 LAN-Bindung. Der erste Entwicklungsbetrieb nutzt HTTP Basic Auth; außerhalb
 eines vertrauenswürdigen LAN ist TLS vorgeschaltet erforderlich.
 
-Ein späterer CalDAV-Client für bestehende iCloud-Kalender ist eine separate
-Integration und darf die lokale Kernfunktion nicht voraussetzen.
+Der optionale externe CalDAV-Client ist eine getrennte, standardmäßig
+deaktivierte read-only-Integration und setzt den lokalen Kalenderkern nicht
+voraus. Er speichert Zugangsdaten nur verschlüsselt im Backend, begrenzt und
+prüft HTTPS-Ziele gegen SSRF und schreibt niemals zum externen Dienst. Ein
+manueller Import verwendet nach Vorschau den vorhandenen Kalender-Service;
+stabile externe UID-/ETag-Zuordnungen bleiben Integrationsmetadaten. Eine
+bidirektionale Synchronisation oder iCloud-Schreibintegration ist nicht Teil
+dieses Stands.
 
 Lokaler ICS-Import und -Export verwenden ebenfalls den gemeinsamen
 Kalender-Service. Der Import hält nur eine kurzlebige, besitzgebundene Vorschau

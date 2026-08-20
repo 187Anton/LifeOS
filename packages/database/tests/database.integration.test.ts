@@ -181,6 +181,85 @@ test("erzwingt Fitnessbesitz, ganzzahlige Messwerte und eigenständige Kalenderb
   assert.equal(Number.isInteger(storedWeight.weightGrams), true);
 });
 
+test("erzwingt verschlüsselte read-only-CalDAV-Verbindungen und Besitzergrenzen", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalIds = [
+    `external-caldav-db-owner-${suffix}`,
+    `external-caldav-db-other-${suffix}`,
+  ];
+  t.after(async () => {
+    await database.user.deleteMany({
+      where: { externalId: { in: externalIds } },
+    });
+    await database.$disconnect();
+  });
+  const [owner, other] = await Promise.all(
+    externalIds.map((externalId) =>
+      database.user.create({
+        data: {
+          externalId,
+          displayName: "Synthetische Integrationsperson",
+          settings: { create: {} },
+        },
+      }),
+    ),
+  );
+  assert.ok(owner && other);
+  const connection = await database.externalCalDavConnection.create({
+    data: {
+      userId: owner.id,
+      name: "Synthetischer externer Kalender",
+      baseUrl: "https://calendar.example.test/caldav/",
+      credentialsEncrypted: "synthetic-encrypted-payload",
+      secretIv: "synthetic-iv",
+      secretTag: "synthetic-tag",
+    },
+  });
+  const calendar = await database.externalCalDavCalendar.create({
+    data: {
+      userId: owner.id,
+      connectionId: connection.id,
+      href: "/calendars/personal/",
+      displayName: "Synthetischer Kalender",
+    },
+  });
+  await database.externalCalDavEventMapping.create({
+    data: {
+      userId: owner.id,
+      connectionId: connection.id,
+      externalCalendarId: calendar.id,
+      remoteHref: "/calendars/personal/event.ics",
+      remoteUid: "remote-event@example.test",
+      localCalendarId: "local-calendar",
+      localEventUid: "remote-event@example.test",
+    },
+  });
+  await assert.rejects(() =>
+    database.externalCalDavCalendar.create({
+      data: {
+        userId: other.id,
+        connectionId: connection.id,
+        href: "/calendars/foreign/",
+        displayName: "Fremder Kalender",
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.externalCalDavConnection.create({
+      data: {
+        userId: owner.id,
+        name: "Ungültiger Schreibzugang",
+        baseUrl: "https://calendar.example.test/write/",
+        credentialsEncrypted: "synthetic-encrypted-payload",
+        secretIv: "synthetic-iv",
+        secretTag: "synthetic-tag",
+        readOnly: false,
+      },
+    }),
+  );
+});
+
 test("erzwingt Besitz und eindeutige Zeitformen im Studienmodell", async (t) => {
   const database = createDatabaseClient();
   const suffix = randomUUID();

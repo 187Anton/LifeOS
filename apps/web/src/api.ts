@@ -74,6 +74,12 @@ import type {
   UpsertFitnessPlanExerciseRequest,
   IcsImportCommitResponse,
   IcsImportPreviewResponse,
+  CreateExternalCalDavConnectionRequest,
+  ExternalCalDavCalendarResponse,
+  ExternalCalDavConnectionResponse,
+  ExternalCalDavImportCommitResponse,
+  ExternalCalDavImportPreviewResponse,
+  ExternalCalDavOverviewResponse,
 } from "@lifeos/contracts";
 
 const API_BASE = "/api/v1";
@@ -700,6 +706,57 @@ export const api = {
   exportIcs(calendarId: string) {
     return requestText(
       `/calendars/${encodeURIComponent(calendarId)}/ics/export`,
+    );
+  },
+  getExternalCalDav() {
+    return request<ExternalCalDavOverviewResponse>("/integrations/caldav");
+  },
+  createExternalCalDav(payload: CreateExternalCalDavConnectionRequest) {
+    return request<ExternalCalDavConnectionResponse>("/integrations/caldav", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  setExternalCalDavEnabled(connectionId: string, enabled: boolean) {
+    return request<ExternalCalDavConnectionResponse>(
+      `/integrations/caldav/${encodeURIComponent(connectionId)}`,
+      { method: "PATCH", body: JSON.stringify({ enabled }) },
+    );
+  },
+  testExternalCalDav(connectionId: string) {
+    return request<{ reachable: true; calendarCount: number }>(
+      `/integrations/caldav/${encodeURIComponent(connectionId)}/test`,
+      { method: "POST" },
+    );
+  },
+  listExternalCalDavCalendars(connectionId: string) {
+    return request<ExternalCalDavCalendarResponse[]>(
+      `/integrations/caldav/${encodeURIComponent(connectionId)}/calendars`,
+    );
+  },
+  previewExternalCalDavImport(
+    connectionId: string,
+    externalCalendarId: string,
+    localCalendarId: string,
+  ) {
+    return request<ExternalCalDavImportPreviewResponse>(
+      `/integrations/caldav/${encodeURIComponent(connectionId)}/imports/preview`,
+      {
+        method: "POST",
+        body: JSON.stringify({ externalCalendarId, localCalendarId }),
+      },
+    );
+  },
+  commitExternalCalDavImport(connectionId: string, externalImportId: string) {
+    return request<ExternalCalDavImportCommitResponse>(
+      `/integrations/caldav/${encodeURIComponent(connectionId)}/imports/commit`,
+      { method: "POST", body: JSON.stringify({ externalImportId }) },
+    );
+  },
+  revokeExternalCalDav(connectionId: string) {
+    return request<void>(
+      `/integrations/caldav/${encodeURIComponent(connectionId)}`,
+      { method: "DELETE" },
     );
   },
 };

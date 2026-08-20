@@ -116,6 +116,36 @@ try {
     method: "PROPFIND",
   });
   assert.equal(calDav.status, 401);
+  const localPassword = "synthetic-sidecar-password-2034";
+  const setup = await fetch(`${first.baseUrl}/api/v1/setup`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      displayName: "Synthetisches Sidecar-Profil",
+      password: localPassword,
+      calDavPassword: "synthetic-sidecar-caldav-2034",
+      timezone: "Europe/Berlin",
+    }),
+  });
+  assert.equal(setup.status, 201);
+  const login = await fetch(`${first.baseUrl}/api/v1/session`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password: localPassword }),
+  });
+  assert.equal(login.status, 201);
+  const cookie = (login.headers.get("set-cookie") ?? "").split(";", 1)[0];
+  const externalCalDav = await fetch(
+    `${first.baseUrl}/api/v1/integrations/caldav`,
+    { headers: { cookie } },
+  );
+  assert.equal(externalCalDav.status, 200);
+  assert.deepEqual(await externalCalDav.json(), {
+    available: false,
+    networkDefault: "disabled",
+    mode: "read_only_import",
+    connections: [],
+  });
 
   await stopSidecar(running, first.output);
   running = undefined;
@@ -136,6 +166,7 @@ try {
     "20260820150000_source_grounded_ai",
     "20260820190000_finance_module",
     "20260820200000_fitness_module",
+    "20260820210000_external_caldav",
   ]);
   database.close();
   assert.equal((await stat(databasePath)).mode & 0o777, 0o600);

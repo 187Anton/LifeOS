@@ -10,44 +10,47 @@ datasource db {
 }
 
 model User {
-  id                   String                @id @default(uuid()) @db.Uuid
-  externalId           String                @unique @db.VarChar(100)
-  displayName          String                @db.VarChar(200)
-  createdAt            DateTime              @default(now()) @db.Timestamptz(3)
-  updatedAt            DateTime              @updatedAt @db.Timestamptz(3)
-  settings             UserSettings?
-  credential           UserCredential?
-  calDavCredential     CalDavCredential?
-  sessions             UserSession[]
-  calendars            Calendar[]
-  projects             Project[]
-  projectGoals         ProjectGoal[]
-  projectMilestones    ProjectMilestone[]
-  projectEventLinks    ProjectEventLink[]
-  notes                Note[]
-  noteVersions         NoteVersion[]
-  documents            Document[]
-  tasks                Task[]
-  taskEventLinks       TaskEventLink[]
-  studyPrograms        StudyProgram[]
-  studyModules         StudyModule[]
-  studyEntries         StudyEntry[]
-  workContexts         WorkContext[]
-  workProjects         WorkProject[]
-  workTaskLinks        WorkTaskLink[]
-  workTimeEntries      WorkTimeEntry[]
-  availabilityWindows  AvailabilityWindow[]
-  financeCategories    FinanceCategory[]
-  financeTransactions  FinanceTransaction[]
-  financeBudgets       FinanceBudget[]
-  fitnessPlans         FitnessPlan[]
-  fitnessExercises     FitnessExercise[]
-  fitnessPlanExercises FitnessPlanExercise[]
-  fitnessSessions      FitnessSession[]
-  fitnessSets          FitnessSet[]
-  bodyWeightEntries    BodyWeightEntry[]
-  aiInteractions       AiInteraction[]
-  auditEvents          AuditEvent[]
+  id                        String                       @id @default(uuid()) @db.Uuid
+  externalId                String                       @unique @db.VarChar(100)
+  displayName               String                       @db.VarChar(200)
+  createdAt                 DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime                     @updatedAt @db.Timestamptz(3)
+  settings                  UserSettings?
+  credential                UserCredential?
+  calDavCredential          CalDavCredential?
+  externalCalDavConnections ExternalCalDavConnection[]
+  externalCalDavCalendars   ExternalCalDavCalendar[]
+  externalCalDavMappings    ExternalCalDavEventMapping[]
+  sessions                  UserSession[]
+  calendars                 Calendar[]
+  projects                  Project[]
+  projectGoals              ProjectGoal[]
+  projectMilestones         ProjectMilestone[]
+  projectEventLinks         ProjectEventLink[]
+  notes                     Note[]
+  noteVersions              NoteVersion[]
+  documents                 Document[]
+  tasks                     Task[]
+  taskEventLinks            TaskEventLink[]
+  studyPrograms             StudyProgram[]
+  studyModules              StudyModule[]
+  studyEntries              StudyEntry[]
+  workContexts              WorkContext[]
+  workProjects              WorkProject[]
+  workTaskLinks             WorkTaskLink[]
+  workTimeEntries           WorkTimeEntry[]
+  availabilityWindows       AvailabilityWindow[]
+  financeCategories         FinanceCategory[]
+  financeTransactions       FinanceTransaction[]
+  financeBudgets            FinanceBudget[]
+  fitnessPlans              FitnessPlan[]
+  fitnessExercises          FitnessExercise[]
+  fitnessPlanExercises      FitnessPlanExercise[]
+  fitnessSessions           FitnessSession[]
+  fitnessSets               FitnessSet[]
+  bodyWeightEntries         BodyWeightEntry[]
+  aiInteractions            AiInteraction[]
+  auditEvents               AuditEvent[]
 }
 
 model UserSettings {
@@ -94,6 +97,71 @@ model CalDavCredential {
   createdAt    DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ExternalCalDavConnection {
+  id                   String                       @id @default(uuid()) @db.Uuid
+  userId               String                       @db.Uuid
+  name                 String                       @db.VarChar(100)
+  baseUrl              String                       @db.VarChar(2048)
+  credentialsEncrypted String                       @db.Text
+  secretIv             String                       @db.VarChar(64)
+  secretTag            String                       @db.VarChar(64)
+  enabled              Boolean                      @default(false)
+  readOnly             Boolean                      @default(true)
+  status               String                       @default("disabled") @db.VarChar(30)
+  lastErrorCode        String?                      @db.VarChar(100)
+  lastTestedAt         DateTime?                    @db.Timestamptz(3)
+  lastSyncAt           DateTime?                    @db.Timestamptz(3)
+  revokedAt            DateTime?                    @db.Timestamptz(3)
+  createdAt            DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                     @updatedAt @db.Timestamptz(3)
+  user                 User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calendars            ExternalCalDavCalendar[]
+  eventMappings        ExternalCalDavEventMapping[]
+
+  @@unique([userId, name])
+  @@unique([id, userId])
+  @@index([userId, revokedAt])
+}
+
+model ExternalCalDavCalendar {
+  id            String                       @id @default(uuid()) @db.Uuid
+  userId        String                       @db.Uuid
+  connectionId  String                       @db.Uuid
+  href          String                       @db.VarChar(2048)
+  displayName   String                       @db.VarChar(200)
+  remoteEtag    String?                      @db.VarChar(255)
+  createdAt     DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime                     @updatedAt @db.Timestamptz(3)
+  user          User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection    ExternalCalDavConnection     @relation(fields: [connectionId, userId], references: [id, userId], onDelete: Cascade)
+  eventMappings ExternalCalDavEventMapping[]
+
+  @@unique([connectionId, href])
+  @@unique([id, userId])
+  @@index([userId])
+}
+
+model ExternalCalDavEventMapping {
+  id                 String                   @id @default(uuid()) @db.Uuid
+  userId             String                   @db.Uuid
+  connectionId       String                   @db.Uuid
+  externalCalendarId String                   @db.Uuid
+  remoteHref         String                   @db.VarChar(2048)
+  remoteUid          String                   @db.VarChar(255)
+  remoteEtag         String?                  @db.VarChar(255)
+  localCalendarId    String                   @db.VarChar(100)
+  localEventUid      String                   @db.VarChar(255)
+  importedAt         DateTime                 @default(now()) @db.Timestamptz(3)
+  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection         ExternalCalDavConnection @relation(fields: [connectionId, userId], references: [id, userId], onDelete: Cascade)
+  externalCalendar   ExternalCalDavCalendar   @relation(fields: [externalCalendarId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([connectionId, remoteHref])
+  @@unique([externalCalendarId, remoteUid])
+  @@unique([localCalendarId, localEventUid])
+  @@index([userId])
 }
 
 model Calendar {

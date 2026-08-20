@@ -23,6 +23,7 @@ export type View =
   | "projects"
   | "finance"
   | "fitness"
+  | "integrations"
   | "knowledge"
   | "planning";
 
@@ -117,6 +118,14 @@ export const Shell = ({
         >
           <FitnessIcon />
           <span>Fitness</span>
+        </button>
+        <button
+          className={view === "integrations" ? "nav-item active" : "nav-item"}
+          onClick={() => onViewChange("integrations")}
+          aria-current={view === "integrations" ? "page" : undefined}
+        >
+          <CalendarIcon />
+          <span>Integrationen</span>
         </button>
         <button
           className={view === "knowledge" ? "nav-item active" : "nav-item"}
@@ -239,6 +248,14 @@ export const Shell = ({
       >
         <FitnessIcon />
         <span>Fitness</span>
+      </button>
+      <button
+        className={view === "integrations" ? "active" : ""}
+        onClick={() => onViewChange("integrations")}
+        aria-current={view === "integrations" ? "page" : undefined}
+      >
+        <CalendarIcon />
+        <span>Integrationen</span>
       </button>
       <button
         className={view === "knowledge" ? "active" : ""}

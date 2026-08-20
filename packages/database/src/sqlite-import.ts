@@ -16,6 +16,9 @@ type ReadClient = Pick<
   | "userCredential"
   | "userSession"
   | "calDavCredential"
+  | "externalCalDavConnection"
+  | "externalCalDavCalendar"
+  | "externalCalDavEventMapping"
   | "calendar"
   | "calendarEvent"
   | "project"
@@ -60,6 +63,16 @@ const readDataset = async (database: ReadClient) => ({
   calDavCredentials: await database.calDavCredential.findMany({
     orderBy: { userId: "asc" },
   }),
+  externalCalDavConnections: await database.externalCalDavConnection.findMany({
+    orderBy: { id: "asc" },
+  }),
+  externalCalDavCalendars: await database.externalCalDavCalendar.findMany({
+    orderBy: { id: "asc" },
+  }),
+  externalCalDavEventMappings:
+    await database.externalCalDavEventMapping.findMany({
+      orderBy: { id: "asc" },
+    }),
   calendars: await database.calendar.findMany({ orderBy: { id: "asc" } }),
   calendarEvents: await database.calendarEvent.findMany({
     orderBy: { id: "asc" },
@@ -196,11 +209,23 @@ const insertDataset = async (
       await transaction.calDavCredential.createMany({
         data: dataset.calDavCredentials,
       });
+    if (dataset.externalCalDavConnections.length)
+      await transaction.externalCalDavConnection.createMany({
+        data: dataset.externalCalDavConnections,
+      });
+    if (dataset.externalCalDavCalendars.length)
+      await transaction.externalCalDavCalendar.createMany({
+        data: dataset.externalCalDavCalendars,
+      });
     if (dataset.calendars.length)
       await transaction.calendar.createMany({ data: dataset.calendars });
     if (dataset.calendarEvents.length)
       await transaction.calendarEvent.createMany({
         data: dataset.calendarEvents,
+      });
+    if (dataset.externalCalDavEventMappings.length)
+      await transaction.externalCalDavEventMapping.createMany({
+        data: dataset.externalCalDavEventMappings,
       });
     if (dataset.projects.length)
       await transaction.project.createMany({ data: dataset.projects });

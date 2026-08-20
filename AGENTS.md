@@ -155,6 +155,17 @@ Integration. Dafür niemals Apple-Zugangsdaten im Frontend speichern. Ein
 app-spezifisches Passwort oder eine andere Apple-Autorisierung darf nur nach
 expliziter Freigabe und mit sicherer Speicherung verwendet werden.
 
+Der erste geprüfte externe CalDAV-Client ist ausschließlich ein optionaler,
+standardmäßig deaktivierter read-only-Importpfad. Zugangsdaten liegen nur
+AES-256-GCM-verschlüsselt im Backend; ohne getrennten lokalen
+Integrationsschlüssel bleibt der Netzwerkpfad nicht verfügbar. Externe Ziele
+benötigen HTTPS, Zertifikatsprüfung, SSRF-geschützte DNS-/IP-Auflösung,
+gleichursprüngliche begrenzte Weiterleitungen, Timeouts und Größenlimits.
+Importe benötigen Vorschau und Bestätigung; lokale UIDs, ETags und Sync-Tokens
+bleiben im gemeinsamen Kalenderkern. Schreiben, Löschspiegelung,
+bidirektionale oder automatische Synchronisation und echte Apple-Zugänge sind
+weiterhin offen.
+
 ### 3.4 Local-First-Betrieb
 
 Der erste Betrieb erfolgt vollständig lokal:
@@ -558,6 +569,12 @@ gemeldet.
   klartextfreier Interaktionspersistenz und bestätigungspflichtigen Vorschlägen
   nach PostgreSQL-/SQLite-, Recovery-, API- und Desktop-/Mobiltests
   festgehalten.
+- **2026-08-20:** Optionalen, standardmäßig deaktivierten externen
+  CalDAV-read-only-Import mit verschlüsselten Backend-Zugängen,
+  SSRF-geschütztem HTTPS-Client, manueller Vorschau, Bestätigung und stabiler
+  UID-/ETag-Zuordnung nach PostgreSQL-/SQLite-, Recovery-, API-, Sidecar- und
+  Desktop-/Mobiltests festgehalten; externe Schreib- und automatische
+  Synchronisationspfade bleiben offen.
 - **2026-08-20:** Lokalen ICS-Import mit verpflichtender kurzlebiger Vorschau,
   atomarem Commit, Größen-/Mengen-/Seriengrenzen und konfliktfreiem Export nach
   PostgreSQL-/SQLite-, CalDAV-, Recovery-, API-, Desktop-/Mobil- und

@@ -94,6 +94,10 @@ Anfragekörper, Cookies oder Zugangsdaten.
   Verlust stabiler IDs oder Synchronisationswerte.
 - Backup und Restore sind technisch auch im Updateablauf nachgewiesen, aber
   noch nicht in die Desktop-Oberfläche eingebunden.
+- Die externe CalDAV-Integration bleibt in der Mac-App ohne einen nativen
+  Schlüsselbundpfad vollständig nicht verfügbar. Der Sidecar-Test bestätigt
+  den sicheren Status `available: false`; eine spätere Aktivierung darf keinen
+  Schlüssel aus dem Repository oder Browser-Storage verwenden.
 - Das Entfernen der isolierten App-Kopien ließ SQLite-Daten und Update-Backup
   unangetastet; die erhaltene Datenbank bestand anschließend erneut ihre
   Integritätsprüfung.

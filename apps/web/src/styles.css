@@ -105,6 +105,43 @@
   background: #f8ded9;
 }
 
+.integrations-workspace {
+  max-width: 1120px;
+}
+
+.integration-form,
+.import-controls {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  align-items: end;
+}
+
+.integration-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.integration-card .button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.status-pill.disabled,
+.status-pill.revoked {
+  background: var(--line);
+  color: var(--muted);
+}
+
+.status-pill.ready {
+  background: var(--sage);
+  color: var(--forest);
+}
+
+.status-pill.error {
+  background: #f8ded9;
+  color: var(--danger);
+}
+
 @media (max-width: 620px) {
   .ics-panel .section-heading {
     grid-template-columns: 1fr;

@@ -141,6 +141,27 @@ test("weist ungültige Ports und Origins verständlich zurück", () => {
   );
 });
 
+test("akzeptiert nur einen 32-Byte-Schlüssel für externe Zugänge", () => {
+  const key = Buffer.alloc(32, 7).toString("base64");
+  assert.equal(
+    parseConfig({ ...validEnvironment, INTEGRATION_SECRET_KEY: key })
+      .integrationSecretKey,
+    key,
+  );
+  assert.throws(
+    () =>
+      parseConfig({
+        ...validEnvironment,
+        INTEGRATION_SECRET_KEY: "zu-kurz",
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof ConfigurationError);
+      assert.deepEqual(error.fields, ["INTEGRATION_SECRET_KEY"]);
+      return true;
+    },
+  );
+});
+
 test("setzt sichere Cookies nur an einem HTTPS-Ursprung", () => {
   assert.equal(useSecureCookies("http://127.0.0.1:3000"), false);
   assert.equal(useSecureCookies("https://lifeos.example.test"), true);
