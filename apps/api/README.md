@@ -382,6 +382,18 @@ JSON, Validierungsfehler, fehlende Readiness und unerwartete Fehler verwenden
 denselben Vertrag. Interne Fehlermeldungen werden nicht an Clients
 weitergegeben.
 
+Schreibende Browseranfragen unter `/api/v1` werden bei vorhandenem
+`Origin`-Header nur vom exakt konfigurierten `WEB_ORIGIN` akzeptiert.
+`WEB_ORIGIN` muss ein reiner HTTP- oder HTTPS-Ursprung ohne Zugangsdaten, Pfad,
+Abfrage oder Fragment sein. Lokale Werkzeuge ohne Browser-`Origin` bleiben
+nutzbar. Nach fünf falschen
+Anmeldeversuchen desselben Clients blockiert die API weitere Versuche für 15
+Minuten und antwortet mit `RATE_LIMITED` sowie `Retry-After`. API- und
+CalDAV-Antworten sind generell `private, no-store`; gemeinsame
+Sicherheitsheader verhindern MIME-Sniffing, Einbettung und unnötige Browser-
+Berechtigungen. Der technische Nachweis steht im
+[`Sicherheitsreview 0.6.1`](../../docs/security-review-0.6.md).
+
 ## Modulgrenzen und Logging
 
 - `application.ts` verdrahtet Express, Middleware und fachliche Router.

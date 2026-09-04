@@ -8,6 +8,7 @@ Aktuell definiert es:
 - die API-Version `v1`,
 - den Fehlervertragsstand `1`,
 - stabile Fehlercodes und Validierungsdetails,
+- einen eigenen `FORBIDDEN`-Code für abgewiesene fremde Browser-Ursprünge,
 - Health- und Readiness-Antworten,
 - Profil-, Einstellungs- und Sitzungsantworten,
 - Kalender- und Ereignisantworten einschließlich UID, ETag und Sync-Token,

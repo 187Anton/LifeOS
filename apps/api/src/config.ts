@@ -23,6 +23,27 @@ const sqliteUrl = z
     return path.isAbsolute(filePath);
   }, "muss einen absoluten SQLite-Dateipfad enthalten");
 
+const webOrigin = z
+  .string()
+  .trim()
+  .min(1)
+  .refine((value) => {
+    try {
+      const url = new URL(value);
+      return (
+        ["http:", "https:"].includes(url.protocol) &&
+        !url.username &&
+        !url.password &&
+        url.pathname === "/" &&
+        !url.search &&
+        !url.hash
+      );
+    } catch {
+      return false;
+    }
+  }, "muss ein reiner HTTP- oder HTTPS-Ursprung sein")
+  .transform((value) => new URL(value).origin);
+
 const environmentSchema = z.strictObject({
   NODE_ENV: z
     .enum(["development", "test", "production"])
@@ -30,7 +51,7 @@ const environmentSchema = z.strictObject({
   API_HOST: z.string().trim().min(1).default("127.0.0.1"),
   API_PORT: z.coerce.number().int().min(1).max(65_535),
   DATABASE_URL: z.union([postgresUrl, sqliteUrl]),
-  WEB_ORIGIN: z.url(),
+  WEB_ORIGIN: webOrigin,
   WEB_DIST_PATH: z
     .string()
     .trim()

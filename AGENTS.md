@@ -327,6 +327,10 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
 - Export und Löschung für persönliche Daten nachvollziehbar umsetzen.
 - Relevante Änderungen, Synchronisationen und Freigaben als Audit-Ereignisse
   protokollieren.
+- Schreibende Browseranfragen unter `/api/v1` mit vorhandenem `Origin` nur vom
+  exakt konfigurierten `WEB_ORIGIN` akzeptieren; lokale Nicht-Browser-Clients
+  ohne `Origin` bleiben zulässig. Fehlgeschlagene Anmeldungen lokal und
+  speicherbegrenzt drosseln, ohne Passwörter oder Anfragekörper zu speichern.
 
 ## 5. KI-Regeln
 
@@ -609,3 +613,7 @@ gemeldet.
   reproduzierter zukünftiger SQLite-Fixture-Sitzung festgehalten; Unit-Test,
   realer SQLite-Bootstrap und vollständige Roadmap-0.5-Demo bestätigen den
   providerunabhängigen Ablauf.
+- **2026-09-04:** Exakte Ursprungsprüfung für schreibende Browseranfragen,
+  speicherbegrenzte Drosselung falscher Anmeldungen sowie zentrale
+  Sicherheitsheader nach Middleware-, Authentifizierungs- und vollständiger
+  API-Prüfung festgehalten.

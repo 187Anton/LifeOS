@@ -599,3 +599,47 @@ bleiben ausdrücklich außerhalb dieses Stands.
 Abschlusskriterium: Die zusätzlichen Bereiche bleiben optional, lokal und
 deaktivierbar; der Kalender- und Aufgaben-Kern bleibt unabhängig nutzbar.
 Roadmap 0.5 ist damit fachlich und technisch abgeschlossen.
+
+## 0.6 Stabilisierung und Release-Vorbereitung
+
+Ziel: Den Funktionsstand 0.1 bis 0.5 ohne neue große Fachmodule absichern,
+wiederherstellbar halten und für ein reproduzierbares lokales Release
+vorbereiten.
+
+### 0.6.1 Sicherheits- und Datenschutzprüfung
+
+- **Umgesetzt (4. September 2026):** Authentifizierung, Sitzungen,
+  Besitzgrenzen, Dateiablage, Import/Export, CalDAV, externe Integrationen,
+  Logging, Browser-Speicher und Prompt-Injection-Abgrenzung wurden technisch
+  geprüft.
+- Konkrete Befunde wurden behoben: fünf Fehlversuche je Client sperren die
+  Anmeldung für 15 Minuten; schreibende Browseranfragen benötigen bei
+  vorhandenem `Origin` exakt den validierten HTTP-/HTTPS-Ursprung;
+  grundlegende Sicherheitsheader und `no-store` für API/CalDAV gelten zentral.
+- Secret-Scan, 25 gezielte Sicherheitsprüfungen und die vollständige
+  82-Test-API-Matrix bestanden. Der Live-Abgleich der npm-Advisory-Datenbank
+  blieb wegen Registry-Timeout offen; der Offline-Cache meldete keine bekannte
+  produktive Lücke.
+- Befunde, Nachweise und Grenzen stehen im
+  [`Sicherheitsreview 0.6.1`](security-review-0.6.md).
+
+Abschlusskriterium: Konkrete Sicherheitsbefunde sind behoben oder ausdrücklich
+offen dokumentiert; bestehende Funktionen und `/api/v1` bleiben erhalten.
+
+### 0.6.2 Stabilität, Kompatibilität und Recovery
+
+PostgreSQL-/SQLite-Parität, Migrationen, Seed, Neustart, Import, Backup,
+Restore, API-/CalDAV-Identitäten sowie Update und Rollback werden auf dem
+integrierten 0.6.1-Stand erneut geprüft und konkrete Befunde behoben.
+
+### 0.6.3 Reproduzierbares Release und CI
+
+Versionsquelle, Build, Artefaktprüfsummen, Startablauf, CI und die Trennung
+zwischen lokal geprüftem und öffentlich freigegebenem Release werden auf Basis
+tatsächlich vorhandener Funktionen vervollständigt.
+
+### 0.6.4 Abschluss, Dokumentation und lokale Demo
+
+Eine vollständige synthetische Browser-, PostgreSQL-, SQLite-, Recovery-,
+Desktop- und PWA-Demo schließt den Abschnitt ab. Nicht extern geprüfte
+Release-Gates bleiben ausdrücklich offen.
