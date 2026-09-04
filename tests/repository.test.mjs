@@ -61,7 +61,41 @@ test("führt CI für develop und main mit den verbindlichen Prüfungen aus", asy
   assert.match(workflow, /run: npm run build/);
   assert.match(workflow, /run: npm run db:verify:recovery/);
   assert.match(workflow, /run: npm test/);
+  assert.match(workflow, /run: npm run release:verify/);
+  assert.match(workflow, /npm run db:sqlite:verify:recovery/);
+  assert.match(workflow, /runs-on: macos-15/);
+  assert.match(workflow, /run: npm run release:build:local/);
+  assert.match(workflow, /run: npm run release:verify:local/);
   assert.match(workflow, /if: always\(\)/);
+});
+
+test("verwendet eine konsistente Release-Version und portable DMG-Prüfsummen", async () => {
+  const packageJson = JSON.parse(
+    await readFile(path.join(repositoryRoot, "package.json"), "utf8"),
+  );
+  const buildScript = await readRepositoryFile("scripts/build-mac-dmg.sh");
+  const verifyScript = await readRepositoryFile("scripts/verify-mac-dmg.sh");
+  const metadataScript = await readRepositoryFile(
+    "scripts/verify-release-metadata.mjs",
+  );
+
+  assert.match(packageJson.version, /^\d+\.\d+\.\d+$/);
+  assert.equal(
+    packageJson.scripts["release:verify"],
+    "node scripts/verify-release-metadata.mjs",
+  );
+  assert.match(packageJson.scripts["desktop:test"], /desktop:prepare/);
+  assert.match(
+    packageJson.scripts["desktop:prepare"],
+    /^env DATABASE_URL=postgresql:\/\/unused:unused@127\.0\.0\.1:5432\/unused npm run db:generate/,
+  );
+  assert.match(buildScript, /RELEASE_VERSION/);
+  assert.match(buildScript, /\.sha256/);
+  assert.doesNotMatch(buildScript, /Anton Life OS_0\.1\.0/);
+  assert.match(verifyScript, /shasum -a 256 -c/);
+  assert.match(verifyScript, /verpflichtende DMG-Prüfsumme/);
+  assert.match(metadataScript, /tauri\.conf\.json/);
+  assert.match(metadataScript, /Cargo\.lock/);
 });
 
 test("stellt Secret-Scan und isolierte Backup-/Restore-Prüfung bereit", async () => {

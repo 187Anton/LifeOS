@@ -4,7 +4,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPOSITORY_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-DMG_PATH="${1:-$REPOSITORY_ROOT/apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.1.0_aarch64.dmg}"
+RELEASE_VERSION="$(node --input-type=module -e 'import packageJson from "./package.json" with { type: "json" }; process.stdout.write(packageJson.version)')"
+RELEASE_ARCHITECTURE="$(node --input-type=module -e 'const names = { arm64: "aarch64", x64: "x64" }; const name = names[process.arch]; if (!name) process.exit(1); process.stdout.write(name)')"
+DMG_PATH="${1:-$REPOSITORY_ROOT/apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_${RELEASE_VERSION}_${RELEASE_ARCHITECTURE}.dmg}"
+CHECKSUM_PATH="${DMG_PATH}.sha256"
 NODE_BINARY="$(command -v node)"
 WORK_DIRECTORY="$(mktemp -d "${TMPDIR:-/tmp}/lifeos-dmg-verify.XXXXXX")"
 MOUNT_DIRECTORY="$WORK_DIRECTORY/mount"
@@ -23,6 +26,15 @@ if [[ ! -f "$DMG_PATH" ]]; then
   echo "Das DMG fehlt: $DMG_PATH" >&2
   exit 1
 fi
+if [[ ! -f "$CHECKSUM_PATH" ]] || [[ -L "$CHECKSUM_PATH" ]]; then
+  echo "Die verpflichtende DMG-Prüfsumme fehlt: $CHECKSUM_PATH" >&2
+  exit 1
+fi
+
+(
+  cd "$(dirname "$DMG_PATH")"
+  shasum -a 256 -c "$(basename "$CHECKSUM_PATH")"
+)
 
 hdiutil verify "$DMG_PATH" >/dev/null
 mkdir -p "$MOUNT_DIRECTORY" "$(dirname "$INSTALLED_APP")"
