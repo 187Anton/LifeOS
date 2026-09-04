@@ -650,9 +650,26 @@ Versionsfestlegung in 0.6.3/0.6.4.
 
 ### 0.6.3 Reproduzierbares Release und CI
 
-Versionsquelle, Build, Artefaktprüfsummen, Startablauf, CI und die Trennung
-zwischen lokal geprüftem und öffentlich freigegebenem Release werden auf Basis
-tatsächlich vorhandener Funktionen vervollständigt.
+- **Umgesetzt (4. September 2026):** Die Stamm-`package.json` führt die Version
+  `0.6.0`; ein automatischer Abgleich prüft npm-Workspaces, Lockfile, Tauri und
+  Cargo. DMG-Pfade werden daraus abgeleitet und jedes Artefakt erhält eine
+  portable SHA-256-Datei.
+- `release:build:local` und `release:verify:local` bauen und prüfen Tauri,
+  gebündeltes Node 22, Express-Sidecar, SQLite, dynamischen Loopback-Port,
+  Ersteinrichtung, Neustart und Identitätserhalt ohne Docker oder globales
+  Node zur Laufzeit.
+- Die CI prüft zusätzlich die vollständige SQLite-API-/Recovery-Parität. Ein
+  getrenntes macOS-Job führt Rust-Lifecycle-Tests aus und baut sowie prüft das
+  lokale DMG.
+- Die Weboberfläche zeigt die PWA-Installationsaktion nur nach Freigabe durch
+  einen unterstützten Browser. 44 Unit- und 32 Desktop-/Mobil-Browsertests
+  bestanden.
+- Buildweg, Bedeutung der Reproduzierbarkeit und offene öffentliche Gates
+  stehen in der [`Release-Dokumentation 0.6`](release-0.6.md).
+
+Abschlusskriterium: Ein versioniertes, prüfsummengeschütztes lokales Artefakt
+ist reproduzierbar baubar und prüfbar; CI-Build und öffentliche Apple-Freigabe
+bleiben klar getrennt.
 
 ### 0.6.4 Abschluss, Dokumentation und lokale Demo
 

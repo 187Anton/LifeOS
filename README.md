@@ -66,21 +66,23 @@ externe Assets bleiben unter ihren jeweiligen Lizenzen.
 
 ## Projektziel: installierbares lokales Release
 
-LifeOS soll ohne manuelles Zusammensuchen einzelner Komponenten als
-versioniertes lokales Release installiert werden können. Die erste
-Ausbaustufe soll:
+LifeOS lässt sich in Version `0.6.0` ohne manuelles Zusammensuchen einzelner
+Komponenten als lokales ARM64-DMG bauen und prüfen. Der aktuelle Stand:
 
-- ein geprüftes Download-Artefakt über GitHub Releases bereitstellen,
-- Anwendung und Docker-Compose-Konfiguration mit verständlichen Startskripten
-  bündeln,
-- nach dem Start die lokale LifeOS-Weboberfläche öffnen,
-- dort einen Installationsbutton für die bereits vorhandene PWA anbieten und
-- persönliche Daten, PostgreSQL, API und CalDAV weiterhin lokal betreiben.
+- Die Tauri-App bündelt Weboberfläche, Express-/CalDAV-Sidecar, SQLite und eine
+  offizielle Node.js-22-Laufzeit. Zur Nutzung sind weder Docker noch ein
+  separat installiertes Node.js erforderlich.
+- Der Browserbetrieb mit PostgreSQL und Docker Compose bleibt für Entwicklung,
+  Tests und Wartung verfügbar.
+- Ein Installationsbutton für die vorhandene PWA erscheint, sobald ein
+  unterstützter Browser die Installation freigibt.
+- Das lokale DMG erhält eine portable SHA-256-Prüfsumme und wird nach dem Bau
+  aus einem schreibgeschützten Abbild geprüft.
 
-Sobald das erste geprüfte Installationspaket veröffentlicht ist, führt ein
-gut sichtbarer Button in dieser README auf das jeweils aktuelle GitHub-Release.
-Ein eigenständiger nativer `.dmg`-, `.exe`- oder Linux-Installer ist eine
-spätere Ausbaustufe und soll keine zweite Benutzeroberfläche einführen.
+Das lokale Artefakt ist noch kein öffentlich freigegebenes GitHub-Release.
+Developer-ID-Signatur, Apple-Notarisierung, Gatekeeper-Prüfung, ein zweiter
+sauberer unterstützter Mac, weitere Architekturen und ein physischer
+Apple-Kalender-Test über abgesichertes LAN bleiben offene Release-Gates.
 
 ## Repository-Struktur
 
@@ -115,16 +117,17 @@ Für einen lokalen Entwickler-Build werden einmalig Node.js 22, Rust Stable und
 die Xcode Command Line Tools benötigt:
 
 ```bash
-npm install
-npm run desktop:build:dmg
-npm run desktop:verify:dmg
+npm ci
+npm run release:build:local
+npm run release:verify:local
 ```
 
-Das geprüfte, nicht versionierte Ergebnis liegt unter
-`apps/desktop/src-tauri/target/release/bundle/dmg/`. Im DMG wird die App in den
-Programme-Ordner gezogen und anschließend von dort gestartet. Persönliche
-Daten liegen außerhalb des App-Bundles im anwendungsspezifischen macOS-
-Datenverzeichnis und bleiben bei einem App-Austausch erhalten.
+Das geprüfte ARM64-Ergebnis liegt als
+`apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.6.0_aarch64.dmg`
+mit gleichnamiger `.sha256`-Datei vor. Im DMG wird die App in den Programme-
+Ordner gezogen und anschließend von dort gestartet. Persönliche Daten liegen
+außerhalb des App-Bundles im anwendungsspezifischen macOS-Datenverzeichnis und
+bleiben bei App-Austausch oder Deinstallation erhalten.
 
 Das aktuelle Artefakt ist noch kein öffentlich freigegebenes Download-Release:
 Es ist lokal ad-hoc signiert, aber mangels verfügbarer Developer-ID nicht von
@@ -135,6 +138,8 @@ Die Details und der lokale Update-/Rollback-Nachweis stehen im
 erfolgreich; die öffentliche Produktfreigabe ist ausdrücklich aufgeschoben.
 Der aktuelle providerübergreifende Stabilitäts- und Backup-Nachweis steht in
 [`docs/reliability-recovery-0.6.md`](docs/reliability-recovery-0.6.md).
+Versionsquelle, Buildablauf, Prüfsumme und öffentliche Gates beschreibt die
+[`Release-Dokumentation 0.6`](docs/release-0.6.md).
 
 ## Browser- und Entwicklungsbetrieb
 
@@ -426,6 +431,9 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 | Native Mac-App lokal bauen                    | `npm run desktop:build:app`         |
 | ARM64-DMG lokal bauen                         | `npm run desktop:build:dmg`         |
 | Lokales DMG und gebündelten Sidecar prüfen    | `npm run desktop:verify:dmg`        |
+| Release-Metadaten abgleichen                  | `npm run release:verify`            |
+| Lokales Release vollständig bauen             | `npm run release:build:local`       |
+| Lokales Release vollständig prüfen            | `npm run release:verify:local`      |
 | PostgreSQL vollständig nach SQLite übertragen | `npm run db:sqlite:import`          |
 | SQLite und Dokumente sichern                  | `npm run db:sqlite:backup -- …`     |
 | SQLite-Backup in neue Ziele restaurieren      | `npm run db:sqlite:restore -- …`    |

@@ -6,7 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPOSITORY_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 APP_PATH="$REPOSITORY_ROOT/apps/desktop/src-tauri/target/release/bundle/macos/Anton Life OS.app"
 OUTPUT_DIRECTORY="$REPOSITORY_ROOT/apps/desktop/src-tauri/target/release/bundle/dmg"
-OUTPUT_PATH="$OUTPUT_DIRECTORY/Anton Life OS_0.1.0_aarch64.dmg"
+RELEASE_VERSION="$(node --input-type=module -e 'import packageJson from "./package.json" with { type: "json" }; process.stdout.write(packageJson.version)')"
+RELEASE_ARCHITECTURE="$(node --input-type=module -e 'const names = { arm64: "aarch64", x64: "x64" }; const name = names[process.arch]; if (!name) process.exit(1); process.stdout.write(name)')"
+OUTPUT_PATH="$OUTPUT_DIRECTORY/Anton Life OS_${RELEASE_VERSION}_${RELEASE_ARCHITECTURE}.dmg"
 STAGING_DIRECTORY="$(mktemp -d "${TMPDIR:-/tmp}/lifeos-dmg.XXXXXX")"
 
 cleanup() {
@@ -32,5 +34,11 @@ hdiutil create \
   "$OUTPUT_PATH"
 
 chmod 0644 "$OUTPUT_PATH"
+(
+  cd "$OUTPUT_DIRECTORY"
+  shasum -a 256 "$(basename "$OUTPUT_PATH")" >"$(basename "$OUTPUT_PATH").sha256"
+)
+chmod 0644 "${OUTPUT_PATH}.sha256"
 echo "DMG erstellt: $OUTPUT_PATH"
-shasum -a 256 "$OUTPUT_PATH"
+echo "Prüfsumme erstellt: ${OUTPUT_PATH}.sha256"
+cat "${OUTPUT_PATH}.sha256"

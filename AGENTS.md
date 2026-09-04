@@ -198,6 +198,10 @@ Der erste Betrieb erfolgt vollständig lokal:
 - Lokale DMG-Nachweise verwenden eine konsistent ad-hoc signierte App.
   Öffentliche Release-Artefakte benötigen zusätzlich Developer-ID,
   Apple-Notarisierung und einen Test auf einem sauberen unterstützten Mac.
+- Die Stamm-`package.json` ist die kanonische Versionsquelle für npm, Tauri und
+  Cargo. `npm run release:verify` prüft den Gleichstand; jedes lokale DMG erhält
+  eine portable SHA-256-Datei. Ein erfolgreicher lokaler oder CI-Build ist ohne
+  die externen Apple-Gates keine öffentliche Release-Freigabe.
 - PostgreSQL wird in der lokalen Compose-Umgebung nur an `127.0.0.1`
   gebunden. `npm run env:check`, `npm run db:start`, `npm run db:check` und
   `npm run db:stop` sind die verbindlichen lokalen Datenbankbefehle;
@@ -624,3 +628,7 @@ gemeldet.
   speicherbegrenzte Drosselung falscher Anmeldungen sowie zentrale
   Sicherheitsheader nach Middleware-, Authentifizierungs- und vollständiger
   API-Prüfung festgehalten.
+- **2026-09-04:** Gemeinsame Versionsquelle, verpflichtenden Metadatenabgleich,
+  portable DMG-Prüfsumme und die Trennung zwischen lokalem/CI-Nachweis und
+  öffentlicher Apple-Freigabe nach ARM64-Build, DMG-, Sidecar-, Rust- und
+  Browserprüfung festgehalten.

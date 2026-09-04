@@ -13,6 +13,7 @@ import {
   FinanceIcon,
   FitnessIcon,
 } from "./Icons";
+import { PwaInstallButton } from "./PwaInstallButton";
 
 export type View =
   | "dashboard"
@@ -181,6 +182,7 @@ export const Shell = ({
           <LogOutIcon />
         </button>
       </header>
+      <PwaInstallButton />
       {children}
     </div>
 
