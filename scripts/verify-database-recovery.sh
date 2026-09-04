@@ -8,7 +8,13 @@ REPOSITORY_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 suffix="$(date -u +%s)_$$"
 source_database="lifeos_verify_${suffix}"
 restored_database="lifeos_restore_${suffix}"
+missing_checksum_database="lifeos_restore_missing_${suffix}"
+tampered_database="lifeos_restore_tampered_${suffix}"
+corrupt_database="lifeos_restore_corrupt_${suffix}"
 backup_file="$REPOSITORY_ROOT/backups/foundation-verification-${suffix}.dump"
+missing_checksum_file="${backup_file}.missing-checksum"
+tampered_file="${backup_file}.tampered"
+corrupt_file="${backup_file}.corrupt"
 
 cd "$REPOSITORY_ROOT"
 bash "$SCRIPT_DIR/check-database.sh"
@@ -23,7 +29,13 @@ drop_verification_database() {
 cleanup() {
   drop_verification_database "$source_database"
   drop_verification_database "$restored_database"
-  rm -f "$backup_file" "${backup_file}.sha256"
+  drop_verification_database "$missing_checksum_database"
+  drop_verification_database "$tampered_database"
+  drop_verification_database "$corrupt_database"
+  rm -f "$backup_file" "${backup_file}.sha256" \
+    "$missing_checksum_file" "${missing_checksum_file}.sha256" \
+    "$tampered_file" "${tampered_file}.sha256" \
+    "$corrupt_file" "${corrupt_file}.sha256"
 }
 trap cleanup EXIT
 
@@ -147,6 +159,39 @@ BACKUP_FILE="$backup_file" node --input-type=module -e '
 '
 docker compose exec -T db pg_restore --list <"$backup_file" >/dev/null
 
+cp "$backup_file" "$missing_checksum_file"
+if DATABASE_URL="$base_database_url" \
+  bash "$SCRIPT_DIR/restore-database.sh" "$missing_checksum_file" \
+    "$missing_checksum_database" >/dev/null 2>&1; then
+  printf 'Fehler: Ein PostgreSQL-Backup ohne Prüfsumme wurde akzeptiert.\n' >&2
+  exit 1
+fi
+
+cp "$backup_file" "$tampered_file"
+cp "${backup_file}.sha256" "${tampered_file}.sha256"
+printf 'manipuliert' >>"$tampered_file"
+if DATABASE_URL="$base_database_url" \
+  bash "$SCRIPT_DIR/restore-database.sh" "$tampered_file" \
+    "$tampered_database" >/dev/null 2>&1; then
+  printf 'Fehler: Ein manipuliertes PostgreSQL-Backup wurde akzeptiert.\n' >&2
+  exit 1
+fi
+
+printf 'kein PostgreSQL-Archiv\n' >"$corrupt_file"
+BACKUP_FILE="$corrupt_file" node --input-type=module -e '
+  import { createHash } from "node:crypto";
+  import { readFileSync, writeFileSync } from "node:fs";
+  const file = process.env.BACKUP_FILE;
+  const checksum = createHash("sha256").update(readFileSync(file)).digest("hex");
+  writeFileSync(`${file}.sha256`, `${checksum}\n`, { mode: 0o600 });
+'
+if DATABASE_URL="$base_database_url" \
+  bash "$SCRIPT_DIR/restore-database.sh" "$corrupt_file" \
+    "$corrupt_database" >/dev/null 2>&1; then
+  printf 'Fehler: Ein strukturell ungültiges PostgreSQL-Backup wurde akzeptiert.\n' >&2
+  exit 1
+fi
+
 DATABASE_URL="$base_database_url" \
   bash "$SCRIPT_DIR/restore-database.sh" "$backup_file" "$restored_database"
 snapshot_restored="$(snapshot "$restored_database")"
@@ -154,5 +199,16 @@ if [[ "$snapshot_before" != "$snapshot_restored" ]]; then
   printf 'Fehler: Das wiederhergestellte Datenbankabbild weicht von der Quelle ab.\n' >&2
   exit 1
 fi
+if DATABASE_URL="$base_database_url" \
+  bash "$SCRIPT_DIR/restore-database.sh" "$backup_file" \
+    "$restored_database" >/dev/null 2>&1; then
+  printf 'Fehler: Ein bestehendes Restore-Ziel wurde überschrieben.\n' >&2
+  exit 1
+fi
+if [[ "$snapshot_before" != "$(snapshot "$source_database")" ]] ||
+  [[ "$snapshot_restored" != "$(snapshot "$restored_database")" ]]; then
+  printf 'Fehler: Eine abgewiesene Wiederherstellung hat bestehende Daten verändert.\n' >&2
+  exit 1
+fi
 
-printf 'Leere Migration, bestehende Seed-Daten sowie Backup und Restore wurden erfolgreich geprüft.\n'
+printf 'Migration, Seed, Prüfsummen, beschädigte Backups sowie Restore in neue Ziele wurden erfolgreich geprüft.\n'

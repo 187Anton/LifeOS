@@ -112,7 +112,7 @@ npm run db:restore -- backups/<backup-datei>.dump lifeos_restore_20260722
 ```
 
 Der Befehl akzeptiert nur neue Datenbanknamen mit Präfix `lifeos_restore_`,
-prüft eine vorhandene SHA-256-Datei und die Archivstruktur, stellt mit
+verlangt eine reguläre SHA-256-Datei und prüft anschließend die Archivstruktur, stellt mit
 `--exit-on-error` wieder her und wendet ausstehende Migrationen an. Bei einem
 Fehler wird nur die neu angelegte Zieldatenbank entfernt. Die konfigurierte
 Quelldatenbank bleibt unverändert.
@@ -136,8 +136,12 @@ und [pg_restore](https://www.postgresql.org/docs/current/app-pgrestore.html).
 Nur selbst erstellte und vertrauenswürdige Dumps dürfen wiederhergestellt
 werden, weil ein Restore Anweisungen aus dem Archiv ausführt.
 
-Dokumente unter `data/` sind nicht Teil des PostgreSQL-Dumps und müssen separat
-gesichert werden, sobald das Dokumentenmodul echte Dateien verwaltet.
+Dokumente sind nicht Teil des PostgreSQL-Dumps. Sie werden mit
+`npm run documents:backup -- /absoluter/neuer/pfad` gesichert und mit
+`npm run documents:restore -- /absoluter/pfad` ausschließlich in ein neues
+`STORAGE_PATH` restauriert. Manifest und jede Datei sind durch SHA-256
+geschützt. Der vollständige aktuelle Ablauf steht im
+[`Recovery-Nachweis 0.6.2`](reliability-recovery-0.6.md).
 
 ## Apple-Kalender-Handtest im lokalen Netz
 

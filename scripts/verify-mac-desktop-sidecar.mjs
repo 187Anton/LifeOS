@@ -135,6 +135,34 @@ try {
   });
   assert.equal(login.status, 201);
   const cookie = (login.headers.get("set-cookie") ?? "").split(";", 1)[0];
+  const calendars = await fetch(`${first.baseUrl}/api/v1/calendars`, {
+    headers: { cookie },
+  });
+  assert.equal(calendars.status, 200);
+  const primaryCalendar = (await calendars.json()).find(
+    (calendar) => calendar.isPrimary,
+  );
+  assert.ok(primaryCalendar);
+  const eventUid = "synthetic-sidecar-restart@lifeos.local";
+  const eventResponse = await fetch(
+    `${first.baseUrl}/api/v1/calendars/${primaryCalendar.id}/events`,
+    {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({
+        uid: eventUid,
+        title: "Synthetischer Neustarttermin",
+        timezone: "Europe/Berlin",
+        isAllDay: false,
+        startsAt: "2034-09-04T09:00:00+02:00",
+        endsAt: "2034-09-04T10:00:00+02:00",
+        recurrenceRule: "FREQ=WEEKLY;COUNT=2",
+        reminderMinutes: [15],
+      }),
+    },
+  );
+  assert.equal(eventResponse.status, 201);
+  const createdEvent = await eventResponse.json();
   const externalCalDav = await fetch(
     `${first.baseUrl}/api/v1/integrations/caldav`,
     { headers: { cookie } },
@@ -180,6 +208,12 @@ try {
     "20260820210000_external_caldav",
     "20260820220000_github_integration",
   ]);
+  const identityBeforeRestart = database
+    .prepare(
+      'SELECT u."id" AS "userId", c."id" AS "calendarId", c."syncToken", e."uid", e."etag", e."syncVersion" FROM "User" u JOIN "Calendar" c ON c."userId" = u."id" JOIN "CalendarEvent" e ON e."calendarId" = c."id" WHERE e."uid" = ?',
+    )
+    .get(eventUid);
+  assert.ok(identityBeforeRestart);
   database.close();
   assert.equal((await stat(databasePath)).mode & 0o777, 0o600);
 
@@ -187,11 +221,38 @@ try {
   running = second.child;
   const secondReadiness = await fetch(`${second.baseUrl}/api/v1/readiness`);
   assert.equal(secondReadiness.status, 200);
+  const secondLogin = await fetch(`${second.baseUrl}/api/v1/session`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password: localPassword }),
+  });
+  assert.equal(secondLogin.status, 201);
+  const secondCookie = (secondLogin.headers.get("set-cookie") ?? "").split(
+    ";",
+    1,
+  )[0];
+  const restoredEvent = await fetch(
+    `${second.baseUrl}/api/v1/calendars/${primaryCalendar.id}/events/${encodeURIComponent(eventUid)}`,
+    { headers: { cookie: secondCookie } },
+  );
+  assert.equal(restoredEvent.status, 200);
+  assert.deepEqual(await restoredEvent.json(), createdEvent);
   await stopSidecar(running, second.output);
   running = undefined;
 
+  const restartedDatabase = new BetterSqlite3(databasePath, {
+    readonly: true,
+  });
+  const identityAfterRestart = restartedDatabase
+    .prepare(
+      'SELECT u."id" AS "userId", c."id" AS "calendarId", c."syncToken", e."uid", e."etag", e."syncVersion" FROM "User" u JOIN "Calendar" c ON c."userId" = u."id" JOIN "CalendarEvent" e ON e."calendarId" = c."id" WHERE e."uid" = ?',
+    )
+    .get(eventUid);
+  restartedDatabase.close();
+  assert.deepEqual(identityAfterRestart, identityBeforeRestart);
+
   console.info(
-    `Gebündelter Sidecar mit Node ${manifest.nodeVersion} startete zweimal ohne Homebrew-Pfad.`,
+    `Gebündelter Sidecar mit Node ${manifest.nodeVersion} startete zweimal ohne Homebrew-Pfad und erhielt Benutzer-, Kalender- und Ereignisidentitäten.`,
   );
 } finally {
   if (running && running.exitCode === null) running.kill("SIGTERM");

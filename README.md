@@ -133,6 +133,8 @@ sauberen Mac und ein Intel-/Universal-Build sind noch offene Release-Gates.
 Die Details und der lokale Update-/Rollback-Nachweis stehen im
 [Migrationsprotokoll](docs/mac-desktop-migration-log.md). M6 ist damit lokal
 erfolgreich; die öffentliche Produktfreigabe ist ausdrücklich aufgeschoben.
+Der aktuelle providerübergreifende Stabilitäts- und Backup-Nachweis steht in
+[`docs/reliability-recovery-0.6.md`](docs/reliability-recovery-0.6.md).
 
 ## Browser- und Entwicklungsbetrieb
 
@@ -430,6 +432,8 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 | SQLite-Import und Recovery isoliert prüfen    | `npm run db:sqlite:verify:recovery` |
 | Lokales PostgreSQL-Backup erstellen           | `npm run db:backup`                 |
 | Backup sicher in neue Datenbank restaurieren  | `npm run db:restore -- …`           |
+| Dokumente prüfsummengeschützt sichern         | `npm run documents:backup -- …`     |
+| Dokumente ausschließlich in neues Ziel laden  | `npm run documents:restore -- …`    |
 | Migration, Backup und Restore isoliert prüfen | `npm run db:verify:recovery`        |
 | API lokal starten                             | `npm run api:start`                 |
 | API im Watch-Modus starten                    | `npm run api:dev`                   |

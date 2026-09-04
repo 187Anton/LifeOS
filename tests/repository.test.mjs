@@ -68,6 +68,15 @@ test("stellt Secret-Scan und isolierte Backup-/Restore-Prüfung bereit", async (
   const packageJson = JSON.parse(
     await readFile(path.join(repositoryRoot, "package.json"), "utf8"),
   );
+  const apiPackageJson = JSON.parse(
+    await readFile(path.join(repositoryRoot, "apps/api/package.json"), "utf8"),
+  );
+  const databasePackageJson = JSON.parse(
+    await readFile(
+      path.join(repositoryRoot, "packages/database/package.json"),
+      "utf8",
+    ),
+  );
   const recoveryScript = await readRepositoryFile(
     "scripts/verify-database-recovery.sh",
   );
@@ -86,6 +95,26 @@ test("stellt Secret-Scan und isolierte Backup-/Restore-Prüfung bereit", async (
     packageJson.scripts["db:restore"],
     "bash scripts/restore-database.sh",
   );
+  assert.match(
+    packageJson.scripts["db:sqlite:verify:recovery"],
+    /--env-file-if-exists=\.env/,
+  );
+  assert.match(
+    apiPackageJson.scripts.test,
+    /--env-file-if-exists=\.\.\/\.\.\/\.env/,
+  );
+  assert.match(
+    databasePackageJson.scripts.test,
+    /--env-file-if-exists=\.\.\/\.\.\/\.env/,
+  );
+  assert.equal(
+    packageJson.scripts["documents:backup"],
+    "node --import tsx scripts/document-data.ts backup",
+  );
+  assert.equal(
+    packageJson.scripts["documents:restore"],
+    "node --import tsx scripts/document-data.ts restore",
+  );
   assert.match(recoveryScript, /lifeos_verify_/);
   assert.match(recoveryScript, /lifeos_restore_/);
   assert.match(recoveryScript, /pg_dump/);
@@ -99,6 +128,8 @@ test("stellt Secret-Scan und isolierte Backup-/Restore-Prüfung bereit", async (
   assert.match(restoreScript, /pg_restore --list/);
   assert.match(restoreScript, /--exit-on-error/);
   assert.match(restoreScript, /timingSafeEqual/);
+  assert.match(restoreScript, /verpflichtende SHA-256-Datei/);
+  assert.match(restoreScript, /\[\[ -L "\$backup_file" \]\]/);
   assert.doesNotMatch(restoreScript, /--clean|docker compose down|--volumes/);
 });
 

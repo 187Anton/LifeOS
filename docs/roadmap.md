@@ -628,9 +628,25 @@ offen dokumentiert; bestehende Funktionen und `/api/v1` bleiben erhalten.
 
 ### 0.6.2 Stabilität, Kompatibilität und Recovery
 
-PostgreSQL-/SQLite-Parität, Migrationen, Seed, Neustart, Import, Backup,
-Restore, API-/CalDAV-Identitäten sowie Update und Rollback werden auf dem
-integrierten 0.6.1-Stand erneut geprüft und konkrete Befunde behoben.
+- **Umgesetzt (4. September 2026):** 19 PostgreSQL- und 10 SQLite-Migrationen,
+  wiederholter Seed, PostgreSQL-/SQLite-Parität, Neustarts, vollständiger
+  Import, Backup, Restore sowie stabile API-/CalDAV-Identitäten wurden mit
+  synthetischen Daten geprüft.
+- PostgreSQL-Restore verlangt nun eine gültige SHA-256-Datei und weist fehlende
+  oder manipulierte Prüfsummen, strukturell ungültige Archive und bestehende
+  Ziele ab. Ein eigener prüfsummengeschützter Dokumenten-Backup-/Restore-Pfad
+  schließt die Recovery-Lücke des Browserbetriebs.
+- SQLite validiert sein Manifest vor dem Restore vollständig und weist
+  fehlende Dateien, Traversal sowie vorhandene Ziele ab. 82 API-Fälle bestanden
+  auf beiden Providern; Benutzer-, Kalender-, UID-, ETag- und Sync-Werte
+  blieben beim Sidecar-Neustart erhalten.
+- Details, Befunde, ausgeführte Prüfungen und die klare Grenze zum finalen
+  Zwei-Versionen-Lauf stehen im
+  [`Recovery-Nachweis 0.6.2`](reliability-recovery-0.6.md).
+
+Abschlusskriterium: Migration, Seed, Parität und Recovery sind aktuell
+nachgewiesen. Der finale 0.6-Update-/Rollback-Lauf folgt nach der
+Versionsfestlegung in 0.6.3/0.6.4.
 
 ### 0.6.3 Reproduzierbares Release und CI
 

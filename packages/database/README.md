@@ -259,6 +259,32 @@ Der isolierte Gesamtnachweis lautet:
 npm run db:sqlite:verify:recovery
 ```
 
+## Eigenständiges Dokumentenbackup für PostgreSQL
+
+Ein PostgreSQL-Dump enthält keine Dateien aus `STORAGE_PATH`. Für den
+Browserbetrieb werden Datenbank und Dokumente deshalb zeitlich koordiniert und
+gemeinsam aufbewahrt. Das Dokumentenbackup schreibt ausschließlich in ein
+neues absolutes Ziel:
+
+```bash
+export STORAGE_PATH="/absoluter/pfad/documents"
+npm run documents:backup -- /absoluter/neuer/pfad/documents-backup
+```
+
+`manifest.json`, `manifest.sha256` und die Prüfsumme jeder Datei schützen den
+Inhalt. Symbolische Links, Traversal-Pfade, fehlende Dateien, manipulierte
+Prüfsummen und bestehende Ziele werden abgewiesen. Restore benötigt ebenfalls
+ein neues, noch nicht vorhandenes `STORAGE_PATH`:
+
+```bash
+export STORAGE_PATH="/absoluter/neuer/pfad/restored-documents"
+npm run documents:restore -- /absoluter/pfad/documents-backup
+```
+
+Die Sicherung ist unverschlüsselt und vertraulich. Für einen konsistenten
+Zeitpunkt soll die API während Datenbank- und Dokumentenbackup keine
+Schreibaktionen annehmen.
+
 ## Neue Schemaänderung entwickeln
 
 Eine neue Migration wird zunächst ohne Anwendung erzeugt:
