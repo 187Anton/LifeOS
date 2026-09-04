@@ -368,6 +368,12 @@ ist im [lokalen Roadmap-0.5-Nachweis](docs/roadmap-05-local-demo.md)
 dokumentiert. Dort sind auch Update-/Backup-Schritte und ausdrücklich offene
 externe Release-Gates getrennt aufgeführt.
 
+Die technische Sicherheits- und Datenschutzprüfung für Roadmap 0.6.1 ist im
+[Sicherheitsreview 0.6](docs/security-review-0.6.md) dokumentiert. Sie enthält
+die behobenen Login-, Browser-Ursprungs- und Sicherheitsheader-Befunde, die
+zugehörigen Tests sowie die ausdrücklich offene aktuelle Registry-Prüfung der
+Abhängigkeiten.
+
 Ein Produktions-Build erzeugt zusätzlich Manifest und Offline-App-Shell:
 
 ```bash

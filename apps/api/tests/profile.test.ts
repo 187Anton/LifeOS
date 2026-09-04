@@ -230,4 +230,20 @@ test("schützt Profil und Einstellungen mit widerrufbarer lokaler Sitzung", asyn
     (await fetch(`${baseUrl}/api/v1/profile`, { headers: { cookie } })).status,
     401,
   );
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const failed = await fetch(`${baseUrl}/api/v1/session`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ password: "synthetisch-weiterhin-falsch" }),
+    });
+    assert.equal(failed.status, 401);
+  }
+  const limited = await fetch(`${baseUrl}/api/v1/session`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password: "synthetisches-testpasswort" }),
+  });
+  assert.equal(limited.status, 429);
+  assert.match(limited.headers.get("retry-after") ?? "", /^\d+$/);
 });

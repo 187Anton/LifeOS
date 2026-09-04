@@ -22,3 +22,6 @@ Alle relevanten Änderungen werden hier kurz und nachvollziehbar dokumentiert.
 - Roadmap 0.5 um lokale Finanzen, Fitness, sicheren ICS-Transfer, optionalen
   externen CalDAV-read-only-Import und eine optionale GitHub-Leseintegration
   ergänzt; PostgreSQL, SQLite, Recovery, Browser und Mac-Sidecar stabilisiert.
+- Roadmap 0.6.1 mit Login-Drosselung, exakter Browser-Ursprungsprüfung,
+  zentralen Sicherheitsheadern und dokumentiertem technischen Security-Review
+  ergänzt.
