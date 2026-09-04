@@ -13,7 +13,7 @@
     "build": "tsup",
     "build:desktop": "tsup --config tsup.desktop.config.ts",
     "lint": "eslint src tests",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "node --env-file-if-exists=../../.env --import tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

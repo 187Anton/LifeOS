@@ -25,3 +25,7 @@ Alle relevanten Änderungen werden hier kurz und nachvollziehbar dokumentiert.
 - Roadmap 0.6.1 mit Login-Drosselung, exakter Browser-Ursprungsprüfung,
   zentralen Sicherheitsheadern und dokumentiertem technischen Security-Review
   ergänzt.
+- Roadmap 0.6.2 mit verpflichtender PostgreSQL-Prüfsumme, eigenständigem
+  Dokumentenbackup, strenger SQLite-Manifestprüfung und aktuellem
+  Provider-/Recovery-Nachweis sowie reproduzierbarer lokaler Testumgebung
+  ergänzt.

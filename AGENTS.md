@@ -203,8 +203,11 @@ Der erste Betrieb erfolgt vollständig lokal:
   `npm run db:stop` sind die verbindlichen lokalen Datenbankbefehle;
   `db:stop` erhält das benannte Datenbank-Volume.
 - `npm run db:backup` erstellt einen vertraulich zu behandelnden Dump samt
-  Prüfsumme. `npm run db:restore -- <dump> lifeos_restore_<name>` stellt nur in
-  eine neue Datenbank wieder her. `npm run db:verify:recovery` prüft Migration,
+  Prüfsumme. `npm run db:restore -- <dump> lifeos_restore_<name>` verlangt
+  diese Prüfsumme und stellt nur in eine neue Datenbank wieder her.
+  `npm run documents:backup` und `npm run documents:restore` sichern das lokale
+  Dokumentverzeichnis separat, prüfsummengeschützt und ausschließlich in neue
+  Ziele. `npm run db:verify:recovery` prüft Migration,
   wiederholten Seed, Backup und Restore ausschließlich in isolierten
   synthetischen Datenbanken; die Quelle wird nie ungeprüft überschrieben.
 - Dokumente liegen in einem nicht versionierten lokalen Datenverzeichnis
@@ -613,6 +616,10 @@ gemeldet.
   reproduzierter zukünftiger SQLite-Fixture-Sitzung festgehalten; Unit-Test,
   realer SQLite-Bootstrap und vollständige Roadmap-0.5-Demo bestätigen den
   providerunabhängigen Ablauf.
+- **2026-09-04:** Verpflichtende PostgreSQL-Restore-Prüfsumme, eigenständiges
+  prüfsummengeschütztes Dokumentenbackup und vollständig validierte
+  SQLite-Backup-Manifeste nach Manipulations-, Paritäts-, Neustart- und
+  Recovery-Tests festgehalten.
 - **2026-09-04:** Exakte Ursprungsprüfung für schreibende Browseranfragen,
   speicherbegrenzte Drosselung falscher Anmeldungen sowie zentrale
   Sicherheitsheader nach Middleware-, Authentifizierungs- und vollständiger

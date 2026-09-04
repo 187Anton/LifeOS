@@ -7,6 +7,7 @@ import {
   mkdtemp,
   readFile,
   rm,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import os from "node:os";
@@ -670,6 +671,63 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
         ),
       }),
     /Backup-Datei ist ungültig|Prüfsumme stimmt nicht/,
+  );
+  const missingChecksumBackup = path.join(directory, "backup-missing-checksum");
+  await cp(backupDirectory, missingChecksumBackup, { recursive: true });
+  await unlink(path.join(missingChecksumBackup, "manifest.sha256"));
+  await assert.rejects(
+    () =>
+      restoreSqliteBackup({
+        backupDirectory: missingChecksumBackup,
+        targetDatabaseUrl: `file:${path.join(directory, "rejected-checksum.sqlite")}`,
+        targetDocumentsDirectory: path.join(
+          directory,
+          "documents-checksum-rejected",
+        ),
+      }),
+    /Manifest oder Prüfsumme fehlt/,
+  );
+  const missingDocumentBackup = path.join(directory, "backup-missing-document");
+  await cp(backupDirectory, missingDocumentBackup, { recursive: true });
+  await unlink(path.join(missingDocumentBackup, "documents", "notiz.txt"));
+  await assert.rejects(
+    () =>
+      restoreSqliteBackup({
+        backupDirectory: missingDocumentBackup,
+        targetDatabaseUrl: `file:${path.join(directory, "rejected-document.sqlite")}`,
+        targetDocumentsDirectory: path.join(
+          directory,
+          "documents-file-rejected",
+        ),
+      }),
+    /Backup-Datei fehlt/,
+  );
+  const traversalBackup = path.join(directory, "backup-traversal");
+  await cp(backupDirectory, traversalBackup, { recursive: true });
+  const traversalManifestPath = path.join(traversalBackup, "manifest.json");
+  const traversalManifest = JSON.parse(
+    await readFile(traversalManifestPath, "utf8"),
+  ) as { documents: Array<{ path: string }> };
+  traversalManifest.documents[0]!.path = "documents/../fremd";
+  const traversalManifestBytes = Buffer.from(
+    `${JSON.stringify(traversalManifest, null, 2)}\n`,
+  );
+  await writeFile(traversalManifestPath, traversalManifestBytes);
+  await writeFile(
+    path.join(traversalBackup, "manifest.sha256"),
+    `${createHash("sha256").update(traversalManifestBytes).digest("hex")}\n`,
+  );
+  await assert.rejects(
+    () =>
+      restoreSqliteBackup({
+        backupDirectory: traversalBackup,
+        targetDatabaseUrl: `file:${path.join(directory, "rejected-traversal.sqlite")}`,
+        targetDocumentsDirectory: path.join(
+          directory,
+          "documents-traversal-rejected",
+        ),
+      }),
+    /unsicheren Dokumentpfad/,
   );
   await assert.rejects(
     () =>
