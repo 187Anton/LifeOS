@@ -198,6 +198,11 @@ Der erste Betrieb erfolgt vollständig lokal:
 - Lokale DMG-Nachweise verwenden eine konsistent ad-hoc signierte App.
   Öffentliche Release-Artefakte benötigen zusätzlich Developer-ID,
   Apple-Notarisierung und einen Test auf einem sauberen unterstützten Mac.
+- Der lokale DMG-Nachweis startet die aus dem Artefakt nach `/private/tmp`
+  kopierte native App, prüft private SQLite-/Logdateien und beendet sie über
+  den regulären macOS-Quit. Der Sidecar darf danach nicht weiterlaufen;
+  benutzerspezifische tief verschachtelte Temp-Pfade sind wegen eines
+  reproduzierten Tauri-`unknown path`-Fehlers kein Installationsersatz.
 - Die Stamm-`package.json` ist die kanonische Versionsquelle für npm, Tauri und
   Cargo. `npm run release:verify` prüft den Gleichstand; jedes lokale DMG erhält
   eine portable SHA-256-Datei. Ein erfolgreicher lokaler oder CI-Build ist ohne
@@ -632,3 +637,7 @@ gemeldet.
   portable DMG-Prüfsumme und die Trennung zwischen lokalem/CI-Nachweis und
   öffentlicher Apple-Freigabe nach ARM64-Build, DMG-, Sidecar-, Rust- und
   Browserprüfung festgehalten.
+- **2026-09-05:** Tatsächlichen nativen App-Start aus `/private/tmp`, private
+  SQLite-/Logrechte und reguläres macOS-Beenden einschließlich beendetem
+  Sidecar nach reproduziertem Tauri-Temp-Pfadfehler und erfolgreicher
+  DMG-Abschlussprüfung festgehalten.

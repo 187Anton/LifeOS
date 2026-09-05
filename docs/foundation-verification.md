@@ -251,6 +251,25 @@ SQLite-Bootstrap mit einer 2030-Sitzung belegen diesen Recovery-Randfall. Die
 vollständige Matrix und offene Gates dokumentiert
 [`roadmap-05-local-demo.md`](roadmap-05-local-demo.md).
 
+## Roadmap-0.6-Abschlusslauf
+
+Der reproduzierbare Abschlusslauf verbindet alle Standardprüfungen mit einem
+echten PostgreSQL-Neustart, vollständiger PostgreSQL-/SQLite-Parität,
+Recovery, Browser/PWA, Tauri und einem installierten ARM64-DMG. Der Sidecar
+führt die bisherigen Fachbereiche mit synthetischen Daten aus; die native App
+wird tatsächlich gestartet und regulär beendet. Ein separater Zwei-Versionen-
+Test bestätigt 0.1.0 → 0.6.0 → 0.1.0 sowie Backup und Restore in neue Ziele
+mit erhaltenen Kalender-, Aufgaben- und Dokumentidentitäten.
+
+Der Ablauf lautet:
+
+```bash
+npm run demo:stabilization -- "/absoluter/pfad/Anton Life OS_0.1.0_aarch64.dmg"
+```
+
+Ergebnisse, Prüfsumme und ausdrücklich offene öffentliche Release-Gates stehen
+im [`lokalen Roadmap-0.6-Nachweis`](roadmap-06-local-demo.md).
+
 ## Bekannte Grenzen und Folgearbeiten
 
 - LifeOS unterstützt im Fundament genau ein lokales Profil und keine
@@ -274,5 +293,7 @@ vollständige Matrix und offene Gates dokumentiert
 - Der lokale Secret-Scan ist eine nachvollziehbare Musterprüfung, aber kein
   mathematischer Beweis. GitHubs Secret Scanning und Push Protection ergänzen
   ihn für bekannte Provider-Muster und die Repository-Historie.
-- PostgreSQL-Backups enthalten keine späteren Dokumentdateien aus `data/`;
-  deren konsistenter gemeinsamer Backup-Ablauf folgt mit dem Dokumentenmodul.
+- PostgreSQL-Backups enthalten keine Dokumentdateien aus `STORAGE_PATH`.
+  Datenbank- und prüfsummengeschütztes Dokumentenbackup sind deshalb zwei
+  zeitlich koordiniert aufzubewahrende Artefakte; der aktuelle Ablauf steht im
+  [`Recovery-Nachweis 0.6.2`](reliability-recovery-0.6.md).

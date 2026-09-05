@@ -312,6 +312,11 @@ mit `npm run db:verify:recovery` durch eine Wiederherstellung mit synthetischen
 Daten geprüft. Der Nachweis überschreibt niemals die konfigurierte Datenbank.
 Der sichere reale Wiederherstellungsablauf steht in
 [`docs/foundation-verification.md`](../../docs/foundation-verification.md).
+Der aktuelle Zwei-Versionen-Nachweis verwendet dieselbe SQLite- und
+Dokumentablage für 0.1.0, 0.6.0 und den Rollback auf 0.1.0. Anschließend wird
+das 0.6.0-Backup in ausschließlich neue Ziele restauriert und erneut geprüft;
+Details stehen im
+[`lokalen Roadmap-0.6-Nachweis`](../../docs/roadmap-06-local-demo.md).
 
 Interne Umbenennungen müssen Daten in einer neuen Migration übernehmen. Stabile
 Benutzer-/Kalender-IDs, Ereignis-UIDs, ETags und CalDAV-Synchronisationswerte

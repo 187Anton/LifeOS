@@ -1,6 +1,6 @@
 # Lokaler Release-Ablauf 0.6
 
-Stand: 4. September 2026
+Stand: 5. September 2026
 
 Dieses Dokument beschreibt den reproduzierbaren lokalen Buildweg für LifeOS
 0.6.0. „Reproduzierbar“ bedeutet hier: versionierte Quellen, gesperrte npm-
@@ -57,8 +57,9 @@ apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.6.0_aarch64.dmg
 apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.6.0_aarch64.dmg.sha256
 ```
 
-Der finale lokale 0.6.3-Nachweis erzeugte die Prüfsumme
-`4beed97550577736fc236d66bebd05d005e3954547f08e22b024213aba5fae41`.
+Der finale lokale 0.6.4-Abschlusslauf erzeugte bei `52.404.856` Bytes die
+Prüfsumme
+`9db2528c11bb6b0f86c5f2583cf427374e681066441bdfdd9fd4e76a4ea8ab84`.
 Ein späterer Build erhält wegen DMG-Metadaten voraussichtlich eine andere
 Prüfsumme; maßgeblich ist immer die gemeinsam erzeugte `.sha256`-Datei.
 
@@ -68,14 +69,21 @@ Prüfsumme; maßgeblich ist immer die gemeinsam erzeugte `.sha256`-Datei.
 - die interne DMG-Prüfsumme;
 - schreibgeschütztes Mounten und den Programme-Link;
 - eine isoliert aus dem DMG kopierte App;
+- den nativen App-Start aus einer isolierten `/private/tmp`-Installationskopie
+  sowie den regulären macOS-Quit mit beendetem Sidecar;
 - die vollständige lokale Code-Signaturstruktur;
 - gebündeltes Node 22, Express, SQLite und Migrationen ohne Homebrew-/Node-Pfad;
 - dynamische Loopback-Ports, Ersteinrichtung, Anmeldung und Neustart;
+- eine vollständige synthetische Produktdemo von Projekt, Aufgabe, Kalender,
+  CalDAV, Dokument, Suche, KI-Grenze, Finanzen, Fitness und ICS;
 - unveränderte Benutzer-, Kalender-, UID-, ETag- und Sync-Identitäten.
 
 Das Löschen oder Austauschen der `.app` berührt die persönlichen Daten unter
 `~/Library/Application Support/de.anton.lifeos/` nicht. Daten werden nur nach
 einer bewussten, separat geprüften Backup-/Restore-Entscheidung umgestellt.
+Der tatsächliche Zwei-Versionen-Nachweis 0.1.0 → 0.6.0 → 0.1.0 sowie Restore
+in neue Ziele ist im
+[`lokalen Abschlussnachweis`](roadmap-06-local-demo.md) protokolliert.
 
 ## Browser und PWA
 
