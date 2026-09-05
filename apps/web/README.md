@@ -75,6 +75,10 @@ Bereitstellung muss ein lokaler Webserver `/api` zur LifeOS-API weiterleiten.
 
 `vite-plugin-pwa` erzeugt Manifest und Service Worker beim Produktions-Build.
 Die statische App-Shell bleibt nach dem ersten Laden offline aufrufbar. API-
+Ein Installationsbutton erscheint ausschließlich, wenn ein unterstützter
+Browser das `beforeinstallprompt`-Ereignis bereitstellt. Die Entscheidung und
+der Installationsstatus werden nicht im Browser-Storage persistiert.
+API-
 Antworten und persönliche Kalenderdaten werden bewusst nicht im Service-Worker,
 `localStorage` oder `sessionStorage` gespeichert. Ohne erreichbare lokale API
 kann die Shell deshalb keine Aufgaben oder Kalenderdaten laden. Aufgabenfilter,

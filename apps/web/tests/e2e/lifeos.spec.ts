@@ -2279,3 +2279,41 @@ test("liefert Manifest, Service Worker und das App-Shell offline aus", async ({
     page.getByRole("heading", { name: /Guten Tag, Anton/ }),
   ).toBeVisible();
 });
+
+test("bietet die PWA-Installation nur nach Browserfreigabe an", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: /Guten Tag, Anton/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "App installieren" }),
+  ).toHaveCount(0);
+
+  await page.evaluate(() => {
+    const state = window as typeof window & { pwaPromptCalled?: boolean };
+    const event = new Event("beforeinstallprompt", { cancelable: true });
+    Object.assign(event, {
+      prompt: () => {
+        state.pwaPromptCalled = true;
+        return Promise.resolve();
+      },
+      userChoice: Promise.resolve({ outcome: "accepted" }),
+    });
+    window.dispatchEvent(event);
+  });
+  await page.getByRole("button", { name: "App installieren" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as typeof window & { pwaPromptCalled?: boolean })
+            .pwaPromptCalled,
+      ),
+    )
+    .toBe(true);
+  await expect(
+    page.getByRole("button", { name: "App installieren" }),
+  ).toHaveCount(0);
+});

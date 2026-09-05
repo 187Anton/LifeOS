@@ -139,6 +139,31 @@ test("weist ungültige Ports und Origins verständlich zurück", () => {
       return true;
     },
   );
+
+  for (const origin of [
+    "ftp://127.0.0.1",
+    "http://127.0.0.1:5173/pfad",
+    "http://name:passwort@127.0.0.1:5173",
+    "http://127.0.0.1:5173?wert=1",
+  ]) {
+    assert.throws(
+      () => parseConfig({ ...validEnvironment, WEB_ORIGIN: origin }),
+      (error: unknown) =>
+        error instanceof ConfigurationError &&
+        error.fields.length === 1 &&
+        error.fields[0] === "WEB_ORIGIN",
+    );
+  }
+});
+
+test("normalisiert den konfigurierten Browser-Ursprung", () => {
+  assert.equal(
+    parseConfig({
+      ...validEnvironment,
+      WEB_ORIGIN: "http://127.0.0.1:5173/",
+    }).webOrigin,
+    "http://127.0.0.1:5173",
+  );
 });
 
 test("akzeptiert nur einen 32-Byte-Schlüssel für externe Zugänge", () => {

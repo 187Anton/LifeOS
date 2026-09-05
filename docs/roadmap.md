@@ -599,3 +599,97 @@ bleiben ausdrücklich außerhalb dieses Stands.
 Abschlusskriterium: Die zusätzlichen Bereiche bleiben optional, lokal und
 deaktivierbar; der Kalender- und Aufgaben-Kern bleibt unabhängig nutzbar.
 Roadmap 0.5 ist damit fachlich und technisch abgeschlossen.
+
+## 0.6 Stabilisierung und Release-Vorbereitung
+
+Ziel: Den Funktionsstand 0.1 bis 0.5 ohne neue große Fachmodule absichern,
+wiederherstellbar halten und für ein reproduzierbares lokales Release
+vorbereiten.
+
+### 0.6.1 Sicherheits- und Datenschutzprüfung
+
+- **Umgesetzt (4. September 2026):** Authentifizierung, Sitzungen,
+  Besitzgrenzen, Dateiablage, Import/Export, CalDAV, externe Integrationen,
+  Logging, Browser-Speicher und Prompt-Injection-Abgrenzung wurden technisch
+  geprüft.
+- Konkrete Befunde wurden behoben: fünf Fehlversuche je Client sperren die
+  Anmeldung für 15 Minuten; schreibende Browseranfragen benötigen bei
+  vorhandenem `Origin` exakt den validierten HTTP-/HTTPS-Ursprung;
+  grundlegende Sicherheitsheader und `no-store` für API/CalDAV gelten zentral.
+- Secret-Scan, 25 gezielte Sicherheitsprüfungen und die vollständige
+  82-Test-API-Matrix bestanden. Der Live-Abgleich der npm-Advisory-Datenbank
+  blieb wegen Registry-Timeout offen; der Offline-Cache meldete keine bekannte
+  produktive Lücke.
+- Befunde, Nachweise und Grenzen stehen im
+  [`Sicherheitsreview 0.6.1`](security-review-0.6.md).
+
+Abschlusskriterium: Konkrete Sicherheitsbefunde sind behoben oder ausdrücklich
+offen dokumentiert; bestehende Funktionen und `/api/v1` bleiben erhalten.
+
+### 0.6.2 Stabilität, Kompatibilität und Recovery
+
+- **Umgesetzt (4. September 2026):** 19 PostgreSQL- und 10 SQLite-Migrationen,
+  wiederholter Seed, PostgreSQL-/SQLite-Parität, Neustarts, vollständiger
+  Import, Backup, Restore sowie stabile API-/CalDAV-Identitäten wurden mit
+  synthetischen Daten geprüft.
+- PostgreSQL-Restore verlangt nun eine gültige SHA-256-Datei und weist fehlende
+  oder manipulierte Prüfsummen, strukturell ungültige Archive und bestehende
+  Ziele ab. Ein eigener prüfsummengeschützter Dokumenten-Backup-/Restore-Pfad
+  schließt die Recovery-Lücke des Browserbetriebs.
+- SQLite validiert sein Manifest vor dem Restore vollständig und weist
+  fehlende Dateien, Traversal sowie vorhandene Ziele ab. 82 API-Fälle bestanden
+  auf beiden Providern; Benutzer-, Kalender-, UID-, ETag- und Sync-Werte
+  blieben beim Sidecar-Neustart erhalten.
+- Details, Befunde, ausgeführte Prüfungen und die klare Grenze zum finalen
+  Zwei-Versionen-Lauf stehen im
+  [`Recovery-Nachweis 0.6.2`](reliability-recovery-0.6.md).
+
+Abschlusskriterium: Migration, Seed, Parität und Recovery sind aktuell
+nachgewiesen. Der finale 0.6-Update-/Rollback-Lauf ist mit 0.6.4 abgeschlossen.
+
+### 0.6.3 Reproduzierbares Release und CI
+
+- **Umgesetzt (4. September 2026):** Die Stamm-`package.json` führt die Version
+  `0.6.0`; ein automatischer Abgleich prüft npm-Workspaces, Lockfile, Tauri und
+  Cargo. DMG-Pfade werden daraus abgeleitet und jedes Artefakt erhält eine
+  portable SHA-256-Datei.
+- `release:build:local` und `release:verify:local` bauen und prüfen Tauri,
+  gebündeltes Node 22, Express-Sidecar, SQLite, dynamischen Loopback-Port,
+  Ersteinrichtung, Neustart und Identitätserhalt ohne Docker oder globales
+  Node zur Laufzeit.
+- Die CI prüft zusätzlich die vollständige SQLite-API-/Recovery-Parität. Ein
+  getrenntes macOS-Job führt Rust-Lifecycle-Tests aus und baut sowie prüft das
+  lokale DMG.
+- Die Weboberfläche zeigt die PWA-Installationsaktion nur nach Freigabe durch
+  einen unterstützten Browser. 44 Unit- und 32 Desktop-/Mobil-Browsertests
+  bestanden.
+- Buildweg, Bedeutung der Reproduzierbarkeit und offene öffentliche Gates
+  stehen in der [`Release-Dokumentation 0.6`](release-0.6.md).
+
+Abschlusskriterium: Ein versioniertes, prüfsummengeschütztes lokales Artefakt
+ist reproduzierbar baubar und prüfbar; CI-Build und öffentliche Apple-Freigabe
+bleiben klar getrennt.
+
+### 0.6.4 Abschluss, Dokumentation und lokale Demo
+
+- **Umgesetzt (5. September 2026):** Ein einzelnes reproduzierbares Gate prüft
+  Format, Repository, Secrets, Typen, Lint, Build, PostgreSQL-Neustart,
+  PostgreSQL-/SQLite-Parität und Recovery, Browser/PWA, Rust, Tauri sowie das
+  lokale DMG.
+- Der gebündelte Sidecar führte mit synthetischen Daten Ersteinrichtung,
+  Anmeldung, CalDAV, Projekt/Meilenstein, Aufgabe, Kalender, Dokument/Notiz,
+  Suche, deaktivierte KI und Integrationen, Finanzen, Fitness sowie ICS-Import
+  und -Export aus. Nach dem Neustart blieben Datensätze und Identitäten erhalten.
+- Die aus dem DMG kopierte native App startete mit privaten SQLite-/Logdateien,
+  wurde regulär über macOS beendet und hinterließ keinen Sidecar-Prozess.
+- Ein echter Zwei-Versionen-Test bestätigte Update 0.1.0 → 0.6.0, Rollback auf
+  0.1.0, SHA-256-Backup von SQLite und Dokumenten sowie Restore ausschließlich
+  in neue Ziele ohne Verlust von Benutzer-, Kalender-, UID-, ETag-, Sync-,
+  Aufgaben- oder Dokumentidentitäten.
+- Artefakt, Prüfmatrix, Befunde und alle offenen externen Freigabepunkte stehen
+  im [`lokalen Abschlussnachweis Roadmap 0.6`](roadmap-06-local-demo.md).
+
+Abschlusskriterium: Roadmap 0.6 ist für den lokalen ARM64-Betrieb abgeschlossen.
+Developer-ID, Apple-Notarisierung, Gatekeeper-Downloadpfad, zweiter sauberer
+Mac, weitere Architekturen und der physische Apple-Kalender-Test bleiben offen;
+das Artefakt ist deshalb nicht als öffentliches Release freigegeben.

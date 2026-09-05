@@ -34,6 +34,7 @@ const databaseBackupName = "lifeos.sqlite";
 const documentsBackupDirectory = "documents";
 const manifestName = "manifest.json";
 const manifestChecksumName = "manifest.sha256";
+const checksumPattern = /^[0-9a-f]{64}$/;
 
 const sha256 = async (filePath: string) =>
   createHash("sha256")
@@ -72,13 +73,28 @@ const safeRelativePath = (relativePath: string) => {
   const normalized = relativePath.split(path.sep).join("/");
   if (
     !normalized ||
+    normalized.includes("\\") ||
+    normalized.includes("\0") ||
     normalized.startsWith("/") ||
-    normalized.split("/").some((segment) => segment === ".." || segment === "")
+    normalized
+      .split("/")
+      .some((segment) => segment === ".." || segment === "." || segment === "")
   ) {
     throw new Error("Das Backup enthält einen unsicheren Dokumentpfad.");
   }
   return normalized;
 };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isBackupFile = (value: unknown): value is BackupFile =>
+  isRecord(value) &&
+  typeof value.path === "string" &&
+  Number.isSafeInteger(value.size) &&
+  (value.size as number) >= 0 &&
+  typeof value.sha256 === "string" &&
+  checksumPattern.test(value.sha256);
 
 const listDocumentFiles = async (
   root: string,
@@ -154,7 +170,20 @@ const checkpointDatabase = (databasePath: string) => {
 const verifyFile = async (root: string, expected: BackupFile) => {
   const relativePath = safeRelativePath(expected.path);
   const filePath = path.join(root, ...relativePath.split("/"));
-  const info = await lstat(filePath);
+  let info;
+  try {
+    info = await lstat(filePath);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      throw new Error(`Backup-Datei fehlt: ${relativePath}`);
+    }
+    throw error;
+  }
   if (!info.isFile() || info.isSymbolicLink() || info.size !== expected.size) {
     throw new Error(`Backup-Datei ist ungültig: ${relativePath}`);
   }
@@ -172,24 +201,45 @@ const verifyFile = async (root: string, expected: BackupFile) => {
 const readAndVerifyManifest = async (backupDirectory: string) => {
   const manifestPath = path.join(backupDirectory, manifestName);
   const checksumPath = path.join(backupDirectory, manifestChecksumName);
-  const manifestBytes = await readFile(manifestPath);
-  const expectedChecksum = (await readFile(checksumPath, "utf8")).trim();
+  let manifestBytes: Buffer;
+  let expectedChecksum: string;
+  try {
+    manifestBytes = await readFile(manifestPath);
+    expectedChecksum = (await readFile(checksumPath, "utf8")).trim();
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      throw new Error("SQLite-Backup-Manifest oder Prüfsumme fehlt.");
+    }
+    throw error;
+  }
   const actualChecksum = createHash("sha256")
     .update(manifestBytes)
     .digest("hex");
   if (
-    expectedChecksum.length !== actualChecksum.length ||
+    !checksumPattern.test(expectedChecksum) ||
     !timingSafeEqual(Buffer.from(expectedChecksum), Buffer.from(actualChecksum))
   ) {
     throw new Error("Die Manifest-Prüfsumme stimmt nicht.");
   }
-  const manifest = JSON.parse(
-    manifestBytes.toString("utf8"),
-  ) as SqliteBackupManifest;
+  let manifest: unknown;
+  try {
+    manifest = JSON.parse(manifestBytes.toString("utf8"));
+  } catch {
+    throw new Error("Das SQLite-Backup-Manifest ist ungültig.");
+  }
   if (
+    !isRecord(manifest) ||
     manifest.formatVersion !== 1 ||
+    typeof manifest.createdAt !== "string" ||
+    !isBackupFile(manifest.database) ||
     manifest.database.path !== databaseBackupName ||
-    !Array.isArray(manifest.documents)
+    !Array.isArray(manifest.documents) ||
+    !manifest.documents.every(isBackupFile)
   ) {
     throw new Error("Das SQLite-Backup-Manifest ist nicht kompatibel.");
   }
@@ -208,7 +258,7 @@ const readAndVerifyManifest = async (backupDirectory: string) => {
     }
     documentPaths.add(normalized);
   }
-  return manifest;
+  return manifest as unknown as SqliteBackupManifest;
 };
 
 export const createSqliteBackup = async (options: {

@@ -2,7 +2,9 @@ import type { SessionResponse, UpdateSettingsRequest } from "@lifeos/contracts";
 import { Router, type RequestHandler } from "express";
 import { z } from "zod";
 
+import { ApiError } from "../../errors.js";
 import { validateRequest } from "../../middleware/validate-request.js";
+import { LoginAttemptLimiter } from "./login-attempt-limiter.js";
 import type { AuthenticationService, ProfileService } from "./service.js";
 
 const SESSION_COOKIE = "lifeos_session";
@@ -95,10 +97,12 @@ export const createProfileRouter = ({
   authentication,
   profile,
   secureCookies,
+  loginAttempts = new LoginAttemptLimiter(),
 }: {
   authentication: AuthenticationService;
   profile: ProfileService;
   secureCookies: boolean;
+  loginAttempts?: LoginAttemptLimiter;
 }): Router => {
   const router = Router();
   const requireAuthentication = createRequireAuthentication(authentication);
@@ -106,9 +110,22 @@ export const createProfileRouter = ({
   router.post(
     "/session",
     validateRequest({ body: loginSchema }),
-    async (_request, response) => {
+    async (request, response) => {
       const body = response.locals.validated.body as { password: string };
-      const session = await authentication.login(body.password);
+      const clientKey = request.socket.remoteAddress ?? "unknown-local-client";
+      const retryAfter = loginAttempts.retryAfterSeconds(clientKey);
+      if (retryAfter !== null) response.setHeader("Retry-After", retryAfter);
+      loginAttempts.requireAllowed(clientKey);
+      let session: Awaited<ReturnType<AuthenticationService["login"]>>;
+      try {
+        session = await authentication.login(body.password);
+      } catch (error) {
+        if (error instanceof ApiError && error.code === "INVALID_CREDENTIALS") {
+          loginAttempts.recordFailure(clientKey);
+        }
+        throw error;
+      }
+      loginAttempts.reset(clientKey);
       response.setHeader(
         "Set-Cookie",
         sessionCookie(session.token, session.expiresAt, secureCookies),

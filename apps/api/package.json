@@ -1,6 +1,6 @@
 {
   "name": "@lifeos/api",
-  "version": "0.1.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,12 +13,12 @@
     "build": "tsup",
     "build:desktop": "tsup --config tsup.desktop.config.ts",
     "lint": "eslint src tests",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "node --env-file-if-exists=../../.env --import tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@lifeos/contracts": "^0.1.0",
-    "@lifeos/database": "^0.1.0",
+    "@lifeos/contracts": "^0.6.0",
+    "@lifeos/database": "^0.6.0",
     "@prisma/adapter-pg": "7.8.0",
     "@prisma/client": "7.8.0",
     "dotenv": "^17.4.2",

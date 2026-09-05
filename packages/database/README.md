@@ -259,6 +259,32 @@ Der isolierte Gesamtnachweis lautet:
 npm run db:sqlite:verify:recovery
 ```
 
+## Eigenständiges Dokumentenbackup für PostgreSQL
+
+Ein PostgreSQL-Dump enthält keine Dateien aus `STORAGE_PATH`. Für den
+Browserbetrieb werden Datenbank und Dokumente deshalb zeitlich koordiniert und
+gemeinsam aufbewahrt. Das Dokumentenbackup schreibt ausschließlich in ein
+neues absolutes Ziel:
+
+```bash
+export STORAGE_PATH="/absoluter/pfad/documents"
+npm run documents:backup -- /absoluter/neuer/pfad/documents-backup
+```
+
+`manifest.json`, `manifest.sha256` und die Prüfsumme jeder Datei schützen den
+Inhalt. Symbolische Links, Traversal-Pfade, fehlende Dateien, manipulierte
+Prüfsummen und bestehende Ziele werden abgewiesen. Restore benötigt ebenfalls
+ein neues, noch nicht vorhandenes `STORAGE_PATH`:
+
+```bash
+export STORAGE_PATH="/absoluter/neuer/pfad/restored-documents"
+npm run documents:restore -- /absoluter/pfad/documents-backup
+```
+
+Die Sicherung ist unverschlüsselt und vertraulich. Für einen konsistenten
+Zeitpunkt soll die API während Datenbank- und Dokumentenbackup keine
+Schreibaktionen annehmen.
+
 ## Neue Schemaänderung entwickeln
 
 Eine neue Migration wird zunächst ohne Anwendung erzeugt:
@@ -286,6 +312,11 @@ mit `npm run db:verify:recovery` durch eine Wiederherstellung mit synthetischen
 Daten geprüft. Der Nachweis überschreibt niemals die konfigurierte Datenbank.
 Der sichere reale Wiederherstellungsablauf steht in
 [`docs/foundation-verification.md`](../../docs/foundation-verification.md).
+Der aktuelle Zwei-Versionen-Nachweis verwendet dieselbe SQLite- und
+Dokumentablage für 0.1.0, 0.6.0 und den Rollback auf 0.1.0. Anschließend wird
+das 0.6.0-Backup in ausschließlich neue Ziele restauriert und erneut geprüft;
+Details stehen im
+[`lokalen Roadmap-0.6-Nachweis`](../../docs/roadmap-06-local-demo.md).
 
 Interne Umbenennungen müssen Daten in einer neuen Migration übernehmen. Stabile
 Benutzer-/Kalender-IDs, Ereignis-UIDs, ETags und CalDAV-Synchronisationswerte

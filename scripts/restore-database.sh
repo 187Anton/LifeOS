@@ -15,7 +15,7 @@ target_database="$2"
 if [[ "$backup_file" != /* ]]; then
   backup_file="$REPOSITORY_ROOT/$backup_file"
 fi
-if [[ ! -s "$backup_file" ]]; then
+if [[ ! -f "$backup_file" ]] || [[ -L "$backup_file" ]] || [[ ! -s "$backup_file" ]]; then
   printf 'Fehler: Die Backup-Datei fehlt oder ist leer.\n' >&2
   exit 1
 fi
@@ -29,22 +29,22 @@ cd "$REPOSITORY_ROOT"
 bash "$SCRIPT_DIR/check-database.sh"
 
 checksum_file="${backup_file}.sha256"
-if [[ -f "$checksum_file" ]]; then
-  if ! BACKUP_FILE="$backup_file" CHECKSUM_FILE="$checksum_file" \
-    node --input-type=module -e '
+if [[ ! -f "$checksum_file" ]] || [[ -L "$checksum_file" ]] || [[ ! -s "$checksum_file" ]]; then
+  printf 'Fehler: Die verpflichtende SHA-256-Datei fehlt oder ist leer.\n' >&2
+  exit 1
+fi
+if ! BACKUP_FILE="$backup_file" CHECKSUM_FILE="$checksum_file" \
+  node --input-type=module -e '
       import { createHash, timingSafeEqual } from "node:crypto";
       import { readFileSync } from "node:fs";
       const expected = readFileSync(process.env.CHECKSUM_FILE, "utf8").trim().split(/\s+/)[0];
       const actual = createHash("sha256").update(readFileSync(process.env.BACKUP_FILE)).digest("hex");
-      if (!expected || expected.length !== actual.length || !timingSafeEqual(Buffer.from(expected), Buffer.from(actual))) {
+      if (!/^[0-9a-f]{64}$/.test(expected) || !timingSafeEqual(Buffer.from(expected), Buffer.from(actual))) {
         process.exitCode = 1;
       }
     '; then
-    printf 'Fehler: Die SHA-256-Prüfsumme stimmt nicht mit dem Backup überein.\n' >&2
-    exit 1
-  fi
-else
-  printf 'Hinweis: Keine .sha256-Datei gefunden; die Archivstruktur wird dennoch geprüft.\n' >&2
+  printf 'Fehler: Die SHA-256-Prüfsumme stimmt nicht mit dem Backup überein.\n' >&2
+  exit 1
 fi
 
 docker compose exec -T db pg_restore --list <"$backup_file" >/dev/null
@@ -88,6 +88,9 @@ restored_database_url="$(
   BASE_DATABASE_URL="$base_database_url" TARGET_DATABASE_NAME="$target_database" \
     node --input-type=module -e '
       const url = new URL(process.env.BASE_DATABASE_URL);
+      if (!["postgres:", "postgresql:"].includes(url.protocol)) {
+        throw new Error("DATABASE_URL muss eine PostgreSQL-URL sein.");
+      }
       url.pathname = `/${process.env.TARGET_DATABASE_NAME}`;
       process.stdout.write(url.toString());
     '

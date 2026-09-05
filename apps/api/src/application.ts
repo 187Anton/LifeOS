@@ -5,6 +5,10 @@ import express, { type Express, type Router } from "express";
 import type { Logger } from "./logger.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { requestContext } from "./middleware/request-context.js";
+import {
+  requireTrustedBrowserOrigin,
+  securityHeaders,
+} from "./middleware/security.js";
 import type { ReadinessProbe } from "./readiness.js";
 import { createHealthRouter } from "./routes/health.js";
 
@@ -31,6 +35,8 @@ export const createApplication = ({
 
   application.disable("x-powered-by");
   application.use(requestContext(logger));
+  application.use(securityHeaders);
+  application.use("/api/v1", requireTrustedBrowserOrigin(webOrigin));
   application.use((request, response, next) => {
     if (request.headers.origin === webOrigin) {
       response.setHeader("Access-Control-Allow-Origin", webOrigin);

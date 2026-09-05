@@ -41,18 +41,19 @@ Native `.app` bauen:
 npm run desktop:build:app
 ```
 
-Komprimiertes DMG bauen und die daraus kopierte App prüfen:
+Das vollständige lokale Release bauen und die daraus kopierte App prüfen:
 
 ```bash
-npm run desktop:build:dmg
-npm run desktop:verify:dmg
+npm run release:build:local
+npm run release:verify:local
 ```
 
-Das lokale, nicht versionierte Ergebnis liegt danach unter:
+Das lokale, versionierte ARM64-Ergebnis liegt danach unter:
 
 ```text
 apps/desktop/src-tauri/target/release/bundle/macos/Anton Life OS.app
-apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.1.0_aarch64.dmg
+apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.6.0_aarch64.dmg
+apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.6.0_aarch64.dmg.sha256
 ```
 
 Der erste Download wird unter `apps/desktop/.cache/` wiederverwendet. Alle
@@ -76,24 +77,29 @@ Anfragekörper, Cookies oder Zugangsdaten.
 
 ## Nachgewiesene Grenzen
 
-- M5 ist auf macOS ARM64 gebaut und gestartet worden. Intel- oder
+- M5 und das lokale Release 0.6.0 sind auf macOS ARM64 gebaut und gestartet
+  worden. Intel- oder
   Universal-Builds sind noch nicht nachgewiesen.
 - M6 hat das DMG schreibgeschützt geprüft, die App daraus in ein isoliertes
   Programme-Verzeichnis kopiert und den gebündelten Sidecar dort ohne globale
   Laufzeit gestartet. Die Bundle-Signatur ist lokal ad-hoc konsistent, aber
   noch nicht mit einer Developer-ID signiert oder von Apple notarisiert. Das
-  finale lokale DMG hat die SHA-256-Prüfsumme
-  `9648de7f17294e3619b66772c87c26703e336460c6c55a54237e50cc8207c913`.
+  lokale DMG 0.6.0 wird bei jedem Build mit einer portablen `.sha256`-Datei
+  ausgeliefert und vor der Bundle-Prüfung dagegen verifiziert.
 - Der dynamische Loopback-Link kann parallel in einem Browser geöffnet werden.
   Die Desktop-App bindet absichtlich noch nicht ins LAN; ein iPhone erreicht
   diesen M5-Prototyp deshalb nicht. Der physische Apple-Kalender-Test bleibt
   offen.
 - Der erste App-Start bietet eine terminalfreie Ersteinrichtung für Profil,
   App-Passwort und getrennten CalDAV-Zugang. Ein isolierter Test bestätigte
-  Erststart, Neustart, Update von 0.1.0 auf 0.1.1 und Rollback auf 0.1.0 ohne
-  Verlust stabiler IDs oder Synchronisationswerte.
-- Backup und Restore sind technisch auch im Updateablauf nachgewiesen, aber
-  noch nicht in die Desktop-Oberfläche eingebunden.
+  Erststart, Neustart, Update von 0.1.0 auf 0.6.0 und Rollback auf 0.1.0 ohne
+  Verlust stabiler IDs, Synchronisationswerte, Aufgaben oder Dokumente. Das
+  unter 0.6.0 erstellte Backup wurde zusätzlich ausschließlich in neue Ziele
+  restauriert und erneut mit 0.6.0 geprüft.
+- Die DMG-Prüfung startet die tatsächlich kopierte native App, kontrolliert
+  Dateirechte und beendet sie regulär über macOS; der Sidecar darf danach
+  nicht weiterlaufen. Backup und Restore sind noch nicht in die
+  Desktop-Oberfläche eingebunden.
 - Die externe CalDAV-Integration bleibt in der Mac-App ohne einen nativen
   Schlüsselbundpfad vollständig nicht verfügbar. Der Sidecar-Test bestätigt
   den sicheren Status `available: false`; eine spätere Aktivierung darf keinen
@@ -108,3 +114,15 @@ Anfragekörper, Cookies oder Zugangsdaten.
 - Ein zweiter sauberer unterstützter Mac, Developer-ID, Notarisierung und ein
   Intel-/Universal-Build bleiben externe Release-Gates; M6 ist deshalb noch
   nicht vollständig freigegeben.
+
+Der vollständige Zwei-Versionen-Test kann mit zwei regulären DMGs wiederholt
+werden:
+
+```bash
+npm run desktop:verify:update-rollback -- \
+  "/absoluter/pfad/Anton Life OS_0.1.0_aarch64.dmg" \
+  "/absoluter/pfad/Anton Life OS_0.6.0_aarch64.dmg"
+```
+
+Prüfmatrix, Artefakt und offene Gates stehen im
+[`lokalen Roadmap-0.6-Nachweis`](../../docs/roadmap-06-local-demo.md).
