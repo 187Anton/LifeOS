@@ -89,14 +89,15 @@ npm run db:sqlite:restore -- /absoluter/pfad/backup
 
 ## Update und Rollback
 
-0.6.2 fügt keine Schemaänderung hinzu. Der aktuelle Sidecar wurde auf derselben
-SQLite-Datei zweimal gestartet; die zweite Anmeldung sowie Benutzer-ID,
-Kalender-ID, Ereignis-UID, ETag, Sync-Version und Sync-Token blieben erhalten.
-Der aktuelle DMG-Pfad wurde neu gebaut, installiert und ohne globales Node oder
-Docker geprüft. Der bereits dokumentierte isolierte M6-Versionswechsel
-0.1.0 → 0.1.1 → 0.1.0 bleibt der letzte echte Zwei-Versionen-Nachweis. Der
-finale 0.6-Artefakt-, Update- und Rollback-Lauf folgt nach Festlegung der
-Versionsquelle in 0.6.3 und wird in 0.6.4 protokolliert.
+0.6.2 fügte keine Schemaänderung hinzu. Der finale 0.6.4-Lauf startete zuerst
+das echte 0.1.0-DMG, legte Benutzer, Kalender, Ereignis, Aufgabe und Dokument
+an und verwendete anschließend dieselbe SQLite-/Dokumentablage mit 0.6.0 und
+erneut 0.1.0. Benutzer-ID, Kalender-ID, Ereignis-UID, ETag, Sync-Version,
+Sync-Token, Aufgabe und Dokumenthash blieben erhalten. Ein unter 0.6.0
+erstelltes prüfsummengeschütztes Backup wurde zusätzlich ausschließlich in
+eine neue SQLite-Datei und ein neues Dokumentverzeichnis restauriert und dort
+erneut mit 0.6.0 geprüft. Details stehen im
+[`lokalen Abschlussnachweis Roadmap 0.6`](roadmap-06-local-demo.md).
 
 ## Aktuell ausgeführte Befehle
 
@@ -118,8 +119,9 @@ Versionsquelle in 0.6.3 und wird in 0.6.4 protokolliert.
 
 ## Grenzen
 
-- Der aktuelle Zwei-Versionen-Update-/Rollback-Lauf ist bis 0.6.3/0.6.4 offen;
-  0.6.2 bestätigt die unveränderte Daten- und Migrationsgrenze beim Neustart.
+- Der lokale Zwei-Versionen-Update-/Rollback-Lauf ist abgeschlossen. Er ist
+  kein Ersatz für einen Update-Test des später öffentlich signierten und
+  notarisierten Download-Artefakts.
 - PostgreSQL- und Dokumentenbackup sind zwei gemeinsam aufzubewahrende,
   zeitlich koordinierte Artefakte. Während der Sicherung soll der schreibende
   Betrieb pausieren.

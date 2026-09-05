@@ -645,8 +645,7 @@ offen dokumentiert; bestehende Funktionen und `/api/v1` bleiben erhalten.
   [`Recovery-Nachweis 0.6.2`](reliability-recovery-0.6.md).
 
 Abschlusskriterium: Migration, Seed, Parität und Recovery sind aktuell
-nachgewiesen. Der finale 0.6-Update-/Rollback-Lauf folgt nach der
-Versionsfestlegung in 0.6.3/0.6.4.
+nachgewiesen. Der finale 0.6-Update-/Rollback-Lauf ist mit 0.6.4 abgeschlossen.
 
 ### 0.6.3 Reproduzierbares Release und CI
 
@@ -673,6 +672,24 @@ bleiben klar getrennt.
 
 ### 0.6.4 Abschluss, Dokumentation und lokale Demo
 
-Eine vollständige synthetische Browser-, PostgreSQL-, SQLite-, Recovery-,
-Desktop- und PWA-Demo schließt den Abschnitt ab. Nicht extern geprüfte
-Release-Gates bleiben ausdrücklich offen.
+- **Umgesetzt (5. September 2026):** Ein einzelnes reproduzierbares Gate prüft
+  Format, Repository, Secrets, Typen, Lint, Build, PostgreSQL-Neustart,
+  PostgreSQL-/SQLite-Parität und Recovery, Browser/PWA, Rust, Tauri sowie das
+  lokale DMG.
+- Der gebündelte Sidecar führte mit synthetischen Daten Ersteinrichtung,
+  Anmeldung, CalDAV, Projekt/Meilenstein, Aufgabe, Kalender, Dokument/Notiz,
+  Suche, deaktivierte KI und Integrationen, Finanzen, Fitness sowie ICS-Import
+  und -Export aus. Nach dem Neustart blieben Datensätze und Identitäten erhalten.
+- Die aus dem DMG kopierte native App startete mit privaten SQLite-/Logdateien,
+  wurde regulär über macOS beendet und hinterließ keinen Sidecar-Prozess.
+- Ein echter Zwei-Versionen-Test bestätigte Update 0.1.0 → 0.6.0, Rollback auf
+  0.1.0, SHA-256-Backup von SQLite und Dokumenten sowie Restore ausschließlich
+  in neue Ziele ohne Verlust von Benutzer-, Kalender-, UID-, ETag-, Sync-,
+  Aufgaben- oder Dokumentidentitäten.
+- Artefakt, Prüfmatrix, Befunde und alle offenen externen Freigabepunkte stehen
+  im [`lokalen Abschlussnachweis Roadmap 0.6`](roadmap-06-local-demo.md).
+
+Abschlusskriterium: Roadmap 0.6 ist für den lokalen ARM64-Betrieb abgeschlossen.
+Developer-ID, Apple-Notarisierung, Gatekeeper-Downloadpfad, zweiter sauberer
+Mac, weitere Architekturen und der physische Apple-Kalender-Test bleiben offen;
+das Artefakt ist deshalb nicht als öffentliches Release freigegeben.

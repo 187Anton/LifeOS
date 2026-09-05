@@ -9,7 +9,7 @@ RELEASE_ARCHITECTURE="$(node --input-type=module -e 'const names = { arm64: "aar
 DMG_PATH="${1:-$REPOSITORY_ROOT/apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_${RELEASE_VERSION}_${RELEASE_ARCHITECTURE}.dmg}"
 CHECKSUM_PATH="${DMG_PATH}.sha256"
 NODE_BINARY="$(command -v node)"
-WORK_DIRECTORY="$(mktemp -d "${TMPDIR:-/tmp}/lifeos-dmg-verify.XXXXXX")"
+WORK_DIRECTORY="$(mktemp -d "/private/tmp/lifeos-dmg-verify.XXXXXX")"
 MOUNT_DIRECTORY="$WORK_DIRECTORY/mount"
 INSTALLED_APP="$WORK_DIRECTORY/Applications/Anton Life OS.app"
 MOUNTED=0
@@ -59,6 +59,8 @@ if [[ "$(defaults read "$INSTALLED_APP/Contents/Info" CFBundleIdentifier)" != "d
   echo "Der Bundle-Identifier der installierten App ist unerwartet." >&2
   exit 1
 fi
+
+bash "$REPOSITORY_ROOT/scripts/verify-installed-mac-app.sh" "$INSTALLED_APP"
 
 env LIFEOS_DESKTOP_APP_PATH="$INSTALLED_APP" \
   PATH="/usr/bin:/bin" \

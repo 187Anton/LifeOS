@@ -23,6 +23,7 @@ test("enthält die verpflichtenden Repository-Artefakte", async () => {
     "compose.yaml",
     "docs/architecture.md",
     "docs/foundation-verification.md",
+    "docs/roadmap-06-local-demo.md",
     "docs/roadmap.md",
   ];
 
@@ -96,6 +97,37 @@ test("verwendet eine konsistente Release-Version und portable DMG-Prüfsummen", 
   assert.match(verifyScript, /verpflichtende DMG-Prüfsumme/);
   assert.match(metadataScript, /tauri\.conf\.json/);
   assert.match(metadataScript, /Cargo\.lock/);
+});
+
+test("führt die vollständige synthetische Stabilitätsdemo über reale Grenzen aus", async () => {
+  const packageJson = JSON.parse(
+    await readFile(path.join(repositoryRoot, "package.json"), "utf8"),
+  );
+  const demoScript = await readRepositoryFile(
+    "scripts/verify-stabilization-demo.sh",
+  );
+  const updateScript = await readRepositoryFile(
+    "scripts/verify-mac-update-rollback.mjs",
+  );
+
+  assert.equal(
+    packageJson.scripts["demo:stabilization"],
+    "bash scripts/verify-stabilization-demo.sh",
+  );
+  for (const command of [
+    "npm test",
+    "npm run db:verify:recovery",
+    "npm run db:sqlite:verify:recovery",
+    "npm run release:build:local",
+    "npm run release:verify:local",
+    "npm run desktop:verify:update-rollback",
+    "npm run security:secrets",
+  ]) {
+    assert.match(demoScript, new RegExp(command.replaceAll(" ", "\\s+")));
+  }
+  assert.match(updateScript, /createSqliteBackup/);
+  assert.match(updateScript, /restoreSqliteBackup/);
+  assert.match(updateScript, /baselineSnapshot/);
 });
 
 test("stellt Secret-Scan und isolierte Backup-/Restore-Prüfung bereit", async () => {

@@ -92,10 +92,14 @@ Anfragekörper, Cookies oder Zugangsdaten.
   offen.
 - Der erste App-Start bietet eine terminalfreie Ersteinrichtung für Profil,
   App-Passwort und getrennten CalDAV-Zugang. Ein isolierter Test bestätigte
-  Erststart, Neustart, Update von 0.1.0 auf 0.1.1 und Rollback auf 0.1.0 ohne
-  Verlust stabiler IDs oder Synchronisationswerte.
-- Backup und Restore sind technisch auch im Updateablauf nachgewiesen, aber
-  noch nicht in die Desktop-Oberfläche eingebunden.
+  Erststart, Neustart, Update von 0.1.0 auf 0.6.0 und Rollback auf 0.1.0 ohne
+  Verlust stabiler IDs, Synchronisationswerte, Aufgaben oder Dokumente. Das
+  unter 0.6.0 erstellte Backup wurde zusätzlich ausschließlich in neue Ziele
+  restauriert und erneut mit 0.6.0 geprüft.
+- Die DMG-Prüfung startet die tatsächlich kopierte native App, kontrolliert
+  Dateirechte und beendet sie regulär über macOS; der Sidecar darf danach
+  nicht weiterlaufen. Backup und Restore sind noch nicht in die
+  Desktop-Oberfläche eingebunden.
 - Die externe CalDAV-Integration bleibt in der Mac-App ohne einen nativen
   Schlüsselbundpfad vollständig nicht verfügbar. Der Sidecar-Test bestätigt
   den sicheren Status `available: false`; eine spätere Aktivierung darf keinen
@@ -110,3 +114,15 @@ Anfragekörper, Cookies oder Zugangsdaten.
 - Ein zweiter sauberer unterstützter Mac, Developer-ID, Notarisierung und ein
   Intel-/Universal-Build bleiben externe Release-Gates; M6 ist deshalb noch
   nicht vollständig freigegeben.
+
+Der vollständige Zwei-Versionen-Test kann mit zwei regulären DMGs wiederholt
+werden:
+
+```bash
+npm run desktop:verify:update-rollback -- \
+  "/absoluter/pfad/Anton Life OS_0.1.0_aarch64.dmg" \
+  "/absoluter/pfad/Anton Life OS_0.6.0_aarch64.dmg"
+```
+
+Prüfmatrix, Artefakt und offene Gates stehen im
+[`lokalen Roadmap-0.6-Nachweis`](../../docs/roadmap-06-local-demo.md).

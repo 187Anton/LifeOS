@@ -2,7 +2,7 @@
 
 Alle relevanten Änderungen werden hier kurz und nachvollziehbar dokumentiert.
 
-## [0.6.0] – 2026-09-04
+## [0.6.0] – 2026-09-05
 
 - Roadmap 0.5 um lokale Finanzen, Fitness, sicheren ICS-Transfer, optionalen
   externen CalDAV-read-only-Import und eine optionale GitHub-Leseintegration
@@ -17,6 +17,9 @@ Alle relevanten Änderungen werden hier kurz und nachvollziehbar dokumentiert.
 - Eine gemeinsame Versionsquelle für npm, Tauri und Cargo, portable
   DMG-Prüfsummen, lokale Release-Befehle, ein macOS-CI-Gate und die vom Browser
   freigegebene PWA-Installation für Roadmap 0.6.3 ergänzt.
+- Roadmap 0.6.4 mit vollständiger synthetischer Produktdemo, echtem nativen
+  App-Start, geordnetem Sidecar-Ende sowie Update 0.1.0 → 0.6.0, Rollback,
+  prüfsummengeschütztem Backup und Restore in neue Ziele abgeschlossen.
 
 ## [0.1.0] – 2026-07-18
 
