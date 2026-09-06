@@ -1,4 +1,5 @@
 use std::{
+    fs::File,
     io::{Read, Write},
     net::{SocketAddr, TcpListener, TcpStream},
     path::{Path, PathBuf},
@@ -19,6 +20,20 @@ use tauri_plugin_shell::{
 
 const LOOPBACK_HOST: &str = "127.0.0.1";
 const TEST_ROOT_ENVIRONMENT: &str = "LIFEOS_TEST_ROOT";
+
+struct InstanceLock {
+    file: File,
+}
+
+#[cfg(unix)]
+impl Drop for InstanceLock {
+    fn drop(&mut self) {
+        use std::os::fd::AsRawFd;
+        unsafe {
+            libc::flock(self.file.as_raw_fd(), libc::LOCK_UN);
+        }
+    }
+}
 
 struct WritablePaths {
     local_data: PathBuf,
@@ -47,12 +62,42 @@ fn create_private_directory(path: &Path) -> Result<(), Box<dyn std::error::Error
     Ok(())
 }
 
+fn acquire_instance_lock(path: &Path) -> Result<InstanceLock, Box<dyn std::error::Error>> {
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .open(path)?;
+    #[cfg(unix)]
+    {
+        use std::os::fd::AsRawFd;
+        use std::os::unix::fs::PermissionsExt;
+        file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
+            return Err("LifeOS läuft bereits mit diesem lokalen Datenbestand.".into());
+        }
+    }
+    Ok(InstanceLock { file })
+}
+
+fn create_startup_token() -> Result<String, Box<dyn std::error::Error>> {
+    let mut bytes = [0_u8; 32];
+    File::open("/dev/urandom")?.read_exact(&mut bytes)?;
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut token = String::with_capacity(64);
+    for byte in bytes {
+        token.push(HEX[(byte >> 4) as usize] as char);
+        token.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    Ok(token)
+}
+
 fn reserve_loopback_port() -> Result<u16, Box<dyn std::error::Error>> {
     let listener = TcpListener::bind((LOOPBACK_HOST, 0))?;
     Ok(listener.local_addr()?.port())
 }
 
-fn readiness_succeeds(port: u16) -> bool {
+fn readiness_succeeds(port: u16, startup_token: &str) -> bool {
     let address = SocketAddr::from(([127, 0, 0, 1], port));
     let Ok(mut stream) = TcpStream::connect_timeout(&address, Duration::from_millis(200)) else {
         return false;
@@ -68,13 +113,18 @@ fn readiness_succeeds(port: u16) -> bool {
     }
 
     let mut response = String::new();
-    stream.read_to_string(&mut response).is_ok() && response.starts_with("HTTP/1.1 200")
+    let expected_proof = format!("x-lifeos-startup-proof: {startup_token}");
+    stream.read_to_string(&mut response).is_ok()
+        && response.starts_with("HTTP/1.1 200")
+        && response
+            .lines()
+            .any(|line| line.eq_ignore_ascii_case(&expected_proof))
 }
 
-fn wait_for_readiness(port: u16, timeout: Duration) -> bool {
+fn wait_for_readiness(port: u16, startup_token: &str, timeout: Duration) -> bool {
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
-        if readiness_succeeds(port) {
+        if readiness_succeeds(port, startup_token) {
             return true;
         }
         thread::sleep(Duration::from_millis(100));
@@ -124,10 +174,11 @@ pub fn run() {
     let shutdown_for_exit = Arc::clone(&shutting_down);
     let startup_for_setup = Arc::clone(&startup_complete);
 
-    tauri::Builder::default()
+    let application = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .setup(move |app| {
+            let is_isolated_test = std::env::var_os(TEST_ROOT_ENVIRONMENT).is_some();
             let setup_result = (|| -> Result<(), Box<dyn std::error::Error>> {
                 let paths = match std::env::var_os(TEST_ROOT_ENVIRONMENT) {
                     Some(root) => test_writable_paths(Path::new(&root))?,
@@ -145,6 +196,10 @@ pub fn run() {
                 let log_directory = paths.logs;
                 let log_path = log_directory.join("lifeos-api.log");
                 create_private_directory(&local_data)?;
+                let instance_lock = acquire_instance_lock(&local_data.join("lifeos-instance.lock"))?;
+                if !app.manage(instance_lock) {
+                    return Err("Die lokale Instanzsperre konnte nicht registriert werden.".into());
+                }
                 create_private_directory(&data_directory)?;
                 create_private_directory(&documents_directory)?;
                 create_private_directory(&backups_directory)?;
@@ -157,12 +212,14 @@ pub fn run() {
                 let migration_path = resource_path(&resource_directory, "sqlite-migrations");
                 let database_path = data_directory.join("lifeos.sqlite");
                 let port = reserve_loopback_port()?;
+                let startup_token = create_startup_token()?;
                 let origin = format!("http://{LOOPBACK_HOST}:{port}");
                 let database_url = format!("file:{}", database_path.display());
 
                 let sidecar_command = app
                     .shell()
                     .sidecar("lifeos-node")?
+                    .env_clear()
                     .arg(server_path)
                     .env("NODE_ENV", "production")
                     .env("API_HOST", LOOPBACK_HOST)
@@ -174,7 +231,8 @@ pub fn run() {
                     .env("STORAGE_PATH", documents_directory)
                     .env("LOG_LEVEL", "info")
                     .env("SHUTDOWN_TIMEOUT_MS", "5000")
-                    .env("SESSION_TTL_HOURS", "24");
+                    .env("SESSION_TTL_HOURS", "24")
+                    .env("LIFEOS_STARTUP_TOKEN", &startup_token);
                 let (mut events, child) = sidecar_command.spawn()?;
                 *process_for_setup.lock().expect("Sidecar-Sperre beschädigt") = Some(child);
 
@@ -214,7 +272,7 @@ pub fn run() {
                     }
                 });
 
-                if !wait_for_readiness(port, Duration::from_secs(15)) {
+                if !wait_for_readiness(port, &startup_token, Duration::from_secs(15)) {
                     if let Some(child) = process_for_setup
                         .lock()
                         .expect("Sidecar-Sperre beschädigt")
@@ -235,32 +293,36 @@ pub fn run() {
                 Ok(())
             })();
 
-            if let Err(error) = &setup_result {
-                app.dialog()
-                    .message(format!(
-                        "LifeOS konnte den lokalen Server nicht starten. Vorhandene Daten wurden nicht verändert. Bitte starte die App erneut.\n\nTechnischer Hinweis: {error}"
-                    ))
-                    .kind(MessageDialogKind::Error)
-                    .title("LifeOS konnte nicht starten")
-                    .blocking_show();
-            }
-
-            setup_result
-        })
-        .build(tauri::generate_context!())
-        .expect("LifeOS konnte nicht initialisiert werden")
-        .run(move |_app_handle, event| {
-            if let tauri::RunEvent::Exit = event {
-                shutdown_for_exit.store(true, Ordering::SeqCst);
-                if let Some(child) = process_for_exit
-                    .lock()
-                    .expect("Sidecar-Sperre beschädigt")
-                    .take()
-                {
-                    terminate_sidecar(child);
+            if let Err(error) = setup_result {
+                if !is_isolated_test {
+                    app.dialog()
+                        .message(format!(
+                            "LifeOS konnte den lokalen Server nicht starten. Vorhandene Daten wurden nicht verändert. Bitte starte die App erneut.\n\nTechnischer Hinweis: {error}"
+                        ))
+                        .kind(MessageDialogKind::Error)
+                        .title("LifeOS konnte nicht starten")
+                        .blocking_show();
                 }
+                app.handle().exit(1);
             }
-        });
+            Ok(())
+        })
+        .build(tauri::generate_context!());
+    let Ok(application) = application else {
+        return;
+    };
+    application.run(move |_app_handle, event| {
+        if let tauri::RunEvent::Exit = event {
+            shutdown_for_exit.store(true, Ordering::SeqCst);
+            if let Some(child) = process_for_exit
+                .lock()
+                .expect("Sidecar-Sperre beschädigt")
+                .take()
+            {
+                terminate_sidecar(child);
+            }
+        }
+    });
 }
 
 #[cfg(test)]
@@ -271,6 +333,30 @@ mod tests {
     fn reserviert_einen_loopback_port() {
         let port = reserve_loopback_port().expect("Portreservierung fehlgeschlagen");
         assert!(port > 0);
+    }
+
+    #[test]
+    fn erzeugt_fuer_jeden_start_einen_neuen_nachweis() {
+        let first = create_startup_token().expect("Startnachweis fehlt");
+        let second = create_startup_token().expect("Startnachweis fehlt");
+        assert_eq!(first.len(), 64);
+        assert!(first.chars().all(|character| character.is_ascii_hexdigit()));
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn verhindert_zwei_schreibende_instanzhalter() {
+        let directory = std::env::temp_dir().join(format!(
+            "lifeos-desktop-instance-lock-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).expect("Testverzeichnis fehlt");
+        let lock_path = directory.join("lifeos-instance.lock");
+        let first = acquire_instance_lock(&lock_path).expect("Erste Instanzsperre fehlt");
+        assert!(acquire_instance_lock(&lock_path).is_err());
+        drop(first);
+        assert!(acquire_instance_lock(&lock_path).is_ok());
+        std::fs::remove_dir_all(directory).expect("Testverzeichnis blieb zurück");
     }
 
     #[test]
