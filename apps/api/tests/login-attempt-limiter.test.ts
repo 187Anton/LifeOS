@@ -34,3 +34,18 @@ test("setzt die Fehlversuche nach erfolgreicher Anmeldung zurück", () => {
   limiter.reset("local");
   assert.equal(limiter.retryAfterSeconds("local"), null);
 });
+
+test("zählt parallele laufende Versuche gegen das Limit", () => {
+  const limiter = new LoginAttemptLimiter(() => 1_000_000);
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    limiter.beginAttempt("parallel");
+  }
+
+  assert.throws(
+    () => limiter.beginAttempt("parallel"),
+    (error: unknown) => error instanceof ApiError && error.status === 429,
+  );
+  limiter.releaseAttempt("parallel");
+  assert.doesNotThrow(() => limiter.beginAttempt("parallel"));
+});

@@ -12,6 +12,10 @@ export const securityHeaders: RequestHandler = (request, response, next) => {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=()",
   );
+  response.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; base-uri 'none'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; manifest-src 'self'; object-src 'none'; script-src 'self'; style-src 'self'; worker-src 'self'",
+  );
 
   if (
     request.path === "/api" ||

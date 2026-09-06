@@ -65,6 +65,7 @@ test("liefert Health und eine erfolgreiche Datenbank-Readiness", async (t) => {
       },
     },
     webOrigin: "http://localhost:5173",
+    startupToken: "a".repeat(64),
   });
   const { server, baseUrl } = await listen(application);
   t.after(() => close(server));
@@ -103,6 +104,7 @@ test("liefert Health und eine erfolgreiche Datenbank-Readiness", async (t) => {
     status: "ready",
     checks: { database: "up" },
   });
+  assert.equal(readiness.headers.get("x-lifeos-startup-proof"), "a".repeat(64));
   assert.equal(checks, 1);
 });
 

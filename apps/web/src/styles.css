@@ -1881,6 +1881,27 @@ input[readonly] {
   padding: 0.55rem;
   background: #fffefa;
 }
+.month-day-start-1 {
+  grid-column-start: 1;
+}
+.month-day-start-2 {
+  grid-column-start: 2;
+}
+.month-day-start-3 {
+  grid-column-start: 3;
+}
+.month-day-start-4 {
+  grid-column-start: 4;
+}
+.month-day-start-5 {
+  grid-column-start: 5;
+}
+.month-day-start-6 {
+  grid-column-start: 6;
+}
+.month-day-start-7 {
+  grid-column-start: 7;
+}
 .month-day > time {
   display: block;
   margin-bottom: 0.4rem;

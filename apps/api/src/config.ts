@@ -93,6 +93,10 @@ const environmentSchema = z.strictObject({
       "muss ein Base64-kodierter 32-Byte-Schlüssel sein",
     )
     .optional(),
+  LIFEOS_STARTUP_TOKEN: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .optional(),
 });
 
 export interface ApiConfig {
@@ -109,6 +113,7 @@ export interface ApiConfig {
   shutdownTimeoutMs: number;
   sessionTtlHours: number;
   integrationSecretKey?: string;
+  startupToken?: string;
 }
 
 export class ConfigurationError extends Error {
@@ -145,6 +150,7 @@ export const parseConfig = (
     SHUTDOWN_TIMEOUT_MS: environment.SHUTDOWN_TIMEOUT_MS,
     SESSION_TTL_HOURS: environment.SESSION_TTL_HOURS,
     INTEGRATION_SECRET_KEY: environment.INTEGRATION_SECRET_KEY,
+    LIFEOS_STARTUP_TOKEN: environment.LIFEOS_STARTUP_TOKEN,
   });
 
   if (!result.success) {
@@ -179,6 +185,9 @@ export const parseConfig = (
     sessionTtlHours: result.data.SESSION_TTL_HOURS,
     ...(result.data.INTEGRATION_SECRET_KEY
       ? { integrationSecretKey: result.data.INTEGRATION_SECRET_KEY }
+      : {}),
+    ...(result.data.LIFEOS_STARTUP_TOKEN
+      ? { startupToken: result.data.LIFEOS_STARTUP_TOKEN }
       : {}),
   };
 };
