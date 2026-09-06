@@ -249,9 +249,11 @@ npm run db:sqlite:restore -- /absoluter/pfad/backup-20320809
 Das Backup nutzt die SQLite Online Backup API und enthält `manifest.json`,
 dessen Prüfsumme, die Datenbank sowie Dokumente mit einzelnen SHA-256-Werten.
 Restore akzeptiert nur neue Ziele, prüft alle Dateien, wendet Migrationen auf
-eine Stagingkopie an und veröffentlicht erst danach. Symbolische Links und
-unsichere Dokumentpfade werden abgelehnt. Backups sind nicht verschlüsselt und
-müssen wie persönliche Daten vertraulich behandelt werden.
+eine Stagingkopie an und veröffentlicht erst danach. Quelle, Backup,
+Datenbankziel und Dokumentziel dürfen weder identisch noch ineinander
+verschachtelt sein. Symbolische Links und unsichere Dokumentpfade werden
+abgelehnt. Backups sind nicht verschlüsselt und müssen wie persönliche Daten
+vertraulich behandelt werden.
 
 Der isolierte Gesamtnachweis lautet:
 
@@ -273,8 +275,9 @@ npm run documents:backup -- /absoluter/neuer/pfad/documents-backup
 
 `manifest.json`, `manifest.sha256` und die Prüfsumme jeder Datei schützen den
 Inhalt. Symbolische Links, Traversal-Pfade, fehlende Dateien, manipulierte
-Prüfsummen und bestehende Ziele werden abgewiesen. Restore benötigt ebenfalls
-ein neues, noch nicht vorhandenes `STORAGE_PATH`:
+Prüfsummen, bestehende Ziele und ein Backup innerhalb der Quelle werden
+abgewiesen. Restore benötigt ebenfalls ein neues, noch nicht vorhandenes und
+nicht im Backup liegendes `STORAGE_PATH`:
 
 ```bash
 export STORAGE_PATH="/absoluter/neuer/pfad/restored-documents"

@@ -15,7 +15,9 @@ if [[ "$destination" != /* ]]; then
   destination="$REPOSITORY_ROOT/$destination"
 fi
 
-if [[ -e "$destination" ]]; then
+checksum_destination="${destination}.sha256"
+if [[ -e "$destination" || -L "$destination" ||
+  -e "$checksum_destination" || -L "$checksum_destination" ]]; then
   printf 'Fehler: Die Backup-Datei existiert bereits: %s\n' "$destination" >&2
   exit 1
 fi
@@ -43,8 +45,8 @@ BACKUP_FILE="$destination" BACKUP_NAME="$(basename "$destination")" \
   const file = process.env.BACKUP_FILE;
   const checksum = createHash("sha256").update(readFileSync(file)).digest("hex");
   process.stdout.write(`${checksum}  ${process.env.BACKUP_NAME}\n`);
-' >"${destination}.sha256"
-chmod 600 "${destination}.sha256"
+' >"$checksum_destination"
+chmod 600 "$checksum_destination"
 
 printf 'PostgreSQL-Backup erstellt: %s\n' "$destination"
-printf 'Prüfsumme erstellt: %s.sha256\n' "$destination"
+printf 'Prüfsumme erstellt: %s\n' "$checksum_destination"

@@ -1,6 +1,6 @@
 # Technische Spike-Planung: lokale Mac-App und SQLite
 
-Stand: 11. August 2026
+Stand: 7. September 2026
 
 Ausgangsstand: `origin/develop` bei `830fb77`
 
@@ -57,7 +57,7 @@ wurde.
 | M4    | PostgreSQL-Übernahme sowie SQLite-Backup und -Restore sind sicher.     | Automatisierter Datenvergleich und Recovery-Test erhalten alle stabilen Identitäten.         | abgeschlossen                                   |
 | M5    | Tauri startet und beendet einen reproduzierbar gebauten Sidecar.       | Mac-App, Browser und CalDAV verwenden denselben Kern ohne Docker und globales Node.js.       | abgeschlossen                                   |
 | M6    | Lokaler Installations-, Update- und Recovery-Pfad ist nachgewiesen.    | Lokales DMG und Datenhaltung sind geprüft; externe Produktrelease-Gates sind aufgeschoben.   | lokal erfolgreich; Produktfreigabe aufgeschoben |
-| M7    | Betriebs- und Produktdokumentation entsprechen dem geprüften Endstand. | Abschlussprüfung bestätigt alle Erfolgskriterien und keine offenen kritischen Gates.         | offen                                           |
+| M7    | Betriebs- und Produktdokumentation entsprechen dem geprüften Endstand. | Abschlussprüfung bestätigt alle Erfolgskriterien und keine offenen kritischen Gates.         | abgeschlossen                                   |
 
 Der aktuelle Nachweisstand wird in
 [`docs/mac-desktop-migration-log.md`](mac-desktop-migration-log.md) geführt.

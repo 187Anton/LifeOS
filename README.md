@@ -378,11 +378,11 @@ ist im [lokalen Roadmap-0.5-Nachweis](docs/roadmap-05-local-demo.md)
 dokumentiert. Dort sind auch Update-/Backup-Schritte und ausdrücklich offene
 externe Release-Gates getrennt aufgeführt.
 
-Die technische Sicherheits- und Datenschutzprüfung für Roadmap 0.6.1 ist im
+Der vollständige Sicherheits-, Integritäts- und Stabilitätsreview ist im
 [Sicherheitsreview 0.6](docs/security-review-0.6.md) dokumentiert. Sie enthält
-die behobenen Login-, Browser-Ursprungs- und Sicherheitsheader-Befunde, die
-zugehörigen Tests sowie die ausdrücklich offene aktuelle Registry-Prüfung der
-Abhängigkeiten.
+alle eingestuften Befunde, Ursachen, Korrekturen, Regressionstests und bewusst
+offenen Grenzen. Die aktuelle npm- und RustSec-Prüfung ist enthalten;
+öffentliche Apple- und Geräte-Gates bleiben davon getrennt offen.
 
 Ein Produktions-Build erzeugt zusätzlich Manifest und Offline-App-Shell:
 
@@ -507,7 +507,9 @@ Migrationen liegen dagegen versioniert unter
 `packages/database/prisma/migrations/`. Vor potenziell verlustbehafteten
 Migrationen müssen ein PostgreSQL-Backup und eine Sicherung des
 Dokumentenverzeichnisses erstellt werden. Der vollständige automatisierte
-Backup-/Wiederherstellungstest folgt im Absicherungspaket 0.1.9.
+Backup-/Wiederherstellungsnachweis umfasst Prüfsummen, manipulierte Archive,
+Symlinks, disjunkte neue Ziele und Datenvergleich; Details stehen im
+[Recovery-Nachweis 0.6](docs/reliability-recovery-0.6.md).
 
 ## GitHub-Planung einrichten
 

@@ -1,6 +1,6 @@
 import { lookup } from "node:dns/promises";
 import { request as httpsRequest } from "node:https";
-import { isIP, type LookupFunction } from "node:net";
+import { BlockList, isIP, type LookupFunction } from "node:net";
 
 import { XMLParser } from "fast-xml-parser";
 
@@ -40,34 +40,61 @@ export class ExternalCalDavNetworkError extends Error {
   }
 }
 
-const blockedIpv4 = (address: string) => {
-  const values = address.split(".").map(Number);
-  const [first, second] = values;
+const normalizedHostname = (url: URL) => {
+  const hostname = url.hostname.toLowerCase().replace(/\.$/, "");
+  return hostname.startsWith("[") && hostname.endsWith("]")
+    ? hostname.slice(1, -1)
+    : hostname;
+};
+
+const blockedIpv4Networks = new BlockList();
+for (const [network, prefix] of [
+  ["0.0.0.0", 8],
+  ["10.0.0.0", 8],
+  ["100.64.0.0", 10],
+  ["127.0.0.0", 8],
+  ["169.254.0.0", 16],
+  ["172.16.0.0", 12],
+  ["192.0.0.0", 24],
+  ["192.0.2.0", 24],
+  ["192.88.99.0", 24],
+  ["192.168.0.0", 16],
+  ["198.18.0.0", 15],
+  ["198.51.100.0", 24],
+  ["203.0.113.0", 24],
+  ["224.0.0.0", 4],
+  ["240.0.0.0", 4],
+] as const) {
+  blockedIpv4Networks.addSubnet(network, prefix, "ipv4");
+}
+const blockedIpv6Networks = new BlockList();
+for (const [network, prefix] of [
+  ["::", 128],
+  ["::1", 128],
+  ["::ffff:0:0", 96],
+  ["64:ff9b::", 96],
+  ["64:ff9b:1::", 48],
+  ["100::", 64],
+  ["2001::", 32],
+  ["2001:2::", 48],
+  ["2001:db8::", 32],
+  ["2002::", 16],
+  ["fc00::", 7],
+  ["fe80::", 10],
+  ["ff00::", 8],
+] as const) {
+  blockedIpv6Networks.addSubnet(network, prefix, "ipv6");
+}
+
+export const isBlockedExternalCalDavAddress = (address: string) => {
+  const family = isIP(address);
   return (
-    first === 0 ||
-    first === 10 ||
-    first === 127 ||
-    (first === 169 && second === 254) ||
-    (first === 172 && second! >= 16 && second! <= 31) ||
-    (first === 192 && second === 168) ||
-    (first === 100 && second! >= 64 && second! <= 127) ||
-    first! >= 224
+    family === 0 ||
+    (family === 4
+      ? blockedIpv4Networks.check(address, "ipv4")
+      : blockedIpv6Networks.check(address, "ipv6"))
   );
 };
-const blockedIpv6 = (address: string) => {
-  const normalized = address.toLowerCase();
-  return (
-    normalized === "::" ||
-    normalized === "::1" ||
-    normalized.startsWith("fc") ||
-    normalized.startsWith("fd") ||
-    /^fe[89ab]/.test(normalized) ||
-    normalized.startsWith("ff") ||
-    normalized.startsWith("::ffff:")
-  );
-};
-const blockedAddress = (address: string) =>
-  isIP(address) === 4 ? blockedIpv4(address) : blockedIpv6(address);
 
 export const validateExternalCalDavUrl = (value: string): URL => {
   let url: URL;
@@ -76,7 +103,7 @@ export const validateExternalCalDavUrl = (value: string): URL => {
   } catch {
     throw new ExternalCalDavNetworkError("INVALID_URL");
   }
-  const hostname = url.hostname.toLowerCase().replace(/\.$/, "");
+  const hostname = normalizedHostname(url);
   if (
     url.protocol !== "https:" ||
     url.username ||
@@ -87,7 +114,7 @@ export const validateExternalCalDavUrl = (value: string): URL => {
     hostname.endsWith(".localhost") ||
     hostname.endsWith(".local") ||
     hostname === "169.254.169.254" ||
-    (isIP(hostname) > 0 && blockedAddress(hostname))
+    (isIP(hostname) > 0 && isBlockedExternalCalDavAddress(hostname))
   )
     throw new ExternalCalDavNetworkError("URL_NOT_ALLOWED");
   return url;
@@ -98,7 +125,7 @@ const resolveAllowedAddress = async (url: URL) => {
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     addresses = await Promise.race([
-      lookup(url.hostname, { all: true, verbatim: true }),
+      lookup(normalizedHostname(url), { all: true, verbatim: true }),
       new Promise<never>((_resolve, reject) => {
         timeout = setTimeout(
           () => reject(new ExternalCalDavNetworkError("TIMEOUT")),
@@ -114,7 +141,7 @@ const resolveAllowedAddress = async (url: URL) => {
   }
   if (
     addresses.length === 0 ||
-    addresses.some(({ address }) => blockedAddress(address))
+    addresses.some(({ address }) => isBlockedExternalCalDavAddress(address))
   )
     throw new ExternalCalDavNetworkError("ADDRESS_NOT_ALLOWED");
   return addresses[0]!;

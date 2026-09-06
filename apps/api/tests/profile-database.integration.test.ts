@@ -12,7 +12,11 @@ import {
   AuthenticationService,
   ProfileService,
 } from "../src/modules/profile/service.js";
-import { hashPassword } from "../src/modules/profile/security.js";
+import {
+  createSessionToken,
+  hashPassword,
+  hashSessionToken,
+} from "../src/modules/profile/security.js";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 loadEnvironment({
@@ -75,6 +79,27 @@ test("persistiert Hash, Sitzung, Einstellungen und Audit ohne Klartext", async (
     ],
   });
   assert.doesNotMatch(JSON.stringify(audit.metadata), /UTC|USD|en-US/);
+
+  const futureToken = createSessionToken();
+  const futureCreatedAt = new Date("2035-01-02T09:00:00.000Z");
+  await database.userSession.create({
+    data: {
+      userId: user.id,
+      tokenHash: hashSessionToken(futureToken),
+      credentialRevision: 1,
+      createdAt: futureCreatedAt,
+      expiresAt: new Date("2035-01-03T09:00:00.000Z"),
+    },
+  });
+  await authentication.logout(futureToken);
+  assert.equal(
+    (
+      await database.userSession.findUniqueOrThrow({
+        where: { tokenHash: hashSessionToken(futureToken) },
+      })
+    ).revokedAt?.toISOString(),
+    futureCreatedAt.toISOString(),
+  );
 
   await database.userCredential.update({
     where: { userId: user.id },

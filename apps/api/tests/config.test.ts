@@ -187,6 +187,28 @@ test("akzeptiert nur einen 32-Byte-Schlüssel für externe Zugänge", () => {
   );
 });
 
+test("akzeptiert nur einen zufälligen Desktop-Startnachweis", () => {
+  const token = "a".repeat(64);
+  assert.equal(
+    parseConfig({ ...validEnvironment, LIFEOS_STARTUP_TOKEN: token })
+      .startupToken,
+    token,
+  );
+  assert.throws(
+    () =>
+      parseConfig({
+        ...validEnvironment,
+        LIFEOS_STARTUP_TOKEN: "kein-gueltiger-startnachweis",
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof ConfigurationError);
+      assert.deepEqual(error.fields, ["LIFEOS_STARTUP_TOKEN"]);
+      assert.doesNotMatch(error.message, /kein-gueltiger-startnachweis/);
+      return true;
+    },
+  );
+});
+
 test("setzt sichere Cookies nur an einem HTTPS-Ursprung", () => {
   assert.equal(useSecureCookies("http://127.0.0.1:3000"), false);
   assert.equal(useSecureCookies("https://lifeos.example.test"), true);

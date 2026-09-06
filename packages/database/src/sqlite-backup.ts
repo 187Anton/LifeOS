@@ -36,6 +36,16 @@ const manifestName = "manifest.json";
 const manifestChecksumName = "manifest.sha256";
 const checksumPattern = /^[0-9a-f]{64}$/;
 
+const isSameOrDescendant = (parent: string, candidate: string) => {
+  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
+  return (
+    relative === "" ||
+    (!relative.startsWith(`..${path.sep}`) &&
+      relative !== ".." &&
+      !path.isAbsolute(relative))
+  );
+};
+
 const sha256 = async (filePath: string) =>
   createHash("sha256")
     .update(await readFile(filePath))
@@ -199,6 +209,10 @@ const verifyFile = async (root: string, expected: BackupFile) => {
 };
 
 const readAndVerifyManifest = async (backupDirectory: string) => {
+  const backupInfo = await lstat(backupDirectory).catch(() => null);
+  if (!backupInfo?.isDirectory() || backupInfo.isSymbolicLink()) {
+    throw new Error("Das SQLite-Backup muss ein reguläres Verzeichnis sein.");
+  }
   const manifestPath = path.join(backupDirectory, manifestName);
   const checksumPath = path.join(backupDirectory, manifestChecksumName);
   let manifestBytes: Buffer;
@@ -275,6 +289,17 @@ export const createSqliteBackup = async (options: {
   }
   if (!(await exists(databasePath)))
     throw new Error("Die SQLite-Quelldatei fehlt.");
+  const databaseInfo = await lstat(databasePath);
+  if (!databaseInfo.isFile() || databaseInfo.isSymbolicLink()) {
+    throw new Error("Die SQLite-Quelle muss eine reguläre Datei sein.");
+  }
+  if (
+    isSameOrDescendant(options.documentsDirectory, options.destinationDirectory)
+  ) {
+    throw new Error(
+      "Das Backup-Ziel darf nicht im zu sichernden Dokumentenverzeichnis liegen.",
+    );
+  }
   if (await exists(options.destinationDirectory)) {
     throw new Error(
       "Das Backup-Ziel existiert bereits und wird nicht überschrieben.",
@@ -359,6 +384,23 @@ export const restoreSqliteBackup = async (options: {
     !path.isAbsolute(options.targetDocumentsDirectory)
   ) {
     throw new Error("Backup- und Dokumentenpfade müssen absolut sein.");
+  }
+  if (
+    isSameOrDescendant(options.backupDirectory, targetDatabasePath) ||
+    isSameOrDescendant(
+      options.backupDirectory,
+      options.targetDocumentsDirectory,
+    )
+  ) {
+    throw new Error("Restore-Ziele dürfen nicht innerhalb des Backups liegen.");
+  }
+  if (
+    isSameOrDescendant(options.targetDocumentsDirectory, targetDatabasePath) ||
+    isSameOrDescendant(targetDatabasePath, options.targetDocumentsDirectory)
+  ) {
+    throw new Error(
+      "SQLite-Datei und Dokumenten-Restore müssen getrennte Ziele verwenden.",
+    );
   }
   if (
     (await exists(targetDatabasePath)) ||

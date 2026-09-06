@@ -43,7 +43,7 @@ aktuell ausgeführte Prüfungen von älteren oder extern noch offenen Gates.
 | Datenmodell            | 23 Datenbanktests für Besitz, Beziehungen, Basiseinheiten, Termine und beide Provider                                                           | bestanden                             |
 | PostgreSQL-Recovery    | neue Quell- und Zieldatenbanken, Datenvergleich, Pflichtprüfsumme, falsche Prüfsumme, ungültiges Archiv und wiederholter Restore                | bestanden                             |
 | SQLite-Import/Recovery | vollständiger Modellimport, Online-Backup, Dokumente, neue Ziele, Daten- und Identitätsvergleich                                                | bestanden                             |
-| Dokumente              | private Verzeichnisse/Dateien, Manifest, fehlende Datei/Prüfsumme, Traversal, Symlink und wiederholter Restore                                  | bestanden                             |
+| Dokumente              | private Verzeichnisse/Dateien, Manifest, Downloadhash, fehlende Datei/Prüfsumme, Traversal, Symlink, disjunkte Ziele und wiederholter Restore   | bestanden                             |
 | API und Fachmodule     | `/api/v1`, Fehlervertrag, Besitz, Archivierung/Soft-Delete, Dashboard, Suche, KI, Projekte, Aufgaben, Studium, Arbeit, Finanzen und Fitness     | bestanden                             |
 | Kalender und CalDAV    | UID, ETag, Sync-Token/-Version, Ganztag, Zeitzone, `VTIMEZONE`, Wiederholung, Erinnerungen, Konflikte und Soft-Delete                           | bestanden                             |
 | Browser/PWA            | 43 Unit- und 30 Playwright-Fälle auf Desktop- und Mobilviewport einschließlich App-Shell ohne persönliche Browserpersistenz                     | bestanden                             |
@@ -78,6 +78,14 @@ STORAGE_PATH="/absoluter/neuer/pfad/documents" \
 Die Umschaltung auf diese Ziele bleibt eine bewusste Aktion nach Readiness-,
 Integritäts- und Datenvergleich. Die aktive Datenbank und das aktive
 Dokumentverzeichnis werden nicht überschrieben.
+
+Backup- und Prüfsummenziele dürfen weder vorhandene Dateien noch symbolische
+Links sein. Ein Dokumenten- oder SQLite-Backup darf nicht innerhalb seiner
+Quelle liegen; Restore-Datenbank und -Dokumentverzeichnis dürfen weder im
+Backup noch ineinander liegen. Der automatisierte Recovery-Test prüft diese
+Grenzen vor jedem Schreibvorgang. PostgreSQL-Dump und Dokumentensicherung sind
+weiterhin zwei zeitlich zu koordinierende Vorgänge; währenddessen sind
+Schreibaktionen zu pausieren.
 
 Die Mac-App verwendet weiterhin das gemeinsame SQLite-Backup, das Datenbank
 und Dokumente in einem Manifest zusammenführt:

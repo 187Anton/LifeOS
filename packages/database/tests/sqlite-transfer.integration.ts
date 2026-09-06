@@ -556,6 +556,15 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     "synthetisches Dokument\n",
   );
   await writeFile(path.join(documents, "notiz.txt"), "synthetische Notiz\n");
+  await assert.rejects(
+    () =>
+      createSqliteBackup({
+        databaseUrl: `file:${importedDatabasePath}`,
+        documentsDirectory: documents,
+        destinationDirectory: path.join(documents, "backup"),
+      }),
+    /nicht im zu sichernden Dokumentenverzeichnis/,
+  );
   const backupDirectory = path.join(directory, "backup");
   const backup = await createSqliteBackup({
     databaseUrl: `file:${importedDatabasePath}`,
@@ -642,6 +651,24 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   await cp(backupDirectory, tamperedBackup, { recursive: true });
   await appendFile(path.join(tamperedBackup, "manifest.json"), " ");
   const rejectedDatabase = path.join(directory, "rejected.sqlite");
+  await assert.rejects(
+    () =>
+      restoreSqliteBackup({
+        backupDirectory,
+        targetDatabaseUrl: `file:${path.join(backupDirectory, "restored.sqlite")}`,
+        targetDocumentsDirectory: path.join(directory, "documents-outside"),
+      }),
+    /nicht innerhalb des Backups/,
+  );
+  await assert.rejects(
+    () =>
+      restoreSqliteBackup({
+        backupDirectory,
+        targetDatabaseUrl: `file:${path.join(directory, "combined", "restored.sqlite")}`,
+        targetDocumentsDirectory: path.join(directory, "combined"),
+      }),
+    /getrennte Ziele/,
+  );
   await assert.rejects(
     () =>
       restoreSqliteBackup({
