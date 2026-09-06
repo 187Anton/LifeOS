@@ -210,9 +210,12 @@ const MonthView = ({
           );
           return (
             <section
-              className="month-day"
+              className={
+                index === 0
+                  ? `month-day month-day-start-${firstColumn}`
+                  : "month-day"
+              }
               key={date}
-              style={index === 0 ? { gridColumnStart: firstColumn } : undefined}
               aria-label={dateLabel(date, true)}
             >
               <time dateTime={date}>{Number(date.slice(-2))}</time>

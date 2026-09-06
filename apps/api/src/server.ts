@@ -141,6 +141,7 @@ const main = async (): Promise<void> => {
     logger,
     readinessProbe: createDatabaseReadinessProbe(database),
     webOrigin: config.webOrigin,
+    ...(config.startupToken ? { startupToken: config.startupToken } : {}),
     ...(config.webDistPath ? { webDistPath: config.webDistPath } : {}),
     rootRouters: [
       createCalDavRouter({

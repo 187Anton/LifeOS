@@ -1,22 +1,38 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 
 const SCRYPT_KEY_LENGTH = 64;
-const SCRYPT_COST = 16_384;
-const SCRYPT_BLOCK_SIZE = 8;
-const SCRYPT_PARALLELIZATION = 1;
-const HASH_PREFIX = "scrypt-v1";
+const CURRENT_SCRYPT = {
+  prefix: "scrypt-v2",
+  cost: 32_768,
+  blockSize: 8,
+  parallelization: 3,
+  maxmem: 64 * 1024 * 1024,
+} as const;
+const LEGACY_SCRYPT = {
+  prefix: "scrypt-v1",
+  cost: 16_384,
+  blockSize: 8,
+  parallelization: 1,
+  maxmem: 64 * 1024 * 1024,
+} as const;
 
-const deriveKey = (password: string, salt: Buffer): Promise<Buffer> =>
+type ScryptParameters = typeof CURRENT_SCRYPT | typeof LEGACY_SCRYPT;
+
+const deriveKey = (
+  password: string,
+  salt: Buffer,
+  parameters: ScryptParameters,
+): Promise<Buffer> =>
   new Promise((resolve, reject) => {
     scrypt(
       password,
       salt,
       SCRYPT_KEY_LENGTH,
       {
-        N: SCRYPT_COST,
-        r: SCRYPT_BLOCK_SIZE,
-        p: SCRYPT_PARALLELIZATION,
-        maxmem: 64 * 1024 * 1024,
+        N: parameters.cost,
+        r: parameters.blockSize,
+        p: parameters.parallelization,
+        maxmem: parameters.maxmem,
       },
       (error, derivedKey) =>
         error ? reject(error) : resolve(derivedKey as Buffer),
@@ -25,12 +41,12 @@ const deriveKey = (password: string, salt: Buffer): Promise<Buffer> =>
 
 export const hashPassword = async (password: string): Promise<string> => {
   const salt = randomBytes(16);
-  const derivedKey = await deriveKey(password, salt);
+  const derivedKey = await deriveKey(password, salt, CURRENT_SCRYPT);
   return [
-    HASH_PREFIX,
-    SCRYPT_COST,
-    SCRYPT_BLOCK_SIZE,
-    SCRYPT_PARALLELIZATION,
+    CURRENT_SCRYPT.prefix,
+    CURRENT_SCRYPT.cost,
+    CURRENT_SCRYPT.blockSize,
+    CURRENT_SCRYPT.parallelization,
     salt.toString("base64url"),
     derivedKey.toString("base64url"),
   ].join("$");
@@ -40,28 +56,39 @@ export const verifyPassword = async (
   password: string,
   encodedHash: string,
 ): Promise<boolean> => {
+  const parts = encodedHash.split("$");
+  if (parts.length !== 6) return false;
   const [prefix, cost, blockSize, parallelization, saltValue, hashValue] =
-    encodedHash.split("$");
+    parts;
+  const parameters = [CURRENT_SCRYPT, LEGACY_SCRYPT].find(
+    (candidate) => candidate.prefix === prefix,
+  );
 
   if (
-    prefix !== HASH_PREFIX ||
-    Number(cost) !== SCRYPT_COST ||
-    Number(blockSize) !== SCRYPT_BLOCK_SIZE ||
-    Number(parallelization) !== SCRYPT_PARALLELIZATION ||
+    !parameters ||
+    Number(cost) !== parameters.cost ||
+    Number(blockSize) !== parameters.blockSize ||
+    Number(parallelization) !== parameters.parallelization ||
     !saltValue ||
-    !hashValue
+    !/^[A-Za-z0-9_-]{22}$/.test(saltValue) ||
+    !hashValue ||
+    !/^[A-Za-z0-9_-]{86}$/.test(hashValue)
   ) {
     return false;
   }
 
+  const salt = Buffer.from(saltValue, "base64url");
   const expected = Buffer.from(hashValue, "base64url");
-  if (expected.length !== SCRYPT_KEY_LENGTH) {
+  if (salt.length !== 16 || expected.length !== SCRYPT_KEY_LENGTH) {
     return false;
   }
 
-  const actual = await deriveKey(password, Buffer.from(saltValue, "base64url"));
+  const actual = await deriveKey(password, salt, parameters);
   return timingSafeEqual(actual, expected);
 };
+
+export const passwordHashNeedsUpgrade = (encodedHash: string): boolean =>
+  !encodedHash.startsWith(`${CURRENT_SCRYPT.prefix}$`);
 
 export const createSessionToken = (): string =>
   randomBytes(32).toString("base64url");

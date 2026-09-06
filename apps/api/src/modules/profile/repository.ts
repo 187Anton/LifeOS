@@ -6,6 +6,8 @@ import type {
   UpdateSettingsRequest,
 } from "@lifeos/contracts";
 
+import { sessionRevocationTime } from "./security.js";
+
 export interface StoredCredential {
   userId: string;
   passwordHash: string;
@@ -14,6 +16,11 @@ export interface StoredCredential {
 
 export interface AuthenticationRepository {
   findLocalCredential(): Promise<StoredCredential | null>;
+  upgradePasswordHash?(
+    userId: string,
+    expectedHash: string,
+    passwordHash: string,
+  ): Promise<void>;
   createSession(input: {
     userId: string;
     tokenHash: string;
@@ -77,6 +84,17 @@ export class PrismaProfileRepository
     });
   }
 
+  async upgradePasswordHash(
+    userId: string,
+    expectedHash: string,
+    passwordHash: string,
+  ): Promise<void> {
+    await this.database.userCredential.updateMany({
+      where: { userId, passwordHash: expectedHash },
+      data: { passwordHash },
+    });
+  }
+
   async createSession(input: {
     userId: string;
     tokenHash: string;
@@ -112,9 +130,16 @@ export class PrismaProfileRepository
   }
 
   async revokeSession(tokenHash: string, now: Date): Promise<void> {
-    await this.database.userSession.updateMany({
-      where: { tokenHash, revokedAt: null },
-      data: { revokedAt: now },
+    await this.database.$transaction(async (transaction) => {
+      const session = await transaction.userSession.findUnique({
+        where: { tokenHash },
+        select: { createdAt: true, revokedAt: true },
+      });
+      if (!session || session.revokedAt) return;
+      await transaction.userSession.updateMany({
+        where: { tokenHash, revokedAt: null },
+        data: { revokedAt: sessionRevocationTime(session.createdAt, now) },
+      });
     });
   }
 

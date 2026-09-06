@@ -120,7 +120,10 @@ unset LIFEOS_BOOTSTRAP_PASSWORD
 Das Passwort muss 12 bis 200 Zeichen lang sein. Ein erneuter Lauf ersetzt den
 Hash, erhöht die Zugangsversion und widerruft alle bestehenden Sitzungen. Das
 Passwort darf nicht in `.env`, Shell-Skripten, Browsercode oder Git gespeichert
-werden.
+werden. Neue Hashes verwenden `scrypt-v2` mit Zufallssalz und den geprüften
+Parametern `N=2^15`, `r=8`, `p=3`. Ein vorhandener `scrypt-v1`-Hash bleibt
+kompatibel und wird erst nach erfolgreicher Anmeldung vergleichsatomar auf die
+stärkere Form aktualisiert; das Passwort wird dafür nicht gespeichert.
 
 ## CalDAV-Zugang und lokale Einrichtung
 

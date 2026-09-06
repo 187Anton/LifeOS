@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type {
   CreateNoteRequest,
   UpdateDocumentRequest,
@@ -115,6 +117,14 @@ export class KnowledgeService {
     const bytes = await this.handle(() =>
       this.storage.read(userId, record.storageKey),
     );
+    const checksum = createHash("sha256").update(bytes).digest("hex");
+    if (bytes.byteLength !== record.byteSize || checksum !== record.sha256) {
+      throw new ApiError(
+        409,
+        "CONFLICT",
+        "Das lokale Dokument hat die Integritätsprüfung nicht bestanden.",
+      );
+    }
     return { record, bytes };
   }
 

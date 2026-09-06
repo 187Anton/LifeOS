@@ -54,6 +54,10 @@ test("setzt Sicherheitsheader und blockiert fremde Browser-Ursprünge", async (t
     health.headers.get("permissions-policy"),
     "camera=(), microphone=(), geolocation=()",
   );
+  assert.match(
+    health.headers.get("content-security-policy") ?? "",
+    /default-src 'self'.*object-src 'none'.*script-src 'self'/,
+  );
   assert.equal(health.headers.get("cache-control"), "private, no-store");
 
   const blocked = await fetch(`${baseUrl}/api/v1/synthetic-write`, {
