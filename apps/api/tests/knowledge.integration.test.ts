@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -207,6 +207,30 @@ test("verwaltet lokale Notizen und Dokumente besitzgebunden, versioniert und ohn
   assert.equal(download.status, 200);
   assert.equal(download.headers.get("cache-control"), "private, no-store");
   assert.deepEqual(Buffer.from(await download.arrayBuffer()), bytes);
+  await writeFile(
+    path.join(storageRoot, owner.id, stored.storageKey),
+    "manipulierter Dokumentinhalt\n",
+  );
+  const corruptedDownload = await fetch(`${origin}${document.contentUrl}`, {
+    headers: { cookie },
+  });
+  assert.equal(corruptedDownload.status, 409);
+  assert.equal(
+    ((await corruptedDownload.json()) as { error: { code: string } }).error
+      .code,
+    "CONFLICT",
+  );
+  await writeFile(path.join(storageRoot, owner.id, stored.storageKey), bytes);
+
+  const invalidMimeType = await fetch(
+    `${base}/documents?fileName=ungueltig.txt`,
+    {
+      method: "POST",
+      headers: { cookie, "content-type": "text/plain, application/json" },
+      body: "synthetisch",
+    },
+  );
+  assert.equal(invalidMimeType.status, 400);
   assert.equal(
     (
       await fetch(

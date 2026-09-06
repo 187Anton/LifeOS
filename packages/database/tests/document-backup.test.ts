@@ -151,3 +151,38 @@ test("folgt beim Dokumentenbackup keinen symbolischen Links", async (t) => {
     /Symbolische Links/,
   );
 });
+
+test("weist verschachtelte Backup- und Restore-Ziele vor jedem Schreiben zurück", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "lifeos-documents-"));
+  t.after(async () => rm(directory, { recursive: true, force: true }));
+  const source = path.join(directory, "source");
+  await mkdir(source);
+  await writeFile(path.join(source, "document"), "synthetisch\n");
+
+  await assert.rejects(
+    () =>
+      createDocumentBackup({
+        documentsDirectory: source,
+        destinationDirectory: path.join(source, "backup"),
+      }),
+    /nicht im zu sichernden Dokumentenverzeichnis/,
+  );
+  assert.equal(
+    await lstat(path.join(source, "backup")).catch(() => null),
+    null,
+  );
+
+  const backup = path.join(directory, "backup");
+  await createDocumentBackup({
+    documentsDirectory: source,
+    destinationDirectory: backup,
+  });
+  await assert.rejects(
+    () =>
+      restoreDocumentBackup({
+        backupDirectory: backup,
+        targetDocumentsDirectory: path.join(backup, "restored"),
+      }),
+    /nicht innerhalb des Backups/,
+  );
+});

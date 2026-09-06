@@ -29,6 +29,16 @@ const manifestName = "manifest.json";
 const manifestChecksumName = "manifest.sha256";
 const checksumPattern = /^[0-9a-f]{64}$/;
 
+const isSameOrDescendant = (parent: string, candidate: string) => {
+  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
+  return (
+    relative === "" ||
+    (!relative.startsWith(`..${path.sep}`) &&
+      relative !== ".." &&
+      !path.isAbsolute(relative))
+  );
+};
+
 const exists = async (target: string) =>
   lstat(target)
     .then(() => true)
@@ -110,6 +120,12 @@ const isEntry = (value: unknown): value is DocumentBackupEntry =>
 const readManifest = async (
   backupDirectory: string,
 ): Promise<DocumentBackupManifest> => {
+  const backupInfo = await lstat(backupDirectory).catch(() => null);
+  if (!backupInfo?.isDirectory() || backupInfo.isSymbolicLink()) {
+    throw new Error(
+      "Das Dokumentenbackup muss ein reguläres Verzeichnis sein.",
+    );
+  }
   let manifestBytes: Buffer;
   let expectedChecksum: string;
   try {
@@ -210,6 +226,13 @@ export const createDocumentBackup = async (options: {
   ) {
     throw new Error("Dokumenten- und Backup-Pfade müssen absolut sein.");
   }
+  if (
+    isSameOrDescendant(options.documentsDirectory, options.destinationDirectory)
+  ) {
+    throw new Error(
+      "Das Backup-Ziel darf nicht im zu sichernden Dokumentenverzeichnis liegen.",
+    );
+  }
   if (await exists(options.destinationDirectory)) {
     throw new Error(
       "Das Backup-Ziel existiert bereits und wird nicht überschrieben.",
@@ -276,6 +299,16 @@ export const restoreDocumentBackup = async (options: {
     !path.isAbsolute(options.targetDocumentsDirectory)
   ) {
     throw new Error("Backup- und Dokumentenpfade müssen absolut sein.");
+  }
+  if (
+    isSameOrDescendant(
+      options.backupDirectory,
+      options.targetDocumentsDirectory,
+    )
+  ) {
+    throw new Error(
+      "Das Restore-Ziel darf nicht innerhalb des Backups liegen.",
+    );
   }
   if (await exists(options.targetDocumentsDirectory)) {
     throw new Error(
