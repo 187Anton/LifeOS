@@ -158,7 +158,8 @@ Die folgenden Punkte wurden nicht geprüft und sind keine lokale oder
 - Intel-/x86_64- oder Universal-Build;
 - physischer Apple-Kalender-Test über ein abgesichertes LAN.
 
-Zusätzlich war im Sicherheitsreview der aktuelle Online-Abgleich mit der
-npm-Advisory-Datenbank wegen eines Registry-Timeouts nicht möglich. Der
-verfügbare Offline-Cache meldete keine bekannte produktive Schwachstelle; das
-ersetzt keinen aktuellen Online-Abgleich vor einer öffentlichen Freigabe.
+Der am 7. September 2026 wiederholte Online-Abgleich meldete nach gezielten
+Transitivaktualisierungen 0 npm-Advisories. Das Tauri-Lockfile meldete gegen
+die aktuelle RustSec-Datenbank keine bekannte Sicherheitslücke; verbleibende
+Upstream-Wartungswarnungen, Ursachen und Release-Grenzen stehen im
+[`Sicherheitsreview 0.6`](security-review-0.6.md).

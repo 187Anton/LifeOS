@@ -74,6 +74,8 @@ Prüfsumme; maßgeblich ist immer die gemeinsam erzeugte `.sha256`-Datei.
 - die vollständige lokale Code-Signaturstruktur;
 - gebündeltes Node 22, Express, SQLite und Migrationen ohne Homebrew-/Node-Pfad;
 - dynamische Loopback-Ports, Ersteinrichtung, Anmeldung und Neustart;
+- den pro Start zufälligen Sidecar-Nachweis, eine leere Kindprozessumgebung und
+  die Abweisung einer zweiten schreibenden App-Instanz;
 - eine vollständige synthetische Produktdemo von Projekt, Aufgabe, Kalender,
   CalDAV, Dokument, Suche, KI-Grenze, Finanzen, Fitness und ICS;
 - unveränderte Benutzer-, Kalender-, UID-, ETag- und Sync-Identitäten.
@@ -103,15 +105,16 @@ Installationsaktion.
 Die Repository-CI prüft auf jedem PR nach `develop` oder `main` sowie auf
 beiden Branches:
 
-- Secret-Scan, Format und Compose;
+- Secret-Scan, aktuelles npm-Advisory-Gate, Format und Compose;
 - PostgreSQL-Migration, wiederholbaren Seed und Recovery;
 - Lint, Typen, Build und alle Workspace-Tests;
 - SQLite-Migration, vollständige API-Parität, Laufzeitneustart und Recovery;
 - konsistente Release-Metadaten.
 
-Ein getrenntes macOS-Job baut außerdem die Tauri-App und das DMG, führt vier
-Rust-Lifecycle-Tests aus und prüft das lokal signierte Artefakt. Ein grüner
-CI-Job ist ein Buildnachweis, aber keine öffentliche Produktfreigabe.
+Ein getrennter macOS-Job prüft `Cargo.lock` zusätzlich mit RustSec, baut die
+Tauri-App und das DMG, führt sechs Rust-Lifecycle-Tests aus und prüft das lokal
+signierte Artefakt. Ein grüner CI-Job ist ein Buildnachweis, aber keine
+öffentliche Produktfreigabe.
 Die gemeinsame Desktop-Vorbereitung erzeugt zuerst beide Prisma-Clients;
 `desktop:test` bereitet anschließend auch seine Sidecar-Ressourcen selbst vor.
 Damit sind Test und Build in einem frischen Checkout unabhängig von alten

@@ -1,6 +1,6 @@
 # Migrationsprotokoll: Mac-App und SQLite
 
-Stand: 11. August 2026
+Stand: 7. September 2026
 
 Dieses Dokument ist der fortlaufende Nachweis für die in
 [`mac-desktop-spike-plan.md`](mac-desktop-spike-plan.md) beschriebene Migration.
@@ -9,16 +9,16 @@ tatsächlich ausgeführten Prüfungen dokumentiert ist.
 
 ## Statusübersicht
 
-| Paket                             | Status                                          | Letzter Nachweis |
-| --------------------------------- | ----------------------------------------------- | ---------------- |
-| M0 – Ziel und Ausführungsplan     | abgeschlossen                                   | 9. August 2026   |
-| M1 – SQLite-Schema und Migration  | abgeschlossen                                   | 9. August 2026   |
-| M2 – API ohne Docker              | abgeschlossen                                   | 9. August 2026   |
-| M3 – Kalender- und CalDAV-Parität | abgeschlossen                                   | 9. August 2026   |
-| M4 – Datenübernahme und Recovery  | abgeschlossen                                   | 9. August 2026   |
-| M5 – Tauri-Sidecar                | abgeschlossen                                   | 9. August 2026   |
-| M6 – Installation und Update      | lokal erfolgreich; Produktfreigabe aufgeschoben | 11. August 2026  |
-| M7 – Abschlussdokumentation       | offen                                           | –                |
+| Paket                             | Status                                          | Letzter Nachweis  |
+| --------------------------------- | ----------------------------------------------- | ----------------- |
+| M0 – Ziel und Ausführungsplan     | abgeschlossen                                   | 9. August 2026    |
+| M1 – SQLite-Schema und Migration  | abgeschlossen                                   | 9. August 2026    |
+| M2 – API ohne Docker              | abgeschlossen                                   | 9. August 2026    |
+| M3 – Kalender- und CalDAV-Parität | abgeschlossen                                   | 9. August 2026    |
+| M4 – Datenübernahme und Recovery  | abgeschlossen                                   | 9. August 2026    |
+| M5 – Tauri-Sidecar                | abgeschlossen                                   | 9. August 2026    |
+| M6 – Installation und Update      | lokal erfolgreich; Produktfreigabe aufgeschoben | 11. August 2026   |
+| M7 – Abschlussdokumentation       | abgeschlossen                                   | 7. September 2026 |
 
 ## Nachweisvorlage
 
@@ -420,3 +420,34 @@ formuliert werden.
 - **Grenzen:** Produktive externe Zugänge, Schlüsselbund, physischer
   Apple-Kalender, Developer-ID, Notarisierung, sauberer zweiter Mac und
   Intel-/Universal-Build bleiben offen.
+
+## 7. September 2026 – M7: Sicherheits- und Dokumentationsabschluss
+
+- **Befund:** Der Gesamtprojekt-Review fand keinen kritischen, aber mehrere
+  hohe und mittlere Befunde. Für die Desktop-Grenze waren insbesondere eine
+  geerbte Elternumgebung, fehlende Einzelinstanzsperre und ein nicht an den
+  gestarteten Sidecar gebundener Readiness-Nachweis relevant. Der M7-Status
+  war trotz abgeschlossener 0.6-Dokumentation noch als offen geführt.
+- **Ursache oder Entscheidung:** Der Sidecar erhält nur eine feste
+  Umgebungs-Positivliste. Eine private Prozesssperre erzwingt genau einen
+  SQLite-Schreiber, und ein zufälliger Startnachweis bindet Readiness an den
+  erwarteten Kindprozess. M7 gilt nach dem Gesamtbericht und dem wiederholten
+  lokalen DMG-Nachweis als abgeschlossen; externe Produktrelease-Gates sind
+  davon getrennt.
+- **Änderungsumfang:** Tauri-Lifecycle, Sidecar-Verifikation, zentrale
+  Sicherheitsdokumentation, Roadmap, README sowie CI-Advisory-Gates; keine
+  Datenbankmigration und kein API-Vertragsbruch.
+- **Verifikation:** Sechs Rust-Tests, Sidecar-Produktdemo, neu gebautes und
+  geprüftes ARM64-DMG, Einzelinstanztest, Secret-Isolation, private Datei-
+  rechte, geordnetes Beenden, npm-Audit und RustSec-Audit bestanden. Die
+  vollständige Befund- und Testmatrix steht im
+  [`Sicherheitsreview 0.6`](security-review-0.6.md).
+- **Datenvergleich:** Der Sidecar-Neustart erhielt die synthetischen Fach- und
+  Kalenderidentitäten. PostgreSQL-/SQLite-Import, Recovery und der bestehende
+  Zwei-Versionen-Nachweis bleiben unverändert gültig.
+- **Risiken und Grenzen:** Developer-ID, Notarisierung, Gatekeeper-Download,
+  zweiter sauberer Mac, Intel-/Universal-DMG, physischer Apple-Kalender und
+  produktive Drittanbieterzugänge bleiben ausdrücklich ungeprüft.
+- **Nächster Schritt:** PR- und CI-Kette nach `develop` und anschließend
+  `main`; nur grüne CI und identische abschließende Tree-IDs erlauben den
+  Integrationsabschluss.

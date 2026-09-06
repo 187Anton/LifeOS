@@ -8,9 +8,17 @@ Browserbetrieb. Eine zweite Fach- oder Kalenderimplementierung gibt es nicht.
 
 Tauri wählt beim Start einen freien Port auf `127.0.0.1`, legt die privaten
 Anwendungsverzeichnisse an, startet den gebündelten Node-Sidecar und wartet auf
-`/api/v1/readiness`. Erst danach öffnet das Fenster die lokale HTTP-Adresse.
+`/api/v1/readiness`. Die Antwort gilt nur mit einem zufälligen, pro Start neu
+erzeugten Nachweis als die eigene Sidecar-Instanz. Erst danach öffnet das Fenster
+die lokale HTTP-Adresse.
 Beim Beenden erhält der Sidecar `SIGTERM`. Unerwarteter Prozessabbruch oder ein
 fehlgeschlagener Start werden als nativer Fehlerdialog angezeigt.
+
+Vor dem Sidecar-Start hält die App eine private, nicht blockierende
+Instanzsperre im Datenverzeichnis. Eine zweite Instanz darf deshalb weder einen
+zweiten schreibenden SQLite-Prozess noch einen zweiten Sidecar starten. Der
+Sidecar erbt keine Elternumgebung; nur die für den lokalen Betrieb fest
+freigegebenen Variablen werden gesetzt.
 
 Die `.app` benötigt zur Laufzeit weder Docker noch Homebrew noch ein separat
 installiertes Node.js. Der Build lädt stattdessen das offizielle
@@ -97,9 +105,9 @@ Anfragekörper, Cookies oder Zugangsdaten.
   unter 0.6.0 erstellte Backup wurde zusätzlich ausschließlich in neue Ziele
   restauriert und erneut mit 0.6.0 geprüft.
 - Die DMG-Prüfung startet die tatsächlich kopierte native App, kontrolliert
-  Dateirechte und beendet sie regulär über macOS; der Sidecar darf danach
-  nicht weiterlaufen. Backup und Restore sind noch nicht in die
-  Desktop-Oberfläche eingebunden.
+  Dateirechte, Startnachweis, Secret-Isolation und Einzelinstanzsperre und
+  beendet sie regulär über macOS; der Sidecar darf danach nicht weiterlaufen.
+  Backup und Restore sind noch nicht in die Desktop-Oberfläche eingebunden.
 - Die externe CalDAV-Integration bleibt in der Mac-App ohne einen nativen
   Schlüsselbundpfad vollständig nicht verfügbar. Der Sidecar-Test bestätigt
   den sicheren Status `available: false`; eine spätere Aktivierung darf keinen

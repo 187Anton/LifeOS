@@ -207,6 +207,10 @@ Der erste Betrieb erfolgt vollständig lokal:
   Cargo. `npm run release:verify` prüft den Gleichstand; jedes lokale DMG erhält
   eine portable SHA-256-Datei. Ein erfolgreicher lokaler oder CI-Build ist ohne
   die externen Apple-Gates keine öffentliche Release-Freigabe.
+- Die Mac-App hält vor dem Sidecar-Start eine private nicht blockierende
+  Instanzsperre für den gemeinsamen Datenpfad. Der Sidecar erbt keine
+  Elternumgebung, erhält nur eine feste Positivliste und gilt erst mit einem
+  zufälligen pro Start erzeugten Readiness-Nachweis als eigene Instanz.
 - PostgreSQL wird in der lokalen Compose-Umgebung nur an `127.0.0.1`
   gebunden. `npm run env:check`, `npm run db:start`, `npm run db:check` und
   `npm run db:stop` sind die verbindlichen lokalen Datenbankbefehle;
@@ -261,7 +265,9 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
   schreibgeschützt, vergleicht alle vorhandenen Modelle und veröffentlicht nur eine neue
   geprüfte Zieldatei. SQLite-Backup und Restore umfassen Datenbank und
   Dokumente, verwenden SHA-256-Manifeste und schreiben niemals über aktive
-  Ziele. Backups sind unverschlüsselt und vertraulich zu behandeln.
+  Ziele. Quelle, Backup, Zieldatenbank und Zieldokumente müssen disjunkt sein;
+  symbolische Links werden vor jedem Schreiben abgewiesen. Backups sind
+  unverschlüsselt und vertraulich zu behandeln.
 - Kalenderzeitpunkte werden als `TIMESTAMPTZ` plus fachliche IANA-Zeitzone,
   ganztägige Ereignisse ausschließlich als `DATE`-Werte gespeichert. Ein
   Datenbank-Constraint muss beide Formen eindeutig voneinander trennen.
@@ -320,12 +326,20 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
   zuführen.
 - `npm run security:secrets` ist vor Veröffentlichung und in CI verbindlich;
   Trefferwerte dürfen weder im Terminalbericht noch in Logs ausgegeben werden.
+- CI prüft nach der gesperrten Installation zusätzlich die aktuelle
+  npm-Advisory-Datenbank und das Tauri-`Cargo.lock` mit einer festgelegten
+  `cargo-audit`-Version. Wartungswarnungen werden getrennt von bestätigten
+  Sicherheitslücken dokumentiert.
 - Passwörter nur mit einem geeigneten Passwort-Hash speichern.
 - Das lokale Passwort wird mit gesalzenem `scrypt` gespeichert. Sitzungen
   verwenden zufällige Tokens, von denen nur SHA-256-Hashes, Ablauf und
   Widerrufsstatus persistiert werden; Passwortwechsel widerrufen ältere
   Zugangsversionen. Ein Widerruf liegt auch bei vorauseilender System- oder
   Fixture-Uhr niemals vor dem Erzeugungszeitpunkt der Sitzung.
+- Neue lokale Passworthashes verwenden die versionierte `scrypt-v2`-
+  Konfiguration `N=2^15`, `r=8`, `p=3` mit 16-Byte-Zufallssalz und
+  64-Byte-Ausgabe. Gültige `scrypt-v1`-Hashes bleiben lesbar und werden erst
+  nach erfolgreicher Anmeldung vergleichsatomar aktualisiert.
 - CalDAV-Zugang und externe Integrationszugänge separat widerrufbar machen.
 - CalDAV verwendet einen eigenen gehashten lokalen Zugang. Ereignisänderungen
   schreiben Kalender-`syncToken` und Ereignis-`syncVersion` atomar; iCalendar-
@@ -641,3 +655,10 @@ gemeldet.
   SQLite-/Logrechte und reguläres macOS-Beenden einschließlich beendetem
   Sidecar nach reproduziertem Tauri-Temp-Pfadfehler und erfolgreicher
   DMG-Abschlussprüfung festgehalten.
+- **2026-09-07:** Stärkere versionierte Passwortableitung, paralleles
+  Login-Limit, vollständigen CalDAV-SSRF-Filter, Dokument- und Backup-
+  Integritätsgrenzen, restriktive Browser-CSP sowie aktuelle npm-/RustSec-
+  Gates nach Gesamtprojekt-Review festgehalten.
+- **2026-09-07:** Native Einzelinstanzsperre, leere Sidecar-Elternumgebung und
+  zufälligen Readiness-Startnachweis nach Rust-, Sidecar- und realem
+  DMG-Lifecycle-Test festgehalten.
