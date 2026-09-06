@@ -5,9 +5,13 @@ import type {
 } from "./repository.js";
 import {
   createSessionToken,
+  hashPassword,
   hashSessionToken,
+  passwordHashNeedsUpgrade,
   verifyPassword,
 } from "./security.js";
+
+const sessionTokenPattern = /^[A-Za-z0-9_-]{43}$/;
 
 export class AuthenticationService {
   constructor(
@@ -28,6 +32,17 @@ export class AuthenticationService {
       );
     }
 
+    if (
+      passwordHashNeedsUpgrade(credential.passwordHash) &&
+      this.repository.upgradePasswordHash
+    ) {
+      await this.repository.upgradePasswordHash(
+        credential.userId,
+        credential.passwordHash,
+        await hashPassword(password),
+      );
+    }
+
     const token = createSessionToken();
     const expiresAt = new Date(
       Date.now() + this.sessionTtlHours * 60 * 60 * 1000,
@@ -42,7 +57,7 @@ export class AuthenticationService {
   }
 
   async authenticate(token: string | undefined): Promise<string> {
-    if (!token) {
+    if (!token || !sessionTokenPattern.test(token)) {
       throw new ApiError(
         401,
         "UNAUTHORIZED",
@@ -65,6 +80,7 @@ export class AuthenticationService {
   }
 
   async logout(token: string): Promise<void> {
+    if (!sessionTokenPattern.test(token)) return;
     await this.repository.revokeSession(hashSessionToken(token), new Date());
   }
 }

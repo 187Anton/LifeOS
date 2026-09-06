@@ -15,6 +15,9 @@ backup_file="$REPOSITORY_ROOT/backups/foundation-verification-${suffix}.dump"
 missing_checksum_file="${backup_file}.missing-checksum"
 tampered_file="${backup_file}.tampered"
 corrupt_file="${backup_file}.corrupt"
+symlink_target="${backup_file}.symlink-target"
+symlink_backup="${backup_file}.symlink-backup"
+symlink_checksum_backup="${backup_file}.symlink-checksum"
 
 cd "$REPOSITORY_ROOT"
 bash "$SCRIPT_DIR/check-database.sh"
@@ -35,7 +38,9 @@ cleanup() {
   rm -f "$backup_file" "${backup_file}.sha256" \
     "$missing_checksum_file" "${missing_checksum_file}.sha256" \
     "$tampered_file" "${tampered_file}.sha256" \
-    "$corrupt_file" "${corrupt_file}.sha256"
+    "$corrupt_file" "${corrupt_file}.sha256" \
+    "$symlink_target" "$symlink_backup" "$symlink_checksum_backup" \
+    "${symlink_checksum_backup}.sha256"
 }
 trap cleanup EXIT
 
@@ -142,6 +147,27 @@ if [[ "$snapshot_before" != "$snapshot_after" ]]; then
 fi
 
 mkdir -p "$(dirname "$backup_file")"
+printf 'unveränderter synthetischer Marker\n' >"$symlink_target"
+ln -s "$symlink_target" "$symlink_backup"
+if bash "$SCRIPT_DIR/backup-database.sh" "$symlink_backup" >/dev/null 2>&1; then
+  printf 'Fehler: Ein symbolischer Link wurde als PostgreSQL-Backupziel akzeptiert.\n' >&2
+  exit 1
+fi
+if [[ "$(<"$symlink_target")" != "unveränderter synthetischer Marker" ]]; then
+  printf 'Fehler: Das Ziel eines Backup-Symlinks wurde verändert.\n' >&2
+  exit 1
+fi
+rm -f "$symlink_backup"
+ln -s "$symlink_target" "${symlink_checksum_backup}.sha256"
+if bash "$SCRIPT_DIR/backup-database.sh" "$symlink_checksum_backup" >/dev/null 2>&1; then
+  printf 'Fehler: Ein symbolischer Link wurde als PostgreSQL-Prüfsummenziel akzeptiert.\n' >&2
+  exit 1
+fi
+if [[ "$(<"$symlink_target")" != "unveränderter synthetischer Marker" ]]; then
+  printf 'Fehler: Das Ziel eines Prüfsummen-Symlinks wurde verändert.\n' >&2
+  exit 1
+fi
+
 docker compose exec -T db sh -ec \
   'pg_dump -U "$POSTGRES_USER" -d "$1" --format=custom --no-owner --no-acl' \
   lifeos-dump "$source_database" >"$backup_file"

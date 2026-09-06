@@ -12,7 +12,10 @@ import type { ReadinessProbe } from "../readiness.js";
 
 const emptyQuery = z.strictObject({});
 
-export const createHealthRouter = (readinessProbe: ReadinessProbe): Router => {
+export const createHealthRouter = (
+  readinessProbe: ReadinessProbe,
+  startupToken?: string,
+): Router => {
   const router = Router();
 
   router.get(
@@ -46,6 +49,9 @@ export const createHealthRouter = (readinessProbe: ReadinessProbe): Router => {
         status: "ready",
         checks: { database: "up" },
       };
+      if (startupToken) {
+        response.setHeader("X-LifeOS-Startup-Proof", startupToken);
+      }
       response.json(payload);
     },
   );

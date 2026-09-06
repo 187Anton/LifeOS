@@ -115,13 +115,15 @@ export const createProfileRouter = ({
       const clientKey = request.socket.remoteAddress ?? "unknown-local-client";
       const retryAfter = loginAttempts.retryAfterSeconds(clientKey);
       if (retryAfter !== null) response.setHeader("Retry-After", retryAfter);
-      loginAttempts.requireAllowed(clientKey);
+      loginAttempts.beginAttempt(clientKey);
       let session: Awaited<ReturnType<AuthenticationService["login"]>>;
       try {
         session = await authentication.login(body.password);
       } catch (error) {
         if (error instanceof ApiError && error.code === "INVALID_CREDENTIALS") {
           loginAttempts.recordFailure(clientKey);
+        } else {
+          loginAttempts.releaseAttempt(clientKey);
         }
         throw error;
       }

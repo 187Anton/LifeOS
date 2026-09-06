@@ -20,6 +20,7 @@ interface ApplicationDependencies {
   moduleRouters?: Router[];
   rootRouters?: Router[];
   rawModuleRouters?: Router[];
+  startupToken?: string | undefined;
 }
 
 export const createApplication = ({
@@ -30,6 +31,7 @@ export const createApplication = ({
   moduleRouters = [],
   rootRouters = [],
   rawModuleRouters = [],
+  startupToken,
 }: ApplicationDependencies): Express => {
   const application = express();
 
@@ -61,7 +63,7 @@ export const createApplication = ({
   for (const router of rootRouters) {
     application.use(router);
   }
-  application.use("/api/v1", createHealthRouter(readinessProbe));
+  application.use("/api/v1", createHealthRouter(readinessProbe, startupToken));
 
   for (const router of rawModuleRouters) {
     application.use("/api/v1", router);

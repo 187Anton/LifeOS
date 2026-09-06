@@ -608,19 +608,19 @@ vorbereiten.
 
 ### 0.6.1 Sicherheits- und Datenschutzprüfung
 
-- **Umgesetzt (4. September 2026):** Authentifizierung, Sitzungen,
+- **Erweitert geprüft (7. September 2026):** Authentifizierung, Sitzungen,
   Besitzgrenzen, Dateiablage, Import/Export, CalDAV, externe Integrationen,
-  Logging, Browser-Speicher und Prompt-Injection-Abgrenzung wurden technisch
-  geprüft.
-- Konkrete Befunde wurden behoben: fünf Fehlversuche je Client sperren die
-  Anmeldung für 15 Minuten; schreibende Browseranfragen benötigen bei
-  vorhandenem `Origin` exakt den validierten HTTP-/HTTPS-Ursprung;
-  grundlegende Sicherheitsheader und `no-store` für API/CalDAV gelten zentral.
-- Secret-Scan, 25 gezielte Sicherheitsprüfungen und die vollständige
-  82-Test-API-Matrix bestanden. Der Live-Abgleich der npm-Advisory-Datenbank
-  blieb wegen Registry-Timeout offen; der Offline-Cache meldete keine bekannte
-  produktive Lücke.
-- Befunde, Nachweise und Grenzen stehen im
+  Logging, Browser/PWA, PostgreSQL, SQLite, Recovery, Tauri/Sidecar, CI und
+  Release wurden gemeinsam geprüft.
+- Hohe Befunde zu Abhängigkeiten, Sitzungswiderruf bei Zukunftsuhr,
+  Sidecar-Umgebung, SQLite-Mehrfachstart, externem CalDAV-SSRF und
+  Backup-Zieltrennung sind behoben und regressionserfasst. Mittlere Befunde
+  wurden behoben oder mit konkretem Restrisiko dokumentiert.
+- Der aktuelle Online-Abgleich meldet 0 npm-Advisories. RustSec meldet für den
+  ARM64-Lockstand keine bekannte Sicherheitslücke; verbleibende
+  Upstream-Wartungswarnungen sind ausdrücklich offen dokumentiert. npm- und
+  RustSec-Audit sind CI-Gates.
+- Befunde, Ursachen, Korrekturen, Nachweise und Grenzen stehen im
   [`Sicherheitsreview 0.6.1`](security-review-0.6.md).
 
 Abschlusskriterium: Konkrete Sicherheitsbefunde sind behoben oder ausdrücklich

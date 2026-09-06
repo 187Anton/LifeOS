@@ -38,6 +38,7 @@ class InMemoryProfileRepository
     { userId: string; revision: number; expiresAt: Date; revokedAt?: Date }
   >();
   auditCount = 0;
+  passwordUpgradeCount = 0;
   profile: ProfileResponse = {
     id: "synthetic-user",
     displayName: "Lokale Testperson",
@@ -66,6 +67,20 @@ class InMemoryProfileRepository
       revision: input.credentialRevision,
       expiresAt: input.expiresAt,
     });
+  }
+
+  async upgradePasswordHash(
+    userId: string,
+    expectedHash: string,
+    passwordHash: string,
+  ): Promise<void> {
+    if (
+      this.credential?.userId === userId &&
+      this.credential.passwordHash === expectedHash
+    ) {
+      this.credential.passwordHash = passwordHash;
+      this.passwordUpgradeCount += 1;
+    }
   }
 
   async findAuthenticatedUser(
@@ -119,6 +134,23 @@ test("widerruft Sitzungen auch bei vorauseilender Systemuhr nie vor ihrer Erzeug
   );
 });
 
+test("aktualisiert einen gültigen scrypt-v1-Hash bei der nächsten Anmeldung", async () => {
+  const repository = new InMemoryProfileRepository();
+  repository.credential = {
+    userId: repository.profile.id,
+    passwordHash:
+      "scrypt-v1$16384$8$1$MDEyMzQ1Njc4OWFiY2RlZg$XhVLJ0yPXpQ-kWu8BEGSxLWxuSzYM43-nzKW30KSA67EndKyv2VjHozxH7UHRhvA-IwNpni7ydBlfcWAMASYBA",
+    revision: 1,
+  };
+
+  await new AuthenticationService(repository, 1).login(
+    "synthetisches-passwort",
+  );
+
+  assert.equal(repository.passwordUpgradeCount, 1);
+  assert.match(repository.credential.passwordHash, /^scrypt-v2\$/);
+});
+
 const listen = async (
   application: Express,
 ): Promise<{ server: Server; baseUrl: string }> => {
@@ -161,6 +193,11 @@ test("schützt Profil und Einstellungen mit widerrufbarer lokaler Sitzung", asyn
   const unauthorized = await fetch(`${baseUrl}/api/v1/profile`);
   assert.equal(unauthorized.status, 401);
 
+  const malformedSession = await fetch(`${baseUrl}/api/v1/profile`, {
+    headers: { cookie: "lifeos_session=not-a-valid-session-token" },
+  });
+  assert.equal(malformedSession.status, 401);
+
   const wrongPassword = await fetch(`${baseUrl}/api/v1/session`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -182,6 +219,16 @@ test("schützt Profil und Einstellungen mit widerrufbarer lokaler Sitzung", asyn
   const rawToken = cookie.split("=", 2)[1] ?? "";
   assert.ok(rawToken);
   assert.ok([...repository.sessions.keys()].every((hash) => hash !== rawToken));
+
+  const manipulatedToken = `${rawToken.slice(0, -1)}${rawToken.endsWith("a") ? "b" : "a"}`;
+  assert.equal(
+    (
+      await fetch(`${baseUrl}/api/v1/profile`, {
+        headers: { cookie: `lifeos_session=${manipulatedToken}` },
+      })
+    ).status,
+    401,
+  );
 
   const profile = await fetch(`${baseUrl}/api/v1/profile`, {
     headers: { cookie },

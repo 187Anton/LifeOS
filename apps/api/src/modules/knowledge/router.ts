@@ -6,6 +6,7 @@ import type {
 import express, { Router, type Response } from "express";
 import { z } from "zod";
 
+import { ApiError } from "../../errors.js";
 import { validateRequest } from "../../middleware/validate-request.js";
 import { createRequireAuthentication } from "../profile/router.js";
 import type { AuthenticationService } from "../profile/service.js";
@@ -63,6 +64,12 @@ const uploadQuery = z.strictObject({
     .default("false")
     .transform((value) => value === "true"),
 });
+const mediaType = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(200)
+  .regex(/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/);
 
 export const createKnowledgeRouter = ({
   authentication,
@@ -195,12 +202,21 @@ export const createDocumentUploadRouter = ({
         ? request.body
         : Buffer.alloc(0);
       const query = response.locals.validated.query;
+      const parsedMediaType = mediaType.safeParse(
+        request.get("content-type")?.split(";", 1)[0]?.trim() ||
+          "application/octet-stream",
+      );
+      if (!parsedMediaType.success) {
+        throw new ApiError(
+          400,
+          "VALIDATION_ERROR",
+          "Der Dokument-MIME-Typ ist ungültig.",
+        );
+      }
       response.status(201).json(
         await knowledge.uploadDocument(String(response.locals.userId), {
           fileName: query.fileName,
-          mimeType:
-            request.get("content-type")?.split(";", 1)[0]?.trim() ||
-            "application/octet-stream",
+          mimeType: parsedMediaType.data,
           bytes: body,
           projectId: query.projectId ?? null,
           studyModuleId: query.studyModuleId ?? null,

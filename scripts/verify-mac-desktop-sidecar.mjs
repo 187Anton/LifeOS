@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { createServer } from "node:net";
 import os from "node:os";
@@ -38,7 +39,7 @@ const reservePort = async () => {
   return address.port;
 };
 
-const waitForReady = async (baseUrl, child) => {
+const waitForReady = async (baseUrl, child, startupToken) => {
   for (let attempt = 0; attempt < 150; attempt += 1) {
     if (child.exitCode !== null) {
       throw new Error(
@@ -47,7 +48,11 @@ const waitForReady = async (baseUrl, child) => {
     }
     try {
       const response = await fetch(`${baseUrl}/api/v1/readiness`);
-      if (response.status === 200) return;
+      if (
+        response.status === 200 &&
+        response.headers.get("x-lifeos-startup-proof") === startupToken
+      )
+        return;
     } catch {
       // Der lokale Sidecar startet noch.
     }
@@ -58,6 +63,7 @@ const waitForReady = async (baseUrl, child) => {
 
 const startSidecar = async (databasePath, port) => {
   const baseUrl = `http://127.0.0.1:${port}`;
+  const startupToken = randomBytes(32).toString("hex");
   const output = [];
   const child = spawn(nodeBinary, [serverEntry], {
     cwd: resources,
@@ -73,13 +79,14 @@ const startSidecar = async (databasePath, port) => {
       LOG_LEVEL: "error",
       SHUTDOWN_TIMEOUT_MS: "1000",
       SESSION_TTL_HOURS: "1",
+      LIFEOS_STARTUP_TOKEN: startupToken,
       PATH: "/usr/bin:/bin",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
   child.stdout.on("data", (chunk) => output.push(chunk.toString()));
   child.stderr.on("data", (chunk) => output.push(chunk.toString()));
-  await waitForReady(baseUrl, child);
+  await waitForReady(baseUrl, child, startupToken);
   return { child, baseUrl, output };
 };
 
