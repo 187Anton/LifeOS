@@ -55,6 +55,7 @@ test("führt CI für develop und main mit den verbindlichen Prüfungen aus", asy
 
   assert.match(workflow, /branches: \["main", "develop"\]/);
   assert.match(workflow, /run: npm ci/);
+  assert.match(workflow, /run: npm audit --audit-level=low/);
   assert.match(workflow, /run: npm run security:secrets/);
   assert.match(workflow, /run: npm run format:check/);
   assert.match(workflow, /run: docker compose config --quiet/);
@@ -65,6 +66,10 @@ test("führt CI für develop und main mit den verbindlichen Prüfungen aus", asy
   assert.match(workflow, /run: npm run release:verify/);
   assert.match(workflow, /npm run db:sqlite:verify:recovery/);
   assert.match(workflow, /runs-on: macos-15/);
+  assert.match(
+    workflow,
+    /cargo audit --file apps\/desktop\/src-tauri\/Cargo\.lock/,
+  );
   assert.match(workflow, /run: npm run release:build:local/);
   assert.match(workflow, /run: npm run release:verify:local/);
   assert.match(workflow, /if: always\(\)/);
@@ -188,7 +193,8 @@ test("stellt Secret-Scan und isolierte Backup-/Restore-Prüfung bereit", async (
   assert.doesNotMatch(recoveryScript, /docker compose down|--volumes/);
   assert.match(backupScript, /umask 077/);
   assert.match(backupScript, /pg_dump/);
-  assert.match(backupScript, /if \[\[ -e "\$destination" \]\]/);
+  assert.match(backupScript, /-L "\$destination"/);
+  assert.match(backupScript, /-L "\$checksum_destination"/);
   assert.match(backupScript, /sha256/);
   assert.match(restoreScript, /\^lifeos_restore_/);
   assert.match(restoreScript, /pg_restore --list/);

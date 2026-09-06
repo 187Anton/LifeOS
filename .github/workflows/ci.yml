@@ -36,6 +36,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit npm dependencies
+        run: npm audit --audit-level=low
+
       - name: Check formatting
         run: npm run format:check
 
@@ -90,6 +93,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Audit Rust dependencies
+        run: cargo install cargo-audit --version 0.22.2 --locked && cargo audit --file apps/desktop/src-tauri/Cargo.lock
 
       - name: Verify release metadata
         run: npm run release:verify
