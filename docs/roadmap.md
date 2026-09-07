@@ -1,8 +1,40 @@
 # Roadmap
 
-Die Roadmap beschreibt die fachliche Reihenfolge. Jede Unteraufgabe wird als
-kleines GitHub-Issue umgesetzt und erhält einen eigenen Branch aus `develop`,
-einen Pull Request, passende Tests und eine kurze Dokumentation.
+Die Roadmap beschreibt die fachliche Reihenfolge. Änderungen werden auf einem
+zweckbezogenen Branch aus `develop` umgesetzt, geprüft, mit Conventional Commit
+festgehalten und über Pull Request und erfolgreiche CI nach `develop`
+integriert. Ein GitHub-Issue kann zur Nachverfolgung sinnvoll sein, ist aber
+keine Voraussetzung für jede Unteraufgabe.
+
+## Einordnung gegenüber dem Leitfaden
+
+Die operative Roadmap bewahrt die fachlichen Ziele aus dem
+`LifeOS Leitfaden.docx`, fasst seit der Umsetzung jedoch mehrere ursprünglich
+getrennte Leitfadenpunkte zusammen. „Umgesetzt“ bezieht sich deshalb immer auf
+den in den nachfolgenden Abschnitten ausdrücklich beschriebenen operativen
+Umfang und erklärt nicht automatisch jede weiterführende Idee des Leitfadens
+für abgeschlossen.
+
+| Operative Phase                         | Status                                                   | Bezug zum ursprünglichen Leitfaden                                                                                     |
+| --------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 0.1 Fundament                           | umgesetzt und lokal nachgewiesen                         | entspricht 0.1; der physische Apple-Kalender-Test bleibt ein offener externer Nachweis                                 |
+| 0.2 Organisation                        | umgesetzt                                                | entspricht 0.2                                                                                                         |
+| 0.3 Studium und Arbeit                  | umgesetzt                                                | fasst die ursprünglichen Punkte 0.3 Studium und 0.4 Arbeit zusammen                                                    |
+| 0.4 Projekte und Wissen                 | umgesetzt                                                | fasst 0.5 Projekte und den lokal umgesetzten Teil von 0.6 Wissen und RAG zusammen                                      |
+| 0.5 Finanzen, Fitness und Integrationen | umgesetzt, mit bewusst begrenzten externen Integrationen | fasst 0.7 Finanzen und Fitness sowie den umgesetzten read-only-Teil von 0.8 Integrationen zusammen                     |
+| 0.6 Stabilisierung und lokales Release  | für lokalen ARM64-Betrieb umgesetzt                      | zieht den lokal nachgewiesenen Teil der ursprünglichen Stabilisierung 1.0 vor; öffentliche Freigabegates bleiben offen |
+
+Die ursprüngliche KI-Planung aus Leitfadenpunkt 0.9 ist nicht durch die
+vorhandene deterministische Planung oder die deaktivierte KI-Grundlage ersetzt.
+Sie wird als nächster operativer Schritt 0.7 fortgeführt. Weiterführende
+Integrationen, das öffentliche Release und die laufende Wartung folgen in 0.8
+bis 1.0.
+
+„Lokal nachgewiesen“ bezeichnet reproduzierte Prüfungen auf dem unterstützten
+ARM64-Entwicklungs-Mac. „Öffentlich freigegeben“ gilt erst nach allen dafür
+genannten externen Release-Gates. KI und externe Integrationen bleiben
+standardmäßig deaktiviert. Schreibende Automationen und KI-Vorschläge dürfen
+erst nach ausdrücklicher Bestätigung eine getrennte Fachaktion auslösen.
 
 ## Arbeitsprinzip
 
@@ -14,11 +46,17 @@ Eine Unteraufgabe gilt erst als abgeschlossen, wenn:
 - die Dokumentation bei dauerhaften Entscheidungen aktualisiert wurde.
 
 Die Phasen bauen aufeinander auf. Innerhalb einer Phase werden die Punkte von
-oben nach unten bearbeitet, sofern ein Issue keine andere Abhängigkeit nennt.
+oben nach unten bearbeitet, sofern keine dokumentierte Abhängigkeit eine andere
+Reihenfolge erfordert.
 
 ## 0.1 Fundament
 
 Ziel: Eine lokal startbare, testbare Basis mit einem ersten nutzbaren Kalender.
+
+Status: umgesetzt und lokal nachgewiesen. API, Datenbank, Weboberfläche,
+Kalenderkern und CalDAV sind automatisiert und in der lokalen Demo geprüft. Der
+physische Apple-Kalender-Test über abgesichertes LAN bleibt ausdrücklich offen
+und ist keine Behauptung über eine öffentliche Freigabe.
 
 ### 0.1.1 Repository und Arbeitsweise
 
@@ -97,6 +135,10 @@ ohne Verlust ihrer UID oder ETag-Information verwaltet werden.
 Abschlusskriterium: Ein Kalender kann ohne LifeOS-App in Apple Kalender
 hinzugefügt werden; ein angelegtes Ereignis ist in beiden Richtungen sichtbar.
 
+Offener externer Nachweis: Die technische CalDAV-Kompatibilität ist
+automatisiert geprüft; die Verbindung mit einem physischen Apple-Gerät über
+abgesichertes LAN wurde noch nicht durchgeführt.
+
 ### 0.1.8 Weboberfläche und PWA-Grundlage
 
 - React-/TypeScript-Webanwendung starten.
@@ -122,15 +164,15 @@ Der verbindliche Abschlussnachweis besteht aus `npm run security:secrets`,
 `npm run db:verify:recovery`, der vollständigen Root-/Workspace-Suite sowie der
 in [`docs/foundation-verification.md`](foundation-verification.md)
 dokumentierten lokalen Demo und Apple-Kalender-Checkliste. Issue #17 und dessen
-CI-Lauf bilden das technische Gate für den anschließenden Pull Request von
-`develop` nach `main`.
+CI-Lauf bildeten historisch das technische Gate für den anschließenden Pull
+Request von `develop` nach `main`; daraus folgt keine allgemeine Issue-Pflicht.
 
 ## Frühes Querschnittsziel: lokale Mac-App
 
 Ziel: LifeOS früh als installierbare lokale Mac-App ausrichten, ohne die
 gemeinsame React-Weboberfläche, den separaten Browserbetrieb oder den
-vorhandenen API-/CalDAV-Kern aufzugeben. Dieses Querschnittsziel hat vor den
-noch nicht begonnenen Produktphasen 0.4 und 0.5 Priorität.
+vorhandenen API-/CalDAV-Kern aufzugeben. Dieses Querschnittsziel wurde vor den
+damals noch nicht begonnenen Produktphasen 0.4 und 0.5 priorisiert.
 
 Der aktuelle Stand umfasst die abgeschlossenen Pakete M0 bis M5 sowie den
 lokalen Teil von M6: Planung, vollständiges SQLite-Schema, API-/CalDAV-Parität,
@@ -249,6 +291,9 @@ installieren, aktualisieren und ohne Verlust der lokalen Daten neu starten.
 
 Ziel: Aufgaben und Kalender im Alltag miteinander verbinden.
 
+Status: umgesetzt. Die nachfolgenden Fach-, Besitz-, API-, Datenbank-, Unit-
+und E2E-Nachweise bilden den abgeschlossenen operativen Umfang dieser Phase.
+
 ### 0.2.1 Aufgabenmodell
 
 - Aufgaben mit Titel, Beschreibung, Status, Priorität und Fälligkeit anlegen.
@@ -318,6 +363,9 @@ Kalender und Dashboard geplant werden.
 
 Ziel: Studien- und Arbeitsinformationen nachvollziehbar verwalten.
 
+Status: umgesetzt. Diese operative Phase fasst die ursprünglich getrennten
+Leitfadenpunkte 0.3 Studium und 0.4 Arbeit zusammen.
+
 ### 0.3.1 Studium
 
 - Studiengänge und Module verwalten.
@@ -370,6 +418,11 @@ angezeigt und zeitlich nachvollziehbar ausgewertet werden.
 ## 0.4 Projekte und Wissen
 
 Ziel: Eigene Projekte und lokale Wissensquellen strukturiert nutzen.
+
+Status: umgesetzt. Diese operative Phase fasst den ursprünglichen
+Leitfadenpunkt 0.5 Projekte und den lokal umgesetzten Teil von 0.6 Wissen und
+RAG zusammen. Eine produktive externe KI oder autonome RAG-Verarbeitung ist
+damit nicht freigegeben.
 
 ### 0.4.1 Projekte und Meilensteine
 
@@ -461,6 +514,12 @@ automatisiert geprüft.
 ## 0.5 Finanzen, Fitness und Integrationen
 
 Ziel: Weitere persönliche Bereiche ergänzen, ohne den lokalen Kern zu gefährden.
+
+Status: umgesetzt, mit bewusst begrenzten externen Integrationen. Die Phase
+fasst den ursprünglichen Leitfadenpunkt 0.7 Finanzen und Fitness sowie den
+umgesetzten read-only-Teil von 0.8 Integrationen zusammen. Externe CalDAV- und
+GitHub-Pfade bleiben optional, standardmäßig deaktiviert und ohne automatische
+oder schreibende Synchronisation.
 
 ### 0.5.1 Finanzen
 
@@ -600,11 +659,15 @@ Abschlusskriterium: Die zusätzlichen Bereiche bleiben optional, lokal und
 deaktivierbar; der Kalender- und Aufgaben-Kern bleibt unabhängig nutzbar.
 Roadmap 0.5 ist damit fachlich und technisch abgeschlossen.
 
-## 0.6 Stabilisierung und Release-Vorbereitung
+## 0.6 Stabilisierung und lokales Release
 
 Ziel: Den Funktionsstand 0.1 bis 0.5 ohne neue große Fachmodule absichern,
 wiederherstellbar halten und für ein reproduzierbares lokales Release
 vorbereiten.
+
+Status: für den lokalen ARM64-Betrieb umgesetzt. Die Phase übernimmt den lokal
+nachgewiesenen Teil des ursprünglichen Leitfadenpunkts 1.0 Stabilisierung. Sie
+ist weder eine Developer-ID-Freigabe noch ein öffentliches Download-Release.
 
 ### 0.6.1 Sicherheits- und Datenschutzprüfung
 
@@ -616,10 +679,12 @@ vorbereiten.
   Sidecar-Umgebung, SQLite-Mehrfachstart, externem CalDAV-SSRF und
   Backup-Zieltrennung sind behoben und regressionserfasst. Mittlere Befunde
   wurden behoben oder mit konkretem Restrisiko dokumentiert.
-- Der aktuelle Online-Abgleich meldet 0 npm-Advisories. RustSec meldet für den
-  ARM64-Lockstand keine bekannte Sicherheitslücke; verbleibende
-  Upstream-Wartungswarnungen sind ausdrücklich offen dokumentiert. npm- und
-  RustSec-Audit sind CI-Gates.
+- Der am 7. September 2026 ausgeführte Online-Abgleich meldete 0
+  npm-Advisories. RustSec meldete für den ARM64-Lockstand keine bekannte
+  Sicherheitslücke; verbleibende Upstream-Wartungswarnungen sind ausdrücklich
+  offen dokumentiert. npm- und RustSec-Audit sind CI-Gates. Vor einer künftigen
+  Veröffentlichung bleibt ein dann aktueller Online-Abgleich der
+  npm-Advisory-Datenbank erforderlich und damit offen.
 - Befunde, Ursachen, Korrekturen, Nachweise und Grenzen stehen im
   [`Sicherheitsreview 0.6.1`](security-review-0.6.md).
 
@@ -690,6 +755,86 @@ bleiben klar getrennt.
   im [`lokalen Abschlussnachweis Roadmap 0.6`](roadmap-06-local-demo.md).
 
 Abschlusskriterium: Roadmap 0.6 ist für den lokalen ARM64-Betrieb abgeschlossen.
-Developer-ID, Apple-Notarisierung, Gatekeeper-Downloadpfad, zweiter sauberer
-Mac, weitere Architekturen und der physische Apple-Kalender-Test bleiben offen;
-das Artefakt ist deshalb nicht als öffentliches Release freigegeben.
+Developer-ID-Signatur, Apple-Notarisierung, Gatekeeper-Prüfung eines
+heruntergeladenen Artefakts, zweiter sauberer Mac, Intel-/Universal-Build,
+physischer Apple-Kalender-Test über abgesichertes LAN und ein zum
+Veröffentlichungszeitpunkt aktueller Online-Abgleich der npm-Advisory-Datenbank
+bleiben offen. Das Artefakt ist deshalb nicht als öffentliches Release
+freigegeben.
+
+## 0.7 KI-Planung und kontrollierte Automationen
+
+Ziel: Die ursprüngliche KI-Planung nachvollziehbar weiterführen, ohne lokale
+Datenkontrolle oder bestätigte Fachaktionen zu umgehen.
+
+Status: offen. Die vorhandene deterministische Planung, lokale Suche und
+deaktivierte KI-Grundlage sind Vorarbeiten, aber kein Abschluss dieser Phase.
+
+- Anbieter und externe Datenfreigabe getrennt und ausdrücklich aktivieren.
+- Planungen aus freigegebenen, belegbaren Quellen ableiten und Unsicherheit
+  sichtbar machen.
+- Schreibende Ergebnisse nur als Vorschlag erzeugen und erst nach Bestätigung
+  über eine getrennte, auditierbare Fachaktion anwenden.
+- Keine Finanz-, Arbeits- oder persönlichen Inhalte ohne explizite Freigabe
+  extern übertragen.
+
+Abschlusskriterium: KI-Planung bleibt abschaltbar und quellengestützt;
+Automationen verändern ohne ausdrückliche Bestätigung keine Fachdaten.
+
+## 0.8 Optionale Integrationsausbauten
+
+Ziel: Externe Anbindungen nur bei belegtem Nutzen und mit erhaltenem
+Local-First-Kern erweitern.
+
+Status: offen. Die bestehenden CalDAV- und GitHub-Integrationen bleiben bis zu
+einem eigenen Nachweis deaktivierte read-only-Grundlagen.
+
+- Produktive Anbieterzugänge ausschließlich mit sicherer lokaler
+  Schlüsselverwaltung prüfen.
+- Schreibende, bidirektionale oder automatische Synchronisation als eigene,
+  bestätigungspflichtige Arbeitspakete behandeln.
+- OAuth, Webhooks, Hintergrundläufe, Löschspiegelung und weitere Anbieter erst
+  nach eigenen Sicherheits-, Recovery- und Widerrufsnachweisen freigeben.
+
+Abschlusskriterium: Jede ausgebaute Integration ist optional, widerrufbar,
+besitzgebunden und standardmäßig deaktiviert; lokale Kernfunktionen bleiben
+ohne sie vollständig nutzbar.
+
+## 0.9 Öffentliches Release
+
+Ziel: Das lokal geprüfte ARM64-Artefakt erst nach allen externen Gates als
+öffentliches Download-Release bereitstellen.
+
+Status: offen.
+
+- Developer-ID-Signatur und Apple-Notarisierung durchführen.
+- Das heruntergeladene Artefakt mit Gatekeeper prüfen.
+- Installation, Erststart, Update und Recovery auf einem zweiten sauberen Mac
+  nachweisen.
+- Intel-/Universal-Build und unterstützte Architekturen verbindlich festlegen.
+- Apple-Kalender über abgesichertes LAN mit einem physischen Gerät prüfen.
+- Unmittelbar vor Freigabe die npm-Advisory-Datenbank online abgleichen und die
+  übrigen Sicherheits- und Release-Gates erneut ausführen.
+
+Abschlusskriterium: Ein versioniertes, prüfsummengeschütztes Download-Artefakt
+ist signiert, notarisiert und auf den ausgewiesenen Systemen geprüft; erst dann
+darf die README es als öffentlich freigegeben verlinken.
+
+## 1.0 Laufende Wartung und Weiterentwicklung
+
+Ziel: Den öffentlich freigegebenen Stand sicher, kompatibel und
+wiederherstellbar weiterentwickeln.
+
+Status: folgt nach dem öffentlichen Release; einzelne Wartungsprüfungen laufen
+bereits heute als CI- und Recovery-Gates.
+
+- Abhängigkeiten und Advisory-Daten regelmäßig aktuell prüfen.
+- Migration, Backup, Restore, Update und Rollback fortlaufend testen.
+- API-, CalDAV- und Exportverträge kompatibel halten.
+- Neue Fachfunktionen anhand des Leitfadens priorisieren und Abweichungen
+  ausdrücklich dokumentieren.
+- KI, externe Integrationen und schreibende Automationen auch künftig nur nach
+  expliziter Aktivierung beziehungsweise Bestätigung erweitern.
+
+Abschlusskriterium: Wartung ist ein fortlaufender Prozess; jeder veröffentlichte
+Stand besitzt aktuelle Sicherheits-, Kompatibilitäts- und Recovery-Nachweise.
