@@ -27,6 +27,12 @@ import { LocalDocumentStorage } from "./modules/knowledge/storage.js";
 import { PrismaPlanningRepository } from "./modules/planning/repository.js";
 import { createPlanningRouter } from "./modules/planning/router.js";
 import { PlanningService } from "./modules/planning/service.js";
+import { PrismaPlanningProposalRepository } from "./modules/planning/proposal-repository.js";
+import {
+  PlanningAutomationService,
+  PlanningProposalService,
+  startPlanningAutomationScheduler,
+} from "./modules/planning/proposal-service.js";
 import { PrismaProjectRepository } from "./modules/projects/repository.js";
 import { createProjectRouter } from "./modules/projects/router.js";
 import { ProjectService } from "./modules/projects/service.js";
@@ -98,7 +104,21 @@ const main = async (): Promise<void> => {
   const tasks = new TaskService(new PrismaTaskRepository(database));
   const study = new StudyService(new PrismaStudyRepository(database));
   const work = new WorkService(new PrismaWorkRepository(database));
-  const planning = new PlanningService(new PrismaPlanningRepository(database));
+  const planningRepository = new PrismaPlanningRepository(database);
+  const planning = new PlanningService(planningRepository);
+  const planningProposalRepository = new PrismaPlanningProposalRepository(
+    database,
+  );
+  const planningProposals = new PlanningProposalService(
+    planningRepository,
+    planningProposalRepository,
+    tasks,
+  );
+  const planningAutomations = new PlanningAutomationService(
+    planningProposalRepository,
+    planningProposals,
+    planningRepository,
+  );
   const projects = new ProjectService(new PrismaProjectRepository(database));
   const finance = new FinanceService(new PrismaFinanceRepository(database));
   const fitness = new FitnessService(new PrismaFitnessRepository(database));
@@ -179,7 +199,12 @@ const main = async (): Promise<void> => {
       }),
       createStudyRouter({ authentication, study }),
       createWorkRouter({ authentication, work }),
-      createPlanningRouter({ authentication, planning }),
+      createPlanningRouter({
+        authentication,
+        planning,
+        proposals: planningProposals,
+        automations: planningAutomations,
+      }),
       createProjectRouter({ authentication, projects }),
       createFinanceRouter({ authentication, finance }),
       createFitnessRouter({ authentication, fitness }),
@@ -192,13 +217,24 @@ const main = async (): Promise<void> => {
     ],
   });
   let runningServer: Awaited<ReturnType<typeof startApiServer>>;
+  let stopPlanningScheduler: () => void = () => {};
   try {
     runningServer = await startApiServer({
       application,
       config,
       logger,
-      disconnect: () => database.$disconnect(),
+      disconnect: async () => {
+        stopPlanningScheduler();
+        await database.$disconnect();
+      },
     });
+    stopPlanningScheduler = startPlanningAutomationScheduler(
+      planningAutomations,
+      (error) =>
+        logger.error("planning.automation.failed", {
+          errorName: error instanceof Error ? error.name : "UnknownError",
+        }),
+    );
   } catch (error) {
     await database.$disconnect();
     throw error;

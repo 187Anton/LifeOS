@@ -1,6 +1,10 @@
 import type {
+  ConfirmPlanningProposalGroupRequest,
   CreateAvailabilityWindowRequest,
+  CreatePlanningProposalsRequest,
+  PlanningAutomationKind,
   PlanningArea,
+  UpdatePlanningAutomationRequest,
   UpdateAvailabilityWindowRequest,
 } from "@lifeos/contracts";
 import { Router, type Response } from "express";
@@ -9,9 +13,28 @@ import { validateRequest } from "../../middleware/validate-request.js";
 import { createRequireAuthentication } from "../profile/router.js";
 import type { AuthenticationService } from "../profile/service.js";
 import type { PlanningService } from "./service.js";
+import type {
+  PlanningAutomationService,
+  PlanningProposalService,
+} from "./proposal-service.js";
+import {
+  PlanningAutomationDisabledError,
+  PlanningAutomationNotFoundError,
+  PlanningProposalNotFoundError,
+  PlanningProposalStateError,
+} from "./proposal-repository.js";
+import { ApiError } from "../../errors.js";
 
 const id = z.uuid();
-const area = z.enum(["calendar", "study", "work", "tasks", "availability"]);
+const area = z.enum([
+  "calendar",
+  "study",
+  "work",
+  "tasks",
+  "projects",
+  "fitness",
+  "availability",
+]);
 const timezone = z
   .string()
   .trim()
@@ -72,17 +95,208 @@ const availabilityUpdate = availabilityFields
   )
   .refine((value) => Object.keys(value).length > 0);
 const params = z.strictObject({ id });
+const proposalQuery = z.strictObject({ from: z.iso.date(), to: z.iso.date() });
+const proposalCreate = z.strictObject({
+  view: z.enum(["day", "week"]),
+  from: z.iso.date(),
+  to: z.iso.date(),
+  maxSuggestions: z.number().int().min(1).max(20).optional(),
+});
+const proposalGroup = z.strictObject({
+  proposalIds: z
+    .array(id)
+    .min(1)
+    .max(20)
+    .refine((values) => new Set(values).size === values.length),
+});
+const automationKind = z.enum(["daily_preview", "weekly_preview"]);
+const automationParams = z.strictObject({ kind: automationKind });
+const automationBody = z.strictObject({
+  enabled: z.boolean(),
+  localMinute: z.number().int().min(0).max(1439),
+  weekday: z.number().int().min(0).max(6).nullable().optional(),
+  timezone,
+  maxSuggestions: z.number().int().min(1).max(20).optional(),
+});
+
+const translatePlanningError = (error: unknown): never => {
+  if (error instanceof ApiError) throw error;
+  if (error instanceof PlanningProposalNotFoundError)
+    throw new ApiError(
+      404,
+      "NOT_FOUND",
+      "Der Planungsvorschlag wurde nicht gefunden.",
+    );
+  if (error instanceof PlanningProposalStateError)
+    throw new ApiError(
+      409,
+      "CONFLICT",
+      "Der Planungsvorschlag ist in diesem Status nicht ausführbar.",
+    );
+  if (error instanceof PlanningAutomationNotFoundError)
+    throw new ApiError(
+      404,
+      "NOT_FOUND",
+      "Die lokale Planungsautomation wurde nicht gefunden.",
+    );
+  if (error instanceof PlanningAutomationDisabledError)
+    throw new ApiError(
+      409,
+      "CONFLICT",
+      "Die lokale Planungsautomation ist deaktiviert.",
+    );
+  throw error;
+};
 
 export const createPlanningRouter = ({
   authentication,
   planning,
+  proposals,
+  automations,
 }: {
   authentication: AuthenticationService;
   planning: PlanningService;
+  proposals?: PlanningProposalService;
+  automations?: PlanningAutomationService;
 }): Router => {
   const router = Router();
   router.use(createRequireAuthentication(authentication));
   const owner = (response: Response) => String(response.locals.userId);
+  if (proposals) {
+    router.get(
+      "/planning/proposals",
+      validateRequest({ query: proposalQuery }),
+      async (_request, response) => {
+        try {
+          response.json(
+            await proposals.list(
+              owner(response),
+              response.locals.validated.query.from,
+              response.locals.validated.query.to,
+            ),
+          );
+        } catch (error) {
+          translatePlanningError(error);
+        }
+      },
+    );
+    router.post(
+      "/planning/proposals",
+      validateRequest({ body: proposalCreate }),
+      async (_request, response) => {
+        try {
+          response
+            .status(201)
+            .json(
+              await proposals.generate(
+                owner(response),
+                response.locals.validated
+                  .body as CreatePlanningProposalsRequest,
+              ),
+            );
+        } catch (error) {
+          translatePlanningError(error);
+        }
+      },
+    );
+    router.post(
+      "/planning/proposals/confirm",
+      validateRequest({ body: proposalGroup }),
+      async (_request, response) => {
+        try {
+          response.json(
+            await proposals.confirmGroup(
+              owner(response),
+              (
+                response.locals.validated
+                  .body as ConfirmPlanningProposalGroupRequest
+              ).proposalIds,
+            ),
+          );
+        } catch (error) {
+          translatePlanningError(error);
+        }
+      },
+    );
+    for (const [suffix, operation] of [
+      [
+        "confirm",
+        (userId: string, proposalId: string) =>
+          proposals.confirm(userId, proposalId),
+      ],
+      [
+        "reject",
+        (userId: string, proposalId: string) =>
+          proposals.reject(userId, proposalId),
+      ],
+      [
+        "discard",
+        (userId: string, proposalId: string) =>
+          proposals.discard(userId, proposalId),
+      ],
+      [
+        "reopen",
+        (userId: string, proposalId: string) =>
+          proposals.reopen(userId, proposalId),
+      ],
+    ] as const) {
+      router.post(
+        `/planning/proposals/:id/${suffix}`,
+        validateRequest({ params }),
+        async (_request, response) => {
+          try {
+            response.json(
+              await operation(
+                owner(response),
+                response.locals.validated.params.id,
+              ),
+            );
+          } catch (error) {
+            translatePlanningError(error);
+          }
+        },
+      );
+    }
+  }
+  if (automations) {
+    router.get("/planning/automations", async (_request, response) =>
+      response.json(await automations.overview(owner(response))),
+    );
+    router.put(
+      "/planning/automations/:kind",
+      validateRequest({ params: automationParams, body: automationBody }),
+      async (_request, response) => {
+        try {
+          response.json(
+            await automations.update(
+              owner(response),
+              response.locals.validated.params.kind as PlanningAutomationKind,
+              response.locals.validated.body as UpdatePlanningAutomationRequest,
+            ),
+          );
+        } catch (error) {
+          translatePlanningError(error);
+        }
+      },
+    );
+    router.post(
+      "/planning/automations/:id/run",
+      validateRequest({ params }),
+      async (_request, response) => {
+        try {
+          response.json(
+            await automations.run(
+              owner(response),
+              response.locals.validated.params.id,
+              "manual",
+            ),
+          );
+        } catch (error) {
+          translatePlanningError(error);
+        }
+      },
+    );
+  }
   router.get(
     "/planning",
     validateRequest({ query }),

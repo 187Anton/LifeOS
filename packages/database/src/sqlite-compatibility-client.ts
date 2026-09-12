@@ -12,6 +12,8 @@ const dateOnlyFields = new Set([
   "recurrenceEndDate",
   "periodStart",
   "measuredDate",
+  "rangeFrom",
+  "rangeTo",
 ]);
 const delegateNames = new Set([
   "user",
@@ -42,6 +44,9 @@ const delegateNames = new Set([
   "workTaskLink",
   "workTimeEntry",
   "availabilityWindow",
+  "planningProposal",
+  "planningAutomation",
+  "planningAutomationRun",
   "financeCategory",
   "financeTransaction",
   "financeBudget",
@@ -51,6 +56,7 @@ const delegateNames = new Set([
   "fitnessSession",
   "fitnessSet",
   "bodyWeightEntry",
+  "aiInteraction",
   "auditEvent",
 ]);
 const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;

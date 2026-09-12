@@ -5,6 +5,7 @@ import type {
   PlanningRepository,
 } from "../src/modules/planning/repository.js";
 import { PlanningService } from "../src/modules/planning/service.js";
+import { expandCalendarEvents } from "../src/modules/planning/recurrence.js";
 import { dayRange, zonedDateTime } from "../src/modules/planning/time.js";
 
 const source = (): PlanningSourceData =>
@@ -139,4 +140,67 @@ test("berechnet Tagesgrenzen bei Sommer- und Winterzeit korrekt", () => {
       3_600_000,
     4,
   );
+});
+
+test("projiziert begrenzte Terminserien über den Sommerzeitwechsel mit lokaler Uhrzeit", () => {
+  const event = {
+    id: "dst-series",
+    title: "Synthetische Morgenserie",
+    isAllDay: false,
+    startsAt: new Date("2032-03-27T08:00:00.000Z"),
+    endsAt: new Date("2032-03-27T09:00:00.000Z"),
+    startDate: null,
+    endDate: null,
+    timezone: "Europe/Berlin",
+    recurrenceRule: "FREQ=DAILY;COUNT=3",
+    etag: '"dst"',
+    updatedAt: new Date("2032-03-01T00:00:00.000Z"),
+  } as never;
+  const result = expandCalendarEvents(
+    [event],
+    "2032-03-27",
+    "2032-03-29",
+    "Europe/Berlin",
+  );
+  assert.deepEqual(
+    result.occurrences.map((occurrence) => occurrence.startsAt?.toISOString()),
+    [
+      "2032-03-27T08:00:00.000Z",
+      "2032-03-28T07:00:00.000Z",
+      "2032-03-29T07:00:00.000Z",
+    ],
+  );
+  assert.deepEqual(result.issueCodes, []);
+});
+
+test("lehnt nicht vollständig unterstützte oder unbegrenzte Terminserien sicher ab", () => {
+  const base = {
+    id: "unsupported-series",
+    title: "Synthetische komplexe Serie",
+    isAllDay: false,
+    startsAt: new Date("2032-01-01T08:00:00.000Z"),
+    endsAt: new Date("2032-01-01T09:00:00.000Z"),
+    startDate: null,
+    endDate: null,
+    timezone: "Europe/Berlin",
+    etag: '"unsupported"',
+    updatedAt: new Date("2032-01-01T00:00:00.000Z"),
+  };
+  const unsupported = expandCalendarEvents(
+    [{ ...base, recurrenceRule: "FREQ=MONTHLY;BYDAY=1MO" } as never],
+    "2032-01-01",
+    "2032-01-31",
+    "Europe/Berlin",
+  );
+  assert.deepEqual(unsupported.occurrences, []);
+  assert.deepEqual(unsupported.issueCodes, ["unsupported_recurrence"]);
+
+  const bounded = expandCalendarEvents(
+    [{ ...base, recurrenceRule: "FREQ=DAILY" } as never],
+    "2032-01-01",
+    "2034-01-01",
+    "Europe/Berlin",
+  );
+  assert.equal(bounded.occurrences.length, 500);
+  assert.deepEqual(bounded.issueCodes, ["recurrence_limit"]);
 });

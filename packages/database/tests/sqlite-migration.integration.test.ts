@@ -39,6 +39,11 @@ const readMigrationSnapshot = async (
         include: { events: { orderBy: { id: "asc" } } },
       },
       aiInteractions: { orderBy: { id: "asc" } },
+      planningProposals: { orderBy: { id: "asc" } },
+      planningAutomations: {
+        orderBy: { id: "asc" },
+        include: { runs: { orderBy: { id: "asc" } } },
+      },
       financeCategories: { orderBy: { id: "asc" } },
       financeTransactions: { orderBy: { id: "asc" } },
       financeBudgets: { orderBy: { id: "asc" } },
@@ -70,6 +75,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
     "20260820200000_fitness_module",
     "20260820210000_external_caldav",
     "20260820220000_github_integration",
+    "20260907120000_ai_planning_automations",
   ]);
 
   const database = createSqliteDatabaseClient(databaseUrl);
@@ -78,7 +84,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const migrationRows = await database.$queryRawUnsafe<
     Array<{ name: string; checksum: string }>
   >('SELECT "name", "checksum" FROM "_lifeos_migrations"');
-  assert.equal(migrationRows.length, 10);
+  assert.equal(migrationRows.length, 11);
   assert.equal(migrationRows[0]?.name, "20260809190000_sqlite_foundation");
   assert.match(migrationRows[0]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[1]?.name, "20260809203000_product_modules");
@@ -99,6 +105,11 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   assert.match(migrationRows[8]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[9]?.name, "20260820220000_github_integration");
   assert.match(migrationRows[9]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(
+    migrationRows[10]?.name,
+    "20260907120000_ai_planning_automations",
+  );
+  assert.match(migrationRows[10]?.checksum ?? "", /^[0-9a-f]{64}$/);
 
   const foreignKeys = await database.$queryRawUnsafe<
     Array<{ foreign_keys: bigint }>
@@ -552,6 +563,115 @@ test("speichert Notizversionen und Dokumentmetadaten mit Besitzergrenzen", async
         byteSize: 12,
         sha256: "a".repeat(64),
         modifiedAt: new Date(),
+      },
+    }),
+  );
+});
+
+test("erzwingt sichere Planungs- und Automationsgrenzen in SQLite", async (t) => {
+  const databaseUrl = await createIsolatedDatabase(t);
+  await migrateSqliteDatabase(databaseUrl);
+  await seedSqliteDatabase(databaseUrl);
+  const fixture = await readSqliteSeedFixture();
+  const database = createSqliteDatabaseClient(databaseUrl);
+  t.after(async () => database.$disconnect());
+  const task = await database.task.create({
+    data: {
+      userId: fixture.user.id,
+      title: "Synthetische Planungsaufgabe",
+      priority: "high",
+      dueDate: "2030-03-31",
+      estimatedDurationMinutes: 45,
+    },
+  });
+  const proposal = await database.planningProposal.create({
+    data: {
+      userId: fixture.user.id,
+      fingerprint: "b".repeat(64),
+      view: "day",
+      rangeFrom: "2030-03-31",
+      rangeTo: "2030-03-31",
+      targetType: "task",
+      targetId: task.id,
+      actionType: "schedule_task",
+      proposedStartsAt: new Date("2030-03-31T08:00:00.000Z"),
+      proposedEndsAt: new Date("2030-03-31T08:45:00.000Z"),
+      timezone: "Europe/Berlin",
+      sourceReferences: [{ sourceType: "task", sourceId: task.id }],
+      reasonCodes: ["priority:high"],
+      uncertaintyCodes: [],
+    },
+  });
+  const automation = await database.planningAutomation.create({
+    data: {
+      userId: fixture.user.id,
+      kind: "daily_preview",
+      enabled: false,
+      localMinute: 1080,
+      timezone: "Europe/Berlin",
+      maxSuggestions: 10,
+    },
+  });
+  const run = await database.planningAutomationRun.create({
+    data: {
+      userId: fixture.user.id,
+      automationId: automation.id,
+      runKey: "daily_preview:2030-03-30",
+      trigger: "manual",
+      status: "generated",
+      rangeFrom: "2030-03-31",
+      rangeTo: "2030-03-31",
+      proposalCount: 1,
+      issueCodes: [],
+    },
+  });
+  assert.equal(proposal.status, "pending");
+  assert.equal(automation.enabled, false);
+  assert.equal(run.proposalCount, 1);
+  await assert.rejects(() =>
+    database.planningProposal.create({
+      data: {
+        userId: fixture.user.id,
+        fingerprint: "b".repeat(64),
+        view: "day",
+        rangeFrom: "2030-03-31",
+        rangeTo: "2030-03-31",
+        targetType: "task",
+        targetId: task.id,
+        actionType: "schedule_task",
+        proposedStartsAt: new Date("2030-03-31T09:00:00.000Z"),
+        proposedEndsAt: new Date("2030-03-31T09:45:00.000Z"),
+        timezone: "Europe/Berlin",
+        sourceReferences: [],
+        reasonCodes: [],
+        uncertaintyCodes: [],
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.planningAutomation.create({
+      data: {
+        userId: fixture.user.id,
+        kind: "weekly_preview",
+        enabled: true,
+        localMinute: 1440,
+        weekday: 7,
+        timezone: "Europe/Berlin",
+        maxSuggestions: 101,
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.planningAutomationRun.create({
+      data: {
+        userId: "00000000-0000-4000-8000-000000000999",
+        automationId: automation.id,
+        runKey: "daily_preview:2030-04-01",
+        trigger: "scheduled",
+        status: "generated",
+        rangeFrom: "2030-04-01",
+        rangeTo: "2030-04-01",
+        issueCodes: [],
       },
     }),
   );

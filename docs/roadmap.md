@@ -693,3 +693,81 @@ Abschlusskriterium: Roadmap 0.6 ist für den lokalen ARM64-Betrieb abgeschlossen
 Developer-ID, Apple-Notarisierung, Gatekeeper-Downloadpfad, zweiter sauberer
 Mac, weitere Architekturen und der physische Apple-Kalender-Test bleiben offen;
 das Artefakt ist deshalb nicht als öffentliches Release freigegeben.
+
+## 0.7 KI-Planung und kontrollierte Automationen
+
+Ziel: Aus vorhandenen eigenen Daten nachvollziehbare Tages- und
+Wochenvorschläge erzeugen, ohne externe KI, ungefragte Fachänderungen oder
+scheinpräzise Annahmen.
+
+### 0.7.1 Besitzgebundene Planungsgrundlage
+
+- **Umgesetzt (7. September 2026):** Kalender, Aufgaben, Studium, Arbeit,
+  Projekte, Ziele, Meilensteine, geplante Fitnesseinheiten, Verfügbarkeit und
+  Profileinstellungen werden ausschließlich aktiv und besitzgebunden gelesen.
+- Fälligkeitstage bleiben reine Daten. Zeitblöcke verwenden absolute
+  Zeitpunkte und IANA-Zeitzonen; Ganztage und begrenzt expandierte
+  Wiederholungen blockieren die zugehörigen lokalen Tage beziehungsweise
+  Zeiten.
+- Pro Quellenart, Zeitraum, Wiederholung und Antwort gelten feste Grenzen.
+  Archivierte, gelöschte, abgebrochene oder fremde Datensätze werden nicht
+  berücksichtigt; es entsteht kein persistierter Schattenindex.
+
+### 0.7.2 Deterministische Tages- und Wochenvorschläge
+
+- Die lokale Regel priorisiert harte Prüfungs-, Abgabe-, Arbeits-, Projekt- und
+  Meilensteinfristen sowie Aufgabenpriorität, Fälligkeit und gespeicherten
+  Aufwand. Freie Fenster werden nur aus vorhandener Verfügbarkeit nach Abzug
+  fester oder bereits geplanter Zeiten gebildet.
+- Jeder Vorschlag nennt Zielaufgabe, konkretes Zeitfenster, lesbare Begründung,
+  verwendete Quellen, Unsicherheiten und seinen unverbindlichen Status.
+  Fehlende Verfügbarkeit, Fälligkeit, Aufwand oder Kapazität führen zu einem
+  ausdrücklichen Hinweis statt zu einem erfundenen Ergebnis.
+- Gleiche Quellen und Regeln erzeugen denselben Fingerabdruck. Erneute
+  Ausführung und Neustart erzeugen deshalb keine Duplikate.
+
+### 0.7.3 Bestätigung und Konfliktschutz
+
+- Vorschläge können einzeln oder als ausdrücklich markierte Gruppe bestätigt,
+  abgelehnt, verworfen und später erneut geprüft werden. Nur eine Bestätigung
+  ruft den bestehenden Aufgabenservice auf und setzt dort den geplanten Start.
+- Besitzer, Zielzustand, Quellenzeitstände, Zeitfenster und Kalender-ETags
+  werden unmittelbar vor der Änderung erneut geprüft. Ein geänderter ETag
+  liefert einen Konflikt, ohne Aufgabe oder Kalender zu überschreiben.
+- Bestätigungen sind idempotent und lösen keine weitere automatische Änderung
+  an Aufgaben, Kalendern, Projekten, Studium, Arbeit oder Fitness aus. Audits
+  enthalten nur IDs, Status und Regelcodes, keine Titel oder Quellausschnitte.
+
+### 0.7.4 Kontrollierte lokale Automationen
+
+- Tages- und Wochenvorschauen sind standardmäßig deaktiviert und vollständig
+  durch den Nutzer aktivier- und deaktivierbar. Zeitpunkt, Zeitzone,
+  Wochenstart und Vorschlagslimit sind explizit.
+- Der lokale Scheduler erzeugt ausschließlich Vorschläge und Hinweise.
+  Persistierte eindeutige Lauf-Schlüssel schützen auch nach Neustart vor
+  Mehrfachausführung. Ohne ausreichende Daten wird ein begründeter
+  `no_data`-Lauf gespeichert.
+- Es gibt keine automatische Fachänderung, externe Nachricht oder
+  Netzwerkverbindung. Der providerunabhängige externe KI-Adapter bleibt ohne
+  Schlüssel und Netzwerkpfad deaktiviert; Suchfreigabe ist keine externe
+  Verarbeitungsfreigabe und nicht vertrauenswürdiger Text kann keine
+  Planungsregel überschreiben.
+
+### 0.7.5 API, Oberfläche und Nachweise
+
+- Die kompatible `/api/v1`-Erweiterung und ihre Limits sind im
+  [Planungs-API-Vertrag](api/planning.md) dokumentiert. Die responsive
+  Oberfläche zeigt Tag, Woche und Agenda, Vorschlagsdetails, Einzel- und
+  Gruppenauswahl, Konflikte, fehlende Daten sowie den Zustand lokaler
+  Automationen. Persönliche Planungsantworten werden nicht im Browser-Storage
+  oder Service-Worker-Cache persistiert.
+- Unit-, API-, PostgreSQL-/SQLite-Datenbank-, Import-/Restore-, Web- und
+  Desktop-/Mobiltests decken Priorisierung, Fristen, fehlende Daten,
+  Überlastung, Überschneidungen, Ganztage, Europe/Berlin, Sommerzeit,
+  Wiederholungen, fremde IDs, Bestätigung, Ablehnung, ETag-Konflikte,
+  Idempotenz, Deaktivierung und den ausgeschalteten KI-Adapter ab.
+
+Abschlusskriterium: LifeOS erzeugt lokal nachvollziehbare, quellengestützte
+Tages- und Wochenvorschläge. Keine Planung oder Automation verändert ohne
+explizite Bestätigung Fachdaten; externe KI und externe Übertragung bleiben
+deaktiviert.

@@ -32,6 +32,15 @@ import type {
   CreateAvailabilityWindowRequest,
   PlanningArea,
   PlanningResponse,
+  PlanningProposalGenerationResponse,
+  PlanningProposalResponse,
+  PlanningAutomationOverviewResponse,
+  PlanningAutomationKind,
+  PlanningAutomationResponse,
+  PlanningAutomationRunResponse,
+  UpdatePlanningAutomationRequest,
+  CreatePlanningProposalsRequest,
+  ConfirmPlanningProposalGroupResponse,
   CreateProjectEventLinkRequest,
   CreateProjectItemRequest,
   CreateProjectRequest,
@@ -553,6 +562,66 @@ export const api = {
     return request<void>(`/planning/availability/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
+  },
+  getPlanningProposals(from: string, to: string) {
+    const query = new URLSearchParams({ from, to });
+    return request<{ proposals: PlanningProposalResponse[] }>(
+      `/planning/proposals?${query.toString()}`,
+    );
+  },
+  generatePlanningProposals(payload: CreatePlanningProposalsRequest) {
+    return request<PlanningProposalGenerationResponse>("/planning/proposals", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  confirmPlanningProposal(id: string) {
+    return request<PlanningProposalResponse>(
+      `/planning/proposals/${encodeURIComponent(id)}/confirm`,
+      { method: "POST" },
+    );
+  },
+  confirmPlanningProposalGroup(proposalIds: string[]) {
+    return request<ConfirmPlanningProposalGroupResponse>(
+      "/planning/proposals/confirm",
+      { method: "POST", body: JSON.stringify({ proposalIds }) },
+    );
+  },
+  rejectPlanningProposal(id: string) {
+    return request<PlanningProposalResponse>(
+      `/planning/proposals/${encodeURIComponent(id)}/reject`,
+      { method: "POST" },
+    );
+  },
+  discardPlanningProposal(id: string) {
+    return request<PlanningProposalResponse>(
+      `/planning/proposals/${encodeURIComponent(id)}/discard`,
+      { method: "POST" },
+    );
+  },
+  reopenPlanningProposal(id: string) {
+    return request<PlanningProposalResponse>(
+      `/planning/proposals/${encodeURIComponent(id)}/reopen`,
+      { method: "POST" },
+    );
+  },
+  getPlanningAutomations() {
+    return request<PlanningAutomationOverviewResponse>("/planning/automations");
+  },
+  updatePlanningAutomation(
+    kind: PlanningAutomationKind,
+    payload: UpdatePlanningAutomationRequest,
+  ) {
+    return request<PlanningAutomationResponse>(
+      `/planning/automations/${kind}`,
+      { method: "PUT", body: JSON.stringify(payload) },
+    );
+  },
+  runPlanningAutomation(id: string) {
+    return request<PlanningAutomationRunResponse>(
+      `/planning/automations/${encodeURIComponent(id)}/run`,
+      { method: "POST" },
+    );
   },
   getFinance(
     from: string,

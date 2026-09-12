@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -133,6 +133,33 @@ const installApi = ({
     }
   >();
   const availabilityState: Record<string, unknown>[] = [];
+  let planningProposals: Array<Record<string, unknown>> = [];
+  const planningAutomations: Array<Record<string, unknown>> = [
+    {
+      id: null,
+      kind: "daily_preview",
+      enabled: false,
+      localMinute: 1080,
+      weekday: null,
+      timezone: "Europe/Berlin",
+      maxSuggestions: 10,
+      lastRun: null,
+      createdAt: null,
+      updatedAt: null,
+    },
+    {
+      id: null,
+      kind: "weekly_preview",
+      enabled: false,
+      localMinute: 1080,
+      weekday: 0,
+      timezone: "Europe/Berlin",
+      maxSuggestions: 10,
+      lastRun: null,
+      createdAt: null,
+      updatedAt: null,
+    },
+  ];
   let conflictReturned = false;
   let setupIsRequired = setupRequired;
   const fetchMock = vi.fn(
@@ -252,6 +279,126 @@ const installApi = ({
           availabilityWindows: availabilityState,
         });
       }
+      if (path.startsWith("/api/v1/planning/proposals?") && method === "GET")
+        return json({ proposals: planningProposals });
+      if (path === "/api/v1/planning/proposals" && method === "POST") {
+        const payload = requestBody(init);
+        const view = String(payload.view);
+        const from = String(payload.from);
+        const to = String(payload.to);
+        planningProposals = [
+          {
+            id: "proposal-1",
+            status: "pending",
+            view,
+            range: { from, to },
+            title: "Synthetische Fokusaufgabe",
+            action: {
+              type: "schedule_task",
+              targetId: "task-1",
+              startsAt: `${from}T08:00:00.000Z`,
+              endsAt: `${from}T09:00:00.000Z`,
+              timezone: "Europe/Berlin",
+            },
+            reason: "Hohe Priorität und gespeicherte Fälligkeit.",
+            reasonCodes: ["priority:high", `due:${from}`],
+            sources: [
+              {
+                type: "task",
+                id: "task-1",
+                title: "Synthetische Fokusaufgabe",
+                role: "target",
+                updatedAt: "2032-01-01T00:00:00.000Z",
+                etag: null,
+                current: true,
+              },
+            ],
+            uncertainties: [],
+            requiresConfirmation: true,
+            groupKey: `${view}:${from}:${to}`,
+            resolutionReason: null,
+            createdAt: "2032-01-01T00:00:00.000Z",
+            resolvedAt: null,
+            appliedAt: null,
+          },
+        ];
+        return json(
+          {
+            generatedAt: "2032-01-01T00:00:00.000Z",
+            timezone: "Europe/Berlin",
+            range: { from, to },
+            status: "ready",
+            proposals: planningProposals,
+            issues: [],
+            externalAiUsed: false,
+          },
+          201,
+        );
+      }
+      const proposalAction = path.match(
+        /^\/api\/v1\/planning\/proposals\/([^/]+)\/(confirm|reject|discard|reopen)$/,
+      );
+      if (proposalAction && method === "POST") {
+        const proposal = planningProposals.find(
+          (value) => value.id === proposalAction[1],
+        )!;
+        proposal.status = {
+          confirm: "applied",
+          reject: "rejected",
+          discard: "discarded",
+          reopen: "pending",
+        }[proposalAction[2]!]!;
+        return json(proposal);
+      }
+      if (path === "/api/v1/planning/proposals/confirm" && method === "POST") {
+        const payload = requestBody(init);
+        const ids = payload.proposalIds as string[];
+        for (const proposal of planningProposals.filter((value) =>
+          ids.includes(String(value.id)),
+        ))
+          proposal.status = "applied";
+        return json({
+          results: ids.map((proposalId) => ({
+            proposalId,
+            status: "applied",
+            message: "angewendet",
+          })),
+        });
+      }
+      if (path === "/api/v1/planning/automations" && method === "GET")
+        return json({
+          scheduler: "local",
+          externalNetwork: "disabled",
+          automations: planningAutomations,
+        });
+      const automationUpdate = path.match(
+        /^\/api\/v1\/planning\/automations\/(daily_preview|weekly_preview)$/,
+      );
+      if (automationUpdate && method === "PUT") {
+        const automation = planningAutomations.find(
+          (value) => value.kind === automationUpdate[1],
+        )!;
+        Object.assign(automation, requestBody(init), {
+          id: automation.id ?? `automation-${automationUpdate[1]}`,
+          updatedAt: "2032-01-01T00:00:00.000Z",
+        });
+        return json(automation);
+      }
+      if (
+        path.match(/^\/api\/v1\/planning\/automations\/[^/]+\/run$/) &&
+        method === "POST"
+      )
+        return json({
+          id: "automation-run-1",
+          runKey: "daily_preview:2032-06-15",
+          trigger: "manual",
+          status: "generated",
+          range: { from: "2032-06-15", to: "2032-06-15" },
+          proposalCount: 1,
+          issueCodes: [],
+          startedAt: "2032-06-14T18:00:00.000Z",
+          completedAt: "2032-06-14T18:00:01.000Z",
+        });
       if (path.startsWith("/api/v1/projects?") && method === "GET") {
         return json({ projects: projectState });
       }
@@ -1172,6 +1319,36 @@ describe("LifeOS-Weboberfläche", () => {
       screen.getByRole("button", { name: "Verfügbarkeit speichern" }),
     );
     expect(await screen.findByText(/09:00–12:00 · Fokuszeit/)).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: "Wochenvorschläge erzeugen" }),
+    );
+    expect(await screen.findByText("Synthetische Fokusaufgabe")).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Quellen und Begründung öffnen" }),
+    );
+    expect(
+      screen.getByText("Hohe Priorität und gespeicherte Fälligkeit."),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/Keine Änderung ohne deine Bestätigung/),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Ablehnen" }));
+    expect(
+      await screen.findByText(/Der Vorschlag wurde abgelehnt/),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Erneut prüfen" }));
+    await user.click(screen.getByRole("button", { name: "Bestätigen" }));
+    expect(await screen.findByText(/Aufgabe eingeplant/)).toBeVisible();
+
+    const dailyToggle = screen.getAllByRole("checkbox", {
+      name: "Aktivieren",
+    })[0]!;
+    await waitFor(() => expect(dailyToggle).toBeEnabled());
+    await user.click(dailyToggle);
+    expect(await screen.findByText(/^Aktiv ·/)).toBeVisible();
+    expect(localStorage).toHaveLength(0);
+    expect(sessionStorage).toHaveLength(0);
   });
 
   it("zeigt bei nicht erreichbarer API die Anmeldung mit Fehlerhinweis", async () => {

@@ -779,6 +779,12 @@ p {
 .planning-item.tasks {
   border-left-color: var(--accent);
 }
+.planning-item.projects {
+  border-left-color: #8a6438;
+}
+.planning-item.fitness {
+  border-left-color: #8a4e72;
+}
 .planning-item.availability {
   border-left-color: #6f9b72;
   background: #f1f7f1;
@@ -834,6 +840,101 @@ p {
 }
 .planning-privacy {
   margin-top: 1rem;
+}
+.planning-day-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.planning-day-picker input {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.planning-proposals,
+.planning-automations {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1.1rem;
+}
+.planning-proposal-issues {
+  margin: 0;
+  padding: 0.9rem 1rem 0.9rem 2rem;
+  border-radius: 10px;
+  background: #fff5e8;
+}
+.planning-proposal-list,
+.planning-automation-list {
+  display: grid;
+  gap: 0.8rem;
+}
+.planning-proposal,
+.planning-automation-list article {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+.planning-proposal.applied {
+  border-left: 4px solid #4c8054;
+}
+.planning-proposal.conflict {
+  border-left: 4px solid var(--danger);
+}
+.planning-proposal > header,
+.planning-automation-list article,
+.planning-proposal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.planning-proposal > header > div,
+.planning-automation-list article > div {
+  display: grid;
+  gap: 0.2rem;
+}
+.planning-proposal small,
+.planning-automation-list small {
+  color: var(--muted);
+}
+.automation-issues {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+  color: #8a5a16;
+  font-size: 0.8rem;
+}
+.automation-issues {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--warning-text);
+  font-size: 0.78rem;
+}
+.planning-proposal-detail {
+  padding: 0.9rem;
+  border-radius: 10px;
+  background: var(--surface);
+}
+.planning-proposal-detail h3 {
+  margin: 0.8rem 0 0.35rem;
+  font-size: 0.95rem;
+}
+.planning-proposal-detail ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+.automation-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 700;
 }
 
 .study-history {
@@ -951,6 +1052,12 @@ p {
   .agenda-day .planning-item,
   .planning-warnings li {
     grid-template-columns: 1fr;
+  }
+  .planning-proposal > header,
+  .planning-automation-list article,
+  .planning-proposal-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

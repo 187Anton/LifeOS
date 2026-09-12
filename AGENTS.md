@@ -386,6 +386,17 @@ implementiert und geprüft sind. KI-Interaktionen und Audits speichern keinen
 Prompt-, Antwort- oder Quellenausschnitt im Klartext. Bestätigte Vorschläge
 erzeugen ohne eine weitere bestätigte Fachaktion keine Datenänderung.
 
+Die lokale Tages- und Wochenplanung bleibt deterministisch und vollständig
+ohne externen KI-Adapter lauffähig. Sie liest ausschließlich aktive eigene
+Quellen und bildet freie Zeit nur aus gespeicherter Verfügbarkeit nach Abzug
+vorhandener Zeitblöcke. Planungsvorschläge persistieren keine Titel, Prompts,
+Antworten oder Quellausschnitte, führen erst nach expliziter Einzel- oder
+Gruppenbestätigung genau eine bestehende Fachaktion aus und prüfen dabei
+aktuelle Quellen sowie Kalender-ETags erneut. Lokale Planungsautomationen sind
+standardmäßig deaktiviert, durch persistierte Lauf-Schlüssel idempotent und
+dürfen weder Fachdaten ändern noch externe Nachrichten oder Netzwerkaufrufe
+auslösen.
+
 ## 6. Entwicklungsregeln
 
 Vor jeder Änderung:
@@ -662,3 +673,8 @@ gemeldet.
 - **2026-09-07:** Native Einzelinstanzsperre, leere Sidecar-Elternumgebung und
   zufälligen Readiness-Startnachweis nach Rust-, Sidecar- und realem
   DMG-Lifecycle-Test festgehalten.
+- **2026-09-07:** Deterministische besitzgebundene Tages- und Wochenvorschläge,
+  explizite Einzel-/Gruppenbestätigung mit Quellen- und ETag-Neuprüfung sowie
+  standardmäßig deaktivierte, idempotente lokale Vorschauautomationen ohne
+  Fachänderung oder Netzwerkpfad nach PostgreSQL-/SQLite-, API-, Recovery- und
+  Desktop-/Mobiltests festgehalten.

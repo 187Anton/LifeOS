@@ -312,6 +312,58 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       },
     },
   });
+  const planningProposal = await source.planningProposal.create({
+    data: {
+      userId: user.id,
+      fingerprint: createHash("sha256")
+        .update(`synthetic-planning-${suffix}`)
+        .digest("hex"),
+      view: "week",
+      rangeFrom: new Date("2032-09-01T00:00:00.000Z"),
+      rangeTo: new Date("2032-09-07T00:00:00.000Z"),
+      targetType: "task",
+      targetId: task.id,
+      actionType: "schedule_task",
+      proposedStartsAt: new Date("2032-09-02T08:00:00.000Z"),
+      proposedEndsAt: new Date("2032-09-02T08:45:00.000Z"),
+      timezone: "Europe/Berlin",
+      sourceReferences: [
+        {
+          sourceType: "task",
+          sourceId: task.id,
+          sourceUpdatedAt: task.updatedAt.toISOString(),
+          etag: null,
+          role: "target",
+        },
+      ],
+      reasonCodes: ["priority:high", "due:2032-09-02"],
+      uncertaintyCodes: [],
+    },
+  });
+  const planningAutomation = await source.planningAutomation.create({
+    data: {
+      userId: user.id,
+      kind: "daily_preview",
+      enabled: true,
+      localMinute: 1080,
+      timezone: "Europe/Berlin",
+      maxSuggestions: 8,
+    },
+  });
+  const planningAutomationRun = await source.planningAutomationRun.create({
+    data: {
+      userId: user.id,
+      automationId: planningAutomation.id,
+      runKey: "daily_preview:2032-09-01",
+      trigger: "scheduled",
+      status: "generated",
+      rangeFrom: new Date("2032-09-02T00:00:00.000Z"),
+      rangeTo: new Date("2032-09-02T00:00:00.000Z"),
+      proposalCount: 1,
+      issueCodes: [],
+      completedAt: new Date("2032-09-01T18:00:01.000Z"),
+    },
+  });
   const financeCategory = await source.financeCategory.create({
     data: {
       userId: user.id,
@@ -474,6 +526,8 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       workTimeEntries: true,
       availabilityWindows: true,
       aiInteractions: true,
+      planningProposals: true,
+      planningAutomations: { include: { runs: true } },
       financeCategories: true,
       financeTransactions: true,
       financeBudgets: true,
@@ -526,6 +580,16 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   assert.equal(importedUser.workProjects[0]?.searchEnabled, true);
   assert.equal(importedUser.aiInteractions[0]?.id, aiInteraction.id);
   assert.equal(importedUser.aiInteractions[0]?.externalTransferOccurred, false);
+  assert.equal(importedUser.planningProposals[0]?.id, planningProposal.id);
+  assert.deepEqual(importedUser.planningProposals[0]?.reasonCodes, [
+    "priority:high",
+    "due:2032-09-02",
+  ]);
+  assert.equal(importedUser.planningAutomations[0]?.id, planningAutomation.id);
+  assert.equal(
+    importedUser.planningAutomations[0]?.runs[0]?.id,
+    planningAutomationRun.id,
+  );
   assert.equal(importedUser.financeCategories[0]?.id, financeCategory.id);
   assert.equal(
     importedUser.financeTransactions[0]?.bookingDate.toISOString(),
@@ -597,6 +661,22 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   assert.equal(restoredEvent.uid, event.uid);
   assert.equal(restoredEvent.etag, event.etag);
   assert.equal(restoredEvent.syncVersion, event.syncVersion);
+  assert.equal(
+    (
+      await restored.planningProposal.findUniqueOrThrow({
+        where: { id: planningProposal.id },
+      })
+    ).status,
+    "pending",
+  );
+  assert.equal(
+    (
+      await restored.planningAutomationRun.findUniqueOrThrow({
+        where: { id: planningAutomationRun.id },
+      })
+    ).proposalCount,
+    1,
+  );
   const restoredFinanceTransaction =
     await restored.financeTransaction.findUniqueOrThrow({
       where: { id: financeTransaction.id },

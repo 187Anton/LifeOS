@@ -121,6 +121,33 @@ const installApi = async (page: Page) => {
     }
   >();
   const availability: Array<Record<string, unknown>> = [];
+  let planningProposals: Array<Record<string, unknown>> = [];
+  const planningAutomations: Array<Record<string, unknown>> = [
+    {
+      id: null,
+      kind: "daily_preview",
+      enabled: false,
+      localMinute: 1080,
+      weekday: null,
+      timezone: "Europe/Berlin",
+      maxSuggestions: 10,
+      lastRun: null,
+      createdAt: null,
+      updatedAt: null,
+    },
+    {
+      id: null,
+      kind: "weekly_preview",
+      enabled: false,
+      localMinute: 1080,
+      weekday: 0,
+      timezone: "Europe/Berlin",
+      maxSuggestions: 10,
+      lastRun: null,
+      createdAt: null,
+      updatedAt: null,
+    },
+  ];
   const financeCategories: Array<Record<string, unknown>> = [
     {
       id: "finance-category-1",
@@ -642,6 +669,103 @@ const installApi = async (page: Page) => {
           availabilityWindows: availability,
         },
       });
+      return;
+    }
+    if (path === "/api/v1/planning/proposals" && method === "GET") {
+      await route.fulfill({ json: { proposals: planningProposals } });
+      return;
+    }
+    if (path === "/api/v1/planning/proposals" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const from = stringValue(payload.from);
+      planningProposals = [
+        {
+          id: "proposal-e2e-1",
+          status: "pending",
+          view: payload.view,
+          range: { from, to: payload.to },
+          title: "Vorschlag: Fokus prüfen",
+          action: {
+            type: "schedule_task",
+            targetId: initialTask.id,
+            startsAt: `${from}T10:00:00.000Z`,
+            endsAt: `${from}T11:00:00.000Z`,
+            timezone: "Europe/Berlin",
+          },
+          reason: "Hohe Priorität und gespeicherte Fälligkeit.",
+          reasonCodes: ["priority:high", `due:${from}`],
+          sources: [
+            {
+              type: "task",
+              id: initialTask.id,
+              title: initialTask.title,
+              role: "target",
+              updatedAt: initialTask.updatedAt,
+              etag: null,
+              current: true,
+            },
+          ],
+          uncertainties: [],
+          requiresConfirmation: true,
+          groupKey: `${String(payload.view)}:${from}:${String(payload.to)}`,
+          resolutionReason: null,
+          createdAt: "2032-01-01T00:00:00.000Z",
+          resolvedAt: null,
+          appliedAt: null,
+        },
+      ];
+      await route.fulfill({
+        status: 201,
+        json: {
+          generatedAt: "2032-01-01T00:00:00.000Z",
+          timezone: "Europe/Berlin",
+          range: { from, to: payload.to },
+          status: "ready",
+          proposals: planningProposals,
+          issues: [],
+          externalAiUsed: false,
+        },
+      });
+      return;
+    }
+    const planningProposalAction = path.match(
+      /^\/api\/v1\/planning\/proposals\/([^/]+)\/(confirm|reject|discard|reopen)$/,
+    );
+    if (planningProposalAction && method === "POST") {
+      const proposal = planningProposals.find(
+        (value) => value.id === planningProposalAction[1],
+      )!;
+      proposal.status = {
+        confirm: "applied",
+        reject: "rejected",
+        discard: "discarded",
+        reopen: "pending",
+      }[planningProposalAction[2]!]!;
+      await route.fulfill({ json: proposal });
+      return;
+    }
+    if (path === "/api/v1/planning/automations" && method === "GET") {
+      await route.fulfill({
+        json: {
+          scheduler: "local",
+          externalNetwork: "disabled",
+          automations: planningAutomations,
+        },
+      });
+      return;
+    }
+    const planningAutomationUpdate = path.match(
+      /^\/api\/v1\/planning\/automations\/(daily_preview|weekly_preview)$/,
+    );
+    if (planningAutomationUpdate && method === "PUT") {
+      const automation = planningAutomations.find(
+        (value) => value.kind === planningAutomationUpdate[1],
+      )!;
+      Object.assign(automation, request.postDataJSON(), {
+        id: automation.id ?? `automation-${planningAutomationUpdate[1]}`,
+        updatedAt: "2032-01-01T00:00:00.000Z",
+      });
+      await route.fulfill({ json: automation });
       return;
     }
     if (path === "/api/v1/planning/availability" && method === "POST") {
@@ -2219,6 +2343,28 @@ test("zeigt eine kombinierte Studien- und Arbeitswoche mit erklärten Warnungen"
   await expect(
     page.getByText(/geplante Zeit überschreitet die Verfügbarkeit/),
   ).toBeVisible();
+
+  await page.getByRole("button", { name: "Wochenvorschläge erzeugen" }).click();
+  await expect(page.getByText("Vorschlag: Fokus prüfen")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Quellen und Begründung öffnen" })
+    .click();
+  await expect(
+    page.getByText(/Keine Änderung ohne deine Bestätigung/),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Ablehnen" }).click();
+  await expect(page.getByText(/Vorschlag wurde abgelehnt/)).toBeVisible();
+  await page.getByRole("button", { name: "Erneut prüfen" }).click();
+  await page.getByRole("button", { name: "Bestätigen" }).click();
+  await expect(page.getByText(/Aufgabe eingeplant/)).toBeVisible();
+
+  const dailyAutomation = page
+    .locator(".planning-automation-list article")
+    .filter({ hasText: "Vorschau für morgen" });
+  await dailyAutomation.getByRole("checkbox", { name: "Aktivieren" }).click();
+  await expect(dailyAutomation.getByText(/^Aktiv ·/)).toBeVisible();
+  await dailyAutomation.getByRole("checkbox", { name: "Deaktivieren" }).click();
+  await expect(dailyAutomation.getByText(/^Deaktiviert ·/)).toBeVisible();
 
   await page.getByRole("button", { name: "Agenda", exact: true }).click();
   await expect(
