@@ -41,6 +41,9 @@ model User {
   workTaskLinks             WorkTaskLink[]
   workTimeEntries           WorkTimeEntry[]
   availabilityWindows       AvailabilityWindow[]
+  planningProposals         PlanningProposal[]
+  planningAutomations       PlanningAutomation[]
+  planningAutomationRuns    PlanningAutomationRun[]
   financeCategories         FinanceCategory[]
   financeTransactions       FinanceTransaction[]
   financeBudgets            FinanceBudget[]
@@ -708,6 +711,75 @@ model AvailabilityWindow {
 
   @@unique([userId, weekday, startMinute, endMinute])
   @@index([userId, weekday])
+}
+
+model PlanningProposal {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @db.Uuid
+  fingerprint       String    @db.Char(64)
+  view              String    @db.VarChar(10)
+  rangeFrom         DateTime  @db.Date
+  rangeTo           DateTime  @db.Date
+  targetType        String    @db.VarChar(30)
+  targetId          String    @db.Uuid
+  actionType        String    @db.VarChar(50)
+  proposedStartsAt  DateTime  @db.Timestamptz(3)
+  proposedEndsAt    DateTime  @db.Timestamptz(3)
+  timezone          String    @db.VarChar(100)
+  sourceReferences  Json
+  reasonCodes       Json
+  uncertaintyCodes  Json
+  status            String    @default("pending") @db.VarChar(30)
+  resolutionReason  String?   @db.VarChar(50)
+  resolvedAt        DateTime? @db.Timestamptz(3)
+  appliedAt         DateTime? @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([id, userId])
+  @@unique([userId, fingerprint])
+  @@index([userId, status, rangeFrom, rangeTo])
+  @@index([userId, targetType, targetId])
+}
+
+model PlanningAutomation {
+  id             String                  @id @default(uuid()) @db.Uuid
+  userId         String                  @db.Uuid
+  kind           String                  @db.VarChar(30)
+  enabled        Boolean                 @default(false)
+  localMinute    Int
+  weekday        Int?
+  timezone       String                  @db.VarChar(100)
+  maxSuggestions Int                     @default(10)
+  createdAt      DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime                @updatedAt @db.Timestamptz(3)
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runs           PlanningAutomationRun[]
+
+  @@unique([id, userId])
+  @@unique([userId, kind])
+  @@index([enabled, kind])
+}
+
+model PlanningAutomationRun {
+  id            String             @id @default(uuid()) @db.Uuid
+  userId        String             @db.Uuid
+  automationId  String             @db.Uuid
+  runKey        String             @db.VarChar(80)
+  trigger       String             @db.VarChar(20)
+  status        String             @db.VarChar(30)
+  rangeFrom     DateTime           @db.Date
+  rangeTo       DateTime           @db.Date
+  proposalCount Int                @default(0)
+  issueCodes    Json
+  startedAt     DateTime           @default(now()) @db.Timestamptz(3)
+  completedAt   DateTime?          @db.Timestamptz(3)
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  automation    PlanningAutomation @relation(fields: [automationId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([automationId, runKey])
+  @@index([userId, startedAt])
 }
 
 enum FinanceCategoryKind {

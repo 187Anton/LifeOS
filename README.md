@@ -222,12 +222,23 @@ Offene Prüfungen, Abgaben und Lernzeiten erscheinen zusätzlich rein lesend im
 Organisations-Dashboard und im sichtbaren Zeitraum der Kalenderansicht.
 
 Die gemeinsame Planung unter `/api/v1/planning` führt Kalendertermine,
-Aufgabenfristen, Studium, Arbeit, geplante und tatsächliche Zeit sowie die
-persönliche Verfügbarkeit als rein lesende Wochen- oder Agendasicht zusammen.
-Regelbasierte Hinweise erklären Überschneidungen, überfällige Fristen,
-Kapazitätsüberschreitungen und Häufungen hoher Prioritäten. Filter verändern
-nur die Darstellung; Termine und Quelldaten werden weder kopiert noch
-automatisch verschoben.
+Aufgabenfristen, Studium, Arbeit, Projekte, Meilensteine, geplante
+Fitnesseinheiten und persönliche Verfügbarkeit als Tages-, Wochen- oder
+Agendasicht zusammen. Regelbasierte Hinweise erklären Überschneidungen,
+überfällige Fristen, Kapazitätsüberschreitungen und fehlende Daten.
+
+Unter `/api/v1/planning/proposals` erzeugt LifeOS daraus lokal und
+deterministisch unverbindliche Zeitvorschläge. Jeder Vorschlag zeigt Aufgabe,
+Zeitfenster, Begründung, Quellen und Unsicherheiten. Erst die ausdrücklich
+gewählte Einzel- oder Gruppenbestätigung plant die Aufgabe über den vorhandenen
+Aufgabenservice ein; aktuelle Quellen und Kalender-ETags werden davor erneut
+besitzgebunden geprüft. Ablehnen, Verwerfen und erneutes Prüfen bleiben möglich,
+erneute Ausführungen erzeugen keine Duplikate. Tages- und Wochenvorschauen sind
+standardmäßig deaktivierte lokale Automationen und ändern niemals selbst
+Aufgaben oder Kalender. Sie senden keine Nachrichten und nutzen kein externes
+Netzwerk. Der externe KI-Adapter bleibt vollständig deaktiviert. Vertrag,
+Grenzen und Endpunkte beschreibt die
+[Planungs-API-Dokumentation](docs/api/planning.md).
 
 Der Kalender bietet Tages-, Wochen-, Monats- und Agendaansicht. Termine werden
 weiterhin ausschließlich über den gemeinsamen Kalenderkern gespeichert:

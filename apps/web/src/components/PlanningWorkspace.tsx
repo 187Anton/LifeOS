@@ -1,11 +1,14 @@
 import type {
   CreateAvailabilityWindowRequest,
   PlanningArea,
+  PlanningAutomationResponse,
   PlanningItemKind,
   PlanningItemResponse,
+  PlanningProposalResponse,
   PlanningResponse,
 } from "@lifeos/contracts";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { api } from "../api";
 import {
   eachPlanningDate,
   shiftPlanningRange,
@@ -20,6 +23,8 @@ const areaLabels: Record<PlanningArea, string> = {
   study: "Studium",
   work: "Arbeit",
   tasks: "Aufgaben",
+  projects: "Projekte",
+  fitness: "Fitness",
   availability: "Verfügbarkeit",
 };
 const kindLabels: Record<PlanningItemKind, string> = {
@@ -38,6 +43,24 @@ const weekdayLabels = [
   "Freitag",
   "Samstag",
 ];
+const automationIssueLabels: Record<string, string> = {
+  missing_settings: "Die persönliche Zeitzone fehlt.",
+  no_availability: "Keine persönliche Verfügbarkeit vorhanden.",
+  missing_task_effort:
+    "Mindestens einer Aufgabe fehlt ein geschätzter Aufwand.",
+  missing_task_deadline: "Mindestens einer Aufgabe fehlt eine Fälligkeit.",
+  capacity_exceeded:
+    "Die bekannten Aufgaben überschreiten die freien Zeitfenster.",
+  source_limit: "Eine Quelle überschreitet das sichere Auswertungslimit.",
+  unsupported_recurrence:
+    "Eine Terminserie kann nicht sicher ausgewertet werden.",
+  recurrence_limit: "Eine Terminserie überschreitet das Auswertungslimit.",
+  fitness_duration_missing:
+    "Einer geplanten Trainingseinheit fehlt eine belastbare Dauer.",
+  effort_limit:
+    "Ein Aufgabenaufwand überschreitet das Blocklimit von acht Stunden.",
+  generation_failed: "Die lokale Vorschau konnte nicht erzeugt werden.",
+};
 const timeToMinutes = (value: string) => {
   const [hours, minutes] = value.split(":").map(Number);
   return hours! * 60 + minutes!;
@@ -98,11 +121,32 @@ export const PlanningWorkspace = ({
   onCreateAvailability,
   onDeleteAvailability,
 }: Props) => {
-  const [mode, setMode] = useState<"week" | "agenda">("week");
+  const [mode, setMode] = useState<"day" | "week" | "agenda">("week");
+  const [dayDate, setDayDate] = useState(() => todayInTimezone(timezone));
   const [areas, setAreas] = useState<Set<PlanningArea>>(
-    new Set(["calendar", "study", "work", "tasks", "availability"]),
+    new Set([
+      "calendar",
+      "study",
+      "work",
+      "tasks",
+      "projects",
+      "fitness",
+      "availability",
+    ]),
   );
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
+  const [proposals, setProposals] = useState<PlanningProposalResponse[]>([]);
+  const [proposalIssues, setProposalIssues] = useState<string[]>([]);
+  const [proposalMessage, setProposalMessage] = useState<string | null>(null);
+  const [proposalError, setProposalError] = useState<string | null>(null);
+  const [proposalBusy, setProposalBusy] = useState(false);
+  const [selectedProposals, setSelectedProposals] = useState<Set<string>>(
+    new Set(),
+  );
+  const [openProposal, setOpenProposal] = useState<string | null>(null);
+  const [automations, setAutomations] = useState<PlanningAutomationResponse[]>(
+    [],
+  );
   const visibleItems = useMemo(
     () => planning?.items.filter((item) => areas.has(item.area)) ?? [],
     [areas, planning?.items],
@@ -118,6 +162,50 @@ export const PlanningWorkspace = ({
         warning.itemIds.some((itemId) => visibleIds.has(itemId)),
     ) ?? [];
   const dates = eachPlanningDate(range);
+  const selectedDayDate =
+    dayDate >= range.from && dayDate <= range.to ? dayDate : range.from;
+  const visibleDates = mode === "day" ? [selectedDayDate] : dates;
+  const failureMessage = (reason: unknown) =>
+    reason instanceof Error
+      ? reason.message
+      : "Die lokale Planung konnte nicht verarbeitet werden.";
+  const loadProposalControls = async () => {
+    const [proposalResult, automationResult] = await Promise.all([
+      api.getPlanningProposals(range.from, range.to),
+      api.getPlanningAutomations(),
+    ]);
+    setProposals(proposalResult.proposals);
+    setSelectedProposals((current) => {
+      const pending = new Set(
+        proposalResult.proposals
+          .filter((proposal) => proposal.status === "pending")
+          .map((proposal) => proposal.id),
+      );
+      return new Set([...current].filter((id) => pending.has(id)));
+    });
+    setAutomations(automationResult.automations);
+  };
+  useEffect(() => {
+    let active = true;
+    void Promise.all([
+      api.getPlanningProposals(range.from, range.to),
+      api.getPlanningAutomations(),
+    ])
+      .then(([proposalResult, automationResult]) => {
+        if (!active) return;
+        setProposals(proposalResult.proposals);
+        setSelectedProposals(new Set());
+        setProposalIssues([]);
+        setAutomations(automationResult.automations);
+        setProposalError(null);
+      })
+      .catch((reason: unknown) => {
+        if (active) setProposalError(failureMessage(reason));
+      });
+    return () => {
+      active = false;
+    };
+  }, [range.from, range.to]);
   const toggleArea = (area: PlanningArea) => {
     setAreas((current) => {
       const next = new Set(current);
@@ -185,6 +273,12 @@ export const PlanningWorkspace = ({
           aria-label="Planungsansicht"
         >
           <button
+            className={mode === "day" ? "active" : ""}
+            onClick={() => setMode("day")}
+          >
+            Tag
+          </button>
+          <button
             className={mode === "week" ? "active" : ""}
             onClick={() => setMode("week")}
           >
@@ -197,6 +291,18 @@ export const PlanningWorkspace = ({
             Agenda
           </button>
         </div>
+        {mode === "day" ? (
+          <label className="planning-day-picker">
+            Planungstag
+            <input
+              type="date"
+              value={selectedDayDate}
+              min={range.from}
+              max={range.to}
+              onChange={(event) => setDayDate(event.target.value)}
+            />
+          </label>
+        ) : null}
         <fieldset className="planning-area-filters">
           <legend>Bereiche ein- oder ausblenden</legend>
           {(Object.keys(areaLabels) as PlanningArea[]).map((area) => (
@@ -254,7 +360,7 @@ export const PlanningWorkspace = ({
           className="planning-week"
           aria-label="Gemeinsame Wochenansicht"
         >
-          {dates.map((date) => (
+          {visibleDates.map((date) => (
             <PlanningDay
               key={date}
               date={date}
@@ -262,6 +368,18 @@ export const PlanningWorkspace = ({
               items={visibleItems.filter((item) => item.date === date)}
             />
           ))}
+        </section>
+      ) : planning && mode === "day" ? (
+        <section
+          className="planning-agenda"
+          aria-label="Gemeinsame Tagesansicht"
+        >
+          <PlanningDay
+            date={selectedDayDate}
+            timezone={timezone}
+            items={visibleItems.filter((item) => item.date === selectedDayDate)}
+            agenda
+          />
         </section>
       ) : planning ? (
         <section className="planning-agenda" aria-label="Gemeinsame Agenda">
@@ -289,6 +407,346 @@ export const PlanningWorkspace = ({
           ) : null}
         </section>
       ) : null}
+      <section
+        className="planning-proposals panel"
+        aria-labelledby="proposal-title"
+      >
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">LOKALE KI-PLANUNG</p>
+            <h2 id="proposal-title">Unverbindliche Planungsvorschläge</h2>
+          </div>
+          <button
+            className="primary-button"
+            disabled={proposalBusy}
+            onClick={() => {
+              setProposalBusy(true);
+              setProposalError(null);
+              setProposalMessage(null);
+              const proposalRange =
+                mode === "day"
+                  ? {
+                      from: selectedDayDate,
+                      to: selectedDayDate,
+                      view: "day" as const,
+                    }
+                  : { from: range.from, to: range.to, view: "week" as const };
+              void api
+                .generatePlanningProposals(proposalRange)
+                .then(async (result) => {
+                  setProposals(result.proposals);
+                  setSelectedProposals(new Set());
+                  setProposalIssues(
+                    result.issues.map((issue) => issue.message),
+                  );
+                  setProposalMessage(
+                    result.proposals.length
+                      ? `${result.proposals.length} lokale Vorschläge wurden nachvollziehbar vorbereitet.`
+                      : "Es wurden keine belastbaren Vorschläge erzeugt.",
+                  );
+                  await loadProposalControls();
+                })
+                .catch((reason: unknown) =>
+                  setProposalError(failureMessage(reason)),
+                )
+                .finally(() => setProposalBusy(false));
+            }}
+          >
+            {mode === "day"
+              ? "Tagesvorschläge erzeugen"
+              : "Wochenvorschläge erzeugen"}
+          </button>
+        </div>
+        <p>
+          Die Regeln nutzen nur deine aktiven LifeOS-Daten. Erst eine sichtbare
+          Bestätigung plant die jeweilige Aufgabe über den bestehenden
+          Aufgabenservice ein.
+        </p>
+        {proposalError ? (
+          <div className="message error" role="alert">
+            {proposalError}
+          </div>
+        ) : null}
+        {proposalMessage ? (
+          <div className="message success" role="status">
+            {proposalMessage}
+          </div>
+        ) : null}
+        {proposalIssues.length ? (
+          <ul className="planning-proposal-issues">
+            {proposalIssues.map((issue) => (
+              <li key={issue}>{issue}</li>
+            ))}
+          </ul>
+        ) : null}
+        {selectedProposals.size ? (
+          <button
+            className="secondary-button"
+            disabled={proposalBusy}
+            onClick={() => {
+              setProposalBusy(true);
+              void api
+                .confirmPlanningProposalGroup([...selectedProposals])
+                .then(async (result) => {
+                  setProposalMessage(
+                    `${result.results.filter((entry) => entry.status === "applied").length} ausgewählte Vorschläge wurden angewendet.`,
+                  );
+                  setSelectedProposals(new Set());
+                  await Promise.all([
+                    loadProposalControls(),
+                    Promise.resolve(onReload()),
+                  ]);
+                })
+                .catch((reason: unknown) =>
+                  setProposalError(failureMessage(reason)),
+                )
+                .finally(() => setProposalBusy(false));
+            }}
+          >
+            Ausgewählte bestätigen ({selectedProposals.size})
+          </button>
+        ) : null}
+        {proposals.length ? (
+          <div className="planning-proposal-list">
+            {proposals.map((proposal) => (
+              <article
+                key={proposal.id}
+                className={`planning-proposal ${proposal.status}`}
+              >
+                <header>
+                  {proposal.status === "pending" ? (
+                    <input
+                      type="checkbox"
+                      aria-label={`${proposal.title} für Gruppenbestätigung auswählen`}
+                      checked={selectedProposals.has(proposal.id)}
+                      onChange={() =>
+                        setSelectedProposals((current) => {
+                          const next = new Set(current);
+                          if (next.has(proposal.id)) next.delete(proposal.id);
+                          else next.add(proposal.id);
+                          return next;
+                        })
+                      }
+                    />
+                  ) : null}
+                  <div>
+                    <strong>{proposal.title}</strong>
+                    <small>
+                      {formatProposalWindow(proposal)} ·{" "}
+                      {proposalStatusLabel(proposal.status)}
+                    </small>
+                  </div>
+                </header>
+                <button
+                  className="text-button"
+                  onClick={() =>
+                    setOpenProposal(
+                      openProposal === proposal.id ? null : proposal.id,
+                    )
+                  }
+                >
+                  {openProposal === proposal.id
+                    ? "Details schließen"
+                    : "Quellen und Begründung öffnen"}
+                </button>
+                {openProposal === proposal.id ? (
+                  <div className="planning-proposal-detail">
+                    <p>{proposal.reason}</p>
+                    <h3>Verwendete Datenquellen</h3>
+                    <ul>
+                      {proposal.sources.map((source) => (
+                        <li key={`${source.type}:${source.id}`}>
+                          {source.title} · {source.role}
+                          {source.current ? "" : " · zwischenzeitlich geändert"}
+                        </li>
+                      ))}
+                    </ul>
+                    <h3>Unsicherheit oder fehlende Daten</h3>
+                    {proposal.uncertainties.length ? (
+                      <ul>
+                        {proposal.uncertainties.map((item) => (
+                          <li key={item.code}>{item.message}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>
+                        Für diesen Vorschlag wurden keine zusätzlichen
+                        Unsicherheiten erkannt.
+                      </p>
+                    )}
+                    <p className="privacy-note">
+                      Status: unverbindlicher Vorschlag. Keine Änderung ohne
+                      deine Bestätigung.
+                    </p>
+                  </div>
+                ) : null}
+                <div className="planning-proposal-actions">
+                  {proposal.status === "pending" ? (
+                    <>
+                      <button
+                        className="primary-button"
+                        disabled={proposalBusy}
+                        onClick={() =>
+                          void changeProposal(
+                            () => api.confirmPlanningProposal(proposal.id),
+                            "Der Vorschlag wurde bestätigt und die Aufgabe eingeplant.",
+                          )
+                        }
+                      >
+                        Bestätigen
+                      </button>
+                      <button
+                        className="secondary-button"
+                        disabled={proposalBusy}
+                        onClick={() =>
+                          void changeProposal(
+                            () => api.rejectPlanningProposal(proposal.id),
+                            "Der Vorschlag wurde abgelehnt.",
+                          )
+                        }
+                      >
+                        Ablehnen
+                      </button>
+                      <button
+                        className="text-button"
+                        disabled={proposalBusy}
+                        onClick={() =>
+                          void changeProposal(
+                            () => api.discardPlanningProposal(proposal.id),
+                            "Der Vorschlag wurde verworfen.",
+                          )
+                        }
+                      >
+                        Verwerfen
+                      </button>
+                    </>
+                  ) : ["rejected", "discarded", "conflict"].includes(
+                      proposal.status,
+                    ) ? (
+                    <button
+                      className="secondary-button"
+                      disabled={proposalBusy}
+                      onClick={() =>
+                        void changeProposal(
+                          () => api.reopenPlanningProposal(proposal.id),
+                          "Der Vorschlag kann erneut geprüft werden.",
+                        )
+                      }
+                    >
+                      Erneut prüfen
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="muted-copy">
+            Noch keine Vorschläge für den sichtbaren Zeitraum.
+          </p>
+        )}
+      </section>
+      <section
+        className="planning-automations panel"
+        aria-labelledby="automation-title"
+      >
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">KONTROLLIERTE AUTOMATIONEN</p>
+            <h2 id="automation-title">Lokale Planungsvorschauen</h2>
+          </div>
+        </div>
+        <p>
+          Automationen erzeugen ausschließlich Vorschläge. Sie ändern keine
+          Aufgaben oder Termine und rufen kein externes Netzwerk auf.
+        </p>
+        <div className="planning-automation-list">
+          {automations.map((automation) => (
+            <article key={automation.kind}>
+              <div>
+                <strong>
+                  {automation.kind === "daily_preview"
+                    ? "Vorschau für morgen"
+                    : "Vorschau für nächste Woche"}
+                </strong>
+                <small>
+                  {automation.enabled ? "Aktiv" : "Deaktiviert"} · täglich
+                  geschützt vor Mehrfachausführung
+                </small>
+                {automation.lastRun ? (
+                  <>
+                    <small>
+                      Letzter Lauf:{" "}
+                      {new Date(automation.lastRun.startedAt).toLocaleString(
+                        "de-DE",
+                        { timeZone: timezone },
+                      )}{" "}
+                      · {automation.lastRun.status}
+                    </small>
+                    {automation.lastRun.issueCodes.length ? (
+                      <ul className="automation-issues">
+                        {automation.lastRun.issueCodes.map((code) => (
+                          <li key={code}>
+                            {automationIssueLabels[code] ??
+                              "Die lokale Vorschau benötigt eine erneute Prüfung."}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+              <label className="automation-toggle">
+                <input
+                  type="checkbox"
+                  checked={automation.enabled}
+                  disabled={proposalBusy}
+                  onChange={(event) => {
+                    setProposalBusy(true);
+                    void api
+                      .updatePlanningAutomation(automation.kind, {
+                        enabled: event.target.checked,
+                        localMinute: automation.localMinute,
+                        weekday: automation.weekday,
+                        timezone,
+                        maxSuggestions: automation.maxSuggestions,
+                      })
+                      .then(loadProposalControls)
+                      .catch((reason: unknown) =>
+                        setProposalError(failureMessage(reason)),
+                      )
+                      .finally(() => setProposalBusy(false));
+                  }}
+                />
+                {automation.enabled ? "Deaktivieren" : "Aktivieren"}
+              </label>
+              {automation.enabled && automation.id ? (
+                <button
+                  className="text-button"
+                  disabled={proposalBusy}
+                  onClick={() => {
+                    setProposalBusy(true);
+                    void api
+                      .runPlanningAutomation(automation.id!)
+                      .then(async () => {
+                        setProposalMessage(
+                          "Die lokale Vorschau wurde einmalig geprüft.",
+                        );
+                        await loadProposalControls();
+                      })
+                      .catch((reason: unknown) =>
+                        setProposalError(failureMessage(reason)),
+                      )
+                      .finally(() => setProposalBusy(false));
+                  }}
+                >
+                  Jetzt prüfen
+                </button>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      </section>
       <section className="availability-panel panel">
         <div className="section-heading">
           <div>
@@ -352,7 +810,51 @@ export const PlanningWorkspace = ({
       </p>
     </main>
   );
+
+  async function changeProposal(
+    operation: () => Promise<PlanningProposalResponse>,
+    message: string,
+  ) {
+    setProposalBusy(true);
+    setProposalError(null);
+    try {
+      await operation();
+      setProposalMessage(message);
+      await loadProposalControls();
+      onReload();
+    } catch (reason) {
+      setProposalError(failureMessage(reason));
+      await loadProposalControls();
+    } finally {
+      setProposalBusy(false);
+    }
+  }
 };
+
+const formatProposalWindow = (proposal: PlanningProposalResponse) => {
+  const date = new Intl.DateTimeFormat("de-DE", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: proposal.action.timezone,
+  });
+  const time = new Intl.DateTimeFormat("de-DE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: proposal.action.timezone,
+  });
+  return `${date.format(new Date(proposal.action.startsAt))}, ${time.format(new Date(proposal.action.startsAt))}–${time.format(new Date(proposal.action.endsAt))}`;
+};
+
+const proposalStatusLabel = (status: PlanningProposalResponse["status"]) =>
+  ({
+    pending: "Unverbindlicher Vorschlag",
+    confirming: "Bestätigung wird geprüft",
+    applied: "Bestätigt und angewendet",
+    rejected: "Abgelehnt",
+    discarded: "Verworfen",
+    conflict: "Konflikt – nichts geändert",
+  })[status];
 
 const PlanningDay = ({
   date,

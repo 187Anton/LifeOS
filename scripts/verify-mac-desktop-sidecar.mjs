@@ -122,11 +122,23 @@ try {
   const first = await startSidecar(databasePath, port);
   running = first.child;
 
+  const directPage = await fetch(`${first.baseUrl}/index.html`);
+  const directPageBody = await directPage.text();
+  assert.equal(
+    directPage.status,
+    200,
+    `Direkte App-Shell fehlgeschlagen: ${directPageBody}; Sidecar: ${first.output.join("").trim()}`,
+  );
   const page = await fetch(first.baseUrl, {
     headers: { accept: "text/html" },
   });
-  assert.equal(page.status, 200);
-  assert.match(await page.text(), /Anton Life OS/);
+  const pageBody = await page.text();
+  assert.equal(
+    page.status,
+    200,
+    `App-Shell fehlgeschlagen: ${pageBody}; Sidecar: ${first.output.join("").trim()}`,
+  );
+  assert.match(pageBody, /Anton Life OS/);
   const readiness = await fetch(`${first.baseUrl}/api/v1/readiness`);
   assert.equal(readiness.status, 200);
   const calDav = await fetch(`${first.baseUrl}/caldav/`, {
@@ -557,6 +569,7 @@ try {
     "20260820200000_fitness_module",
     "20260820210000_external_caldav",
     "20260820220000_github_integration",
+    "20260907120000_ai_planning_automations",
   ]);
   const identityBeforeRestart = database
     .prepare(

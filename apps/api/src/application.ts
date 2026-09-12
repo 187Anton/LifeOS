@@ -93,9 +93,13 @@ export const createApplication = ({
         next();
         return;
       }
-      response.sendFile(path.join(webDistPath, "index.html"), (error) => {
-        if (error) next(error);
-      });
+      response.sendFile(
+        "index.html",
+        { root: webDistPath, dotfiles: "deny" },
+        (error) => {
+          if (error) next(error);
+        },
+      );
     });
   }
 

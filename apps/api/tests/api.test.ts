@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -222,13 +222,15 @@ test("verbirgt unerwartete Fehler und protokolliert weder Body noch Header", asy
 });
 
 test("liefert die gebaute Weboberfläche am selben lokalen Ursprung aus", async (t) => {
-  const webDistPath = await mkdtemp(path.join(os.tmpdir(), "lifeos-web-dist-"));
+  const rootPath = await mkdtemp(path.join(os.tmpdir(), "lifeos-web-dist-"));
+  const webDistPath = path.join(rootPath, ".worktree", "web");
+  await mkdir(webDistPath, { recursive: true });
   await writeFile(
     path.join(webDistPath, "index.html"),
     "<!doctype html><title>LifeOS Desktop</title>",
   );
   await writeFile(path.join(webDistPath, "app.js"), "console.info('lifeos');");
-  t.after(() => rm(webDistPath, { recursive: true, force: true }));
+  t.after(() => rm(rootPath, { recursive: true, force: true }));
 
   const application = createApplication({
     logger: new CapturingLogger(),

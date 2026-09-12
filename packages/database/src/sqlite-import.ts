@@ -39,6 +39,9 @@ type ReadClient = Pick<
   | "workTaskLink"
   | "workTimeEntry"
   | "availabilityWindow"
+  | "planningProposal"
+  | "planningAutomation"
+  | "planningAutomationRun"
   | "financeCategory"
   | "financeTransaction"
   | "financeBudget"
@@ -110,6 +113,15 @@ const readDataset = async (database: ReadClient) => ({
     orderBy: { id: "asc" },
   }),
   availabilityWindows: await database.availabilityWindow.findMany({
+    orderBy: { id: "asc" },
+  }),
+  planningProposals: await database.planningProposal.findMany({
+    orderBy: { id: "asc" },
+  }),
+  planningAutomations: await database.planningAutomation.findMany({
+    orderBy: { id: "asc" },
+  }),
+  planningAutomationRuns: await database.planningAutomationRun.findMany({
     orderBy: { id: "asc" },
   }),
   financeCategories: await database.financeCategory.findMany({
@@ -282,6 +294,26 @@ const insertDataset = async (
     if (dataset.availabilityWindows.length)
       await transaction.availabilityWindow.createMany({
         data: dataset.availabilityWindows,
+      });
+    if (dataset.planningProposals.length)
+      await transaction.planningProposal.createMany({
+        data: dataset.planningProposals.map((proposal) => ({
+          ...proposal,
+          sourceReferences: proposal.sourceReferences as Prisma.InputJsonValue,
+          reasonCodes: proposal.reasonCodes as Prisma.InputJsonValue,
+          uncertaintyCodes: proposal.uncertaintyCodes as Prisma.InputJsonValue,
+        })),
+      });
+    if (dataset.planningAutomations.length)
+      await transaction.planningAutomation.createMany({
+        data: dataset.planningAutomations,
+      });
+    if (dataset.planningAutomationRuns.length)
+      await transaction.planningAutomationRun.createMany({
+        data: dataset.planningAutomationRuns.map((run) => ({
+          ...run,
+          issueCodes: run.issueCodes as Prisma.InputJsonValue,
+        })),
       });
     if (dataset.financeCategories.length)
       await transaction.financeCategory.createMany({

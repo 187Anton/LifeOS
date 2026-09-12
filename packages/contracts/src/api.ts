@@ -772,7 +772,13 @@ export interface UpdateWorkTimeEntryRequest extends Partial<CreateWorkTimeEntryR
 }
 
 export type PlanningArea =
-  "calendar" | "study" | "work" | "tasks" | "availability";
+  | "calendar"
+  | "study"
+  | "work"
+  | "tasks"
+  | "projects"
+  | "fitness"
+  | "availability";
 export type PlanningItemKind =
   "fixed_event" | "deadline" | "planned_task" | "actual_time" | "availability";
 export type PlanningPriority = "low" | "medium" | "high" | "critical";
@@ -834,6 +840,135 @@ export interface PlanningResponse {
   items: PlanningItemResponse[];
   warnings: PlanningWarningResponse[];
   availabilityWindows: AvailabilityWindowResponse[];
+}
+
+export type PlanningProposalView = "day" | "week";
+export type PlanningProposalStatus =
+  "pending" | "confirming" | "applied" | "rejected" | "discarded" | "conflict";
+export type PlanningSourceType =
+  | "task"
+  | "calendar_event"
+  | "study_entry"
+  | "work_project"
+  | "work_time"
+  | "project"
+  | "project_goal"
+  | "project_milestone"
+  | "fitness_session"
+  | "availability"
+  | "settings";
+
+export interface PlanningSourceReferenceResponse {
+  type: PlanningSourceType;
+  id: string;
+  title: string;
+  role: "target" | "deadline" | "availability" | "blocker" | "context";
+  updatedAt: string | null;
+  etag: string | null;
+  current: boolean;
+}
+
+export interface PlanningExplanationResponse {
+  code: string;
+  message: string;
+  sourceIds: string[];
+}
+
+export interface PlanningProposalResponse {
+  id: string;
+  status: PlanningProposalStatus;
+  view: PlanningProposalView;
+  range: { from: string; to: string };
+  title: string;
+  action: {
+    type: "schedule_task";
+    targetId: string;
+    startsAt: string;
+    endsAt: string;
+    timezone: string;
+  };
+  reason: string;
+  reasonCodes: string[];
+  sources: PlanningSourceReferenceResponse[];
+  uncertainties: PlanningExplanationResponse[];
+  requiresConfirmation: true;
+  groupKey: string;
+  resolutionReason: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  appliedAt: string | null;
+}
+
+export interface CreatePlanningProposalsRequest {
+  view: PlanningProposalView;
+  from: string;
+  to: string;
+  maxSuggestions?: number;
+}
+
+export interface PlanningProposalGenerationResponse {
+  generatedAt: string;
+  timezone: string;
+  range: { from: string; to: string };
+  status: "ready" | "no_proposals" | "insufficient_data" | "overloaded";
+  proposals: PlanningProposalResponse[];
+  issues: PlanningExplanationResponse[];
+  externalAiUsed: false;
+}
+
+export interface ConfirmPlanningProposalGroupRequest {
+  proposalIds: string[];
+}
+
+export interface ConfirmPlanningProposalGroupResponse {
+  results: Array<{
+    proposalId: string;
+    status: "applied" | "conflict";
+    message: string;
+  }>;
+}
+
+export type PlanningAutomationKind = "daily_preview" | "weekly_preview";
+export type PlanningAutomationRunStatus =
+  "running" | "generated" | "no_data" | "failed";
+
+export interface PlanningAutomationRunResponse {
+  id: string;
+  runKey: string;
+  trigger: "scheduled" | "manual";
+  status: PlanningAutomationRunStatus;
+  range: { from: string; to: string };
+  proposalCount: number;
+  issueCodes: string[];
+  startedAt: string;
+  completedAt: string | null;
+}
+
+export interface PlanningAutomationResponse {
+  id: string | null;
+  kind: PlanningAutomationKind;
+  enabled: boolean;
+  localMinute: number;
+  weekday: number | null;
+  timezone: string;
+  maxSuggestions: number;
+  lastRun: PlanningAutomationRunResponse | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface PlanningAutomationOverviewResponse {
+  scheduler: "local";
+  externalNetwork: "disabled";
+  automations: PlanningAutomationResponse[];
+}
+
+export interface UpdatePlanningAutomationRequest {
+  enabled: boolean;
+  localMinute: number;
+  weekday?: number | null;
+  timezone: string;
+  maxSuggestions?: number;
 }
 
 export type FinanceCategoryKind = "income" | "expense";

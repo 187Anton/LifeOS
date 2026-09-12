@@ -251,6 +251,31 @@ gleichen Tag. Die API liefert Ursache und betroffene Projektions-IDs, verändert
 aber keine Quelldaten und löst Konflikte nicht automatisch. Logs enthalten
 weder Titel noch kombinierte private, Studien- oder Arbeitsinhalte.
 
+Die lokale Vorschlagsplanung erweitert diese Projektion um Projekte,
+Meilensteine und geplante Fitnesseinheiten. Sie sortiert ausschließlich aktive
+eigene Aufgaben mit gespeicherter Fälligkeit und geschätztem Aufwand nach
+harten Fristen, Priorität, Fälligkeit und Aufwand. Freie Fenster entstehen nur
+innerhalb gespeicherter Verfügbarkeit und nach Abzug vorhandener Zeitblöcke;
+fehlen belastbare Daten, wird kein Zeitfenster erfunden. Ganztage und begrenzt
+expandierte RRULE-Serien blockieren die betroffenen lokalen Tage oder Zeiten.
+
+`PlanningProposal` ist keine Schattenkopie der Quelldaten. Die Entität enthält
+nur einen stabilen Fingerabdruck, Besitzer- und Ziel-ID, vorgeschlagenes
+Zeitfenster, Quellenreferenzen sowie Regel- und Unsicherheitscodes. Lesbare
+Titel und Begründungen werden aus den aktuellen eigenen Quellen aufgebaut.
+Nur die explizite Einzel- oder Gruppenauswahl darf über den bestehenden
+Aufgabenservice einen geplanten Start setzen. Vorher werden Ziel, Quellen und
+Kalender-ETags erneut geprüft; bei Konflikt erfolgt keine Änderung.
+
+`PlanningAutomation` und `PlanningAutomationRun` bilden den kleinstmöglichen
+lokalen Scheduler-Vertrag. Beide Automationsarten sind standardmäßig aus und
+erzeugen ausschließlich Tages- oder Wochenvorschläge. Eindeutige Lauf-Schlüssel
+verhindern Doppelstarts über Prozessneustarts hinweg. Der Scheduler besitzt
+keinen externen Nachrichten- oder Netzwerkadapter und führt keine Fachaktion
+aus. Der deaktivierte providerunabhängige KI-Adapter ist deshalb keine
+Laufzeitabhängigkeit der Planung. Details stehen im
+[Planungs-API-Vertrag](api/planning.md).
+
 ## Organisations-Dashboard
 
 Das Dashboard ist eine rein lesende Projektion der vorhandenen Fachmodule und

@@ -22,6 +22,7 @@ import {
   weekday,
   zonedDateTime,
 } from "./time.js";
+import { expandCalendarEvents } from "./recurrence.js";
 
 export interface PlanningQuery {
   from: string;
@@ -68,7 +69,15 @@ export class PlanningService {
     const visibleAreas = new Set<PlanningArea>(
       query.areas?.length
         ? query.areas
-        : ["calendar", "study", "work", "tasks", "availability"],
+        : [
+            "calendar",
+            "study",
+            "work",
+            "tasks",
+            "projects",
+            "fitness",
+            "availability",
+          ],
     );
     const items = allItems
       .filter((item) => visibleAreas.has(item.area))
@@ -82,6 +91,34 @@ export class PlanningService {
       query.from,
       query.to,
     );
+    const recurrenceIssues = expandCalendarEvents(
+      source.events,
+      query.from,
+      query.to,
+      timezone,
+    ).issueCodes;
+    if (recurrenceIssues.length) {
+      warnings.push({
+        id: "missing-data:recurrence",
+        kind: "missing_data",
+        severity: "warning",
+        date: query.from,
+        itemIds: [],
+        message:
+          "Mindestens eine Terminserie konnte innerhalb der sicheren Auswertungsgrenzen nicht vollständig berücksichtigt werden.",
+      });
+    }
+    if (source.sourceLimitsExceeded?.length) {
+      warnings.push({
+        id: "missing-data:source-limit",
+        kind: "missing_data",
+        severity: "warning",
+        date: query.from,
+        itemIds: [],
+        message:
+          "Mindestens eine Datenquelle überschreitet das sichere Planungslimit. Die Ansicht ist deshalb möglicherweise unvollständig.",
+      });
+    }
     return {
       generatedAt: this.now().toISOString(),
       timezone,
@@ -156,44 +193,118 @@ export class PlanningService {
         .map((entry) => entry.calendarEventId),
     );
 
-    for (const event of source.events) {
-      if (linkedStudyEvents.has(event.id)) continue;
-      const date = event.isAllDay
-        ? event.startDate?.toISOString().slice(0, 10)
-        : event.startsAt
-          ? dateInTimezone(event.startsAt, timezone)
-          : null;
-      const overlaps = event.isAllDay
-        ? Boolean(
-            date &&
-            event.endDate &&
-            date <= to &&
-            event.endDate.toISOString().slice(0, 10) > from,
-          )
-        : Boolean(
-            event.startsAt &&
-            event.endsAt &&
-            event.startsAt < range.toExclusive &&
-            event.endsAt > range.from,
-          );
-      if (!date || !overlaps) continue;
+    const expandedCalendar = expandCalendarEvents(
+      source.events.filter((event) => !linkedStudyEvents.has(event.id)),
+      from,
+      to,
+      timezone,
+    );
+    for (const occurrence of expandedCalendar.occurrences) {
+      const event = occurrence.event;
+      const dates =
+        occurrence.startDate && occurrence.endDate
+          ? eachDate(
+              occurrence.startDate < from ? from : occurrence.startDate,
+              addDays(
+                occurrence.endDate <= addDays(to, 1)
+                  ? occurrence.endDate
+                  : addDays(to, 1),
+                -1,
+              ),
+            )
+          : [occurrence.date];
+      for (const occurrenceDate of dates) {
+        items.push({
+          id: `calendar:${occurrence.key}:${occurrenceDate}`,
+          sourceId: event.id,
+          area: "calendar",
+          kind: "fixed_event",
+          title: event.title,
+          date: occurrenceDate,
+          startsAt: occurrence.startsAt?.toISOString() ?? null,
+          endsAt: occurrence.endsAt?.toISOString() ?? null,
+          timezone,
+          durationMinutes:
+            occurrence.startsAt && occurrence.endsAt
+              ? duration(occurrence.startsAt, occurrence.endsAt)
+              : null,
+          priority: "medium",
+          overdue: false,
+          sourceUpdatedAt: event.updatedAt.toISOString(),
+        });
+      }
+    }
+
+    for (const project of source.projects ?? []) {
+      if (!project.dueDate || completedStatus(project.status)) continue;
+      const date = project.dueDate.toISOString().slice(0, 10);
+      if (!inRange(date, from, to)) continue;
       items.push({
-        id: `calendar:${event.id}`,
-        sourceId: event.id,
-        area: "calendar",
-        kind: "fixed_event",
-        title: event.title,
+        id: `project:${project.id}`,
+        sourceId: project.id,
+        area: "projects",
+        kind: "deadline",
+        title: project.title,
         date,
-        startsAt: event.startsAt?.toISOString() ?? null,
-        endsAt: event.endsAt?.toISOString() ?? null,
+        startsAt: null,
+        endsAt: null,
         timezone,
-        durationMinutes:
-          event.startsAt && event.endsAt
-            ? duration(event.startsAt, event.endsAt)
-            : null,
+        durationMinutes: null,
+        priority: "high",
+        overdue: date < today,
+        sourceUpdatedAt: project.updatedAt.toISOString(),
+      });
+    }
+    for (const [kind, values] of [
+      ["goal", source.projectGoals ?? []],
+      ["milestone", source.projectMilestones ?? []],
+    ] as const) {
+      for (const item of values) {
+        if (!item.dueDate || completedStatus(item.status)) continue;
+        const date = item.dueDate.toISOString().slice(0, 10);
+        if (!inRange(date, from, to)) continue;
+        items.push({
+          id: `project-${kind}:${item.id}`,
+          sourceId: item.id,
+          area: "projects",
+          kind: "deadline",
+          title: item.title,
+          date,
+          startsAt: null,
+          endsAt: null,
+          timezone,
+          durationMinutes: null,
+          priority: kind === "milestone" ? "high" : "medium",
+          overdue: date < today,
+          sourceUpdatedAt: item.updatedAt.toISOString(),
+        });
+      }
+    }
+
+    const calendarLinkedFitness = new Set(
+      (source.fitnessSessions ?? [])
+        .filter((session) => session.calendarEventId)
+        .map((session) => session.id),
+    );
+    for (const session of source.fitnessSessions ?? []) {
+      if (!session.performedAt || calendarLinkedFitness.has(session.id))
+        continue;
+      const date = dateInTimezone(session.performedAt, timezone);
+      if (!inRange(date, from, to)) continue;
+      items.push({
+        id: `fitness:${session.id}`,
+        sourceId: session.id,
+        area: "fitness",
+        kind: "planned_task",
+        title: session.title,
+        date,
+        startsAt: session.performedAt.toISOString(),
+        endsAt: null,
+        timezone,
+        durationMinutes: null,
         priority: "medium",
         overdue: false,
-        sourceUpdatedAt: event.updatedAt.toISOString(),
+        sourceUpdatedAt: session.updatedAt.toISOString(),
       });
     }
 
