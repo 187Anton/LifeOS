@@ -460,8 +460,9 @@ formuliert werden.
   Sidecar-, Update- und Recovery-Nachweis. Es fehlten jedoch ein ausführbarer
   Developer-ID-/Notarisierungspfad, eine Prüfung des echten
   Download-Quarantänestatus und ein reproduzierbarer LAN-Vorprüflauf. Auf dem
-  Entwicklungs-Mac wurden keine gültige Codesign-Identität und keine gültige
-  GitHub-CLI-Anmeldung gefunden.
+  Entwicklungs-Mac wurde keine gültige Codesign-Identität gefunden. Die
+  benötigte GitHub-Berechtigung wurde anschließend durch erfolgreichen Push,
+  PR-Erstellung, Statusabfrage und Merge bestätigt.
 - **Ursache oder Entscheidung:** Version `0.9.0` wird als lokale
   Releasekandidatin vorbereitet. Apple-Zugangsdaten bleiben ausschließlich in
   einem `notarytool`-Schlüsselbundprofil; das Repository akzeptiert keine
@@ -473,7 +474,9 @@ formuliert werden.
   Repository-Regressionstests und eine gemeinsame Release-Gate-Matrix mit
   Zweit-Mac- und Apple-Kalender-Checklisten. Fachlogik, API-Verträge,
   Datenbankschemata und die Loopback-Bindung der installierten Mac-App bleiben
-  unverändert.
+  unverändert. PR #88 bestand die Repository- und macOS-Release-CI und wurde
+  nach `develop` integriert. Der vorbereitete PR #89 von `develop` nach `main`
+  bestand dieselben Jobs und bleibt offen.
 - **Verifikation:** Secret-Scan, Formatierung, Linting, Typprüfung,
   Repository-Prüfung und 213 automatisierte Tests bestanden. PostgreSQL- und
   SQLite-Recovery, der synthetische CalDAV-LAN-Lauf, der lokale ARM64-DMG-Build
@@ -495,7 +498,9 @@ formuliert werden.
   Download-Gatekeeper, zweiter sauberer Mac, Intel-/Universal-Artefakt,
   physischer Apple-Kalender und GitHub-Release bleiben offen. Die automatisierte
   private-LAN-Prüfung ist kein Apple-Gerätetest. Das lokale DMG darf nicht als
-  öffentlich freigegeben bezeichnet werden.
+  öffentlich freigegeben bezeichnet werden. Die grüne CI des lokalen
+  Kandidaten muss mit dem späteren finalen, notarisierten Artefakt erneut als
+  Freigabegate ausgeführt werden.
 - **Nächster Schritt:** Mit verfügbarer Apple-Identität einen notarisierten
   Kandidaten erzeugen, auf einem zweiten sauberen Mac und mit einem physischen
   Apple-Kalender-Gerät prüfen und erst bei vollständiger grüner Gate-Matrix
