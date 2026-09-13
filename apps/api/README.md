@@ -162,6 +162,19 @@ Die vollständige physische Testmatrix für Lesen, Erstellen, Ändern, Löschen,
 Ganztag, Wiederholung, Erinnerung und Konflikt steht in
 [`docs/foundation-verification.md`](../../docs/foundation-verification.md).
 
+Vor dem physischen Gerätetest prüft ein eigener synthetischer Lauf die gebaute
+API über die private IPv4-Adresse des Macs. Er verwendet eine temporäre
+SQLite-Datei, einen zufälligen Port und beendet den LAN-Server danach wieder:
+
+```bash
+npm run caldav:verify:lan
+```
+
+Der Lauf prüft Discovery, Ereignis-CRUD, stabile UID, ETag-Konflikt, Ganztag,
+Zeitzone, Wiederholung und Duplikatschutz. Er ersetzt ausdrücklich weder Apple
+Kalender noch ein physisches Gerät. Die Geräte- und Netzwerkcheckliste steht im
+[`Release-Nachweis 0.9`](../../docs/release-0.9.md).
+
 `localhost` auf dem iPhone verweist auf das iPhone und erreicht den Rechner
 nicht. Beide Geräte müssen im selben vertrauenswürdigen Netz sein; der Rechner
 muss laufen und eine lokale Firewall muss Port 3000 zulassen. Basic Auth über

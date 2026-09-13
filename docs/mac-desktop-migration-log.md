@@ -9,16 +9,17 @@ tatsächlich ausgeführten Prüfungen dokumentiert ist.
 
 ## Statusübersicht
 
-| Paket                             | Status                                          | Letzter Nachweis  |
-| --------------------------------- | ----------------------------------------------- | ----------------- |
-| M0 – Ziel und Ausführungsplan     | abgeschlossen                                   | 9. August 2026    |
-| M1 – SQLite-Schema und Migration  | abgeschlossen                                   | 9. August 2026    |
-| M2 – API ohne Docker              | abgeschlossen                                   | 9. August 2026    |
-| M3 – Kalender- und CalDAV-Parität | abgeschlossen                                   | 9. August 2026    |
-| M4 – Datenübernahme und Recovery  | abgeschlossen                                   | 9. August 2026    |
-| M5 – Tauri-Sidecar                | abgeschlossen                                   | 9. August 2026    |
-| M6 – Installation und Update      | lokal erfolgreich; Produktfreigabe aufgeschoben | 11. August 2026   |
-| M7 – Abschlussdokumentation       | abgeschlossen                                   | 7. September 2026 |
+| Paket                             | Status                                          | Letzter Nachweis   |
+| --------------------------------- | ----------------------------------------------- | ------------------ |
+| M0 – Ziel und Ausführungsplan     | abgeschlossen                                   | 9. August 2026     |
+| M1 – SQLite-Schema und Migration  | abgeschlossen                                   | 9. August 2026     |
+| M2 – API ohne Docker              | abgeschlossen                                   | 9. August 2026     |
+| M3 – Kalender- und CalDAV-Parität | abgeschlossen                                   | 9. August 2026     |
+| M4 – Datenübernahme und Recovery  | abgeschlossen                                   | 9. August 2026     |
+| M5 – Tauri-Sidecar                | abgeschlossen                                   | 9. August 2026     |
+| M6 – Installation und Update      | lokal erfolgreich; Produktfreigabe aufgeschoben | 11. August 2026    |
+| M7 – Abschlussdokumentation       | abgeschlossen                                   | 7. September 2026  |
+| R0.9 – Öffentliches Release       | lokal vorbereitet; externe Gates offen          | 13. September 2026 |
 
 ## Nachweisvorlage
 
@@ -451,3 +452,51 @@ formuliert werden.
 - **Nächster Schritt:** PR- und CI-Kette nach `develop` und anschließend
   `main`; nur grüne CI und identische abschließende Tree-IDs erlauben den
   Integrationsabschluss.
+
+## 13. September 2026 – R0.9: öffentliche Releasevorbereitung
+
+- **Befund:** Der lokale ARM64-Pfad besaß bereits konsistente Versionen,
+  portable DMG-Prüfsummen, ad-hoc Signaturprüfung und einen vollständigen
+  Sidecar-, Update- und Recovery-Nachweis. Es fehlten jedoch ein ausführbarer
+  Developer-ID-/Notarisierungspfad, eine Prüfung des echten
+  Download-Quarantänestatus und ein reproduzierbarer LAN-Vorprüflauf. Auf dem
+  Entwicklungs-Mac wurden keine gültige Codesign-Identität und keine gültige
+  GitHub-CLI-Anmeldung gefunden.
+- **Ursache oder Entscheidung:** Version `0.9.0` wird als lokale
+  Releasekandidatin vorbereitet. Apple-Zugangsdaten bleiben ausschließlich in
+  einem `notarytool`-Schlüsselbundprofil; das Repository akzeptiert keine
+  Apple-ID oder App-Passwörter als Skriptargumente. Stapling geschieht vor der
+  finalen SHA-256-Bildung. Ein echter Download-Nachweis verlangt das von macOS
+  gesetzte Quarantäneattribut.
+- **Änderungsumfang:** Sicher abbrechender Developer-ID-/Notarisierungsablauf,
+  öffentlicher Artefaktprüfer, synthetische CalDAV-LAN-Vorprüfung,
+  Repository-Regressionstests und eine gemeinsame Release-Gate-Matrix mit
+  Zweit-Mac- und Apple-Kalender-Checklisten. Fachlogik, API-Verträge,
+  Datenbankschemata und die Loopback-Bindung der installierten Mac-App bleiben
+  unverändert.
+- **Verifikation:** Secret-Scan, Formatierung, Linting, Typprüfung,
+  Repository-Prüfung und 213 automatisierte Tests bestanden. PostgreSQL- und
+  SQLite-Recovery, der synthetische CalDAV-LAN-Lauf, der lokale ARM64-DMG-Build
+  und der Start aus dem DMG bestanden ebenfalls. Das Artefakt ist 52.709.497
+  Byte groß und hat den SHA-256-Wert
+  `e0d180e2a49072e9627aa5db012f6891c731c4bff5acbe5f761491d228041125`.
+  Der Zwei-Versionen-Nachweis mit einer frisch aus `origin/main` gebauten
+  0.6.0-Baseline erhielt alle geprüften Identitäten. npm meldete keine bekannte
+  Vulnerability; RustSec meldete keine Vulnerability und sieben getrennt
+  dokumentierte Warnungen. Der öffentliche Prüfer wies den ad-hoc signierten,
+  nicht gestapelten Kandidaten erwartungsgemäß zurück. Die vollständige Matrix
+  steht in [`release-0.9.md`](release-0.9.md).
+- **Datenvergleich:** Alle neuen Laufzeitprüfungen verwenden temporäre,
+  synthetische SQLite- und Dokumentpfade. Der bestehende Update-/Rollback-Test
+  erhielt Benutzer-, Kalender-, UID-, ETag-, Sync-, Aufgaben- und
+  Dokumentidentitäten gegenüber dem frisch aus `origin/main` gebauten
+  0.6.0-Baseline-DMG.
+- **Risiken und Grenzen:** Developer-ID, Notarisierung, echter
+  Download-Gatekeeper, zweiter sauberer Mac, Intel-/Universal-Artefakt,
+  physischer Apple-Kalender und GitHub-Release bleiben offen. Die automatisierte
+  private-LAN-Prüfung ist kein Apple-Gerätetest. Das lokale DMG darf nicht als
+  öffentlich freigegeben bezeichnet werden.
+- **Nächster Schritt:** Mit verfügbarer Apple-Identität einen notarisierten
+  Kandidaten erzeugen, auf einem zweiten sauberen Mac und mit einem physischen
+  Apple-Kalender-Gerät prüfen und erst bei vollständiger grüner Gate-Matrix
+  Tag, GitHub-Release und README-Link anlegen.

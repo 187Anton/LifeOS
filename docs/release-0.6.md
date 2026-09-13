@@ -2,6 +2,11 @@
 
 Stand: 5. September 2026
 
+Historischer Stand: Dieses Dokument bewahrt den nachgewiesenen 0.6.0-Ablauf.
+Die aktuelle lokale Releasekandidatin, der vorbereitete Developer-ID- und
+Notarisierungspfad sowie alle weiterhin offenen öffentlichen Gates stehen im
+[`Release-Nachweis Roadmap 0.9`](release-0.9.md).
+
 Dieses Dokument beschreibt den reproduzierbaren lokalen Buildweg für LifeOS
 0.6.0. „Reproduzierbar“ bedeutet hier: versionierte Quellen, gesperrte npm-
 und Cargo-Abhängigkeiten, festgelegte Node-22-Laufzeit mit veröffentlichter

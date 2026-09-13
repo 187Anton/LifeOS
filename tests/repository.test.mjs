@@ -23,6 +23,7 @@ test("enthält die verpflichtenden Repository-Artefakte", async () => {
     "compose.yaml",
     "docs/architecture.md",
     "docs/foundation-verification.md",
+    "docs/release-0.9.md",
     "docs/roadmap-06-local-demo.md",
     "docs/roadmap.md",
   ];
@@ -100,8 +101,68 @@ test("verwendet eine konsistente Release-Version und portable DMG-Prüfsummen", 
   assert.doesNotMatch(buildScript, /Anton Life OS_0\.1\.0/);
   assert.match(verifyScript, /shasum -a 256 -c/);
   assert.match(verifyScript, /verpflichtende DMG-Prüfsumme/);
+  assert.match(verifyScript, /CFBundleShortVersionString/);
+  assert.match(verifyScript, /lipo -archs/);
+  assert.match(verifyScript, /FORBIDDEN_BUNDLE_FILE/);
+  assert.match(verifyScript, /'\*\.sqlite'/);
   assert.match(metadataScript, /tauri\.conf\.json/);
   assert.match(metadataScript, /Cargo\.lock/);
+});
+
+test("trennt öffentlichen Apple-Releasepfad und physischen Download-Nachweis", async () => {
+  const packageJson = JSON.parse(
+    await readFile(path.join(repositoryRoot, "package.json"), "utf8"),
+  );
+  const notarizeScript = await readRepositoryFile(
+    "scripts/notarize-mac-release.sh",
+  );
+  const publicVerifyScript = await readRepositoryFile(
+    "scripts/verify-public-mac-release.sh",
+  );
+
+  assert.equal(
+    packageJson.scripts["release:build:public"],
+    "bash scripts/notarize-mac-release.sh",
+  );
+  assert.match(
+    packageJson.scripts["release:verify:downloaded"],
+    /LIFEOS_REQUIRE_QUARANTINE=1/,
+  );
+  assert.match(notarizeScript, /APPLE_SIGNING_IDENTITY/);
+  assert.match(notarizeScript, /APPLE_NOTARY_KEYCHAIN_PROFILE/);
+  assert.match(notarizeScript, /notarytool submit/);
+  assert.match(notarizeScript, /stapler staple/);
+  assert.ok(
+    notarizeScript.indexOf("stapler staple") <
+      notarizeScript.indexOf("shasum -a 256"),
+  );
+  assert.doesNotMatch(notarizeScript, /--apple-id|--password|--team-id/);
+  assert.match(publicVerifyScript, /com\.apple\.quarantine/);
+  assert.match(publicVerifyScript, /stapler validate/);
+  assert.match(publicVerifyScript, /spctl --assess --type open/);
+  assert.match(publicVerifyScript, /spctl --assess --type execute/);
+  assert.match(publicVerifyScript, /Authority=Developer ID Application:/);
+  assert.match(publicVerifyScript, /lipo -archs/);
+});
+
+test("stellt eine synthetische CalDAV-LAN-Vorprüfung ohne Apple-Erfolgsaussage bereit", async () => {
+  const packageJson = JSON.parse(
+    await readFile(path.join(repositoryRoot, "package.json"), "utf8"),
+  );
+  const lanScript = await readRepositoryFile("scripts/verify-caldav-lan.mjs");
+
+  assert.match(packageJson.scripts["caldav:verify:lan"], /verify-caldav-lan/);
+  assert.match(lanScript, /API_HOST: "0\.0\.0\.0"/);
+  assert.match(lanScript, /private IPv4-Adresse/);
+  assert.match(lanScript, /\.well-known\/caldav/);
+  assert.match(lanScript, /"if-none-match": "\*"/);
+  assert.match(lanScript, /"if-match": firstEtag/);
+  assert.match(lanScript, /DTSTART;VALUE=DATE/);
+  assert.match(lanScript, /RRULE:FREQ=WEEKLY;COUNT=2/);
+  assert.match(
+    lanScript,
+    /physischer Apple-Kalender-Test ist damit nicht ersetzt/,
+  );
 });
 
 test("führt die vollständige synthetische Stabilitätsdemo über reale Grenzen aus", async () => {
