@@ -84,16 +84,18 @@ const releaseSchema = z.object({
   published_at: z.string().nullable().optional(),
 });
 const workflowRunsSchema = z.object({
-  workflow_runs: z.array(
-    z.object({
-      id: identifier,
-      name: z.string().nullable().optional(),
-      status: z.string().nullable(),
-      conclusion: z.string().nullable(),
-      head_branch: z.string().nullable(),
-      updated_at: z.string(),
-    }),
-  ),
+  workflow_runs: z
+    .array(
+      z.object({
+        id: identifier,
+        name: z.string().nullable().optional(),
+        status: z.string().nullable(),
+        conclusion: z.string().nullable(),
+        head_branch: z.string().nullable(),
+        updated_at: z.string(),
+      }),
+    )
+    .max(20),
 });
 
 const cleanText = (value: string, maximum: number) =>
@@ -179,7 +181,7 @@ export class HttpGitHubReadClient implements GitHubReadClient {
     const result = await this.request(
       token,
       "/user/repos?affiliation=owner,collaborator,organization_member&sort=updated&per_page=50",
-      z.array(repositorySchema),
+      z.array(repositorySchema).max(50),
     );
     return {
       data: result.data.map(repositoryResponse),
@@ -199,22 +201,22 @@ export class HttpGitHubReadClient implements GitHubReadClient {
         this.request(
           token,
           `${root}/issues?state=all&per_page=20`,
-          z.array(issueSchema),
+          z.array(issueSchema).max(20),
         ),
         this.request(
           token,
           `${root}/pulls?state=all&per_page=20`,
-          z.array(pullRequestSchema),
+          z.array(pullRequestSchema).max(20),
         ),
         this.request(
           token,
           `${root}/commits?per_page=20`,
-          z.array(commitSchema),
+          z.array(commitSchema).max(20),
         ),
         this.request(
           token,
           `${root}/releases?per_page=20`,
-          z.array(releaseSchema),
+          z.array(releaseSchema).max(20),
         ),
         this.request(
           token,

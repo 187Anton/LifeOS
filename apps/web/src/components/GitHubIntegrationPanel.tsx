@@ -16,6 +16,23 @@ const valueFrom = (form: FormData, name: string) => {
   const value = form.get(name);
   return typeof value === "string" ? value : "";
 };
+const githubStatusMessage = (code: string) =>
+  ({
+    AUTHORIZATION_FAILED:
+      "GitHub hat den Token abgelehnt. Prüfe, ob er noch gültig ist.",
+    PERMISSION_DENIED:
+      "Dem Token fehlt mindestens eine erforderliche Leseberechtigung.",
+    NOT_FOUND_OR_FORBIDDEN:
+      "Das Repository wurde nicht gefunden oder ist mit diesem Token nicht sichtbar.",
+    RATE_LIMITED:
+      "Das GitHub-Abfragelimit ist erreicht. Versuche es nach der angezeigten Rücksetzzeit erneut.",
+    TIMEOUT_OR_NETWORK_ERROR:
+      "GitHub hat nicht innerhalb von fünf Sekunden geantwortet.",
+    RESPONSE_TOO_LARGE:
+      "Die GitHub-Antwort überschreitet die Grenze von 2 MiB.",
+    TOO_MANY_REDIRECTS:
+      "GitHub hat die Grenze von zwei Weiterleitungen überschritten.",
+  })[code] ?? "Die lesende GitHub-Verbindung ist derzeit nicht nutzbar.";
 
 export const GitHubIntegrationPanel = () => {
   const [overview, setOverview] =
@@ -110,6 +127,20 @@ export const GitHubIntegrationPanel = () => {
       setError(errorMessage(caught));
       setPending(false);
     }
+  };
+
+  const clearConnectionData = (connectionId: string) => {
+    setRepositories((current) => {
+      const next = { ...current };
+      delete next[connectionId];
+      return next;
+    });
+    setSelected((current) => {
+      const next = { ...current };
+      delete next[connectionId];
+      return next;
+    });
+    setSnapshot(null);
   };
 
   return (
@@ -221,8 +252,8 @@ export const GitHubIntegrationPanel = () => {
               Rate Limit: {connection.rateLimit.remaining ?? "unbekannt"}
             </p>
             {connection.lastErrorCode ? (
-              <p className="conflict-banner">
-                Fehlercode: {connection.lastErrorCode}
+              <p className="conflict-banner" role="alert">
+                {githubStatusMessage(connection.lastErrorCode)}
               </p>
             ) : null}
             <div className="button-row">
@@ -231,18 +262,16 @@ export const GitHubIntegrationPanel = () => {
                   connection.enabled ? "secondary-button" : "primary-button"
                 }
                 disabled={pending}
-                onClick={() =>
+                onClick={() => {
+                  const enable = !connection.enabled;
+                  if (!enable) clearConnectionData(connection.id);
                   void action(
-                    () =>
-                      api.setGitHubConnectionEnabled(
-                        connection.id,
-                        !connection.enabled,
-                      ),
-                    connection.enabled
-                      ? "Die GitHub-Verbindung wurde deaktiviert."
-                      : "Die read-only-GitHub-Verbindung wurde aktiviert.",
-                  )
-                }
+                    () => api.setGitHubConnectionEnabled(connection.id, enable),
+                    enable
+                      ? "Die read-only-GitHub-Verbindung wurde aktiviert."
+                      : "Die GitHub-Verbindung wurde deaktiviert.",
+                  );
+                }}
               >
                 {connection.enabled
                   ? "GitHub deaktivieren"
@@ -280,12 +309,13 @@ export const GitHubIntegrationPanel = () => {
                 <p>Verbindung und verschlüsselten Token endgültig löschen?</p>
                 <button
                   className="danger-button"
-                  onClick={() =>
+                  onClick={() => {
+                    clearConnectionData(connection.id);
                     void action(
                       () => api.revokeGitHubConnection(connection.id),
                       "Der lokale GitHub-Zugang wurde widerrufen.",
-                    ).then(() => setConfirmRevoke(null))
-                  }
+                    ).then(() => setConfirmRevoke(null));
+                  }}
                 >
                   Endgültig widerrufen
                 </button>

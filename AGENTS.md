@@ -166,8 +166,11 @@ AES-256-GCM-verschlüsselt im Backend; ohne getrennten lokalen
 Integrationsschlüssel bleibt der Netzwerkpfad nicht verfügbar. Externe Ziele
 benötigen HTTPS, Zertifikatsprüfung, SSRF-geschützte DNS-/IP-Auflösung,
 gleichursprüngliche begrenzte Weiterleitungen, Timeouts und Größenlimits.
-Importe benötigen Vorschau und Bestätigung; lokale UIDs, ETags und Sync-Tokens
-bleiben im gemeinsamen Kalenderkern. Schreiben, Löschspiegelung,
+Ereignisabfragen sind zusätzlich auf 365 Tage Vergangenheit und 730 Tage
+Zukunft begrenzt. Importe benötigen Vorschau und Bestätigung; Ereignisse,
+Sync-Token, externe UID-/ETag-Zuordnungen und Audit müssen atomar in derselben
+Transaktion schreiben. Lokale UIDs, ETags und Sync-Tokens bleiben im
+gemeinsamen Kalenderkern. Schreiben, Löschspiegelung,
 bidirektionale oder automatische Synchronisation und echte Apple-Zugänge sind
 weiterhin offen.
 
@@ -175,7 +178,8 @@ Die erste geprüfte GitHub-Integration ist ebenfalls optional, standardmäßig
 deaktiviert und ausschließlich lesend. Das Fine-grained Token liegt nur
 AES-256-GCM-verschlüsselt im Backend und wird nie wieder ausgegeben. Der
 Netzwerkclient verwendet ausschließlich GET am festen Ursprung
-`api.github.com` mit Zeit-, Größen-, Mengen- und Weiterleitungsgrenzen;
+`api.github.com` mit Zeit-, Größen-, Mengen- und Weiterleitungsgrenzen; die
+Mengenlimits werden gegen die tatsächliche Anbieterantwort validiert.
 Repository-Inhalte werden nicht persistiert und gelten als nicht
 vertrauenswürdig. OAuth, Webhooks, Hintergrundsynchronisation und sämtliche
 GitHub-Schreibaktionen bleiben offen. Ohne sicheren lokalen
@@ -294,10 +298,10 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
 - CalDAV-Änderungen dürfen keine Duplikate auf Apple-Geräten erzeugen.
 - Lokale ICS-Importe verwenden ausschließlich den gemeinsamen Kalenderkern,
   zeigen vor jedem Schreiben eine kurzlebige besitzgebundene Vorschau und
-  importieren neue Ereignisse atomar. Dateien sind auf 2 MiB und 500
-  Ereignisse begrenzt; doppelte oder abweichend vorhandene UIDs sowie
-  unbegrenzte Serien blockieren den Import, statt ETags oder Sync-Daten zu
-  überschreiben.
+  importieren neue Ereignisse atomar. Dateien müssen gültiges UTF-8 enthalten
+  und sind auf 2 MiB und 500 Ereignisse begrenzt; doppelte oder abweichend
+  vorhandene UIDs, nach der Vorschau geänderte ETags sowie unbegrenzte Serien
+  blockieren den Import, statt ETags oder Sync-Daten zu überschreiben.
 - Umbenennungen interner Felder über Migrationen und kompatible API-/CalDAV-
   Abbildung umsetzen.
 - Vor einem Update prüfen, ob die Anwendung und die Datenbankmigration
@@ -675,3 +679,8 @@ gemeldet.
   Leitfaden, lokalen ARM64-Status ohne öffentliche Freigabe und optionale statt
   verpflichtende GitHub-Planungsobjekte als dauerhafte Projektregeln
   klargestellt.
+- **2026-09-13:** Den begrenzten Roadmap-0.8-Umfang mit strengem ICS-UTF-8,
+  zeitlich begrenztem externem CalDAV-Abruf, atomarem Ereignis-/Mapping-Commit
+  und hart validierten GitHub-Ergebnismengen nach API-, SQLite-,
+  Client- und Oberflächentests festgehalten; externe Schreibpfade und der
+  native Schlüsselbund bleiben offen.

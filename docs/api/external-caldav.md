@@ -22,6 +22,9 @@ dieser ersten sicheren Ausbaustufe ausdrücklich **read-only**: LifeOS schreibt,
 - Maximal 20 Verbindungen, 100 Kalender, 500 Ereignisse und 2 MiB Antwortdaten
   je Abruf begrenzen Speicher- und Laufzeitbedarf. Netzwerkaufrufe haben fünf
   Sekunden Zeitlimit und höchstens zwei gleichursprüngliche Weiterleitungen.
+- Ereignisabfragen verwenden ein festes UTC-Zeitfenster von 365 Tagen in die
+  Vergangenheit bis 730 Tage in die Zukunft. Der Anbieter darf dieses Fenster
+  nicht durch eine unbegrenzte Antwort ersetzen.
 
 Der Schlüssel besteht aus genau 32 zufälligen Byte als Base64-Wert. Für einen
 bewussten lokalen Web-Test kann er beispielsweise mit `openssl rand -base64
@@ -56,8 +59,10 @@ Die Vorschau verfällt nach 15 Minuten und ist an Nutzer, Verbindung und
 Zielkalender gebunden. Abweichende vorhandene UIDs bleiben Konflikte; der
 Schreibschritt überschreibt keine Ereignisse. Erfolgreiche Importe speichern
 nur die stabile Zuordnung aus externer Ressourcenadresse, externer UID/ETag und
-lokaler Kalender-ID/UID. Lokale ETags und Sync-Tokens entstehen weiterhin nur
-im vorhandenen Kalenderdienst.
+lokaler Kalender-ID/UID. Ereignisse, lokaler Sync-Token, Zuordnungen und Audit
+werden in derselben Datenbanktransaktion geschrieben; schlägt eine Zuordnung
+fehl, bleibt auch der Kalender unverändert. Lokale ETags und Sync-Tokens
+entstehen weiterhin nur im vorhandenen Kalenderdienst.
 
 ## Netzwerk- und Inhaltsgrenzen
 
@@ -68,7 +73,9 @@ die freigegebene Adresse wird für die konkrete Verbindung fest gebunden, um
 DNS-Rebinding zu verhindern. Kalenderressourcen und Weiterleitungen müssen
 denselben Ursprung behalten. Unsichere XML-Deklarationen, zu große Antworten,
 zu viele Ressourcen, ungültige UTF-8-Daten und ungültige ICS-Ereignisse werden
-ohne Wiedergabe des Fremdinhalts abgewiesen.
+ohne Wiedergabe des Fremdinhalts abgewiesen. Mehrfach gelieferte externe
+Ressourcenadressen blockieren die Vorschau, statt mehrere lokale Ereignisse auf
+dieselbe externe Ressource abzubilden.
 
 Externe Kalendernamen werden als nicht vertrauenswürdiger Text behandelt. Die
 Oberfläche rendert sie nicht als HTML und speichert weder Zugangsdaten noch
@@ -85,6 +92,7 @@ Antworten in `localStorage` oder `sessionStorage`.
 
 Automatisierte Prüfungen verwenden ausschließlich einen synthetischen Adapter.
 Sie prüfen Deaktivierung, Verschlüsselung, Besitzgrenzen, ungültige und private
-URLs, Timeouts, Authentifizierungsfehler, fremde IDs, ungültige ICS-Inhalte,
-Importvorschau, stabile Zuordnung, Widerruf, Mengenlimit, PostgreSQL/SQLite,
-Recovery sowie Desktop-/Mobiloberfläche.
+URLs, DNS-Rebinding, Redirects, Timeouts, Authentifizierungsfehler, fremde IDs,
+ungültige und doppelte ICS-Ressourcen, Importvorschau, atomaren Rollback,
+stabile Zuordnung, Widerruf, Zeit-, Größen- und Mengenlimits,
+PostgreSQL/SQLite, Recovery sowie Desktop-/Mobiloberfläche.

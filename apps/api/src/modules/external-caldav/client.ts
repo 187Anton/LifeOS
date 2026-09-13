@@ -9,6 +9,9 @@ import type { ExternalCredentials } from "./secrets.js";
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 const MAX_REDIRECTS = 2;
 const REQUEST_TIMEOUT_MS = 5_000;
+const EVENT_PAST_DAYS = 365;
+const EVENT_FUTURE_DAYS = 730;
+const DAY_MS = 24 * 60 * 60 * 1_000;
 
 export interface RemoteCalDavCalendar {
   href: string;
@@ -120,16 +123,32 @@ export const validateExternalCalDavUrl = (value: string): URL => {
   return url;
 };
 
-const resolveAllowedAddress = async (url: URL) => {
+const calendarTimestamp = (value: Date) =>
+  value
+    .toISOString()
+    .replaceAll("-", "")
+    .replaceAll(":", "")
+    .replace(/\.\d{3}Z$/, "Z");
+
+export const externalCalDavTimeRange = (now: Date) => ({
+  start: calendarTimestamp(new Date(now.valueOf() - EVENT_PAST_DAYS * DAY_MS)),
+  end: calendarTimestamp(new Date(now.valueOf() + EVENT_FUTURE_DAYS * DAY_MS)),
+});
+
+const resolveAllowedAddress = async (
+  url: URL,
+  lookupImpl: typeof lookup,
+  timeoutMs: number,
+) => {
   let addresses: Array<{ address: string; family: number }>;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     addresses = await Promise.race([
-      lookup(normalizedHostname(url), { all: true, verbatim: true }),
+      lookupImpl(normalizedHostname(url), { all: true, verbatim: true }),
       new Promise<never>((_resolve, reject) => {
         timeout = setTimeout(
           () => reject(new ExternalCalDavNetworkError("TIMEOUT")),
-          REQUEST_TIMEOUT_MS,
+          timeoutMs,
         );
       }),
     ]);
@@ -202,6 +221,13 @@ const property = (
 };
 
 export class HttpExternalCalDavClient implements ExternalCalDavClient {
+  constructor(
+    private readonly now: () => Date = () => new Date(),
+    private readonly lookupImpl: typeof lookup = lookup,
+    private readonly requestImpl: typeof httpsRequest = httpsRequest,
+    private readonly requestTimeoutMs = REQUEST_TIMEOUT_MS,
+  ) {}
+
   async listCalendars(baseUrl: string, credentials: ExternalCredentials) {
     const response = await this.request(baseUrl, credentials, {
       method: "PROPFIND",
@@ -238,10 +264,11 @@ export class HttpExternalCalDavClient implements ExternalCalDavClient {
     const calendarUrl = new URL(calendarHref, base);
     if (calendarUrl.origin !== base.origin)
       throw new ExternalCalDavNetworkError("CROSS_ORIGIN_HREF");
+    const range = externalCalDavTimeRange(this.now());
     const response = await this.request(calendarUrl.toString(), credentials, {
       method: "REPORT",
       headers: { Depth: "1", "content-type": "application/xml; charset=utf-8" },
-      body: '<?xml version="1.0"?><c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:prop><d:getetag/><c:calendar-data/></d:prop><c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"/></c:comp-filter></c:filter></c:calendar-query>',
+      body: `<?xml version="1.0"?><c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:prop><d:getetag/><c:calendar-data/></d:prop><c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"><c:time-range start="${range.start}" end="${range.end}"/></c:comp-filter></c:comp-filter></c:filter></c:calendar-query>`,
     });
     const events = parsedResponses(response, 500)
       .map((entry) => {
@@ -278,7 +305,11 @@ export class HttpExternalCalDavClient implements ExternalCalDavClient {
     redirectCount = 0,
   ): Promise<string> {
     const url = validateExternalCalDavUrl(target);
-    const resolved = await resolveAllowedAddress(url);
+    const resolved = await resolveAllowedAddress(
+      url,
+      this.lookupImpl,
+      this.requestTimeoutMs,
+    );
     const pinnedLookup: LookupFunction = (_hostname, options, callback) => {
       if (options.all)
         callback(null, [
@@ -293,7 +324,7 @@ export class HttpExternalCalDavClient implements ExternalCalDavClient {
           requestHolder.current?.destroy(
             new ExternalCalDavNetworkError("TIMEOUT"),
           ),
-        REQUEST_TIMEOUT_MS,
+        this.requestTimeoutMs,
       );
       const stopTimeout = () => clearTimeout(absoluteTimeout);
       const fail = (error: ExternalCalDavNetworkError) => {
@@ -304,7 +335,7 @@ export class HttpExternalCalDavClient implements ExternalCalDavClient {
         stopTimeout();
         resolve(value);
       };
-      const request = httpsRequest(
+      const request = this.requestImpl(
         url,
         {
           method: init.method,
@@ -387,7 +418,7 @@ export class HttpExternalCalDavClient implements ExternalCalDavClient {
         },
       );
       requestHolder.current = request;
-      request.setTimeout(REQUEST_TIMEOUT_MS, () =>
+      request.setTimeout(this.requestTimeoutMs, () =>
         request.destroy(new ExternalCalDavNetworkError("TIMEOUT")),
       );
       request.on("error", (error) =>

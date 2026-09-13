@@ -1,4 +1,4 @@
-import type { DatabaseClient } from "@lifeos/database";
+import type { DatabaseClient, Prisma } from "@lifeos/database";
 import type {
   ExternalCalDavCalendarResponse,
   ExternalCalDavConnectionResponse,
@@ -213,60 +213,59 @@ export class PrismaExternalCalDavRepository {
     return calendar;
   }
 
-  async recordImport(
+  async recordImportInTransaction(
+    transaction: Prisma.TransactionClient,
     userId: string,
     connectionId: string,
     externalCalendarId: string,
     localCalendarId: string,
     mappings: EventMappingValues[],
   ) {
-    await this.database.$transaction(async (transaction) => {
-      const connection = await transaction.externalCalDavConnection.findFirst({
-        where: { id: connectionId, userId, enabled: true, revokedAt: null },
-        select: { id: true },
-      });
-      const calendar = await transaction.externalCalDavCalendar.findFirst({
-        where: { id: externalCalendarId, connectionId, userId },
-        select: { id: true },
-      });
-      if (!connection || !calendar) throw new ExternalCalDavNotFoundError();
-      for (const mapping of mappings) {
-        await transaction.externalCalDavEventMapping.upsert({
-          where: {
-            connectionId_remoteHref: {
-              connectionId,
-              remoteHref: mapping.remoteHref,
-            },
-          },
-          create: {
-            userId,
+    const connection = await transaction.externalCalDavConnection.findFirst({
+      where: { id: connectionId, userId, enabled: true, revokedAt: null },
+      select: { id: true },
+    });
+    const calendar = await transaction.externalCalDavCalendar.findFirst({
+      where: { id: externalCalendarId, connectionId, userId },
+      select: { id: true },
+    });
+    if (!connection || !calendar) throw new ExternalCalDavNotFoundError();
+    for (const mapping of mappings) {
+      await transaction.externalCalDavEventMapping.upsert({
+        where: {
+          connectionId_remoteHref: {
             connectionId,
-            externalCalendarId,
-            localCalendarId,
-            ...mapping,
+            remoteHref: mapping.remoteHref,
           },
-          update: {
-            remoteEtag: mapping.remoteEtag,
-            localCalendarId,
-            localEventUid: mapping.localEventUid,
-            importedAt: new Date(),
-          },
-        });
-      }
-      const updated = await transaction.externalCalDavConnection.updateMany({
-        where: { id: connectionId, userId, enabled: true, revokedAt: null },
-        data: { lastSyncAt: new Date(), status: "ready", lastErrorCode: null },
-      });
-      if (updated.count !== 1) throw new ExternalCalDavNotFoundError();
-      await transaction.auditEvent.create({
-        data: {
+        },
+        create: {
           userId,
-          action: "external_caldav.events.imported",
-          entityType: "ExternalCalDavConnection",
-          entityId: connectionId,
-          metadata: { importedCount: mappings.length, readOnly: true },
+          connectionId,
+          externalCalendarId,
+          localCalendarId,
+          ...mapping,
+        },
+        update: {
+          remoteEtag: mapping.remoteEtag,
+          localCalendarId,
+          localEventUid: mapping.localEventUid,
+          importedAt: new Date(),
         },
       });
+    }
+    const updated = await transaction.externalCalDavConnection.updateMany({
+      where: { id: connectionId, userId, enabled: true, revokedAt: null },
+      data: { lastSyncAt: new Date(), status: "ready", lastErrorCode: null },
+    });
+    if (updated.count !== 1) throw new ExternalCalDavNotFoundError();
+    await transaction.auditEvent.create({
+      data: {
+        userId,
+        action: "external_caldav.events.imported",
+        entityType: "ExternalCalDavConnection",
+        entityId: connectionId,
+        metadata: { importedCount: mappings.length, readOnly: true },
+      },
     });
   }
 
