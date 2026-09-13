@@ -168,4 +168,92 @@ describe("optionale Integrationen", () => {
     ).toBeDisabled();
     expect(mocks.commitExternalCalDavImport).not.toHaveBeenCalled();
   });
+
+  it("übernimmt eine gültige CalDAV-Vorschau erst nach Bestätigung", async () => {
+    const user = userEvent.setup();
+    mocks.getExternalCalDav.mockResolvedValue({
+      available: true,
+      networkDefault: "disabled",
+      mode: "read_only_import",
+      connections: [
+        {
+          ...connection,
+          enabled: true,
+          status: "ready",
+          calendars: [
+            { id: "external-calendar-1", displayName: "Externer Kalender" },
+          ],
+        },
+      ],
+    });
+    mocks.previewExternalCalDavImport.mockResolvedValue({
+      externalImportId: "external-import-1",
+      expiresAt: "2034-03-01T10:15:00.000Z",
+      localCalendarId: calendar.id,
+      externalCalendarId: "external-calendar-1",
+      preview: {
+        previewId: "ics-preview-1",
+        expiresAt: "2034-03-01T10:15:00.000Z",
+        sourceSha256: "a".repeat(64),
+        totalEvents: 1,
+        creatableEvents: 1,
+        unchangedEvents: 0,
+        conflictingEvents: 0,
+        invalidEvents: 0,
+        canCommit: true,
+        items: [
+          {
+            index: 0,
+            uid: "new@example.test",
+            title: "Synthetischer Termin",
+            action: "create",
+            message: "Das Ereignis kann neu angelegt werden.",
+            existingEtag: null,
+          },
+        ],
+      },
+    });
+    mocks.commitExternalCalDavImport.mockResolvedValue({
+      createdEvents: 1,
+      unchangedEvents: 0,
+      createdUids: ["new@example.test"],
+      mappedEvents: 1,
+    });
+    render(<IntegrationsWorkspace calendars={[calendar]} />);
+
+    await user.selectOptions(
+      await screen.findByLabelText("Externer Kalender"),
+      "external-calendar-1",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Importvorschau erstellen" }),
+    );
+    expect(await screen.findByText("Synthetischer Termin")).toBeVisible();
+    expect(mocks.commitExternalCalDavImport).not.toHaveBeenCalled();
+
+    await user.click(
+      screen.getByRole("button", { name: "Read-only-Import bestätigen" }),
+    );
+    expect(mocks.commitExternalCalDavImport).toHaveBeenCalledWith(
+      connection.id,
+      "external-import-1",
+    );
+  });
+
+  it("übersetzt gespeicherte Netzwerkfehler verständlich", async () => {
+    mocks.getExternalCalDav.mockResolvedValue({
+      available: true,
+      networkDefault: "disabled",
+      mode: "read_only_import",
+      connections: [
+        { ...connection, status: "error", lastErrorCode: "TIMEOUT" },
+      ],
+    });
+    render(<IntegrationsWorkspace calendars={[calendar]} />);
+
+    expect(
+      await screen.findByText(/nicht innerhalb von fünf Sekunden/),
+    ).toBeVisible();
+    expect(screen.queryByText(/Fehlercode: TIMEOUT/)).toBeNull();
+  });
 });

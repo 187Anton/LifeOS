@@ -5,6 +5,7 @@ import {
   CalendarNotFoundError,
   EtagConflictError,
   EventNotFoundError,
+  type EventImportSideEffect,
   type EventValues,
   type PrismaCalendarRepository,
 } from "./repository.js";
@@ -171,7 +172,12 @@ export class CalendarService {
     }
   }
 
-  async importEvents(userId: string, calendarId: string, inputs: EventInput[]) {
+  async importEvents(
+    userId: string,
+    calendarId: string,
+    inputs: EventInput[],
+    sideEffect?: EventImportSideEffect,
+  ) {
     try {
       return await this.repository.createEvents(
         userId,
@@ -181,6 +187,7 @@ export class CalendarService {
           uid: input.uid ?? `${randomUUID()}@lifeos.local`,
           etag: etag(),
         })),
+        sideEffect,
       );
     } catch (error) {
       this.rethrow(error);

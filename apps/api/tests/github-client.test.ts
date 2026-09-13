@@ -30,8 +30,13 @@ test("verwendet ausschließlich GET am festen GitHub-Ursprung und redigiert Frem
   const result = await client.getViewer("synthetic-github-client-token");
 
   assert.equal(observedUrl, "https://api.github.com/user");
+  assert.doesNotMatch(observedUrl, /synthetic-github-client-token/);
   assert.equal(observedInit?.method, "GET");
   assert.equal(observedInit?.redirect, "manual");
+  assert.equal(
+    (observedInit?.headers as Record<string, string>).authorization,
+    "Bearer synthetic-github-client-token",
+  );
   assert.equal(result.data.login, "synthetic account");
   assert.equal(result.rateLimit.remaining, 42);
 });
@@ -61,6 +66,47 @@ test("weist ursprungsfremde Weiterleitungen und zu große Antworten ab", async (
     (error: unknown) =>
       error instanceof GitHubNetworkError &&
       error.code === "RESPONSE_TOO_LARGE",
+  );
+});
+
+test("stoppt auch gleichursprüngliche Weiterleitungen nach zwei Schritten", async () => {
+  let calls = 0;
+  const client = new HttpGitHubReadClient((async () => {
+    calls += 1;
+    return new Response(null, {
+      status: 302,
+      headers: { location: `/redirect-${calls}` },
+    });
+  }) as typeof fetch);
+
+  await assert.rejects(
+    client.getViewer("synthetic-github-client-token"),
+    (error: unknown) =>
+      error instanceof GitHubNetworkError &&
+      error.code === "TOO_MANY_REDIRECTS",
+  );
+  assert.equal(calls, 3);
+});
+
+test("weist Anbieterantworten oberhalb der dokumentierten Mengenlimits ab", async () => {
+  const repositories = Array.from({ length: 51 }, (_, index) => ({
+    id: index + 1,
+    name: `repository-${index}`,
+    full_name: `synthetic/repository-${index}`,
+    description: null,
+    private: true,
+    archived: false,
+    default_branch: "main",
+    updated_at: "2034-03-01T10:00:00.000Z",
+    owner: { login: "synthetic" },
+  }));
+  const client = new HttpGitHubReadClient((async () =>
+    jsonResponse(repositories)) as typeof fetch);
+
+  await assert.rejects(
+    client.listRepositories("synthetic-github-client-token"),
+    (error: unknown) =>
+      error instanceof GitHubNetworkError && error.code === "INVALID_RESPONSE",
   );
 });
 

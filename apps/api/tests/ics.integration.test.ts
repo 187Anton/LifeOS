@@ -185,6 +185,13 @@ test("zeigt ICS-Importe vorab, schützt Konflikte und exportiert verlustarm", as
     };
   };
   assert.equal((await preview("keine ICS-Datei")).response.status, 400);
+  const invalidUtf8 = await fetch(previewUrl, {
+    method: "POST",
+    headers: { cookie, "content-type": "text/calendar" },
+    body: new Uint8Array([0xc3, 0x28]),
+  });
+  assert.equal(invalidUtf8.status, 400);
+  assert.match(await invalidUtf8.text(), /nicht gültig als UTF-8/);
   assert.equal(
     (
       await fetch(previewUrl, {
@@ -247,6 +254,36 @@ test("zeigt ICS-Importe vorab, schützt Konflikte und exportiert verlustarm", as
       where: { userId: owner.id, calendarId: calendar.id, deletedAt: null },
     }),
     2,
+  );
+
+  const stale = await preview(source);
+  const currentTimed = await calendars.getEvent(
+    owner.id,
+    calendar.externalId,
+    timed().uid,
+  );
+  await calendars.replaceEvent(
+    owner.id,
+    calendar.externalId,
+    currentTimed.uid,
+    currentTimed.etag,
+    {
+      ...timed({ title: "Nach der Vorschau geändert" }),
+      isAllDay: false,
+      startsAt: timed().startsAt!,
+      endsAt: timed().endsAt!,
+    },
+  );
+  const staleCommit = await fetch(`${base}/${calendar.externalId}/ics/commit`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ previewId: stale.body.previewId }),
+  });
+  assert.equal(staleCommit.status, 409);
+  assert.equal(
+    (await calendars.getEvent(owner.id, calendar.externalId, currentTimed.uid))
+      .title,
+    "Nach der Vorschau geändert",
   );
 
   const conflict = await preview(
