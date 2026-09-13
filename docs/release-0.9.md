@@ -35,7 +35,7 @@ offen ist.
 | Universal                                              | offen und derzeit nicht vorgesehen                 | 13.09.2026 | 0.9.0   | kein Universal-Buildpfad                                          | native Rust-, Node- und SQLite-Binärteile erfordern gemeinsamen Nachweis |
 | CalDAV über private LAN-Adresse, synthetisch           | bestanden                                          | 13.09.2026 | 0.9.0   | `npm run caldav:verify:lan`                                       | ersetzt kein Apple-Gerät                                                 |
 | Physischer Apple-Kalender-LAN-Test                     | offen                                              | 13.09.2026 | 0.9.0   | Gerätecheckliste in diesem Dokument                               | kein physisches Gerät im Arbeitslauf bedient                             |
-| CI                                                     | offen                                              | 13.09.2026 | 0.9.0   | PR nach `develop` und GitHub Actions                              | GitHub-CLI-Anmeldung ungültig                                            |
+| CI der lokalen Releasekandidatin                       | bestanden                                          | 13.09.2026 | 0.9.0   | PR #88: Repository und lokaler macOS-Release grün                 | vor einer öffentlichen Freigabe mit finalem Artefakt erneut ausführen    |
 | Öffentliches GitHub-Release                            | gesperrt                                           | 13.09.2026 | 0.9.0   | erst nach allen vorstehenden Gates                                | kein Tag, kein Upload, kein README-Downloadlink                          |
 
 ## Unterstützte Systeme
@@ -81,6 +81,14 @@ Der öffentliche Artefaktprüfer wurde bewusst auch gegen den lokalen Kandidaten
 ausgeführt und brach korrekt ab, weil kein Apple-Notarisierungsticket gestapelt
 ist. Damit ist technisch belegt, dass der lokale Erfolg nicht versehentlich
 als öffentlicher Release durchgeht.
+
+Der Branch wurde mit Commit `e3983b4` gepusht. Pull Request #88 bestand die
+GitHub-CI mit den Jobs „Repository checks“ und „Local macOS release“ und wurde
+anschließend nach `develop` integriert. Der davon getrennte Pull Request #89
+von `develop` nach `main` bestand dieselben beiden Jobs und bleibt als
+vorbereiteter Stabilitäts-PR offen. Diese CI-Ergebnisse prüfen den aktuellen
+Quellstand, ersetzen aber weder die Apple- noch die physischen Geräte-Gates;
+mit dem final notarisierten Artefakt müssen die Releaseprüfungen erneut laufen.
 
 Der Vorbereitungsweg kennt zwar die offizielle x86_64-Node-Laufzeit samt fester
 Prüfsumme. Das beweist weder das native SQLite-Modul noch den Rust-Build, das
