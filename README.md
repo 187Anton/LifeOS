@@ -3,8 +3,15 @@
 Persönliche, lokal startbare Plattform für Studium, Arbeit, Projekte, Aufgaben,
 Kalender, Finanzen, Fitness und Wissen.
 
-Der aktuelle Stand ist bewusst ein stabiles Projektfundament. Die eigentliche
-Fachlogik wird schrittweise ergänzt.
+Der operative Stand 0.1 bis 0.5 ist fachlich umgesetzt; 0.6 ist für den lokalen
+ARM64-Betrieb umgesetzt und nachgewiesen. Das umfasst Fundament, Organisation,
+Studium und Arbeit, Projekte und Wissen sowie Finanzen, Fitness und bewusst
+begrenzte Integrationen. Das lokale Artefakt ist noch kein öffentlich
+freigegebenes Release.
+
+Die operative Roadmap fasst mehrere ursprünglich getrennte Punkte aus dem
+Leitfaden zusammen. Die Zuordnung, der genaue Umsetzungsumfang und die offenen
+Folgephasen 0.7 bis 1.0 stehen in der [Roadmap](docs/roadmap.md).
 
 ## Leitentscheidungen
 
@@ -21,6 +28,8 @@ Fachlogik wird schrittweise ergänzt.
 - lokaler ICS-Import mit Vorschau und konfliktgeschützter Kalenderexport
 - lokale Speicherung und synthetische Beispieldaten
 - externe Integrationen und KI standardmäßig deaktiviert
+- schreibende Automationen und KI-Vorschläge nur nach ausdrücklicher
+  Bestätigung als getrennte Fachaktion
 
 Weitere Regeln stehen in [AGENTS.md](AGENTS.md) und im
 [Produkt- und Entwicklungsleitfaden](LifeOS%20Leitfaden.docx).
@@ -36,6 +45,8 @@ Neue Änderungen beginnen auf einem zweckbezogenen Branch aus `develop`, zum
 Beispiel `feat/calendar`, `fix/caldav-sync` oder `chore/repository`. Sie werden
 zuerst per Pull Request nach `develop` gebracht. Erst nach erfolgreicher
 Prüfung und Integration wird `develop` per Pull Request nach `main` überführt.
+Ein GitHub-Issue ist dafür optional und nicht für jede Unteraufgabe
+verpflichtend.
 
 Commits verwenden dieses Format:
 
@@ -82,7 +93,9 @@ Komponenten als lokales ARM64-DMG bauen und prüfen. Der aktuelle Stand:
 Das lokale Artefakt ist noch kein öffentlich freigegebenes GitHub-Release.
 Developer-ID-Signatur, Apple-Notarisierung, Gatekeeper-Prüfung, ein zweiter
 sauberer unterstützter Mac, weitere Architekturen und ein physischer
-Apple-Kalender-Test über abgesichertes LAN bleiben offene Release-Gates.
+Apple-Kalender-Test über abgesichertes LAN bleiben offene Release-Gates. Vor
+einer Veröffentlichung ist außerdem ein dann aktueller Online-Abgleich der
+npm-Advisory-Datenbank erforderlich.
 
 ## Repository-Struktur
 
@@ -511,10 +524,16 @@ Backup-/Wiederherstellungsnachweis umfasst Prüfsummen, manipulierte Archive,
 Symlinks, disjunkte neue Ziele und Datenvergleich; Details stehen im
 [Recovery-Nachweis 0.6](docs/reliability-recovery-0.6.md).
 
-## GitHub-Planung einrichten
+## Optionale GitHub-Planung
+
+GitHub-Issues, Milestones und Projects sind Hilfsmittel, aber keine
+Voraussetzung für eine Änderung. Der verbindliche Ablauf besteht aus
+zweckbezogenem Branch, Conventional Commit, Push, Pull Request und erfolgreicher
+CI. Planungsobjekte werden nur bei ausdrücklichem Bedarf angelegt; eine
+Browser-Aktion ist dafür nicht vorgeschrieben.
 
 Die Labels, Roadmap-Milestones und das persönliche GitHub-Project werden mit
-dem folgenden Skript eingerichtet:
+dem folgenden optionalen Skript eingerichtet:
 
 ```bash
 bash scripts/setup-github-planning.sh
