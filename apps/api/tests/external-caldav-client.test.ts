@@ -23,10 +23,11 @@ interface SyntheticResponse {
 const syntheticRequests = (...responses: SyntheticResponse[]) => {
   const bodies: string[] = [];
   const urls: string[] = [];
+  const options: Array<Record<string, unknown>> = [];
   let index = 0;
   const requestImpl = ((
     target: URL,
-    _options: unknown,
+    requestOptions: Record<string, unknown>,
     callback: (
       response: PassThrough & {
         statusCode: number;
@@ -42,6 +43,7 @@ const syntheticRequests = (...responses: SyntheticResponse[]) => {
     };
     let destroyed = false;
     urls.push(String(target));
+    options.push(requestOptions);
     request.setTimeout = (_timeout, listener) => {
       if (response.timeout) setTimeout(listener, 0);
       return request;
@@ -70,7 +72,7 @@ const syntheticRequests = (...responses: SyntheticResponse[]) => {
     };
     return request;
   }) as unknown as typeof httpsRequest;
-  return { requestImpl, bodies, urls };
+  return { requestImpl, bodies, options, urls };
 };
 
 const publicLookup = (async () => [
@@ -144,6 +146,9 @@ test("begrenzt CalDAV-Ereignisse auf ein festes Importzeitfenster", async () => 
 
   assert.match(network.bodies[0] ?? "", /start="20330301T100000Z"/);
   assert.match(network.bodies[0] ?? "", /end="20360229T100000Z"/);
+  assert.equal(network.options[0]?.method, "REPORT");
+  assert.equal(network.options[0]?.rejectUnauthorized, true);
+  assert.equal(typeof network.options[0]?.lookup, "function");
 });
 
 test("stoppt gleichursprüngliche Redirect-Ketten und DNS-Rebinding", async () => {
