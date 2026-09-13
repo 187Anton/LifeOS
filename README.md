@@ -4,14 +4,15 @@ Persönliche, lokal startbare Plattform für Studium, Arbeit, Projekte, Aufgaben
 Kalender, Finanzen, Fitness und Wissen.
 
 Der operative Stand 0.1 bis 0.5 ist fachlich umgesetzt; 0.6 ist für den lokalen
-ARM64-Betrieb umgesetzt und nachgewiesen. Das umfasst Fundament, Organisation,
-Studium und Arbeit, Projekte und Wissen sowie Finanzen, Fitness und bewusst
-begrenzte Integrationen. Das lokale Artefakt ist noch kein öffentlich
-freigegebenes Release.
+ARM64-Betrieb umgesetzt und nachgewiesen. Der begrenzte read-only-Ausbau der
+optionalen Integrationen aus 0.8 ist ebenfalls umgesetzt. Das umfasst
+Fundament, Organisation, Studium und Arbeit, Projekte und Wissen sowie
+Finanzen, Fitness und bewusst begrenzte Integrationen. Das lokale Artefakt ist
+noch kein öffentlich freigegebenes Release.
 
 Die operative Roadmap fasst mehrere ursprünglich getrennte Punkte aus dem
-Leitfaden zusammen. Die Zuordnung, der genaue Umsetzungsumfang und die offenen
-Folgephasen 0.7 bis 1.0 stehen in der [Roadmap](docs/roadmap.md).
+Leitfaden zusammen. Die Zuordnung, der genaue Umsetzungsumfang sowie die noch
+offenen Phasen 0.7, 0.9 und 1.0 stehen in der [Roadmap](docs/roadmap.md).
 
 ## Leitentscheidungen
 
@@ -352,7 +353,9 @@ Monatsvergleich, Sparquote und Budgetwarnungen verändern keine Quelldaten. Ein
 versionierter JSON-Export enthält ausschließlich die Daten des angemeldeten
 Profils. Wiederholungen werden vorbereitet, aber nicht automatisch gebucht.
 Es gibt keine Bankanbindung, Steuer- oder Rechtsbewertung, KI-Freigabe oder
-externe Übertragung. Details stehen im
+externe Übertragung. Ein generischer CSV-Import bleibt mangels verbindlichem
+Spalten-, Währungs- und Konfliktformat bewusst zurückgestellt; die im Leitfaden
+alternativ vorgesehene manuelle Eingabe ist vorhanden. Details stehen im
 [Finanzvertrag](docs/api/finance.md).
 
 Der Bereich **Fitness** verwaltet Trainingspläne, Übungen, Einheiten, Sätze und
@@ -371,9 +374,11 @@ nur die lokale API und liegen dort AES-256-GCM-verschlüsselt; ohne den
 separaten lokalen `INTEGRATION_SECRET_KEY` bleibt die Funktion vollständig
 aus. Nach ausdrücklicher Aktivierung lassen sich Verbindung und Kalender
 kontrolliert prüfen. Ereignisse werden erst nach Importvorschau und erneuter
-Bestätigung in den vorhandenen Kalenderkern übernommen. Es gibt keine
-automatische oder bidirektionale Synchronisation und keine Schreibaktion zum
-externen Dienst. Details und offene Grenzen stehen im
+Bestätigung in den vorhandenen Kalenderkern übernommen. Der Abruf ist auf 365
+Tage Vergangenheit und 730 Tage Zukunft begrenzt; Ereignisse und ihre externe
+UID-/ETag-Zuordnung werden atomar geschrieben. Es gibt keine automatische oder
+bidirektionale Synchronisation und keine Schreibaktion zum externen Dienst.
+Details und offene Grenzen stehen im
 [externen CalDAV-Vertrag](docs/api/external-caldav.md).
 
 Im selben Bereich kann optional eine ausschließlich lesende GitHub-Verbindung
@@ -381,9 +386,17 @@ eingerichtet werden. Sie bleibt ohne `INTEGRATION_SECRET_KEY` und bis zur
 bewussten Aktivierung netzwerkfrei. Das Token wird nur verschlüsselt im
 Backend gespeichert und nie wieder ausgegeben. Danach lassen sich
 Repository-Metadaten, Issues, Pull Requests, Commits, Releases und CI-Status
-flüchtig anzeigen; LifeOS speichert diese Inhalte nicht dauerhaft und führt
-keine GitHub-Schreibaktion aus. Details, Berechtigungen, Limits und offene
-Grenzen stehen im [GitHub-Integrationsvertrag](docs/api/github-integration.md).
+flüchtig innerhalb harter Antwort- und Mengenlimits anzeigen; LifeOS speichert
+diese Inhalte nicht dauerhaft und führt keine GitHub-Schreibaktion aus.
+Details, Berechtigungen, Limits und offene Grenzen stehen im
+[GitHub-Integrationsvertrag](docs/api/github-integration.md).
+
+Der eigene LifeOS-Kalender, der lokale CalDAV-Server, ICS-Import/-Export und
+der Browserbetrieb benötigen keine externe Verbindung. OAuth, Webhooks,
+Hintergrundsynchronisation, externe Schreibaktionen und Löschspiegelung bleiben
+bewusst offen. Die installierte Mac-App erhält weiterhin keinen
+Integrationsschlüssel; eine spätere Aktivierung erfordert einen separat
+geprüften Schlüsselbundpfad.
 
 Der vollständige synthetische Abschlusslauf für Finanzen, Fitness, ICS,
 optionale Integrationen, PostgreSQL, SQLite, Recovery, Browser und Mac-Sidecar

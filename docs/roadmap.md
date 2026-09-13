@@ -26,9 +26,10 @@ für abgeschlossen.
 
 Die ursprüngliche KI-Planung aus Leitfadenpunkt 0.9 ist nicht durch die
 vorhandene deterministische Planung oder die deaktivierte KI-Grundlage ersetzt.
-Sie wird als nächster operativer Schritt 0.7 fortgeführt. Weiterführende
-Integrationen, das öffentliche Release und die laufende Wartung folgen in 0.8
-bis 1.0.
+Sie wird als nächster operativer Schritt 0.7 fortgeführt. Der ausdrücklich
+begrenzte read-only-Umfang der Integrationen ist in 0.8 umgesetzt;
+weiterführende Integrationen bleiben dort als neue Arbeitspakete offen. Das
+öffentliche Release und die laufende Wartung folgen getrennt in 0.9 und 1.0.
 
 „Lokal nachgewiesen“ bezeichnet reproduzierte Prüfungen auf dem unterstützten
 ARM64-Entwicklungs-Mac. „Öffentlich freigegeben“ gilt erst nach allen dafür
@@ -786,19 +787,51 @@ Automationen verändern ohne ausdrückliche Bestätigung keine Fachdaten.
 Ziel: Externe Anbindungen nur bei belegtem Nutzen und mit erhaltenem
 Local-First-Kern erweitern.
 
-Status: offen. Die bestehenden CalDAV- und GitHub-Integrationen bleiben bis zu
-einem eigenen Nachweis deaktivierte read-only-Grundlagen.
+Status: **im sicher begrenzten read-only-Umfang umgesetzt (13. September
+2026).** Der lokale Kalender, der eigene CalDAV-Server und der Browserbetrieb
+bleiben ohne externe Integration vollständig nutzbar.
 
-- Produktive Anbieterzugänge ausschließlich mit sicherer lokaler
-  Schlüsselverwaltung prüfen.
-- Schreibende, bidirektionale oder automatische Synchronisation als eigene,
-  bestätigungspflichtige Arbeitspakete behandeln.
-- OAuth, Webhooks, Hintergrundläufe, Löschspiegelung und weitere Anbieter erst
-  nach eigenen Sicherheits-, Recovery- und Widerrufsnachweisen freigeben.
+- Der lokale ICS-Pfad lehnt ungültiges UTF-8, mehr als 2 MiB, mehr als 500
+  Ereignisse, unbegrenzte Serien, doppelte oder kollidierende UIDs und zwischen
+  Vorschau und Commit geänderte ETags ohne Teilimport ab. Exportiert werden nur
+  eigene aktive Ereignisse mit stabilen UIDs, Zeitzonen, `VTIMEZONE`, Ganztag,
+  Wiederholung und Erinnerung.
+- Externer CalDAV bleibt ohne lokalen Integrationsschlüssel nicht verfügbar
+  und nach der Konfiguration deaktiviert. Der manuelle read-only-Abruf erzwingt
+  HTTPS, Zertifikatsprüfung, SSRF- und DNS-Rebinding-Schutz, höchstens zwei
+  gleichursprüngliche Redirects, fünf Sekunden Timeout, 2 MiB, 500 Ereignisse
+  und ein Fenster von 365 Tagen Vergangenheit bis 730 Tagen Zukunft.
+  Bestätigte Ereignisse, lokale Sync-Werte, externe UID-/ETag-Zuordnungen und
+  Audit werden gemeinsam atomar geschrieben.
+- GitHub bleibt ohne Integrationsschlüssel nicht verfügbar und nach der
+  Konfiguration deaktiviert. Der Client erlaubt nur `GET` am festen Ursprung
+  `https://api.github.com`, begrenzt Zeit, Größe, Redirects und tatsächliche
+  Ergebnismengen und persistiert keine Repository-, Issue-, Pull-Request-,
+  Commit-, Release- oder CI-Inhalte.
+- Die Oberfläche trennt Konfiguration, Aktivierung, Vorschau, Bestätigung und
+  Widerruf, zeigt gespeicherte Fehler verständlich und entfernt flüchtige
+  Fremddaten beim Deaktivieren oder Widerrufen. Secrets und persönliche
+  Integrationsdaten werden nicht im Browser- oder Service-Worker-Cache
+  gespeichert.
+- Ein generischer CSV-Import wurde bewusst nicht eingeführt. Der Leitfaden
+  erlaubt im Finanz-MVP manuelle Eingabe oder CSV; die manuelle Eingabe ist
+  umgesetzt, während ein verbindliches CSV-Spalten-, Währungs- und
+  Konfliktformat fehlt.
+- Produktive Apple- oder GitHub-Zugänge wurden nicht verwendet. Die gebündelte
+  Mac-App erhält weiterhin keinen Integrationsschlüssel; ein
+  schlüsselbundgestützter Ablauf benötigt einen eigenen Sicherheits- und
+  Recovery-Nachweis.
 
-Abschlusskriterium: Jede ausgebaute Integration ist optional, widerrufbar,
-besitzgebunden und standardmäßig deaktiviert; lokale Kernfunktionen bleiben
-ohne sie vollständig nutzbar.
+Weiterhin offen und nur als getrennte Arbeitspakete zulässig sind Schreiben
+zu externen Diensten, bidirektionale oder automatische Synchronisation, OAuth,
+Webhooks, Hintergrundläufe, Löschspiegelung und zusätzliche Anbieter.
+
+Abschlusskriterium: Der vorhandene Integrationsumfang ist optional,
+widerrufbar, besitzgebunden, standardmäßig deaktiviert und mit synthetischen
+Grenz- und Fehlerfällen lokal prüfbar; lokale Kernfunktionen bleiben ohne ihn
+vollständig nutzbar. Damit ist 0.8 für den beschriebenen read-only-Umfang
+abgeschlossen. Jede weiterführende externe Funktion benötigt einen neuen
+Nachweis.
 
 ## 0.9 Öffentliches Release
 
