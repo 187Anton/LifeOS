@@ -2,6 +2,20 @@
 
 Alle relevanten Änderungen werden hier kurz und nachvollziehbar dokumentiert.
 
+## [0.9.0] – 2026-09-13
+
+- Zentrale Version auf `0.9.0` angehoben und den lokalen ARM64-DMG samt
+  Prüfsumme, nativer App, Sidecar, Recovery und datenerhaltendem
+  0.6.0→0.9.0→0.6.0-Ablauf nachgewiesen.
+- Sicher abbrechenden Developer-ID-/Notarisierungsweg und getrennte Prüfungen
+  für notarisiertes sowie tatsächlich heruntergeladenes DMG ergänzt.
+- Synthetische CalDAV-Vorprüfung über eine private LAN-Adresse und datierte
+  Checklisten für einen zweiten sauberen Mac sowie ein physisches
+  Apple-Kalender-Gerät ergänzt.
+- Öffentliche Freigabe, Tag und Downloadlink bleiben gesperrt, bis Apple-
+  Signatur, Notarisierung, Download-Gatekeeper, zweiter Mac, physischer
+  Apple-Kalender und grüne GitHub-CI tatsächlich nachgewiesen sind.
+
 ## [0.6.0] – 2026-09-05
 
 - Roadmap 0.5 um lokale Finanzen, Fitness, sicheren ICS-Transfer, optionalen

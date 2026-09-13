@@ -5,14 +5,16 @@ Kalender, Finanzen, Fitness und Wissen.
 
 Der operative Stand 0.1 bis 0.5 ist fachlich umgesetzt; 0.6 ist für den lokalen
 ARM64-Betrieb umgesetzt und nachgewiesen. Der begrenzte read-only-Ausbau der
-optionalen Integrationen aus 0.8 ist ebenfalls umgesetzt. Das umfasst
+optionalen Integrationen aus 0.8 ist ebenfalls umgesetzt. Roadmap 0.9 ist als
+lokale ARM64-Releasekandidatin `0.9.0` mit einem gesicherten Signatur-,
+Notarisierungs-, Download- und LAN-Prüfpfad vorbereitet. Das umfasst
 Fundament, Organisation, Studium und Arbeit, Projekte und Wissen sowie
 Finanzen, Fitness und bewusst begrenzte Integrationen. Das lokale Artefakt ist
 noch kein öffentlich freigegebenes Release.
 
 Die operative Roadmap fasst mehrere ursprünglich getrennte Punkte aus dem
 Leitfaden zusammen. Die Zuordnung, der genaue Umsetzungsumfang sowie die noch
-offenen Phasen 0.7, 0.9 und 1.0 stehen in der [Roadmap](docs/roadmap.md).
+offenen fachlichen und externen Gates stehen in der [Roadmap](docs/roadmap.md).
 
 ## Leitentscheidungen
 
@@ -78,8 +80,9 @@ externe Assets bleiben unter ihren jeweiligen Lizenzen.
 
 ## Projektziel: installierbares lokales Release
 
-LifeOS lässt sich in Version `0.6.0` ohne manuelles Zusammensuchen einzelner
-Komponenten als lokales ARM64-DMG bauen und prüfen. Der aktuelle Stand:
+LifeOS lässt sich in Version `0.9.0` ohne manuelles Zusammensuchen einzelner
+Komponenten als lokale ARM64-Releasekandidatin bauen und prüfen. Der aktuelle
+Stand:
 
 - Die Tauri-App bündelt Weboberfläche, Express-/CalDAV-Sidecar, SQLite und eine
   offizielle Node.js-22-Laufzeit. Zur Nutzung sind weder Docker noch ein
@@ -92,11 +95,13 @@ Komponenten als lokales ARM64-DMG bauen und prüfen. Der aktuelle Stand:
   aus einem schreibgeschützten Abbild geprüft.
 
 Das lokale Artefakt ist noch kein öffentlich freigegebenes GitHub-Release.
-Developer-ID-Signatur, Apple-Notarisierung, Gatekeeper-Prüfung, ein zweiter
-sauberer unterstützter Mac, weitere Architekturen und ein physischer
-Apple-Kalender-Test über abgesichertes LAN bleiben offene Release-Gates. Vor
-einer Veröffentlichung ist außerdem ein dann aktueller Online-Abgleich der
-npm-Advisory-Datenbank erforderlich.
+Developer-ID-Signatur, Apple-Notarisierung, Gatekeeper-Prüfung nach einem
+tatsächlichen Download, ein zweiter sauberer unterstützter Mac, weitere
+Architekturen und ein physischer Apple-Kalender-Test über abgesichertes LAN
+bleiben offene Release-Gates. Vor einer Veröffentlichung ist außerdem ein dann
+aktueller Online-Abgleich der npm-Advisory-Datenbank erforderlich. Die aktuelle
+Gate-Matrix und die reproduzierbaren Zweit-Mac- und Apple-Kalender-Checklisten
+stehen im [Release-Nachweis 0.9](docs/release-0.9.md).
 
 ## Repository-Struktur
 
@@ -137,7 +142,7 @@ npm run release:verify:local
 ```
 
 Das geprüfte ARM64-Ergebnis liegt als
-`apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.6.0_aarch64.dmg`
+`apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.9.0_aarch64.dmg`
 mit gleichnamiger `.sha256`-Datei vor. Im DMG wird die App in den Programme-
 Ordner gezogen und anschließend von dort gestartet. Persönliche Daten liegen
 außerhalb des App-Bundles im anwendungsspezifischen macOS-Datenverzeichnis und
@@ -156,7 +161,9 @@ Der tatsächliche Abschlusslauf mit Produktdemo, nativem App-Start, Update
 Der aktuelle providerübergreifende Stabilitäts- und Backup-Nachweis steht in
 [`docs/reliability-recovery-0.6.md`](docs/reliability-recovery-0.6.md).
 Versionsquelle, Buildablauf, Prüfsumme und öffentliche Gates beschreibt die
-[`Release-Dokumentation 0.6`](docs/release-0.6.md).
+historische [`Release-Dokumentation 0.6`](docs/release-0.6.md). Der aktuelle
+Signatur-, Notarisierungs-, Architektur-, Zweit-Mac- und LAN-Prüfpfad steht im
+[`Release-Nachweis 0.9`](docs/release-0.9.md).
 
 ## Browser- und Entwicklungsbetrieb
 
@@ -439,55 +446,59 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 
 ### Aktuell verfügbare Befehle
 
-| Aufgabe                                       | Befehl                                                                     |
-| --------------------------------------------- | -------------------------------------------------------------------------- |
-| Abhängigkeiten installieren                   | `npm ci`                                                                   |
-| Docker und lokale Konfiguration prüfen        | `npm run env:check`                                                        |
-| Datenbank starten und Verbindung prüfen       | `npm run db:start`                                                         |
-| Datenbankstatus und SQL-Verbindung prüfen     | `npm run db:check`                                                         |
-| Lokale Dienste ohne Datenverlust stoppen      | `npm run db:stop`                                                          |
-| Prisma-Schema prüfen                          | `npm run db:validate`                                                      |
-| Versionierte Migrationen anwenden             | `npm run db:migrate`                                                       |
-| Synthetische Seed-Daten anlegen               | `npm run db:seed`                                                          |
-| Datenbank-Integrationstest ausführen          | `npm run db:test`                                                          |
-| SQLite-Spike-Schema prüfen                    | `npm run db:sqlite:validate`                                               |
-| SQLite-Spike-Migration anwenden               | `npm run db:sqlite:migrate`                                                |
-| SQLite-Spike synthetisch befüllen             | `npm run db:sqlite:seed`                                                   |
-| SQLite-Migrationsgate prüfen                  | `npm run db:sqlite:test`                                                   |
-| Vollständige API auf SQLite prüfen            | `npm run test:sqlite:api`                                                  |
-| Gebaute SQLite-API mit Neustart prüfen        | `npm run verify:sqlite:api-runtime`                                        |
-| Gebündelten Mac-Sidecar prüfen                | `npm run desktop:verify:sidecar`                                           |
-| Native Mac-App lokal bauen                    | `npm run desktop:build:app`                                                |
-| ARM64-DMG lokal bauen                         | `npm run desktop:build:dmg`                                                |
-| Lokales DMG und gebündelten Sidecar prüfen    | `npm run desktop:verify:dmg`                                               |
-| Release-Metadaten abgleichen                  | `npm run release:verify`                                                   |
-| Lokales Release vollständig bauen             | `npm run release:build:local`                                              |
-| Lokales Release vollständig prüfen            | `npm run release:verify:local`                                             |
-| Zwei Versionen, Update und Rollback prüfen    | `npm run desktop:verify:update-rollback -- <baseline-dmg> <aktuelles-dmg>` |
-| Vollständige Stabilitätsdemo ausführen        | `npm run demo:stabilization -- <baseline-dmg>`                             |
-| PostgreSQL vollständig nach SQLite übertragen | `npm run db:sqlite:import`                                                 |
-| SQLite und Dokumente sichern                  | `npm run db:sqlite:backup -- …`                                            |
-| SQLite-Backup in neue Ziele restaurieren      | `npm run db:sqlite:restore -- …`                                           |
-| SQLite-Import und Recovery isoliert prüfen    | `npm run db:sqlite:verify:recovery`                                        |
-| Lokales PostgreSQL-Backup erstellen           | `npm run db:backup`                                                        |
-| Backup sicher in neue Datenbank restaurieren  | `npm run db:restore -- …`                                                  |
-| Dokumente prüfsummengeschützt sichern         | `npm run documents:backup -- …`                                            |
-| Dokumente ausschließlich in neues Ziel laden  | `npm run documents:restore -- …`                                           |
-| Migration, Backup und Restore isoliert prüfen | `npm run db:verify:recovery`                                               |
-| API lokal starten                             | `npm run api:start`                                                        |
-| API im Watch-Modus starten                    | `npm run api:dev`                                                          |
-| Weboberfläche lokal starten                   | `npm run web:dev`                                                          |
-| Gebaute Weboberfläche lokal prüfen            | `npm run web:preview`                                                      |
-| Lokales Passwort setzen/Sitzungen widerrufen  | `npm run auth:bootstrap`                                                   |
-| Getrennten CalDAV-Zugang setzen               | `npm run caldav:bootstrap`                                                 |
-| Getrennten CalDAV-Zugang widerrufen           | `npm run caldav:revoke`                                                    |
-| Workspaces linten                             | `npm run lint`                                                             |
-| Workspaces typprüfen                          | `npm run typecheck`                                                        |
-| Anwendungen und Packages bauen                | `npm run build`                                                            |
-| Compose-Konfiguration ohne Start prüfen       | `npm run repo:check`                                                       |
-| Versionierte Dateien auf Secrets prüfen       | `npm run security:secrets`                                                 |
-| Formatierung prüfen                           | `npm run format:check`                                                     |
-| Repository- und vorhandene Workspace-Tests    | `npm test`                                                                 |
+| Aufgabe                                          | Befehl                                                                     |
+| ------------------------------------------------ | -------------------------------------------------------------------------- |
+| Abhängigkeiten installieren                      | `npm ci`                                                                   |
+| Docker und lokale Konfiguration prüfen           | `npm run env:check`                                                        |
+| Datenbank starten und Verbindung prüfen          | `npm run db:start`                                                         |
+| Datenbankstatus und SQL-Verbindung prüfen        | `npm run db:check`                                                         |
+| Lokale Dienste ohne Datenverlust stoppen         | `npm run db:stop`                                                          |
+| Prisma-Schema prüfen                             | `npm run db:validate`                                                      |
+| Versionierte Migrationen anwenden                | `npm run db:migrate`                                                       |
+| Synthetische Seed-Daten anlegen                  | `npm run db:seed`                                                          |
+| Datenbank-Integrationstest ausführen             | `npm run db:test`                                                          |
+| SQLite-Spike-Schema prüfen                       | `npm run db:sqlite:validate`                                               |
+| SQLite-Spike-Migration anwenden                  | `npm run db:sqlite:migrate`                                                |
+| SQLite-Spike synthetisch befüllen                | `npm run db:sqlite:seed`                                                   |
+| SQLite-Migrationsgate prüfen                     | `npm run db:sqlite:test`                                                   |
+| Vollständige API auf SQLite prüfen               | `npm run test:sqlite:api`                                                  |
+| Gebaute SQLite-API mit Neustart prüfen           | `npm run verify:sqlite:api-runtime`                                        |
+| Gebündelten Mac-Sidecar prüfen                   | `npm run desktop:verify:sidecar`                                           |
+| Native Mac-App lokal bauen                       | `npm run desktop:build:app`                                                |
+| ARM64-DMG lokal bauen                            | `npm run desktop:build:dmg`                                                |
+| Lokales DMG und gebündelten Sidecar prüfen       | `npm run desktop:verify:dmg`                                               |
+| Release-Metadaten abgleichen                     | `npm run release:verify`                                                   |
+| Lokales Release vollständig bauen                | `npm run release:build:local`                                              |
+| Lokales Release vollständig prüfen               | `npm run release:verify:local`                                             |
+| Developer-ID-Build notarisiert vorbereiten       | `npm run release:build:public`                                             |
+| Notarisiertes lokales Artefakt prüfen            | `npm run release:verify:public -- <dmg>`                                   |
+| Heruntergeladenes Artefakt mit Gatekeeper prüfen | `npm run release:verify:downloaded -- <dmg>`                               |
+| CalDAV über die private LAN-Adresse vorprüfen    | `npm run caldav:verify:lan`                                                |
+| Zwei Versionen, Update und Rollback prüfen       | `npm run desktop:verify:update-rollback -- <baseline-dmg> <aktuelles-dmg>` |
+| Vollständige Stabilitätsdemo ausführen           | `npm run demo:stabilization -- <baseline-dmg>`                             |
+| PostgreSQL vollständig nach SQLite übertragen    | `npm run db:sqlite:import`                                                 |
+| SQLite und Dokumente sichern                     | `npm run db:sqlite:backup -- …`                                            |
+| SQLite-Backup in neue Ziele restaurieren         | `npm run db:sqlite:restore -- …`                                           |
+| SQLite-Import und Recovery isoliert prüfen       | `npm run db:sqlite:verify:recovery`                                        |
+| Lokales PostgreSQL-Backup erstellen              | `npm run db:backup`                                                        |
+| Backup sicher in neue Datenbank restaurieren     | `npm run db:restore -- …`                                                  |
+| Dokumente prüfsummengeschützt sichern            | `npm run documents:backup -- …`                                            |
+| Dokumente ausschließlich in neues Ziel laden     | `npm run documents:restore -- …`                                           |
+| Migration, Backup und Restore isoliert prüfen    | `npm run db:verify:recovery`                                               |
+| API lokal starten                                | `npm run api:start`                                                        |
+| API im Watch-Modus starten                       | `npm run api:dev`                                                          |
+| Weboberfläche lokal starten                      | `npm run web:dev`                                                          |
+| Gebaute Weboberfläche lokal prüfen               | `npm run web:preview`                                                      |
+| Lokales Passwort setzen/Sitzungen widerrufen     | `npm run auth:bootstrap`                                                   |
+| Getrennten CalDAV-Zugang setzen                  | `npm run caldav:bootstrap`                                                 |
+| Getrennten CalDAV-Zugang widerrufen              | `npm run caldav:revoke`                                                    |
+| Workspaces linten                                | `npm run lint`                                                             |
+| Workspaces typprüfen                             | `npm run typecheck`                                                        |
+| Anwendungen und Packages bauen                   | `npm run build`                                                            |
+| Compose-Konfiguration ohne Start prüfen          | `npm run repo:check`                                                       |
+| Versionierte Dateien auf Secrets prüfen          | `npm run security:secrets`                                                 |
+| Formatierung prüfen                              | `npm run format:check`                                                     |
+| Repository- und vorhandene Workspace-Tests       | `npm test`                                                                 |
 
 Die SQLite-Befehle bilden alle vorhandenen Fachmodelle ab. Die gebaute API
 läuft damit ohne Docker und behält synthetische Daten nach einem Neustart. M3
@@ -499,7 +510,9 @@ ergänzt das geprüfte DMG, die terminalfreie Ersteinrichtung sowie einen
 datenerhaltenden Update-, Rollback- und Restore-Nachweis. Noch offen sind
 Developer-ID-Signierung, Notarisierung, Gatekeeper-Downloadpfad, weitere
 Architekturen, der Gegencheck auf einem zweiten sauberen Mac und der physische
-Apple-Kalender-Test. Buildweg, App-Pfade und Grenzen stehen in
+Apple-Kalender-Test. Roadmap 0.9 stellt dafür reproduzierbare Prüfpfade und
+Checklisten bereit, erklärt die Gates aber erst nach einem tatsächlichen
+Nachweis für bestanden. Buildweg, App-Pfade und Grenzen stehen in
 [`apps/desktop/README.md`](apps/desktop/README.md). Weitere Datenregeln stehen in
 [`packages/database/README.md`](packages/database/README.md) und im
 [`Migrationsprotokoll`](docs/mac-desktop-migration-log.md).

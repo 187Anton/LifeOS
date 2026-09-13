@@ -833,25 +833,50 @@ vollständig nutzbar. Damit ist 0.8 für den beschriebenen read-only-Umfang
 abgeschlossen. Jede weiterführende externe Funktion benötigt einen neuen
 Nachweis.
 
-## 0.9 Öffentliches Release
+## 0.9 Öffentliches Release und Apple-Kalender-LAN-Nachweis
 
 Ziel: Das lokal geprüfte ARM64-Artefakt erst nach allen externen Gates als
 öffentliches Download-Release bereitstellen.
 
-Status: offen.
+Status: lokale Releasevorbereitung umgesetzt; öffentliche Freigabe gesperrt.
 
-- Developer-ID-Signatur und Apple-Notarisierung durchführen.
-- Das heruntergeladene Artefakt mit Gatekeeper prüfen.
-- Installation, Erststart, Update und Recovery auf einem zweiten sauberen Mac
-  nachweisen.
-- Intel-/Universal-Build und unterstützte Architekturen verbindlich festlegen.
-- Apple-Kalender über abgesichertes LAN mit einem physischen Gerät prüfen.
-- Unmittelbar vor Freigabe die npm-Advisory-Datenbank online abgleichen und die
-  übrigen Sicherheits- und Release-Gates erneut ausführen.
+- **Lokal nachgewiesen (13. September 2026):** Version `0.9.0` wird zentral über die
+  Stamm-`package.json` geführt und weiterhin gegen npm-Workspaces, Lockfile,
+  Tauri und Cargo geprüft. Der lokale ARM64-Pfad erzeugt ein DMG samt portabler
+  SHA-256-Datei und prüft die tatsächlich kopierte native App mit synthetischen
+  Daten. Der ARM64-Kandidat wurde gebaut, aus dem DMG gestartet und mit
+  PostgreSQL-/SQLite-Recovery sowie einem datenerhaltenden
+  0.6.0→0.9.0→0.6.0-Lauf geprüft.
+- Der öffentliche Mac-Pfad verlangt eine vorhandene
+  Developer-ID-Application-Identität und ein außerhalb des Repositorys
+  gespeichertes `notarytool`-Schlüsselbundprofil. Er signiert mit Hardened
+  Runtime und Zeitstempel, notarisiert und stapelt das DMG und erzeugt die
+  portable SHA-256-Datei nach dem Stapling neu.
+- Die öffentliche Artefaktprüfung validiert Developer-ID, Apple-Ticket,
+  Gatekeeper, Bundle-Version und die Architektur aller nativen Binärteile. Der
+  getrennte Download-Nachweis verlangt zusätzlich das von macOS gesetzte
+  Quarantäneattribut und kann deshalb nicht durch eine lokale Kopie ersetzt
+  werden.
+- Eine synthetische LAN-Vorprüfung bindet die gebaute API kurzzeitig an
+  `0.0.0.0`, greift über eine private IPv4-Adresse zu und prüft Discovery,
+  Ereignis-CRUD, stabile UID, ETag-Konflikt, Ganztag, Zeitzone, Wiederholung und
+  Duplikatschutz. Sie ersetzt ausdrücklich keinen Test mit Apple Kalender.
+- Der [`Release-Nachweis 0.9`](release-0.9.md) enthält die datierte Gate-Matrix,
+  die Checkliste für einen zweiten sauberen Mac und den physischen
+  Apple-Kalender-LAN-Test.
+
+Weiterhin offen sind Developer-ID-Signatur, Apple-Notarisierung und Stapling,
+Gatekeeper nach echtem Download, Installation und Recovery auf einem zweiten
+sauberen Mac, Intel-/Universal-Build, physischer Apple-Kalender-Test sowie die
+abschließende grüne CI- und GitHub-Release-Kette. Der Online-Abgleich der npm-
+und RustSec-Datenbanken muss unmittelbar vor einer späteren Freigabe erneut
+erfolgreich sein.
 
 Abschlusskriterium: Ein versioniertes, prüfsummengeschütztes Download-Artefakt
-ist signiert, notarisiert und auf den ausgewiesenen Systemen geprüft; erst dann
-darf die README es als öffentlich freigegeben verlinken.
+ist signiert, notarisiert und auf den ausgewiesenen Systemen einschließlich
+eines zweiten sauberen Macs und eines physischen Apple-Kalender-Geräts geprüft;
+erst dann darf die README es als öffentlich freigegeben verlinken. Dieses
+Abschlusskriterium ist noch nicht erfüllt.
 
 ## 1.0 Laufende Wartung und Weiterentwicklung
 
