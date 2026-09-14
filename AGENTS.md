@@ -74,19 +74,24 @@ Die primäre Oberfläche ist eine responsive React-Webanwendung. Sie soll als
 PWA installierbar sein, damit sie auf Desktop und Smartphone wie eine App
 verwendet werden kann. Keine zweite Oberfläche für die PWA bauen.
 
-Eine native Desktop- oder Mobile-App ist nicht Teil des MVP. Tauri oder eine
-native iOS-App dürfen später dieselbe Weboberfläche wiederverwenden, wenn ein
-konkreter Bedarf wie Systembenachrichtigungen, Tray-Funktionen oder EventKit
-entsteht.
+Eine native Desktop-App war nicht Teil des ursprünglichen MVP. Der inzwischen
+lokal nachgewiesene Mac-Pfad verwendet Tauri 2 als dünne Hülle und weiterhin
+dieselbe React-Weboberfläche; eine zweite Desktop-Oberfläche darf nicht
+entstehen. Eine native iOS-App bleibt eine spätere Option, wenn ein konkreter
+Bedarf wie EventKit nachgewiesen ist.
 
 Als Veröffentlichungsziel wird LifeOS als installierbares lokales Release
-bereitgestellt. Die erste Ausbaustufe bündelt die lokale Anwendung samt
-Docker-Compose-Konfiguration und verständlichen Startskripten in einem
-versionierten GitHub-Release. Die README verlinkt das jeweils aktuelle
-Installationspaket, sobald ein tatsächlich geprüftes Release-Artefakt
-verfügbar ist. Nach dem lokalen Start bietet die Weboberfläche eine
-Installationsmöglichkeit für die bestehende PWA. Ein nativer Desktop-Installer
-ist eine spätere Ausbaustufe und darf nur dieselbe Weboberfläche wiederverwenden.
+bereitgestellt. Der lokale ARM64-Pfad bündelt die gemeinsame Weboberfläche, das
+Express-/CalDAV-Backend, SQLite und die geprüfte Node.js-Laufzeit in einer
+Tauri-App und einem lokal prüfbaren DMG. Docker Compose bleibt Entwicklungs-,
+Test- und Wartungspfad für PostgreSQL. Die README verlinkt ein
+Download-Artefakt erst, sobald Developer-ID, Apple-Notarisierung,
+Gatekeeper-Downloadprüfung, unterstützte Architekturen und der Test auf einem
+zweiten sauberen Mac nachgewiesen sind. Der physische Apple-Kalender-Test über
+abgesichertes LAN und ein zum Veröffentlichungszeitpunkt aktueller
+Online-Abgleich der npm-Advisory-Datenbank bleiben ebenfalls Release-Gates.
+Nach dem lokalen Start bietet die Weboberfläche weiterhin die
+Installationsmöglichkeit für die bestehende PWA.
 
 Die PWA-App-Shell darf statische, lokal gebündelte Assets offline cachen.
 Persönliche API-Antworten, Kalenderdaten und Zugangsdaten werden weder im
@@ -161,8 +166,11 @@ AES-256-GCM-verschlüsselt im Backend; ohne getrennten lokalen
 Integrationsschlüssel bleibt der Netzwerkpfad nicht verfügbar. Externe Ziele
 benötigen HTTPS, Zertifikatsprüfung, SSRF-geschützte DNS-/IP-Auflösung,
 gleichursprüngliche begrenzte Weiterleitungen, Timeouts und Größenlimits.
-Importe benötigen Vorschau und Bestätigung; lokale UIDs, ETags und Sync-Tokens
-bleiben im gemeinsamen Kalenderkern. Schreiben, Löschspiegelung,
+Ereignisabfragen sind zusätzlich auf 365 Tage Vergangenheit und 730 Tage
+Zukunft begrenzt. Importe benötigen Vorschau und Bestätigung; Ereignisse,
+Sync-Token, externe UID-/ETag-Zuordnungen und Audit müssen atomar in derselben
+Transaktion schreiben. Lokale UIDs, ETags und Sync-Tokens bleiben im
+gemeinsamen Kalenderkern. Schreiben, Löschspiegelung,
 bidirektionale oder automatische Synchronisation und echte Apple-Zugänge sind
 weiterhin offen.
 
@@ -170,7 +178,8 @@ Die erste geprüfte GitHub-Integration ist ebenfalls optional, standardmäßig
 deaktiviert und ausschließlich lesend. Das Fine-grained Token liegt nur
 AES-256-GCM-verschlüsselt im Backend und wird nie wieder ausgegeben. Der
 Netzwerkclient verwendet ausschließlich GET am festen Ursprung
-`api.github.com` mit Zeit-, Größen-, Mengen- und Weiterleitungsgrenzen;
+`api.github.com` mit Zeit-, Größen-, Mengen- und Weiterleitungsgrenzen; die
+Mengenlimits werden gegen die tatsächliche Anbieterantwort validiert.
 Repository-Inhalte werden nicht persistiert und gelten als nicht
 vertrauenswürdig. OAuth, Webhooks, Hintergrundsynchronisation und sämtliche
 GitHub-Schreibaktionen bleiben offen. Ohne sicheren lokalen
@@ -289,10 +298,10 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
 - CalDAV-Änderungen dürfen keine Duplikate auf Apple-Geräten erzeugen.
 - Lokale ICS-Importe verwenden ausschließlich den gemeinsamen Kalenderkern,
   zeigen vor jedem Schreiben eine kurzlebige besitzgebundene Vorschau und
-  importieren neue Ereignisse atomar. Dateien sind auf 2 MiB und 500
-  Ereignisse begrenzt; doppelte oder abweichend vorhandene UIDs sowie
-  unbegrenzte Serien blockieren den Import, statt ETags oder Sync-Daten zu
-  überschreiben.
+  importieren neue Ereignisse atomar. Dateien müssen gültiges UTF-8 enthalten
+  und sind auf 2 MiB und 500 Ereignisse begrenzt; doppelte oder abweichend
+  vorhandene UIDs, nach der Vorschau geänderte ETags sowie unbegrenzte Serien
+  blockieren den Import, statt ETags oder Sync-Daten zu überschreiben.
 - Umbenennungen interner Felder über Migrationen und kompatible API-/CalDAV-
   Abbildung umsetzen.
 - Vor einem Update prüfen, ob die Anwendung und die Datenbankmigration
@@ -429,6 +438,10 @@ Branch-Strategie:
   weiteren Pull Request von `develop` nach `main` gebracht.
 - Direkte Pushes auf `main` und `develop` sind zu vermeiden; GitHub-
   Branch-Schutzregeln sollen Pull Requests und erfolgreiche CI voraussetzen.
+- Ein GitHub-Issue ist optional und keine Voraussetzung für jede Unteraufgabe.
+  Issues, Milestones, Projects oder Browser-Aktionen werden nur bei
+  ausdrücklichem Bedarf angelegt; der verbindliche Umsetzungsweg bleibt Branch,
+  Commit, Push, Pull Request und CI.
 
 Commits verwenden das Format:
 
@@ -662,3 +675,12 @@ gemeldet.
 - **2026-09-07:** Native Einzelinstanzsperre, leere Sidecar-Elternumgebung und
   zufälligen Readiness-Startnachweis nach Rust-, Sidecar- und realem
   DMG-Lifecycle-Test festgehalten.
+- **2026-09-07:** Operative Roadmap-Zusammenfassung gegenüber dem ursprünglichen
+  Leitfaden, lokalen ARM64-Status ohne öffentliche Freigabe und optionale statt
+  verpflichtende GitHub-Planungsobjekte als dauerhafte Projektregeln
+  klargestellt.
+- **2026-09-13:** Den begrenzten Roadmap-0.8-Umfang mit strengem ICS-UTF-8,
+  zeitlich begrenztem externem CalDAV-Abruf, atomarem Ereignis-/Mapping-Commit
+  und hart validierten GitHub-Ergebnismengen nach API-, SQLite-,
+  Client- und Oberflächentests festgehalten; externe Schreibpfade und der
+  native Schlüsselbund bleiben offen.

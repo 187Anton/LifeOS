@@ -335,6 +335,35 @@ test("konfiguriert externe CalDAV-Importe verschlüsselt, deaktiviert und read-o
   );
   assert.equal(invalidRemoteEvent.status, 400);
   assert.match(await invalidRemoteEvent.text(), /gültige VEVENT-Ressource/);
+  client.events = [
+    validRemoteEvents[0]!,
+    {
+      ...validRemoteEvents[0]!,
+      ics: validRemoteEvents[0]!.ics.replace(
+        "external-event-1@example.test",
+        "external-event-2@example.test",
+      ),
+    },
+  ];
+  const duplicateRemoteHref = await fetch(
+    `${base}/integrations/caldav/${created.id}/imports/preview`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        externalCalendarId: remoteCalendars[0]!.id,
+        localCalendarId: localCalendar.externalId,
+      }),
+    },
+  );
+  assert.equal(duplicateRemoteHref.status, 400);
+  assert.match(await duplicateRemoteHref.text(), /Ressourcenadresse mehrfach/);
+  assert.equal(
+    await database.calendarEvent.count({
+      where: { calendarId: localCalendar.id },
+    }),
+    0,
+  );
   client.events = validRemoteEvents;
 
   const previewResponse = await fetch(
@@ -383,6 +412,88 @@ test("konfiguriert externe CalDAV-Importe verschlüsselt, deaktiviert und read-o
   });
   assert.equal(mapping.remoteEtag, '"remote-event-etag"');
   assert.equal(mapping.localEventUid, imported.uid);
+
+  const competingConnection = await database.externalCalDavConnection.create({
+    data: {
+      userId: owner.id,
+      name: "Synthetische atomare Gegenprobe",
+      baseUrl: "https://atomic.example.test/caldav/",
+      credentialsEncrypted: "synthetic-encrypted-payload",
+      secretIv: "synthetic-iv",
+      secretTag: "synthetic-tag",
+      calendars: {
+        create: {
+          user: { connect: { id: owner.id } },
+          href: "/atomic/calendar/",
+          displayName: "Atomare Gegenprobe",
+        },
+      },
+    },
+    include: { calendars: true },
+  });
+  await database.externalCalDavEventMapping.create({
+    data: {
+      userId: owner.id,
+      connectionId: competingConnection.id,
+      externalCalendarId: competingConnection.calendars[0]!.id,
+      remoteHref: "/atomic/calendar/existing.ics",
+      remoteUid: "atomic-existing@example.test",
+      localCalendarId: localCalendar.externalId,
+      localEventUid: "atomic-rollback@example.test",
+    },
+  });
+  client.events = [
+    {
+      href: "/remote/calendars/personal/atomic-rollback.ics",
+      etag: '"atomic-remote-etag"',
+      ics: validRemoteEvents[0]!.ics.replace(
+        "external-event-1@example.test",
+        "atomic-rollback@example.test",
+      ),
+    },
+  ];
+  const atomicPreview = (await (
+    await fetch(`${base}/integrations/caldav/${created.id}/imports/preview`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        externalCalendarId: remoteCalendars[0]!.id,
+        localCalendarId: localCalendar.externalId,
+      }),
+    })
+  ).json()) as ExternalCalDavImportPreviewResponse;
+  const beforeFailedCommit = await database.calendar.findUniqueOrThrow({
+    where: { id: localCalendar.id },
+  });
+  const atomicCommit = await fetch(
+    `${base}/integrations/caldav/${created.id}/imports/commit`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        externalImportId: atomicPreview.externalImportId,
+      }),
+    },
+  );
+  assert.equal(atomicCommit.status, 409);
+  assert.equal(
+    await database.calendarEvent.count({
+      where: {
+        calendarId: localCalendar.id,
+        uid: "atomic-rollback@example.test",
+      },
+    }),
+    0,
+  );
+  assert.equal(
+    (
+      await database.calendar.findUniqueOrThrow({
+        where: { id: localCalendar.id },
+      })
+    ).syncToken,
+    beforeFailedCommit.syncToken,
+  );
+  client.events = validRemoteEvents;
 
   await assert.rejects(
     service
@@ -442,9 +553,10 @@ test("konfiguriert externe CalDAV-Importe verschlüsselt, deaktiviert und read-o
 
 test("bleibt ohne lokalen Integrationsschlüssel vollständig deaktiviert", async () => {
   const database = createDatabaseClient();
+  const client = new SyntheticCalDavClient();
   const service = new ExternalCalDavService(
     new PrismaExternalCalDavRepository(database),
-    new SyntheticCalDavClient(),
+    client,
     new IcsImportService(
       new CalendarService(new PrismaCalendarRepository(database)),
     ),
@@ -462,5 +574,6 @@ test("bleibt ohne lokalen Integrationsschlüssel vollständig deaktiviert", asyn
     (error: unknown) =>
       error instanceof Error && /nicht konfiguriert/.test(error.message),
   );
+  assert.equal(client.credentials.length, 0);
   await database.$disconnect();
 });

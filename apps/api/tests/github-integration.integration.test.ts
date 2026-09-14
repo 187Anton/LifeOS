@@ -306,6 +306,16 @@ test("liest GitHub-Metadaten optional, verschlüsselt und ohne Schreibaktion", a
     ).status,
     403,
   );
+  client.failure = new GitHubNetworkError("NOT_FOUND_OR_FORBIDDEN");
+  const missingRepository = await fetch(
+    `${base}/integrations/github/${created.id}/repositories/synthetic-owner/missing-repository`,
+    { headers: { cookie } },
+  );
+  assert.equal(missingRepository.status, 404);
+  assert.match(
+    await missingRepository.text(),
+    /nicht gefunden oder.*nicht sichtbar/,
+  );
   client.failure = null;
   assert.equal(
     (
@@ -369,9 +379,10 @@ test("liest GitHub-Metadaten optional, verschlüsselt und ohne Schreibaktion", a
 
 test("bleibt ohne lokalen Integrationsschlüssel vollständig deaktiviert", async () => {
   const database = createDatabaseClient();
+  const client = new SyntheticGitHubClient();
   const service = new GitHubIntegrationService(
     new PrismaGitHubIntegrationRepository(database),
-    new SyntheticGitHubClient(),
+    client,
     undefined,
   );
   const overview = await service.overview(randomUUID());
@@ -384,5 +395,6 @@ test("bleibt ohne lokalen Integrationsschlüssel vollständig deaktiviert", asyn
     (error: unknown) =>
       error instanceof Error && /nicht konfiguriert/.test(error.message),
   );
+  assert.equal(client.tokens.length, 0);
   await database.$disconnect();
 });

@@ -3,8 +3,8 @@
 Roadmap 0.5.5 ergänzt unter `/api/v1/integrations/github` eine ausdrücklich
 aktivierbare, ausschließlich lesende GitHub-Integration. Ohne den lokalen
 `INTEGRATION_SECRET_KEY` meldet der Status `available: false`; es findet kein
-Netzwerkzugriff statt. Der Schlüssel muss 32 Byte als Base64 oder 64
-Hexadezimalzeichen enthalten.
+Netzwerkzugriff statt. Der Schlüssel muss genau 32 zufällige Byte als
+kanonischer Base64-Wert enthalten.
 
 ## Sicherheitsgrenze
 
@@ -23,7 +23,9 @@ Hexadezimalzeichen enthalten.
 - Antworten sind auf 2 MiB begrenzt. Ein Zugriff dauert höchstens fünf
   Sekunden, folgt höchstens zwei gleichursprünglichen Weiterleitungen und
   liefert maximal 50 Repositories sowie je 20 Issues, Pull Requests, Commits,
-  Releases und CI-Läufe.
+  Releases und CI-Läufe. LifeOS prüft diese Mengen auch gegen die tatsächliche
+  Anbieterantwort und verlässt sich nicht nur auf den angeforderten
+  `per_page`-Wert.
 - Alle Routen prüfen Sitzung und Besitz. Fremde oder widerrufene Verbindungen
   sind nicht nutzbar. Widerruf entfernt den gespeicherten Chiffretext; das
   Token muss bei GitHub zusätzlich widerrufen werden, wenn es nicht mehr
@@ -49,7 +51,9 @@ Alle Antworten verwenden `Cache-Control: private, no-store`. Rate Limits
 werden als verbleibende Anfragen und Rücksetzzeit angezeigt. Autorisierungs-,
 Berechtigungs-, Rate-Limit-, Timeout-, Größen- und Anbieterfehler werden über
 den versionierten API-Fehlervertrag ohne Stacktrace, Token, internen Pfad oder
-fremden Antwortkörper gemeldet.
+fremden Antwortkörper gemeldet. Ein nicht gefundenes oder mit dem Token nicht
+sichtbares Repository erhält eine gemeinsame verständliche Meldung, weil
+GitHub diese beiden Fälle nicht sicher unterscheidbar macht.
 
 ## Persistenz und Grenzen
 

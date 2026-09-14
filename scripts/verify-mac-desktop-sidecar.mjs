@@ -125,8 +125,13 @@ try {
   const page = await fetch(first.baseUrl, {
     headers: { accept: "text/html" },
   });
-  assert.equal(page.status, 200);
-  assert.match(await page.text(), /Anton Life OS/);
+  const pageBody = await page.text();
+  assert.equal(
+    page.status,
+    200,
+    `Die gebündelte Weboberfläche antwortete unerwartet: ${pageBody}; Sidecar: ${first.output.join("").trim()}`,
+  );
+  assert.match(pageBody, /Anton Life OS/);
   const readiness = await fetch(`${first.baseUrl}/api/v1/readiness`);
   assert.equal(readiness.status, 200);
   const calDav = await fetch(`${first.baseUrl}/caldav/`, {

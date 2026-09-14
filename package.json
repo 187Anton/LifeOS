@@ -1,6 +1,6 @@
 {
   "name": "anton-life-os",
-  "version": "0.6.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "description": "Lokales, persönliches Life OS für Studium, Arbeit, Projekte und Alltag.",
@@ -43,6 +43,10 @@
     "release:verify": "node scripts/verify-release-metadata.mjs",
     "release:build:local": "npm run release:verify && npm run desktop:build:dmg",
     "release:verify:local": "npm run release:verify && npm run desktop:verify:dmg",
+    "release:build:public": "bash scripts/notarize-mac-release.sh",
+    "release:verify:public": "bash scripts/verify-public-mac-release.sh",
+    "release:verify:downloaded": "env LIFEOS_REQUIRE_QUARANTINE=1 bash scripts/verify-public-mac-release.sh",
+    "caldav:verify:lan": "npm run desktop:prepare && node scripts/verify-caldav-lan.mjs",
     "demo:stabilization": "bash scripts/verify-stabilization-demo.sh",
     "db:backup": "bash scripts/backup-database.sh",
     "db:restore": "bash scripts/restore-database.sh",

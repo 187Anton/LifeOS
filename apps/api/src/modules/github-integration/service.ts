@@ -198,11 +198,15 @@ export class GitHubIntegrationService {
           ? `Das GitHub-Limit ist erreicht. Ein neuer Versuch ist nach ${error.rateLimit.resetAt} möglich.`
           : "Das GitHub-Limit ist erreicht. Versuche es später erneut.",
       );
-    const permission = [
-      "AUTHORIZATION_FAILED",
-      "PERMISSION_DENIED",
-      "NOT_FOUND_OR_FORBIDDEN",
-    ].includes(error.code);
+    if (error.code === "NOT_FOUND_OR_FORBIDDEN")
+      throw new ApiError(
+        404,
+        "NOT_FOUND",
+        "Das GitHub-Repository wurde nicht gefunden oder ist mit den erteilten Leseberechtigungen nicht sichtbar.",
+      );
+    const permission = ["AUTHORIZATION_FAILED", "PERMISSION_DENIED"].includes(
+      error.code,
+    );
     throw new ApiError(
       permission ? 403 : 502,
       "EXTERNAL_SERVICE_ERROR",

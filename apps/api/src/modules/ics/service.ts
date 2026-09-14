@@ -13,6 +13,7 @@ import {
   parseCalendarEvents,
   serializeCalendarEvents,
 } from "../caldav/icalendar.js";
+import type { EventImportSideEffect } from "../calendar/repository.js";
 import type { CalendarService, EventInput } from "../calendar/service.js";
 
 const MAX_ICS_BYTES = 2 * 1024 * 1024;
@@ -214,6 +215,7 @@ export class IcsImportService {
     userId: string,
     calendarId: string,
     previewId: string,
+    sideEffect?: EventImportSideEffect,
   ): Promise<IcsImportCommitResponse> {
     this.removeExpired();
     const preview = this.previews.get(previewId);
@@ -263,6 +265,7 @@ export class IcsImportService {
       userId,
       calendarId,
       toCreate,
+      sideEffect,
     );
     return {
       createdEvents: created.length,

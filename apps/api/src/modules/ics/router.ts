@@ -28,25 +28,34 @@ export const createIcsPreviewRouter = ({
     "/calendars/:calendarId/ics/preview",
     createRequireAuthentication(authentication),
     validateRequest({ params }),
-    express.text({
+    express.raw({
       type: ["text/calendar", "application/octet-stream", "text/plain"],
       limit: MAX_ICS_BYTES,
-      defaultCharset: "utf-8",
     }),
     async (request, response) => {
-      if (typeof request.body !== "string")
+      if (!Buffer.isBuffer(request.body))
         throw new ApiError(
           415,
           "VALIDATION_ERROR",
           "Für die Importvorschau wird eine UTF-8-iCalendar-Datei erwartet.",
         );
+      let source: string;
+      try {
+        source = new TextDecoder("utf-8", { fatal: true }).decode(request.body);
+      } catch {
+        throw new ApiError(
+          400,
+          "VALIDATION_ERROR",
+          "Die iCalendar-Datei ist nicht gültig als UTF-8 kodiert.",
+        );
+      }
       response
         .setHeader("Cache-Control", "private, no-store")
         .json(
           await ics.preview(
             String(response.locals.userId),
             response.locals.validated.params.calendarId,
-            request.body,
+            source,
           ),
         );
     },

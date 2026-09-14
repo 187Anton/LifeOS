@@ -189,5 +189,36 @@ describe("optionale GitHub-Integration", () => {
     expect(screen.getByText(/CI-Test/)).toBeVisible();
     expect(localStorage).toHaveLength(0);
     expect(sessionStorage).toHaveLength(0);
+
+    await user.click(
+      screen.getByRole("button", { name: "GitHub deaktivieren" }),
+    );
+    expect(mocks.setGitHubConnectionEnabled).toHaveBeenCalledWith(
+      connection.id,
+      false,
+    );
+    expect(screen.queryByText(/Issue-Test/)).toBeNull();
+  });
+
+  it("übersetzt Berechtigungsfehler verständlich", async () => {
+    mocks.getGitHubIntegration.mockResolvedValue({
+      available: true,
+      networkDefault: "disabled",
+      mode: "read_only",
+      apiHost: "api.github.com",
+      connections: [
+        {
+          ...connection,
+          status: "error",
+          lastErrorCode: "PERMISSION_DENIED",
+        },
+      ],
+    });
+    render(<GitHubIntegrationPanel />);
+
+    expect(
+      await screen.findByText(/erforderliche Leseberechtigung/),
+    ).toBeVisible();
+    expect(screen.queryByText(/Fehlercode: PERMISSION_DENIED/)).toBeNull();
   });
 });
