@@ -1,6 +1,6 @@
 # Release-Nachweis Roadmap 0.9
 
-Stand: 13. September 2026
+Stand: 15. September 2026
 
 ## Ergebnis
 
@@ -84,11 +84,38 @@ als öffentlicher Release durchgeht.
 
 Der Branch wurde mit Commit `e3983b4` gepusht. Pull Request #88 bestand die
 GitHub-CI mit den Jobs „Repository checks“ und „Local macOS release“ und wurde
-anschließend nach `develop` integriert. Der davon getrennte Pull Request #89
-von `develop` nach `main` bestand dieselben beiden Jobs und bleibt als
-vorbereiteter Stabilitäts-PR offen. Diese CI-Ergebnisse prüfen den aktuellen
+anschließend nach `develop` integriert. Der direkte Pull Request #89 von
+`develop` nach `main` wurde am 14. September 2026 geschlossen, nachdem sein
+Dateibaum als vollständig und bytegleich durch Pull Request #91 ersetzt
+nachgewiesen wurde. Pull Request #91 verbindet die wegen früherer
+Squash-Merges getrennten Historien von `main` und `develop`, enthält exakt den
+Dateibaum von `origin/develop` und ist der einzige vorbereitete
+Synchronisierungsweg nach `main`. Er ist nicht zusammengeführt und benötigt
+weiterhin eine ausdrückliche Freigabe. Seine beiden CI-Jobs waren auf dem
+geprüften Head `668cacd` erfolgreich. Diese CI-Ergebnisse prüfen den aktuellen
 Quellstand, ersetzen aber weder die Apple- noch die physischen Geräte-Gates;
-mit dem final notarisierten Artefakt müssen die Releaseprüfungen erneut laufen.
+mit einem späteren final notarisierten Artefakt müssen die Releaseprüfungen
+erneut laufen.
+
+## Bereinigungsstand der Pull Requests
+
+Der abschließende Abgleich am 15. September 2026 hat keine einzigartige
+Dateiänderung in Pull Request #89 ergeben: `origin/develop` und der Head von
+Pull Request #91 besitzen denselben Git-Tree
+`bda3efd389fdf6b62cccb1cd7de7a37b836af698`. Pull Request #91 besitzt
+zusätzlich `origin/develop` und `origin/main` als Eltern und löst damit den
+Historienkonflikt, ohne den freigegebenen Entwicklungsstand zu verändern.
+
+Pull Request #86 bleibt ausdrücklich offen und zurückgestellt. Seine beiden
+Commits `9697bc7` und `bc3b680` enthalten weiterhin einzigartige lokale
+Planungs- und Automationsänderungen. Der aktuelle Drei-Wege-Abgleich gegen
+`origin/develop` zeigt Konflikte in `AGENTS.md`, `README.md`,
+`apps/web/package.json`, `docs/roadmap.md`, `package-lock.json` und
+`scripts/verify-mac-desktop-sidecar.mjs`. Eine spätere Aktualisierung muss die
+Migrationen, das Lockfile, die Dokumentation, die gemeinsamen Planungsmodule
+und das Sidecar-Manifest kontrolliert auflösen und anschließend beide CI-Jobs
+auf dem neuen Head erneut ausführen. Dieser Bereinigungsstand verwirft oder
+integriert keine Änderung aus Pull Request #86.
 
 Der Vorbereitungsweg kennt zwar die offizielle x86_64-Node-Laufzeit samt fester
 Prüfsumme. Das beweist weder das native SQLite-Modul noch den Rust-Build, das
