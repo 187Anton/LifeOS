@@ -60,3 +60,16 @@ den Default-Branch `main`; `target-branch` gilt laut GitHub nur für reguläre
 Versionsupdates. Solche Sicherheits-PRs werden deshalb nicht direkt nach
 `main` gemergt, sondern als eigener Branch aus dem aktuellen `develop`
 übernommen, vollständig geprüft und zuerst nach `develop` integriert.
+
+## GitHub Actions
+
+Externe Actions in Workflows und zusammengesetzten Actions müssen einen
+vollständigen 40-stelligen Commit-SHA verwenden. Direkt dahinter bleibt die
+exakte Releaseversion als Kommentar sichtbar, zum Beispiel
+`owner/action@<commit-sha> # v1.2.3`. Lokale Actions mit einem Pfad unter `./`
+sind davon ausgenommen.
+
+GitHub-Actions-Updates werden von Dependabot gegen `develop` vorgeschlagen.
+Der PR wird nur nach Prüfung der Releasehinweise, des neuen Commits und beider
+CI-Jobs integriert. Workflowberechtigungen dürfen bei einem reinen
+Action-Update nicht erweitert werden.

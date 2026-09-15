@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -12,6 +12,30 @@ const repositoryRoot = path.resolve(
 const readRepositoryFile = (relativePath) =>
   readFile(path.join(repositoryRoot, relativePath), "utf8");
 
+const listYamlFiles = async (directory) => {
+  let entries;
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+
+  const nestedFiles = await Promise.all(
+    entries.map((entry) => {
+      const entryPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        return listYamlFiles(entryPath);
+      }
+      return /\.ya?ml$/i.test(entry.name) ? [entryPath] : [];
+    }),
+  );
+
+  return nestedFiles.flat();
+};
+
 test("enthält die verpflichtenden Repository-Artefakte", async () => {
   const requiredPaths = [
     ".env.example",
@@ -22,6 +46,8 @@ test("enthält die verpflichtenden Repository-Artefakte", async () => {
     "README.md",
     "compose.yaml",
     "docs/architecture.md",
+    "docs/ci-actions.md",
+    "docs/dependency-updates.md",
     "docs/foundation-verification.md",
     "docs/release-0.9.md",
     "docs/roadmap-06-local-demo.md",
@@ -75,6 +101,59 @@ test("führt CI für develop und main mit den verbindlichen Prüfungen aus", asy
   assert.match(workflow, /run: npm run release:build:local/);
   assert.match(workflow, /run: npm run release:verify:local/);
   assert.match(workflow, /if: always\(\)/);
+});
+
+test("pinnt externe GitHub Actions auf unveränderliche Commits", async () => {
+  const yamlFiles = [
+    ...(await listYamlFiles(path.join(repositoryRoot, ".github/workflows"))),
+    ...(await listYamlFiles(path.join(repositoryRoot, ".github/actions"))),
+  ];
+  const dependabot = await readRepositoryFile(".github/dependabot.yml");
+  let externalActionCount = 0;
+
+  for (const yamlFile of yamlFiles) {
+    const lines = (await readFile(yamlFile, "utf8")).split("\n");
+    for (const [index, line] of lines.entries()) {
+      if (!/^\s*(?:-\s*)?uses:\s+/.test(line)) {
+        continue;
+      }
+
+      const value = line.replace(/^\s*(?:-\s*)?uses:\s+/, "");
+      const [rawReference, versionComment = ""] = value.split(/\s+#\s+/, 2);
+      const reference = rawReference.trim().replace(/^(["'])(.*)\1$/, "$2");
+      if (reference.startsWith("./")) {
+        continue;
+      }
+
+      externalActionCount += 1;
+      const location = `${path.relative(repositoryRoot, yamlFile)}:${index + 1}`;
+      if (reference.startsWith("docker://")) {
+        assert.match(
+          reference,
+          /^docker:\/\/[^@\s]+@sha256:[0-9a-f]{64}$/,
+          `${location} muss ein unveränderliches Container-Image verwenden`,
+        );
+      } else {
+        assert.match(
+          reference,
+          /^[^@\s]+@[0-9a-f]{40}$/,
+          `${location} muss einen vollständigen Commit-SHA verwenden`,
+        );
+      }
+      assert.match(
+        versionComment.trim(),
+        /^v\d+\.\d+\.\d+(?:\s|$)/,
+        `${location} muss die lesbare Releaseversion kommentieren`,
+      );
+    }
+  }
+
+  assert.ok(externalActionCount > 0, "mindestens eine externe Action erwartet");
+  assert.match(dependabot, /package-ecosystem: github-actions/);
+  assert.match(
+    dependabot,
+    /package-ecosystem: github-actions[\s\S]*?target-branch: develop/,
+  );
 });
 
 test("führt Dependabot-Versionsupdates kontrolliert über develop", async () => {

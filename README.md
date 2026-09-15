@@ -64,6 +64,10 @@ Pull Requests gegen `develop` und `main` starten automatisch die GitHub-
 Actions-CI. Sie prüft Formatierung, Compose-Konfiguration und alle vorhandenen
 automatisierten Tests. Auf GitHub sollten für beide Branches erforderliche
 Statusprüfungen und Pull Requests als Branch-Schutz eingerichtet werden.
+Externe Actions sind auf vollständige Commit-SHAs festgelegt; der zugehörige
+Release bleibt als Kommentar lesbar. Die Repositorytests verhindern neue
+veränderliche Action-Referenzen. Details und der kontrollierte Updateablauf
+stehen unter [Abgesicherte GitHub Actions](docs/ci-actions.md).
 
 Codex darf und soll Pull Requests selbstständig erstellen, wenn das Repository
 mit einem GitHub-Remote verbunden ist und die nötigen Berechtigungen vorhanden

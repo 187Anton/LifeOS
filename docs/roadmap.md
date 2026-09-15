@@ -695,6 +695,11 @@ ist weder eine Developer-ID-Freigabe noch ein öffentliches Download-Release.
   der erst nach einer späteren `main`-Integration mögliche reale
   Zielbranch-Nachweis bleiben ausdrücklich offen. Details stehen unter
   [Abhängigkeitsupdates über `develop`](dependency-updates.md).
+- **Erweitert (15. September 2026):** Alle externen GitHub Actions verwenden
+  vollständige Commit-SHAs mit lesbarer Releaseversion. Eine
+  repositoryweite Prüfung verhindert neue veränderliche Action-Referenzen;
+  Dependabot pflegt die Pins weiter über `develop`. Details stehen unter
+  [Abgesicherte GitHub Actions](ci-actions.md).
 
 Abschlusskriterium: Konkrete Sicherheitsbefunde sind behoben oder ausdrücklich
 offen dokumentiert; bestehende Funktionen und `/api/v1` bleiben erhalten.
