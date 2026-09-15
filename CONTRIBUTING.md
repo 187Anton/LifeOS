@@ -37,7 +37,11 @@ Pull Requests enthalten:
 Die GitHub-Actions-CI läuft automatisch für Pull Requests nach `develop` und
 `main`. Pull Requests bleiben Entwürfe, bis Akzeptanzkriterien, relevante Tests
 und Dokumentation vollständig sind. Fehlgeschlagene erforderliche Checks
-dürfen nicht umgangen werden.
+dürfen nicht umgangen werden. Die Rulesets `protect-develop` und
+`protect-main` verlangen für den aktuellen PR-Stand exakt `Repository checks`
+und `Local macOS release`; beide müssen erfolgreich sein. Die unveränderten
+Schutzregeln und der kontrollierte Negativtest sind unter
+[Verbindliche Branch-Prüfungen](docs/branch-rulesets.md) dokumentiert.
 
 Vor dem Push mindestens ausführen:
 

@@ -700,6 +700,11 @@ ist weder eine Developer-ID-Freigabe noch ein öffentliches Download-Release.
   repositoryweite Prüfung verhindert neue veränderliche Action-Referenzen;
   Dependabot pflegt die Pins weiter über `develop`. Details stehen unter
   [Abgesicherte GitHub Actions](ci-actions.md).
+- **Erweitert (15. September 2026):** Die aktiven Rulesets für `main` und
+  `develop` verlangen streng sowohl `Repository checks` als auch
+  `Local macOS release`. Ein kontrollierter Negativtest belegt, dass ein
+  ausschließlich roter Mac-Job den Merge blockiert. Details stehen unter
+  [Verbindliche Branch-Prüfungen](branch-rulesets.md).
 
 Abschlusskriterium: Konkrete Sicherheitsbefunde sind behoben oder ausdrücklich
 offen dokumentiert; bestehende Funktionen und `/api/v1` bleiben erhalten.
