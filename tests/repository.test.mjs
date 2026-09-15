@@ -46,12 +46,14 @@ test("enthält die verpflichtenden Repository-Artefakte", async () => {
     "README.md",
     "compose.yaml",
     "docs/architecture.md",
+    "docs/branch-rulesets.md",
     "docs/ci-actions.md",
     "docs/dependency-updates.md",
     "docs/foundation-verification.md",
     "docs/release-0.9.md",
     "docs/roadmap-06-local-demo.md",
     "docs/roadmap.md",
+    "docs/worktree-reconciliation.md",
   ];
 
   await Promise.all(
@@ -76,6 +78,23 @@ test("schützt lokale Secrets und Anwendungsdaten vor Git", async () => {
   assert.match(gitignore, /^\*\.lifeos-backup$/m);
   assert.doesNotMatch(gitignore, /packages\/database\/prisma\/migrations\//);
   assert.match(gitignore, /packages\/database\/src\/generated\//);
+});
+
+test("dokumentiert die verlustfreie Worktree-Bereinigung", async () => {
+  const [contributing, reconciliation, gitignore] = await Promise.all([
+    readRepositoryFile("CONTRIBUTING.md"),
+    readRepositoryFile("docs/worktree-reconciliation.md"),
+    readRepositoryFile(".gitignore"),
+  ]);
+
+  assert.match(contributing, /git worktree list --porcelain/);
+  assert.match(contributing, /Sicherungsbranch/);
+  assert.match(reconciliation, /git worktree prune --expire now/);
+  assert.match(reconciliation, /PR #18/);
+  assert.match(reconciliation, /reset --hard/);
+  assert.match(gitignore, /^\*\.tsbuildinfo$/m);
+  assert.match(gitignore, /^test-results\/$/m);
+  assert.match(gitignore, /^packages\/database\/src\/generated\/$/m);
 });
 
 test("führt CI für develop und main mit den verbindlichen Prüfungen aus", async () => {
