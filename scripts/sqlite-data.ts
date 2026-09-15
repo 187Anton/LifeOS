@@ -4,6 +4,10 @@ import {
   createSqliteBackup,
   restoreSqliteBackup,
 } from "../packages/database/src/sqlite-backup.js";
+import {
+  createEncryptedSqliteBackup,
+  restoreEncryptedSqliteBackup,
+} from "../packages/database/src/encrypted-sqlite-backup.js";
 import { importPostgresToSqlite } from "../packages/database/src/sqlite-import.js";
 
 const requireEnvironment = (name: string) => {
@@ -17,6 +21,15 @@ const requireAbsolutePath = (value: string, label: string) => {
     throw new Error(`${label} muss ein absoluter Pfad sein.`);
   }
   return value;
+};
+
+const takePassphrase = () => {
+  const passphrase = process.env.LIFEOS_BACKUP_PASSPHRASE;
+  delete process.env.LIFEOS_BACKUP_PASSPHRASE;
+  if (!passphrase) {
+    throw new Error("LIFEOS_BACKUP_PASSPHRASE fehlt.");
+  }
+  return passphrase;
 };
 
 const main = async () => {
@@ -62,7 +75,43 @@ const main = async () => {
     return;
   }
 
-  throw new Error("Erwartet wird import, backup oder restore.");
+  if (operation === "backup-encrypted") {
+    if (!argument) throw new Error("Der absolute Backup-Zielpfad fehlt.");
+    const result = await createEncryptedSqliteBackup({
+      databaseUrl: requireEnvironment("SQLITE_DATABASE_URL"),
+      documentsDirectory: requireAbsolutePath(
+        requireEnvironment("STORAGE_PATH"),
+        "STORAGE_PATH",
+      ),
+      destinationPath: requireAbsolutePath(argument, "Backup-Ziel"),
+      passphrase: takePassphrase(),
+    });
+    console.info(
+      `Verschlüsseltes SQLite-Backup erstellt: ${result.destinationPath}`,
+    );
+    return;
+  }
+
+  if (operation === "restore-encrypted") {
+    if (!argument) throw new Error("Der absolute Backup-Quellpfad fehlt.");
+    const result = await restoreEncryptedSqliteBackup({
+      sourcePath: requireAbsolutePath(argument, "Backup-Quelle"),
+      targetDatabaseUrl: requireEnvironment("SQLITE_DATABASE_URL"),
+      targetDocumentsDirectory: requireAbsolutePath(
+        requireEnvironment("STORAGE_PATH"),
+        "STORAGE_PATH",
+      ),
+      passphrase: takePassphrase(),
+    });
+    console.info(
+      `Verschlüsseltes SQLite-Backup wurde geprüft in neue Ziele restauriert: ${result.targetDatabasePath}`,
+    );
+    return;
+  }
+
+  throw new Error(
+    "Erwartet wird import, backup, restore, backup-encrypted oder restore-encrypted.",
+  );
 };
 
 void main().catch((error: unknown) => {

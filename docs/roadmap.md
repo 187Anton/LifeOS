@@ -709,6 +709,14 @@ offen dokumentiert; bestehende Funktionen und `/api/v1` bleiben erhalten.
 - Details, Befunde, ausgeführte Prüfungen und die klare Grenze zum finalen
   Zwei-Versionen-Lauf stehen im
   [`Recovery-Nachweis 0.6.2`](reliability-recovery-0.6.md).
+- **Erweitert (15. September 2026):** Der portable SQLite-Backup-Pfad schützt
+  Datenbank und Dokumente gemeinsam in einem versionierten AES-256-GCM-
+  Container. Falsche Passphrase, Manipulation, fehlende Datei, Symlinkquelle
+  und vorhandene Ziele werden abgewiesen; das bisherige unverschlüsselte
+  Format bleibt ohne stille Migration lesbar. PostgreSQL-Dump und separates
+  Dokumentenbackup bleiben unverschlüsselt und benötigen einen geschützten
+  lokalen Speicher. Details stehen unter
+  [Verschlüsselte Backups](encrypted-backups.md).
 
 Abschlusskriterium: Migration, Seed, Parität und Recovery sind aktuell
 nachgewiesen. Der finale 0.6-Update-/Rollback-Lauf ist mit 0.6.4 abgeschlossen.
