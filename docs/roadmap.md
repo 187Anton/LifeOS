@@ -734,6 +734,12 @@ offen dokumentiert; bestehende Funktionen und `/api/v1` bleiben erhalten.
   Dokumentenbackup bleiben unverschlüsselt und benötigen einen geschützten
   lokalen Speicher. Details stehen unter
   [Verschlüsselte Backups](encrypted-backups.md).
+- **Bereinigt (15. September 2026):** Verwaiste Worktree-Metadaten wurden erst
+  nach Zuordnung ihrer Branches entfernt. Der alte lokale `develop`-Stand und
+  ein historischer abgetrennter Snapshot bleiben über Archivbranches erhalten;
+  `develop` entspricht wieder `origin/develop`, ohne unversionierte Dateien zu
+  löschen. Details stehen unter
+  [Bereinigter lokaler Worktree-Stand](worktree-reconciliation.md).
 
 Abschlusskriterium: Migration, Seed, Parität und Recovery sind aktuell
 nachgewiesen. Der finale 0.6-Update-/Rollback-Lauf ist mit 0.6.4 abgeschlossen.

@@ -77,6 +77,12 @@ mit einem GitHub-Remote verbunden ist und die nötigen Berechtigungen vorhanden
 sind. Ohne Remote wird nur der lokale Branch vorbereitet; ein Push oder PR wird
 nicht vorgetäuscht.
 
+Bei parallelen Arbeitskopien wird vor neuer Arbeit der aktuelle Remote-Stand
+geprüft. Veraltete Branch-Zeiger werden erst nach Commit-Zuordnung und lokaler
+Sicherung verschoben; unversionierte Dateien werden nicht pauschal gelöscht.
+Der geprüfte Ausgangsstand und Ablauf stehen unter
+[Bereinigter lokaler Worktree-Stand](docs/worktree-reconciliation.md).
+
 ## Veröffentlichung und Lizenz
 
 Dieses Repository ist öffentlich, damit der Entwicklungsprozess und der

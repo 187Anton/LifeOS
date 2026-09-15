@@ -24,6 +24,17 @@ fix(caldav): preserve event etags during update
 Änderungen werden zuerst per Pull Request nach `develop` und erst danach per
 Pull Request von `develop` nach `main` integriert.
 
+## Worktrees und lokaler Branch-Stand
+
+Vor einem neuen Zweckbranch zuerst die Remote-Refs und
+`git worktree list --porcelain` prüfen. Ein lokaler `develop` darf nur dann an
+`origin/develop` angeglichen werden, wenn zusätzliche lokale Commits einem
+Branch oder Pull Request zugeordnet und durch einen Sicherungsbranch erhalten
+sind. Unversionierte Dateien werden einzeln geprüft und nicht durch pauschale
+Reset- oder Löschbefehle entfernt. Der zuletzt geprüfte lokale Stand ist unter
+[Bereinigter lokaler Worktree-Stand](docs/worktree-reconciliation.md)
+dokumentiert.
+
 ## Pull Requests
 
 Pull Requests enthalten:
