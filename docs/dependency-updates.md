@@ -51,15 +51,15 @@ CI-Jobs geprüft und zuerst nach `develop` integriert.
 
 ## Alte Pull Requests
 
-| PR  | Update                            | Befund am 15. September 2026                                              | Entscheidung                                                             |
-| --- | --------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| #46 | `@types/node` 22 → 26             | Major-Update gegen `main`; weicht von der gebündelten Node-22-Laufzeit ab | schließen; eine Node-Major-Migration nur separat aus aktuellem `develop` |
-| #47 | `@vitejs/plugin-react` 5 → 6      | Major-Update gegen `main`; alter Repository-Check fehlgeschlagen          | schließen; bei neuem Bedarf separat erzeugen und vollständig prüfen      |
-| #48 | `@testing-library/jest-dom` 6 → 7 | Major-Update gegen `main`; heutiger macOS-Pflichtjob fehlt                | schließen; bei neuem Bedarf separat erzeugen und vollständig prüfen      |
-| #49 | `jsdom` 27 → 30                   | Major-Update gegen `main`; heutiger macOS-Pflichtjob fehlt                | schließen; bei neuem Bedarf separat erzeugen und vollständig prüfen      |
-| #50 | Vite 7 → 8                        | Major-Update gegen `main` und konfliktbehaftet                            | schließen; Migration nur separat aus aktuellem `develop`                 |
+| PR  | Update                            | Befund am 15. September 2026                                              | Entscheidung                                                            |
+| --- | --------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| #46 | `@types/node` 22 → 26             | Major-Update gegen `main`; weicht von der gebündelten Node-22-Laufzeit ab | ohne Merge geschlossen; Node-Major-Migration nur separat aus `develop`  |
+| #47 | `@vitejs/plugin-react` 5 → 6      | Major-Update gegen `main`; alter Repository-Check fehlgeschlagen          | ohne Merge geschlossen; bei neuem Bedarf separat und vollständig prüfen |
+| #48 | `@testing-library/jest-dom` 6 → 7 | Major-Update gegen `main`; heutiger macOS-Pflichtjob fehlt                | ohne Merge geschlossen; bei neuem Bedarf separat und vollständig prüfen |
+| #49 | `jsdom` 27 → 30                   | Major-Update gegen `main`; heutiger macOS-Pflichtjob fehlt                | ohne Merge geschlossen; bei neuem Bedarf separat und vollständig prüfen |
+| #50 | Vite 7 → 8                        | Major-Update gegen `main` und konfliktbehaftet                            | ohne Merge geschlossen; Migration nur separat aus aktuellem `develop`   |
 
-Die fünf Änderungen werden weder zusammengeführt noch auf den aktuellen
+Die fünf Änderungen wurden nicht zusammengeführt und nicht auf den aktuellen
 Lockfile-Stand übertragen. Nach Wirksamwerden der Konfiguration im
 Default-Branch erzeugt der nächste reguläre Dependabot-Lauf neue PRs gegen
 `develop`, soweit die Updates dann noch relevant sind.
