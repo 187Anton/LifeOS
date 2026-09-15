@@ -62,8 +62,11 @@ Beispiele sind `feat(calendar): add event model` oder
 
 Pull Requests gegen `develop` und `main` starten automatisch die GitHub-
 Actions-CI. Sie prüft Formatierung, Compose-Konfiguration und alle vorhandenen
-automatisierten Tests. Auf GitHub sollten für beide Branches erforderliche
-Statusprüfungen und Pull Requests als Branch-Schutz eingerichtet werden.
+automatisierten Tests. Die aktiven Rulesets beider Branches verlangen exakt
+`Repository checks` und `Local macOS release` für den aktuellen PR-Stand; ein
+fehlender oder fehlgeschlagener Job blockiert den Squash-Merge. Details und der
+kontrollierte Negativnachweis stehen unter
+[Verbindliche Branch-Prüfungen](docs/branch-rulesets.md).
 Externe Actions sind auf vollständige Commit-SHAs festgelegt; der zugehörige
 Release bleibt als Kommentar lesbar. Die Repositorytests verhindern neue
 veränderliche Action-Referenzen. Details und der kontrollierte Updateablauf

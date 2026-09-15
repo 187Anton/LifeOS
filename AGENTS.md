@@ -454,6 +454,11 @@ Branch-Strategie:
   weiteren Pull Request von `develop` nach `main` gebracht.
 - Direkte Pushes auf `main` und `develop` sind zu vermeiden; GitHub-
   Branch-Schutzregeln sollen Pull Requests und erfolgreiche CI voraussetzen.
+- Die aktiven Rulesets `protect-main` und `protect-develop` verlangen streng
+  die exakten Statuschecks `Repository checks` und `Local macOS release` für
+  den aktuellen Pull-Request-Stand. Kein fehlender oder fehlgeschlagener Check
+  darf umgangen werden; beide Rulesets bleiben ohne Bypass-Akteure und erlauben
+  ausschließlich Squash-Merges.
 - Ein GitHub-Issue ist optional und keine Voraussetzung für jede Unteraufgabe.
   Issues, Milestones, Projects oder Browser-Aktionen werden nur bei
   ausdrücklichem Bedarf angelegt; der verbindliche Umsetzungsweg bleibt Branch,
@@ -712,3 +717,6 @@ gemeldet.
   lesbaren Releasekommentaren festgelegt und die Regel durch eine
   repositoryweite Prüfung für Workflows und zusammengesetzte Actions
   abgesichert; Berechtigungen und Dependabot-Zielbranch bleiben unverändert.
+- **2026-09-15:** `Repository checks` und `Local macOS release` in den aktiven
+  Rulesets für `main` und `develop` als strikte Pflichtchecks festgelegt; alle
+  bisherigen Schutzregeln und die leere Bypass-Liste bleiben unverändert.
