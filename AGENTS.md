@@ -275,8 +275,13 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
   geprüfte Zieldatei. SQLite-Backup und Restore umfassen Datenbank und
   Dokumente, verwenden SHA-256-Manifeste und schreiben niemals über aktive
   Ziele. Quelle, Backup, Zieldatenbank und Zieldokumente müssen disjunkt sein;
-  symbolische Links werden vor jedem Schreiben abgewiesen. Backups sind
-  unverschlüsselt und vertraulich zu behandeln.
+  symbolische Links werden vor jedem Schreiben abgewiesen. Portable
+  SQLite-/Dokumentenbackups verwenden zusätzlich einen versionierten,
+  authentifiziert verschlüsselten Gesamtcontainer; Passphrasen werden weder
+  gespeichert noch protokolliert. Die bisherigen unverschlüsselten Formate
+  bleiben kompatibel, dürfen aber nur auf vertrauenswürdigen verschlüsselten
+  lokalen Datenträgern liegen und nicht unverschlüsselt in Cloudspeicher oder
+  auf Wechselmedien kopiert werden.
 - Kalenderzeitpunkte werden als `TIMESTAMPTZ` plus fachliche IANA-Zeitzone,
   ganztägige Ereignisse ausschließlich als `DATE`-Werte gespeichert. Ein
   Datenbank-Constraint muss beide Formen eindeutig voneinander trennen.
@@ -684,3 +689,7 @@ gemeldet.
   und hart validierten GitHub-Ergebnismengen nach API-, SQLite-,
   Client- und Oberflächentests festgehalten; externe Schreibpfade und der
   native Schlüsselbund bleiben offen.
+- **2026-09-15:** Versionierten AES-256-GCM-Container für gemeinsame portable
+  SQLite-/Dokumentenbackups, verdeckte Passphrasenübergabe sowie kompatiblen
+  Legacy- und Neuziel-Restore nach vollständigem synthetischem Recovery-,
+  Manipulations- und Fehlerschutztest festgehalten.

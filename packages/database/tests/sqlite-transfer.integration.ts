@@ -7,6 +7,8 @@ import {
   mkdtemp,
   readFile,
   rm,
+  stat,
+  symlink,
   unlink,
   writeFile,
 } from "node:fs/promises";
@@ -22,6 +24,10 @@ import {
   createSqliteBackup,
   restoreSqliteBackup,
 } from "../src/sqlite-backup.js";
+import {
+  createEncryptedSqliteBackup,
+  restoreEncryptedSqliteBackup,
+} from "../src/encrypted-sqlite-backup.js";
 import { importPostgresToSqlite } from "../src/sqlite-import.js";
 
 test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in neue Ziele", async (t) => {
@@ -572,6 +578,45 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     destinationDirectory: backupDirectory,
   });
   assert.equal(backup.manifest.documents.length, 2);
+  const encryptedBackupPath = path.join(directory, "backup.lifeos-backup");
+  const backupPassphrase = "synthetic-recovery-passphrase-2032";
+  await createEncryptedSqliteBackup({
+    databaseUrl: `file:${importedDatabasePath}`,
+    documentsDirectory: documents,
+    destinationPath: encryptedBackupPath,
+    passphrase: backupPassphrase,
+  });
+  const encryptedBackupBytes = await readFile(encryptedBackupPath);
+  assert.equal(
+    encryptedBackupBytes.includes(Buffer.from(backupPassphrase, "utf8")),
+    false,
+  );
+  assert.equal(
+    encryptedBackupBytes.includes(
+      Buffer.from("synthetisches Dokument", "utf8"),
+    ),
+    false,
+  );
+  assert.equal((await stat(encryptedBackupPath)).mode & 0o777, 0o600);
+  const protectedDestination = path.join(directory, "protected-destination");
+  const protectedMarker = "unverändert\n";
+  await writeFile(protectedDestination, protectedMarker);
+  const encryptedDestinationLink = path.join(
+    directory,
+    "destination-link.lifeos-backup",
+  );
+  await symlink(protectedDestination, encryptedDestinationLink);
+  await assert.rejects(
+    () =>
+      createEncryptedSqliteBackup({
+        databaseUrl: `file:${importedDatabasePath}`,
+        documentsDirectory: documents,
+        destinationPath: encryptedDestinationLink,
+        passphrase: backupPassphrase,
+      }),
+    /existiert bereits/,
+  );
+  assert.equal(await readFile(protectedDestination, "utf8"), protectedMarker);
 
   await imported.auditEvent.create({
     data: {
@@ -645,6 +690,114 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   assert.equal(
     await readFile(path.join(restoredDocuments, user.id, storageKey), "utf8"),
     "synthetisches Dokument\n",
+  );
+
+  const encryptedRestoredDatabasePath = path.join(
+    directory,
+    "encrypted-restored.sqlite",
+  );
+  const encryptedRestoredDocuments = path.join(
+    directory,
+    "documents-encrypted-restored",
+  );
+  await restoreEncryptedSqliteBackup({
+    sourcePath: encryptedBackupPath,
+    targetDatabaseUrl: `file:${encryptedRestoredDatabasePath}`,
+    targetDocumentsDirectory: encryptedRestoredDocuments,
+    passphrase: backupPassphrase,
+  });
+  const encryptedRestored = createDatabaseClient(
+    `file:${encryptedRestoredDatabasePath}`,
+  );
+  assert.equal(
+    (
+      await encryptedRestored.calendarEvent.findUniqueOrThrow({
+        where: { id: event.id },
+      })
+    ).etag,
+    event.etag,
+  );
+  assert.equal(
+    (
+      await encryptedRestored.financeTransaction.findUniqueOrThrow({
+        where: { id: financeTransaction.id },
+      })
+    ).amountMinor,
+    financeTransaction.amountMinor,
+  );
+  await encryptedRestored.$disconnect();
+  assert.equal(
+    await readFile(
+      path.join(encryptedRestoredDocuments, user.id, storageKey),
+      "utf8",
+    ),
+    "synthetisches Dokument\n",
+  );
+
+  const wrongKeyDatabase = path.join(directory, "wrong-key.sqlite");
+  const wrongKeyDocuments = path.join(directory, "documents-wrong-key");
+  await assert.rejects(
+    () =>
+      restoreEncryptedSqliteBackup({
+        sourcePath: encryptedBackupPath,
+        targetDatabaseUrl: `file:${wrongKeyDatabase}`,
+        targetDocumentsDirectory: wrongKeyDocuments,
+        passphrase: "synthetic-but-incorrect-passphrase",
+      }),
+    /nicht authentifiziert/,
+  );
+  await assert.rejects(() => stat(wrongKeyDatabase), /ENOENT/);
+  await assert.rejects(() => stat(wrongKeyDocuments), /ENOENT/);
+
+  const corruptedEncryptedBackup = path.join(
+    directory,
+    "backup-corrupted.lifeos-backup",
+  );
+  const corruptedBytes = Buffer.from(encryptedBackupBytes);
+  corruptedBytes[Math.floor(corruptedBytes.length / 2)]! ^= 0xff;
+  await writeFile(corruptedEncryptedBackup, corruptedBytes, { mode: 0o600 });
+  await assert.rejects(
+    () =>
+      restoreEncryptedSqliteBackup({
+        sourcePath: corruptedEncryptedBackup,
+        targetDatabaseUrl: `file:${path.join(directory, "corrupted.sqlite")}`,
+        targetDocumentsDirectory: path.join(directory, "documents-corrupted"),
+        passphrase: backupPassphrase,
+      }),
+    /nicht authentifiziert/,
+  );
+
+  await assert.rejects(
+    () =>
+      restoreEncryptedSqliteBackup({
+        sourcePath: path.join(directory, "missing.lifeos-backup"),
+        targetDatabaseUrl: `file:${path.join(directory, "missing.sqlite")}`,
+        targetDocumentsDirectory: path.join(directory, "documents-missing"),
+        passphrase: backupPassphrase,
+      }),
+    /Backup-Datei fehlt/,
+  );
+  const encryptedBackupLink = path.join(directory, "backup-link.lifeos-backup");
+  await symlink(encryptedBackupPath, encryptedBackupLink);
+  await assert.rejects(
+    () =>
+      restoreEncryptedSqliteBackup({
+        sourcePath: encryptedBackupLink,
+        targetDatabaseUrl: `file:${path.join(directory, "link.sqlite")}`,
+        targetDocumentsDirectory: path.join(directory, "documents-link"),
+        passphrase: backupPassphrase,
+      }),
+    /reguläre Datei/,
+  );
+  await assert.rejects(
+    () =>
+      restoreEncryptedSqliteBackup({
+        sourcePath: encryptedBackupPath,
+        targetDatabaseUrl: `file:${encryptedRestoredDatabasePath}`,
+        targetDocumentsDirectory: path.join(directory, "documents-existing"),
+        passphrase: backupPassphrase,
+      }),
+    /existieren bereits/,
   );
 
   const tamperedBackup = path.join(directory, "backup-tampered");

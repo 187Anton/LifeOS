@@ -479,6 +479,8 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 | PostgreSQL vollständig nach SQLite übertragen    | `npm run db:sqlite:import`                                                 |
 | SQLite und Dokumente sichern                     | `npm run db:sqlite:backup -- …`                                            |
 | SQLite-Backup in neue Ziele restaurieren         | `npm run db:sqlite:restore -- …`                                           |
+| SQLite und Dokumente verschlüsselt sichern       | `npm run db:sqlite:backup:encrypted -- …`                                  |
+| Verschlüsseltes Backup in neue Ziele laden       | `npm run db:sqlite:restore:encrypted -- …`                                 |
 | SQLite-Import und Recovery isoliert prüfen       | `npm run db:sqlite:verify:recovery`                                        |
 | Lokales PostgreSQL-Backup erstellen              | `npm run db:backup`                                                        |
 | Backup sicher in neue Datenbank restaurieren     | `npm run db:restore -- …`                                                  |
@@ -548,7 +550,11 @@ Migrationen müssen ein PostgreSQL-Backup und eine Sicherung des
 Dokumentenverzeichnisses erstellt werden. Der vollständige automatisierte
 Backup-/Wiederherstellungsnachweis umfasst Prüfsummen, manipulierte Archive,
 Symlinks, disjunkte neue Ziele und Datenvergleich; Details stehen im
-[Recovery-Nachweis 0.6](docs/reliability-recovery-0.6.md).
+[Recovery-Nachweis 0.6](docs/reliability-recovery-0.6.md). Für portable
+SQLite-Sicherungen schützt der empfohlene verschlüsselte Container Datenbank
+und Dokumente gemeinsam. Unterstützte Ziele, Passphrasenübergabe,
+Wiederherstellung und der kompatibel erhaltene unverschlüsselte Bestand sind
+unter [Verschlüsselte Backups](docs/encrypted-backups.md) dokumentiert.
 
 ## Optionale GitHub-Planung
 

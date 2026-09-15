@@ -47,6 +47,7 @@ test("schützt lokale Secrets und Anwendungsdaten vor Git", async () => {
   assert.match(gitignore, /^data\/\*$/m);
   assert.match(gitignore, /^!data\/\.gitkeep$/m);
   assert.match(gitignore, /^backups\/$/m);
+  assert.match(gitignore, /^\*\.lifeos-backup$/m);
   assert.doesNotMatch(gitignore, /packages\/database\/prisma\/migrations\//);
   assert.match(gitignore, /packages\/database\/src\/generated\//);
 });
@@ -246,6 +247,14 @@ test("stellt Secret-Scan und isolierte Backup-/Restore-Prüfung bereit", async (
   assert.equal(
     packageJson.scripts["documents:restore"],
     "node --import tsx scripts/document-data.ts restore",
+  );
+  assert.equal(
+    packageJson.scripts["db:sqlite:backup:encrypted"],
+    "node --import tsx scripts/sqlite-data.ts backup-encrypted",
+  );
+  assert.equal(
+    packageJson.scripts["db:sqlite:restore:encrypted"],
+    "node --import tsx scripts/sqlite-data.ts restore-encrypted",
   );
   assert.match(recoveryScript, /lifeos_verify_/);
   assert.match(recoveryScript, /lifeos_restore_/);

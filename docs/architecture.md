@@ -349,3 +349,13 @@ synthetischen Datenbanken und räumt sie unabhängig vom Ergebnis wieder auf.
 Das PostgreSQL-Archiv umfasst keine Dokumentdateien unter `data/`; sobald dort
 echte Dateien verwaltet werden, benötigt ein konsistentes Backup beide
 Speicherbereiche und einen gemeinsamen Wiederherstellungstest.
+
+Der portable Backup-Pfad der lokalen SQLite-/Mac-App verschlüsselt Datenbank,
+Dokumente und das bestehende SHA-256-Manifest gemeinsam in einem versionierten,
+mit AES-256-GCM authentifizierten Container. Die Passphrase wird mit `scrypt`
+und zufälligem Salz abgeleitet, nicht gespeichert und nicht protokolliert. Der
+Restore authentifiziert zuerst den Container und übernimmt das innere Backup
+danach ausschließlich über die bestehenden Manifest-, Integritäts-,
+Migrations- und Neuzielprüfungen. Bestehende unverschlüsselte Backupformate
+bleiben lesbar und werden nicht automatisch migriert. Details stehen unter
+[Verschlüsselte Backups](encrypted-backups.md).

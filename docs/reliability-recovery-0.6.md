@@ -1,6 +1,6 @@
 # Stabilitäts-, Kompatibilitäts- und Recovery-Nachweis 0.6.2
 
-Stand: 4. September 2026
+Stand: 4. September 2026, ergänzt am 15. September 2026
 
 Der Nachweis verwendet ausschließlich synthetische Daten. Er prüft den
 integrierten Stand von Roadmap 0.1 bis 0.6.1 ohne neue Fachmodule und trennt
@@ -33,22 +33,22 @@ aktuell ausgeführte Prüfungen von älteren oder extern noch offenen Gates.
 
 ## Nachweismatrix
 
-| Grenze                 | Aktueller Nachweis                                                                                                                              | Ergebnis                              |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| PostgreSQL-Migration   | 19 versionierte Migrationen auf neuer Datenbank; zweiter Lauf ohne offene Migration                                                             | bestanden                             |
-| SQLite-Migration       | 10 prüfsummengeschützte SQL-Migrationen; Wiederholung, Fremdschlüssel- und Integritätsprüfung                                                   | bestanden                             |
-| Seed                   | PostgreSQL-Seed zweimal auf demselben Bestand                                                                                                   | bestanden, unverändert                |
-| PostgreSQL-Neustart    | Compose-Stopp ohne Volume-Löschung, Neustart, Readiness und Migrationsstatus                                                                    | bestanden                             |
-| Providerparität        | dieselben 82 API-Fälle seriell auf PostgreSQL und neuer SQLite-Datei                                                                            | bestanden                             |
-| Datenmodell            | 23 Datenbanktests für Besitz, Beziehungen, Basiseinheiten, Termine und beide Provider                                                           | bestanden                             |
-| PostgreSQL-Recovery    | neue Quell- und Zieldatenbanken, Datenvergleich, Pflichtprüfsumme, falsche Prüfsumme, ungültiges Archiv und wiederholter Restore                | bestanden                             |
-| SQLite-Import/Recovery | vollständiger Modellimport, Online-Backup, Dokumente, neue Ziele, Daten- und Identitätsvergleich                                                | bestanden                             |
-| Dokumente              | private Verzeichnisse/Dateien, Manifest, Downloadhash, fehlende Datei/Prüfsumme, Traversal, Symlink, disjunkte Ziele und wiederholter Restore   | bestanden                             |
-| API und Fachmodule     | `/api/v1`, Fehlervertrag, Besitz, Archivierung/Soft-Delete, Dashboard, Suche, KI, Projekte, Aufgaben, Studium, Arbeit, Finanzen und Fitness     | bestanden                             |
-| Kalender und CalDAV    | UID, ETag, Sync-Token/-Version, Ganztag, Zeitzone, `VTIMEZONE`, Wiederholung, Erinnerungen, Konflikte und Soft-Delete                           | bestanden                             |
-| Browser/PWA            | 43 Unit- und 30 Playwright-Fälle auf Desktop- und Mobilviewport einschließlich App-Shell ohne persönliche Browserpersistenz                     | bestanden                             |
-| Sidecar-Neustart       | gebündeltes Node 22, dynamischer Loopback-Port, SQLite, Anmeldung nach Neustart sowie unveränderte Benutzer-, Kalender- und Ereignisidentitäten | bestanden                             |
-| Lokales DMG            | ARM64-Build, `hdiutil verify`, isolierte Kopie, ad-hoc-Signatur und Sidecar ohne globales Node oder Docker                                      | bestanden auf diesem Entwicklungs-Mac |
+| Grenze                 | Aktueller Nachweis                                                                                                                                                                                                  | Ergebnis                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| PostgreSQL-Migration   | 19 versionierte Migrationen auf neuer Datenbank; zweiter Lauf ohne offene Migration                                                                                                                                 | bestanden                             |
+| SQLite-Migration       | 10 prüfsummengeschützte SQL-Migrationen; Wiederholung, Fremdschlüssel- und Integritätsprüfung                                                                                                                       | bestanden                             |
+| Seed                   | PostgreSQL-Seed zweimal auf demselben Bestand                                                                                                                                                                       | bestanden, unverändert                |
+| PostgreSQL-Neustart    | Compose-Stopp ohne Volume-Löschung, Neustart, Readiness und Migrationsstatus                                                                                                                                        | bestanden                             |
+| Providerparität        | dieselben 82 API-Fälle seriell auf PostgreSQL und neuer SQLite-Datei                                                                                                                                                | bestanden                             |
+| Datenmodell            | 23 Datenbanktests für Besitz, Beziehungen, Basiseinheiten, Termine und beide Provider                                                                                                                               | bestanden                             |
+| PostgreSQL-Recovery    | neue Quell- und Zieldatenbanken, Datenvergleich, Pflichtprüfsumme, falsche Prüfsumme, ungültiges Archiv und wiederholter Restore                                                                                    | bestanden                             |
+| SQLite-Import/Recovery | vollständiger Modellimport, verschlüsseltes Gesamtbackup, Dokumente, neue Ziele, Daten-/Identitätsvergleich und sichere Ablehnung falscher Passphrase, Manipulation, fehlender Datei, Symlink und vorhandener Ziele | bestanden                             |
+| Dokumente              | private Verzeichnisse/Dateien, Manifest, Downloadhash, fehlende Datei/Prüfsumme, Traversal, Symlink, disjunkte Ziele und wiederholter Restore                                                                       | bestanden                             |
+| API und Fachmodule     | `/api/v1`, Fehlervertrag, Besitz, Archivierung/Soft-Delete, Dashboard, Suche, KI, Projekte, Aufgaben, Studium, Arbeit, Finanzen und Fitness                                                                         | bestanden                             |
+| Kalender und CalDAV    | UID, ETag, Sync-Token/-Version, Ganztag, Zeitzone, `VTIMEZONE`, Wiederholung, Erinnerungen, Konflikte und Soft-Delete                                                                                               | bestanden                             |
+| Browser/PWA            | 43 Unit- und 30 Playwright-Fälle auf Desktop- und Mobilviewport einschließlich App-Shell ohne persönliche Browserpersistenz                                                                                         | bestanden                             |
+| Sidecar-Neustart       | gebündeltes Node 22, dynamischer Loopback-Port, SQLite, Anmeldung nach Neustart sowie unveränderte Benutzer-, Kalender- und Ereignisidentitäten                                                                     | bestanden                             |
+| Lokales DMG            | ARM64-Build, `hdiutil verify`, isolierte Kopie, ad-hoc-Signatur und Sidecar ohne globales Node oder Docker                                                                                                          | bestanden auf diesem Entwicklungs-Mac |
 
 Die Prüfungen enthalten fremde IDs, ungültige Zeitformen, ETag-Konkurrenz und
 Verknüpfungen von Aufgaben, Projekten und Fitness mit Kalenderereignissen. Die
@@ -66,8 +66,10 @@ STORAGE_PATH="/absoluter/pfad/documents" \
   npm run documents:backup -- /absoluter/neuer/pfad/documents-backup
 ```
 
-Beide Backups sind unverschlüsselt und vertraulich. Eine Wiederherstellung
-verwendet immer neue Ziele:
+PostgreSQL-Dump und separates Dokumentenbackup sind unverschlüsselt und
+vertraulich. Sie dürfen nur auf einem vertrauenswürdigen verschlüsselten
+lokalen Datenträger liegen, nicht unverschlüsselt in Cloudspeichern oder auf
+Wechselmedien. Eine Wiederherstellung verwendet immer neue Ziele:
 
 ```bash
 npm run db:restore -- backups/lifeos-<zeitpunkt>.dump lifeos_restore_<name>
@@ -94,6 +96,19 @@ und Dokumente in einem Manifest zusammenführt:
 npm run db:sqlite:backup -- /absoluter/neuer/pfad/backup
 npm run db:sqlite:restore -- /absoluter/pfad/backup
 ```
+
+Diese beiden Befehle bleiben aus Kompatibilitätsgründen unverschlüsselt. Für
+portable oder externe Kopien ist der gemeinsame verschlüsselte Container der
+empfohlene Pfad:
+
+```bash
+npm run db:sqlite:backup:encrypted -- /absoluter/neuer/pfad/lifeos.lifeos-backup
+npm run db:sqlite:restore:encrypted -- /absoluter/pfad/lifeos.lifeos-backup
+```
+
+Die Passphrase wird verdeckt über `LIFEOS_BACKUP_PASSPHRASE` übergeben; der
+vollständige Ablauf, unterstützte Ziele und die Übergangsregeln stehen unter
+[Verschlüsselte Backups](encrypted-backups.md).
 
 ## Update und Rollback
 
@@ -133,7 +148,10 @@ erneut mit 0.6.0 geprüft. Details stehen im
 - PostgreSQL- und Dokumentenbackup sind zwei gemeinsam aufzubewahrende,
   zeitlich koordinierte Artefakte. Während der Sicherung soll der schreibende
   Betrieb pausieren.
-- Backups sind nicht verschlüsselt.
+- PostgreSQL-Dump, separates Dokumentenbackup und das kompatibel erhaltene
+  SQLite-Verzeichnisformat sind nicht verschlüsselt. Der portable
+  SQLite-/Dokumentenpfad ist anwendungsseitig verschlüsselt; ein gemeinsamer
+  verschlüsselter PostgreSQL-Container bleibt offen.
 - Developer-ID, Apple-Notarisierung, Gatekeeper-Downloadpfad, zweiter sauberer
   unterstützter Mac, Intel-/Universal-Build und physischer Apple-Kalender-Test
   über abgesichertes LAN sind nicht geprüft und bleiben offen.
