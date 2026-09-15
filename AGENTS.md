@@ -350,6 +350,11 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
   Sicherheitsupdate-PRs, die GitHub technisch weiterhin gegen den
   Default-Branch richtet, werden nicht direkt nach `main` gemergt, sondern auf
   einem aktuellen `develop`-Branch neu geprüft und zuerst dort integriert.
+- Externe GitHub Actions werden ausschließlich über vollständige Commit-SHAs
+  eingebunden; die exakte Releaseversion bleibt als Kommentar lesbar.
+  Repositorytests erfassen Workflows und zusammengesetzte Actions und weisen
+  neue veränderliche Referenzen ab. Aktualisierungen laufen weiter über
+  Dependabot gegen `develop`; Workflowberechtigungen bleiben minimal.
 - Passwörter nur mit einem geeigneten Passwort-Hash speichern.
 - Das lokale Passwort wird mit gesalzenem `scrypt` gespeichert. Sitzungen
   verwenden zufällige Tokens, von denen nur SHA-256-Hashes, Ablauf und
@@ -703,3 +708,7 @@ gemeldet.
   begrenzte fachliche Minor-/Patch-Gruppen und einzeln geprüfte Major-Updates
   festgelegt; GitHubs abweichender Default-Branch-Pfad für automatische
   Sicherheitsupdates bleibt ausdrücklich dokumentiert.
+- **2026-09-15:** Externe GitHub Actions auf vollständige Commit-SHAs mit
+  lesbaren Releasekommentaren festgelegt und die Regel durch eine
+  repositoryweite Prüfung für Workflows und zusammengesetzte Actions
+  abgesichert; Berechtigungen und Dependabot-Zielbranch bleiben unverändert.
