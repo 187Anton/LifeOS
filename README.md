@@ -582,6 +582,12 @@ Die Einrichtung wird im eigenen, bereits bei GitHub angemeldeten Terminal
 ausgeführt. Für persönliche Projects muss die Anmeldung den `project`-Scope
 besitzen; das Skript legt keine Zugangsdaten im Repository ab.
 
+Reguläre Abhängigkeitsupdates laufen ebenfalls zuerst über `develop`.
+Gruppierung, Major-Update-Grenze, die abweichende GitHub-Behandlung
+automatischer Sicherheitsupdates und der noch offene reale Dependabot-Nachweis
+sind unter [Abhängigkeitsupdates über `develop`](docs/dependency-updates.md)
+dokumentiert.
+
 Es ist wiederholbar: Bereits vorhandene Labels, Milestones, Project-Felder und
 Ansichten werden nicht doppelt angelegt. Das Project enthält die Ansichten
 `Backlog`, `Kanban` und `Roadmap`.
