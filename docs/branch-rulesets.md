@@ -45,6 +45,23 @@ Die GitHub-API-Antworten der beiden Rulesets sowie die Checkläufe des
 Test-Pull-Requests bilden den externen Nachweis; die Repositorydokumentation
 allein ersetzt ihn nicht.
 
+Am 15. September 2026 wurde dieser Ablauf mit
+[Pull Request #109](https://github.com/187Anton/LifeOS/pull/109) auf dem
+Test-Head `ccf2a9f6c29042a4d8ad41021a45a4ba3dc4f567` ausgeführt:
+
+- [`Repository checks`](https://github.com/187Anton/LifeOS/actions/runs/34996517451/job/104474012642)
+  war nach 4 Minuten und 16 Sekunden erfolgreich.
+- [`Local macOS release`](https://github.com/187Anton/LifeOS/actions/runs/34996517451/job/104474012297)
+  schlug durch den ausschließlich dort eingefügten Fehlschritt nach 5 Sekunden
+  fehl.
+- GitHub meldete den Quellstand als konfliktfrei (`MERGEABLE`), den
+  Merge-Status aber als `BLOCKED`. Das angewendete Ruleset verlangte beide
+  Statuschecks streng und keine genehmigende Review.
+
+Anschließend wurde der Fehlschritt vollständig entfernt. Der finale
+Pull-Request-Stand darf erst nach zwei erfolgreichen Pflichtchecks gemergt
+werden.
+
 ## Abgrenzung
 
 Diese Regeln machen den bestehenden lokalen macOS-CI-Pfad merge-blockierend.
