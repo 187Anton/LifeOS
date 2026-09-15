@@ -46,3 +46,17 @@ npm run format:check
 npm run repo:check
 npm test
 ```
+
+## Abhängigkeitsupdates
+
+Reguläre Dependabot-Versionsupdates für npm und GitHub Actions zielen auf
+`develop` und durchlaufen dort dieselben beiden CI-Jobs wie andere Pull
+Requests. Zusammengehörige Minor- und Patch-Updates dürfen gruppiert werden;
+Major-Updates bleiben einzeln und benötigen eine eigene Migrations- und
+Kompatibilitätsprüfung.
+
+GitHub richtet automatische Sicherheitsupdate-PRs technisch weiterhin gegen
+den Default-Branch `main`; `target-branch` gilt laut GitHub nur für reguläre
+Versionsupdates. Solche Sicherheits-PRs werden deshalb nicht direkt nach
+`main` gemergt, sondern als eigener Branch aus dem aktuellen `develop`
+übernommen, vollständig geprüft und zuerst nach `develop` integriert.

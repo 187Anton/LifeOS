@@ -2,9 +2,40 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: /
+    target-branch: develop
     schedule:
       interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      prisma-minor-and-patch:
+        patterns:
+          - prisma
+          - "@prisma/client"
+        update-types:
+          - minor
+          - patch
+      web-development-minor-and-patch:
+        dependency-type: development
+        patterns:
+          - vite
+          - "@vitejs/*"
+          - vitest
+          - "@vitest/*"
+          - "@testing-library/*"
+          - jsdom
+        update-types:
+          - minor
+          - patch
   - package-ecosystem: github-actions
     directory: /
+    target-branch: develop
     schedule:
       interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      actions-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch

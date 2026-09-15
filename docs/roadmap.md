@@ -688,6 +688,13 @@ ist weder eine Developer-ID-Freigabe noch ein öffentliches Download-Release.
   npm-Advisory-Datenbank erforderlich und damit offen.
 - Befunde, Ursachen, Korrekturen, Nachweise und Grenzen stehen im
   [`Sicherheitsreview 0.6.1`](security-review-0.6.md).
+- **Erweitert (15. September 2026):** Reguläre Dependabot-Updates für npm und
+  GitHub Actions werden auf `develop` begrenzt, nur fachlich zusammengehörige
+  Minor-/Patch-Updates gruppiert und Major-Updates einzeln gehalten. Der
+  GitHub-seitig feste Default-Branch-Pfad automatischer Sicherheitsupdates und
+  der erst nach einer späteren `main`-Integration mögliche reale
+  Zielbranch-Nachweis bleiben ausdrücklich offen. Details stehen unter
+  [Abhängigkeitsupdates über `develop`](dependency-updates.md).
 
 Abschlusskriterium: Konkrete Sicherheitsbefunde sind behoben oder ausdrücklich
 offen dokumentiert; bestehende Funktionen und `/api/v1` bleiben erhalten.

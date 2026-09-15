@@ -77,6 +77,31 @@ test("führt CI für develop und main mit den verbindlichen Prüfungen aus", asy
   assert.match(workflow, /if: always\(\)/);
 });
 
+test("führt Dependabot-Versionsupdates kontrolliert über develop", async () => {
+  const dependabot = await readRepositoryFile(".github/dependabot.yml");
+  const workflow = await readRepositoryFile(".github/workflows/ci.yml");
+  const contributing = await readRepositoryFile("CONTRIBUTING.md");
+
+  assert.equal((dependabot.match(/target-branch: develop/g) ?? []).length, 2);
+  assert.equal(
+    (dependabot.match(/open-pull-requests-limit: 5/g) ?? []).length,
+    2,
+  );
+  assert.equal((dependabot.match(/interval: monthly/g) ?? []).length, 2);
+  assert.match(dependabot, /prisma-minor-and-patch:/);
+  assert.match(dependabot, /web-development-minor-and-patch:/);
+  assert.match(dependabot, /actions-minor-and-patch:/);
+  assert.doesNotMatch(dependabot, /^\s+- major$/m);
+  assert.match(
+    workflow,
+    /pull_request:\s*\n\s*branches: \["main", "develop"\]/,
+  );
+  assert.match(workflow, /name: Repository checks/);
+  assert.match(workflow, /name: Local macOS release/);
+  assert.match(contributing, /Sicherheitsupdate-PRs.*Default-Branch `main`/s);
+  assert.match(contributing, /eigener Branch aus dem aktuellen `develop`/);
+});
+
 test("verwendet eine konsistente Release-Version und portable DMG-Prüfsummen", async () => {
   const packageJson = JSON.parse(
     await readFile(path.join(repositoryRoot, "package.json"), "utf8"),

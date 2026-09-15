@@ -344,6 +344,12 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
   npm-Advisory-Datenbank und das Tauri-`Cargo.lock` mit einer festgelegten
   `cargo-audit`-Version. Wartungswarnungen werden getrennt von bestätigten
   Sicherheitslücken dokumentiert.
+- Reguläre Dependabot-Versionsupdates für npm und GitHub Actions zielen auf
+  `develop`; Minor-/Patch-Updates dürfen nur in fachlich zusammengehörigen
+  Gruppen gebündelt werden, Major-Updates bleiben einzeln. Automatische
+  Sicherheitsupdate-PRs, die GitHub technisch weiterhin gegen den
+  Default-Branch richtet, werden nicht direkt nach `main` gemergt, sondern auf
+  einem aktuellen `develop`-Branch neu geprüft und zuerst dort integriert.
 - Passwörter nur mit einem geeigneten Passwort-Hash speichern.
 - Das lokale Passwort wird mit gesalzenem `scrypt` gespeichert. Sitzungen
   verwenden zufällige Tokens, von denen nur SHA-256-Hashes, Ablauf und
@@ -693,3 +699,7 @@ gemeldet.
   SQLite-/Dokumentenbackups, verdeckte Passphrasenübergabe sowie kompatiblen
   Legacy- und Neuziel-Restore nach vollständigem synthetischem Recovery-,
   Manipulations- und Fehlerschutztest festgehalten.
+- **2026-09-15:** Reguläre npm- und GitHub-Actions-Updates über `develop`,
+  begrenzte fachliche Minor-/Patch-Gruppen und einzeln geprüfte Major-Updates
+  festgelegt; GitHubs abweichender Default-Branch-Pfad für automatische
+  Sicherheitsupdates bleibt ausdrücklich dokumentiert.
