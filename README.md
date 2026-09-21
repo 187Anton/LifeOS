@@ -16,9 +16,9 @@ Die operative Roadmap fasst mehrere ursprünglich getrennte Punkte aus dem
 Leitfaden zusammen. Die Zuordnung, der genaue Umsetzungsumfang sowie die noch
 offenen fachlichen und externen Gates stehen in der [Roadmap](docs/roadmap.md).
 
-Als spätere, noch nicht implementierte Erweiterung ist eine lokale
-Einkaufsliste mit bestätigter automatischer Kategorisierung und eng begrenzter
-Spracheingabe geplant. Der
+Die erste Lieferstufe der lokalen Einkaufsliste mit bestätigter
+deterministischer Kategorisierung ist implementiert und auf SQLite lokal
+nachgewiesen. Die
 [`Umsetzungsplan`](docs/grocery-list-voice-plan.md) trennt den vollständigen
 Text-/Systemdiktat-Pfad von einem eigenen Mikrofonmodus, der nur nach einem
 Nachweis lokaler Verarbeitung ohne stillen Cloud-Rückfall freigegeben wird.
@@ -255,6 +255,15 @@ Optionale Aufgaben- und Kalenderbezüge werden besitzgeprüft und lösen keine
 automatische Änderung des referenzierten Objekts aus.
 Offene Prüfungen, Abgaben und Lernzeiten erscheinen zusätzlich rein lesend im
 Organisations-Dashboard und im sichtbaren Zeitraum der Kalenderansicht.
+
+Die Einkaufsliste ist nach Anmeldung unter `/api/v1/shopping-lists` verfügbar.
+Die erste Lieferstufe umfasst genau eine aktive Liste pro Besitzer,
+archivierbare Listen, bestätigte atomare Mehrfacheingabe, zehn stabile
+Systemkategorien, sichtbares `Sonstiges`, persönliche Kategorieregeln nur nach
+ausdrücklicher Bestätigung sowie Positionen mit unterstützten Einheiten. Die
+flüchtige Vorschau unter `/api/v1/shopping-lists/parse-preview` schreibt keine
+Positionen. Text und Betriebssystem-Diktat sind der Basispfad; ein eigener
+Mikrofonmodus ist noch nicht freigegeben.
 
 Die gemeinsame Planung unter `/api/v1/planning` führt Kalendertermine,
 Aufgabenfristen, Studium, Arbeit, geplante und tatsächliche Zeit sowie die

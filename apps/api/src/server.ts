@@ -80,6 +80,9 @@ import { HttpGitHubReadClient } from "./modules/github-integration/client.js";
 import { PrismaGitHubIntegrationRepository } from "./modules/github-integration/repository.js";
 import { createGitHubIntegrationRouter } from "./modules/github-integration/router.js";
 import { GitHubIntegrationService } from "./modules/github-integration/service.js";
+import { PrismaShoppingRepository } from "./modules/shopping/repository.js";
+import { createShoppingRouter } from "./modules/shopping/router.js";
+import { ShoppingService } from "./modules/shopping/service.js";
 
 const main = async (): Promise<void> => {
   loadLocalEnvironment();
@@ -102,6 +105,7 @@ const main = async (): Promise<void> => {
   const projects = new ProjectService(new PrismaProjectRepository(database));
   const finance = new FinanceService(new PrismaFinanceRepository(database));
   const fitness = new FitnessService(new PrismaFitnessRepository(database));
+  const shopping = new ShoppingService(new PrismaShoppingRepository(database));
   const ics = new IcsImportService(calendars);
   const externalCalDav = new ExternalCalDavService(
     new PrismaExternalCalDavRepository(database),
@@ -183,6 +187,7 @@ const main = async (): Promise<void> => {
       createProjectRouter({ authentication, projects }),
       createFinanceRouter({ authentication, finance }),
       createFitnessRouter({ authentication, fitness }),
+      createShoppingRouter({ authentication, shopping }),
       createIcsRouter({ authentication, ics }),
       createExternalCalDavRouter({ authentication, externalCalDav }),
       createGitHubIntegrationRouter({ authentication, github }),

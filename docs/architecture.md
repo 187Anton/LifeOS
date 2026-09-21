@@ -26,10 +26,10 @@ React-Weboberfläche ── REST/API ── Node.js-Backend
 
 ## Geplante Einkaufsliste und Spracheingabe
 
-Status: geplant, nicht implementiert und nicht lokal nachgewiesen. Die
-Einkaufsliste wird als eigenes besitzgebundenes Fachmodul innerhalb des
-modularen Monolithen vorgesehen. Sie verändert weder Fitness-, Finanz-,
-Aufgaben- noch Kalenderdaten automatisch.
+Status: Lieferstufe 1 implementiert und auf SQLite lokal nachgewiesen. Die
+Einkaufsliste ist ein eigenes besitzgebundenes Fachmodul innerhalb des
+modularen Monolithen. Sie verändert weder Fitness-, Finanz-, Aufgaben- noch
+Kalenderdaten automatisch.
 
 Text und Sprache führen zunächst in dieselbe bearbeitbare Vorschau. Ein
 versionierter lokaler Parser trennt Positionen, erkennt unterstützte Mengen und
@@ -45,11 +45,14 @@ deutsche Spracherkennung erzwingen kann. Fehlt dieser Nachweis, bleibt der
 vollständige Text- und Systemdiktat-Pfad verfügbar; es gibt keinen stillen
 Cloud-Rückfall.
 
-Geplante Modelle sind `ShoppingList`, `ShoppingCategory`, `ShoppingItem` und
-eine besitzgebundene `ShoppingCategoryRule` für ausdrücklich bestätigte
-persönliche Korrekturen. Alle Modelle benötigen gleichwertige versionierte
-PostgreSQL- und SQLite-Migrationen, Besitzergrenzen sowie Import-, Backup- und
-Restore-Nachweise. Der vollständige Plan steht unter
+Die Modelle `ShoppingList`, `ShoppingCategory`, `ShoppingItem` und die
+besitzgebundene `ShoppingCategoryRule` für ausdrücklich bestätigte persönliche
+Korrekturen sind umgesetzt. Genau eine aktive Liste pro Besitzer wird mit
+einem partiellen eindeutigen Index erzwungen; die zehn Systemkategorien werden
+erst bei einem fachlichen Listenaufruf angelegt. Alle Modelle besitzen
+gleichwertige versionierte PostgreSQL- und SQLite-Migrationen sowie
+Besitzergrenzen. Transfer und Recovery berücksichtigen die neuen Tabellen. Der
+vollständige Plan steht unter
 [`Einkaufsliste mit Spracheingabe`](grocery-list-voice-plan.md).
 
 ## Weboberfläche und PWA
@@ -98,6 +101,15 @@ Unerwartete interne Fehlermeldungen und ungefilterte Eingaben werden weder an
 Clients ausgegeben noch protokolliert. Strukturierte Logs enthalten nur
 betriebliche Metadaten wie Ereignis, Anfrage-ID, Methode, Routenmuster, Status
 und Dauer.
+
+Das Einkaufslistenmodul verwendet `/api/v1/shopping-lists` für Listen und
+Positionen sowie `/api/v1/shopping-categories` für aktive Systemkategorien.
+`POST /shopping-lists/parse-preview` arbeitet mit einem versionierten,
+deterministischen Parser ohne Schreibzugriff. Erst
+`POST /shopping-lists/{id}/items/batch` validiert die Vorschau erneut und
+speichert alle Positionen einschließlich bestätigter persönlicher Regeln in
+einer Transaktion. Kategorien und Positionen tragen zusammengesetzte
+Besitzerbezüge; unbekannte Lebensmittel erscheinen als `Sonstiges`.
 
 ## Lokales Profil und Sitzungen
 

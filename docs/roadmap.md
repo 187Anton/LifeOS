@@ -931,16 +931,21 @@ Ziel: Lebensmittel schnell als Text oder Sprache erfassen, vor dem Speichern
 prüfen und in einer lokal gespeicherten Einkaufsliste nach nachvollziehbaren
 Kategorien gruppieren.
 
-Status: geplant, nicht implementiert und nicht lokal nachgewiesen. Der
+Status: Lieferstufe 1 implementiert und auf SQLite lokal nachgewiesen. Die
+responsive Oberfläche und der eigene Mikrofonmodus bleiben offen. Der
 vollständige fachliche, technische und datenschutzbezogene Plan steht unter
 [`Einkaufsliste mit Spracheingabe`](grocery-list-voice-plan.md).
 
-- Besitzgebundene Einkaufslisten, Kategorien und Positionen in PostgreSQL und
-  SQLite ergänzen.
-- Mehrere geschriebene oder diktierte Einträge in eine bearbeitbare Vorschau
-  zerlegen; erst die ausdrückliche Bestätigung schreibt atomar.
-- Lebensmittel über lokale, versionierte Regeln kategorisieren. Unbekannte
-  Begriffe sichtbar unter `Sonstiges` einordnen und manuell korrigierbar halten.
+- Besitzgebundene Einkaufslisten, Kategorien und Positionen mit der Migration
+  `20260921190000_grocery_lists` in PostgreSQL und SQLite ergänzen. Genau eine
+  aktive Liste pro Besitzer wird durch einen partiellen eindeutigen Index
+  konkurrenzsicher erzwungen; archivierte Listen bleiben erhalten.
+- Mehrere geschriebene oder diktierte Einträge über einen versionierten
+  `/parse-preview`-Vertrag in eine bearbeitbare Vorschau zerlegen; erst die
+  ausdrückliche Bestätigung schreibt atomar.
+- Lebensmittel über lokale, deterministische Regeln kategorisieren. Unbekannte
+  Begriffe werden sichtbar unter `Sonstiges` eingeordnet; persönliche Regeln
+  entstehen nur aus einer ausdrücklich bestätigten Korrektur.
 - Text und Systemdiktat als vollständigen Basispfad umsetzen. Einen eigenen
   Mikrofonmodus nur bei nachgewiesen lokaler Verarbeitung ohne stillen
   Cloud-Rückfall freigeben.
@@ -956,6 +961,7 @@ Mehrbenutzerlisten.
 
 Abschlusskriterium: Eine Eingabe wie „Milch, Käse, Hähnchenbrust, Chips und
 Äpfel“ erzeugt fünf korrigierbare Vorschaupositionen in nachvollziehbaren
-Kategorien; ohne Bestätigung entsteht kein Datensatz. Der Textweg funktioniert
-auch ohne Mikrofon oder lokale Spracherkennung. PostgreSQL-/SQLite-Parität,
-Recovery und die vollständige CI sind nachgewiesen.
+Kategorien; ohne Bestätigung entsteht keine Position. Lieferstufe 1 erfüllt
+Parser-, API-, Besitz-, Atomaritäts-, Migration- und SQLite-Transferprüfungen.
+PostgreSQL-Lauf, responsive Oberfläche, vollständige CI und der technische
+Nachweis für lokale deutsche Spracherkennung bleiben die nächsten Gates.
