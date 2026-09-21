@@ -24,6 +24,34 @@ React-Weboberfläche ── REST/API ── Node.js-Backend
 - Keine externe KI-Verarbeitung ohne Freigabe.
 - Keine vollständige native App im ersten Schritt.
 
+## Geplante Einkaufsliste und Spracheingabe
+
+Status: geplant, nicht implementiert und nicht lokal nachgewiesen. Die
+Einkaufsliste wird als eigenes besitzgebundenes Fachmodul innerhalb des
+modularen Monolithen vorgesehen. Sie verändert weder Fitness-, Finanz-,
+Aufgaben- noch Kalenderdaten automatisch.
+
+Text und Sprache führen zunächst in dieselbe bearbeitbare Vorschau. Ein
+versionierter lokaler Parser trennt Positionen, erkennt unterstützte Mengen und
+ordnet Produktbegriffe über deterministische Regeln Kategorien zu. Unbekannte
+Begriffe bleiben als `Sonstiges` sichtbar. Erst eine ausdrückliche Bestätigung
+schreibt alle Positionen atomar; die Vorschau selbst bleibt flüchtig.
+
+LifeOS erhält und persistiert nur den sichtbaren Text beziehungsweise die
+bestätigten Positionen. Audio darf weder die API erreichen noch in Datenbank,
+Browser-Storage, Service-Worker-Cache, Logs, Audit oder Backup gelangen. Ein
+eigener Mikrofonmodus ist nur zulässig, wenn die konkrete Plattform lokale
+deutsche Spracherkennung erzwingen kann. Fehlt dieser Nachweis, bleibt der
+vollständige Text- und Systemdiktat-Pfad verfügbar; es gibt keinen stillen
+Cloud-Rückfall.
+
+Geplante Modelle sind `ShoppingList`, `ShoppingCategory`, `ShoppingItem` und
+eine besitzgebundene `ShoppingCategoryRule` für ausdrücklich bestätigte
+persönliche Korrekturen. Alle Modelle benötigen gleichwertige versionierte
+PostgreSQL- und SQLite-Migrationen, Besitzergrenzen sowie Import-, Backup- und
+Restore-Nachweise. Der vollständige Plan steht unter
+[`Einkaufsliste mit Spracheingabe`](grocery-list-voice-plan.md).
+
 ## Weboberfläche und PWA
 
 Desktop und Smartphone verwenden dieselbe React-Anwendung. Eine separate

@@ -30,6 +30,9 @@ Sie wird als nächster operativer Schritt 0.7 fortgeführt. Der ausdrücklich
 begrenzte read-only-Umfang der Integrationen ist in 0.8 umgesetzt;
 weiterführende Integrationen bleiben dort als neue Arbeitspakete offen. Das
 öffentliche Release und die laufende Wartung folgen getrennt in 0.9 und 1.0.
+Die anschließend geplante Phase 1.1 ergänzt eine lokale Einkaufsliste mit
+bestätigter Kategorisierung und eng begrenzter Spracheingabe. Sie ist keine
+allgemeine Sprachsteuerung und derzeit nicht implementiert.
 
 „Lokal nachgewiesen“ bezeichnet reproduzierte Prüfungen auf dem unterstützten
 ARM64-Entwicklungs-Mac. „Öffentlich freigegeben“ gilt erst nach allen dafür
@@ -921,3 +924,38 @@ bereits heute als CI- und Recovery-Gates.
 
 Abschlusskriterium: Wartung ist ein fortlaufender Prozess; jeder veröffentlichte
 Stand besitzt aktuelle Sicherheits-, Kompatibilitäts- und Recovery-Nachweise.
+
+## 1.1 Einkaufsliste mit Spracheingabe
+
+Ziel: Lebensmittel schnell als Text oder Sprache erfassen, vor dem Speichern
+prüfen und in einer lokal gespeicherten Einkaufsliste nach nachvollziehbaren
+Kategorien gruppieren.
+
+Status: geplant, nicht implementiert und nicht lokal nachgewiesen. Der
+vollständige fachliche, technische und datenschutzbezogene Plan steht unter
+[`Einkaufsliste mit Spracheingabe`](grocery-list-voice-plan.md).
+
+- Besitzgebundene Einkaufslisten, Kategorien und Positionen in PostgreSQL und
+  SQLite ergänzen.
+- Mehrere geschriebene oder diktierte Einträge in eine bearbeitbare Vorschau
+  zerlegen; erst die ausdrückliche Bestätigung schreibt atomar.
+- Lebensmittel über lokale, versionierte Regeln kategorisieren. Unbekannte
+  Begriffe sichtbar unter `Sonstiges` einordnen und manuell korrigierbar halten.
+- Text und Systemdiktat als vollständigen Basispfad umsetzen. Einen eigenen
+  Mikrofonmodus nur bei nachgewiesen lokaler Verarbeitung ohne stillen
+  Cloud-Rückfall freigeben.
+- Kein Audio in API, Datenbank, Browser-Storage, Logs, Audit oder Backup
+  speichern.
+- Migration, Import, Backup, Restore, Besitzgrenzen, Barrierefreiheit sowie
+  Desktop- und Mobilabläufe mit synthetischen Daten prüfen.
+
+Nicht Bestandteil sind allgemeine Sprachsteuerung, Ernährungs- oder
+Gesundheitsbewertung, Rezepte, Preise, Beleg- oder Barcode-Erkennung,
+Lieferdienstintegration, automatische Bestellungen und gemeinsame
+Mehrbenutzerlisten.
+
+Abschlusskriterium: Eine Eingabe wie „Milch, Käse, Hähnchenbrust, Chips und
+Äpfel“ erzeugt fünf korrigierbare Vorschaupositionen in nachvollziehbaren
+Kategorien; ohne Bestätigung entsteht kein Datensatz. Der Textweg funktioniert
+auch ohne Mikrofon oder lokale Spracherkennung. PostgreSQL-/SQLite-Parität,
+Recovery und die vollständige CI sind nachgewiesen.

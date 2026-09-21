@@ -16,6 +16,13 @@ Die operative Roadmap fasst mehrere ursprünglich getrennte Punkte aus dem
 Leitfaden zusammen. Die Zuordnung, der genaue Umsetzungsumfang sowie die noch
 offenen fachlichen und externen Gates stehen in der [Roadmap](docs/roadmap.md).
 
+Als spätere, noch nicht implementierte Erweiterung ist eine lokale
+Einkaufsliste mit bestätigter automatischer Kategorisierung und eng begrenzter
+Spracheingabe geplant. Der
+[`Umsetzungsplan`](docs/grocery-list-voice-plan.md) trennt den vollständigen
+Text-/Systemdiktat-Pfad von einem eigenen Mikrofonmodus, der nur nach einem
+Nachweis lokaler Verarbeitung ohne stillen Cloud-Rückfall freigegeben wird.
+
 ## Leitentscheidungen
 
 - modularer Monolith statt Microservices
