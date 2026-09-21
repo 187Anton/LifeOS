@@ -45,6 +45,7 @@ const confirmedItem = z.strictObject({
   quantityText: z.string().trim().min(1).max(200).nullable().optional(),
   unit: unit.nullable().optional(),
   categoryId: z.string().trim().min(1).max(100),
+  categoryName: z.string().trim().min(1).max(200).optional(),
   uncertain: z.boolean().optional(),
   source: source.optional(),
   rememberCategory: z.boolean().optional(),

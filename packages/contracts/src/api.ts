@@ -1366,6 +1366,7 @@ export interface ConfirmShoppingItemRequest {
   quantityText?: string | null;
   unit?: ShoppingUnit | null;
   categoryId: string;
+  categoryName?: string;
   uncertain?: boolean;
   source?: ShoppingItemSource;
   rememberCategory?: boolean;
