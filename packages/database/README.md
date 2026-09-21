@@ -82,6 +82,14 @@ Mac-App-Migration.
   AES-256-GCM-Chiffretext, Initialisierungswert und Authentifizierungstag vor;
   Repository-Inhalte werden nicht persistiert. Die Migration
   `20260820220000_github_integration` ist für PostgreSQL und SQLite versioniert.
+- `ShoppingList`, `ShoppingCategory`, `ShoppingItem` und
+  `ShoppingCategoryRule` bilden die lokale Einkaufsliste. Genau eine aktive
+  Liste pro Besitzer wird mit einem partiellen eindeutigen Index erzwungen;
+  archivierte Listen und Positionen werden nicht hart gelöscht. Der Parser
+  bleibt außerhalb der Datenbank deterministisch und die Vorschau schreibt
+  keine Positionen. Die Migration `20260921190000_grocery_lists` ist für
+  PostgreSQL und SQLite versioniert und wird beim PostgreSQL-zu-SQLite-Import,
+  Backup/Restore sowie im Sidecar-Migrationsnachweis berücksichtigt.
 - `AvailabilityWindow` speichert wöchentliche persönliche Verfügbarkeit als
   Wochentag, Start- und Endminute sowie IANA-Zeitzone. Gültigkeitsbedingungen
   und Besitzbezug werden zusätzlich in PostgreSQL erzwungen.

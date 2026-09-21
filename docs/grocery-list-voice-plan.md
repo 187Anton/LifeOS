@@ -8,9 +8,10 @@ zerlegt, deterministisch Kategorien zugeordnet und vor dem Speichern als
 bearbeitbare Vorschau angezeigt. Erst eine ausdrückliche Bestätigung schreibt
 die Positionen in die aktive Einkaufsliste.
 
-Status: geplant, nicht implementiert und nicht lokal nachgewiesen. Dieses
-Dokument beschreibt den vorgesehenen fachlichen und technischen Umfang. Es ist
-weder ein Implementierungsnachweis noch eine öffentliche Freigabe.
+Status: Lieferstufe 1 ist implementiert; Datenmodell, Parser, Verträge und API
+sind lokal auf SQLite nachgewiesen. Die responsive Oberfläche und der eigene
+Mikrofonmodus bleiben weitere Lieferstufen. Dieser Status ist kein öffentlicher
+Release-Nachweis.
 
 ## Nutzererlebnis
 
@@ -35,8 +36,9 @@ das Mikrofon aktiv ist, und bietet jederzeit Stoppen und Verwerfen an.
 
 ### Einkaufslisten
 
-- Mindestens eine aktive Einkaufsliste pro Besitzer. Ob mehrere Listen
-  gleichzeitig aktiv sein dürfen, bleibt eine offene Produktentscheidung.
+- Genau eine aktive Einkaufsliste pro Besitzer; archivierte Listen bleiben
+  erhalten und können beliebig viele sein. Die Datenbank erzwingt dies mit
+  einem partiellen eindeutigen Index auch bei parallelen Erstellungsversuchen.
 - Titel, Status, Erstellungs- und Änderungszeitpunkt.
 - Positionen anlegen, bearbeiten, abhaken, wieder öffnen, sortieren und mit
   Löschmarkierung entfernen.
@@ -333,18 +335,28 @@ Die Umsetzung beginnt erst auf einem zweckbezogenen Branch aus dem dann
 aktuellen `develop`. Jedes Arbeitspaket benötigt passende Tests, einen
 Conventional Commit, einen Pull Request nach `develop` und grüne Pflicht-CI.
 
-## Offene Produktentscheidungen
+## Getroffene MVP Entscheidungen
 
-- Soll es zunächst genau eine aktive Liste oder mehrere parallele aktive
-  Listen geben?
-- Sollen benutzerdefinierte Kategorien bereits in der ersten Ausbaustufe
-  enthalten sein?
-- Darf eine bestätigte Kategoriekorrektur automatisch als persönliche Regel
-  angeboten werden oder erst über eine eigene Einstellung?
-- Welche Einheiten außer Stück, Packung, Gramm, Kilogramm, Milliliter und Liter
-  werden benötigt?
-- Soll der eigene Mikrofonmodus zuerst ausschließlich in der Mac-App angeboten
-  werden, wenn dort lokale deutsche Erkennung zuverlässig nachgewiesen ist?
+- Pro Besitzer gibt es genau eine aktive Liste und beliebig viele archivierte
+  Listen.
+- Die zehn dokumentierten Systemkategorien sind die vollständige erste
+  Kategorieversion; benutzerdefinierte Kategorien bleiben offen.
+- Eine korrigierte Kategorie wird nur bei ausdrücklicher Bestätigung als
+  persönliche Regel gespeichert.
+- Strukturierte Einheiten sind zunächst Stück, Packung, Gramm, Kilogramm,
+  Milliliter und Liter. Andere Mengen bleiben als Text sichtbar.
+- Der eigene Mikrofonmodus wird erst nach einem reproduzierbaren Nachweis
+  lokaler deutscher Erkennung auf einer konkreten Plattform aktiviert.
+
+## Lieferstufe 1 Nachweis
+
+Die Migration `20260921190000_grocery_lists` ist für PostgreSQL und SQLite
+versioniert. Die API stellt Vorschau, atomare Batch-Bestätigung, Listen-CRUD,
+Positionen, Kategorien und persönliche Regeln unter `/api/v1` bereit. Die
+Vorschau schreibt keine Positionen; Audio wird in dieser Lieferstufe nicht
+verarbeitet. Parser-, Besitzer-, Atomaritäts-, Migration-, Import- und
+Recovery-Abdeckung ist ergänzt. PostgreSQL-Ausführung und der abschließende
+CI-Nachweis bleiben bis zum PR-Gate offen.
 
 Keine dieser Entscheidungen darf die lokale textbasierte Kernfunktion
 blockieren.

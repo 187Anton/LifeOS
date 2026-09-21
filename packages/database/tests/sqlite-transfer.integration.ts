@@ -393,6 +393,40 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       weightGrams: 75_000,
     },
   });
+  const shoppingCategory = await source.shoppingCategory.create({
+    data: {
+      userId: user.id,
+      key: "synthetic",
+      name: "Synthetische Kategorie",
+      sortOrder: 999,
+      origin: "custom",
+    },
+  });
+  const shoppingList = await source.shoppingList.create({
+    data: {
+      userId: user.id,
+      title: "Synthetische Einkaufsliste",
+      status: "active",
+    },
+  });
+  const shoppingItem = await source.shoppingItem.create({
+    data: {
+      userId: user.id,
+      shoppingListId: shoppingList.id,
+      productName: "Synthetische Milch",
+      quantity: 2,
+      unit: "liter",
+      categoryId: shoppingCategory.id,
+      source: "manual",
+    },
+  });
+  const shoppingRule = await source.shoppingCategoryRule.create({
+    data: {
+      userId: user.id,
+      normalizedTerm: "synthetische milch",
+      categoryId: shoppingCategory.id,
+    },
+  });
   const externalCalDavConnection = await source.externalCalDavConnection.create(
     {
       data: {
@@ -489,6 +523,10 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       fitnessSessions: true,
       fitnessSets: true,
       bodyWeightEntries: true,
+      shoppingLists: { include: { items: true } },
+      shoppingCategories: true,
+      shoppingItems: true,
+      shoppingCategoryRules: true,
       auditEvents: true,
     },
   });
@@ -554,6 +592,11 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     importedUser.bodyWeightEntries[0]?.measuredDate.toISOString(),
     "2032-09-01T00:00:00.000Z",
   );
+  assert.equal(importedUser.shoppingCategories[0]?.id, shoppingCategory.id);
+  assert.equal(importedUser.shoppingLists[0]?.id, shoppingList.id);
+  assert.equal(importedUser.shoppingLists[0]?.items[0]?.id, shoppingItem.id);
+  assert.equal(importedUser.shoppingItems[0]?.id, shoppingItem.id);
+  assert.equal(importedUser.shoppingCategoryRules[0]?.id, shoppingRule.id);
 
   const documents = path.join(directory, "documents-source");
   await mkdir(path.join(documents, user.id), { recursive: true });
@@ -663,6 +706,14 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       })
     ).weightGrams,
     75_000,
+  );
+  assert.equal(
+    (
+      await restored.shoppingItem.findUniqueOrThrow({
+        where: { id: shoppingItem.id },
+      })
+    ).quantity,
+    2,
   );
   assert.equal(
     (
