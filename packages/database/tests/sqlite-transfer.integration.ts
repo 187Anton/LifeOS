@@ -7,6 +7,8 @@ import {
   mkdtemp,
   readFile,
   rm,
+  stat,
+  symlink,
   unlink,
   writeFile,
 } from "node:fs/promises";
@@ -22,6 +24,10 @@ import {
   createSqliteBackup,
   restoreSqliteBackup,
 } from "../src/sqlite-backup.js";
+import {
+  createEncryptedSqliteBackup,
+  restoreEncryptedSqliteBackup,
+} from "../src/encrypted-sqlite-backup.js";
 import { importPostgresToSqlite } from "../src/sqlite-import.js";
 
 test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in neue Ziele", async (t) => {
@@ -387,6 +393,40 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       weightGrams: 75_000,
     },
   });
+  const shoppingCategory = await source.shoppingCategory.create({
+    data: {
+      userId: user.id,
+      key: "synthetic",
+      name: "Synthetische Kategorie",
+      sortOrder: 999,
+      origin: "custom",
+    },
+  });
+  const shoppingList = await source.shoppingList.create({
+    data: {
+      userId: user.id,
+      title: "Synthetische Einkaufsliste",
+      status: "active",
+    },
+  });
+  const shoppingItem = await source.shoppingItem.create({
+    data: {
+      userId: user.id,
+      shoppingListId: shoppingList.id,
+      productName: "Synthetische Milch",
+      quantity: 2,
+      unit: "liter",
+      categoryId: shoppingCategory.id,
+      source: "manual",
+    },
+  });
+  const shoppingRule = await source.shoppingCategoryRule.create({
+    data: {
+      userId: user.id,
+      normalizedTerm: "synthetische milch",
+      categoryId: shoppingCategory.id,
+    },
+  });
   const externalCalDavConnection = await source.externalCalDavConnection.create(
     {
       data: {
@@ -483,6 +523,10 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       fitnessSessions: true,
       fitnessSets: true,
       bodyWeightEntries: true,
+      shoppingLists: { include: { items: true } },
+      shoppingCategories: true,
+      shoppingItems: true,
+      shoppingCategoryRules: true,
       auditEvents: true,
     },
   });
@@ -548,6 +592,11 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     importedUser.bodyWeightEntries[0]?.measuredDate.toISOString(),
     "2032-09-01T00:00:00.000Z",
   );
+  assert.equal(importedUser.shoppingCategories[0]?.id, shoppingCategory.id);
+  assert.equal(importedUser.shoppingLists[0]?.id, shoppingList.id);
+  assert.equal(importedUser.shoppingLists[0]?.items[0]?.id, shoppingItem.id);
+  assert.equal(importedUser.shoppingItems[0]?.id, shoppingItem.id);
+  assert.equal(importedUser.shoppingCategoryRules[0]?.id, shoppingRule.id);
 
   const documents = path.join(directory, "documents-source");
   await mkdir(path.join(documents, user.id), { recursive: true });
@@ -572,6 +621,45 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     destinationDirectory: backupDirectory,
   });
   assert.equal(backup.manifest.documents.length, 2);
+  const encryptedBackupPath = path.join(directory, "backup.lifeos-backup");
+  const backupPassphrase = "synthetic-recovery-passphrase-2032";
+  await createEncryptedSqliteBackup({
+    databaseUrl: `file:${importedDatabasePath}`,
+    documentsDirectory: documents,
+    destinationPath: encryptedBackupPath,
+    passphrase: backupPassphrase,
+  });
+  const encryptedBackupBytes = await readFile(encryptedBackupPath);
+  assert.equal(
+    encryptedBackupBytes.includes(Buffer.from(backupPassphrase, "utf8")),
+    false,
+  );
+  assert.equal(
+    encryptedBackupBytes.includes(
+      Buffer.from("synthetisches Dokument", "utf8"),
+    ),
+    false,
+  );
+  assert.equal((await stat(encryptedBackupPath)).mode & 0o777, 0o600);
+  const protectedDestination = path.join(directory, "protected-destination");
+  const protectedMarker = "unverändert\n";
+  await writeFile(protectedDestination, protectedMarker);
+  const encryptedDestinationLink = path.join(
+    directory,
+    "destination-link.lifeos-backup",
+  );
+  await symlink(protectedDestination, encryptedDestinationLink);
+  await assert.rejects(
+    () =>
+      createEncryptedSqliteBackup({
+        databaseUrl: `file:${importedDatabasePath}`,
+        documentsDirectory: documents,
+        destinationPath: encryptedDestinationLink,
+        passphrase: backupPassphrase,
+      }),
+    /existiert bereits/,
+  );
+  assert.equal(await readFile(protectedDestination, "utf8"), protectedMarker);
 
   await imported.auditEvent.create({
     data: {
@@ -621,6 +709,14 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   );
   assert.equal(
     (
+      await restored.shoppingItem.findUniqueOrThrow({
+        where: { id: shoppingItem.id },
+      })
+    ).quantity,
+    2,
+  );
+  assert.equal(
+    (
       await restored.externalCalDavEventMapping.findUniqueOrThrow({
         where: { id: externalCalDavMapping.id },
       })
@@ -645,6 +741,114 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   assert.equal(
     await readFile(path.join(restoredDocuments, user.id, storageKey), "utf8"),
     "synthetisches Dokument\n",
+  );
+
+  const encryptedRestoredDatabasePath = path.join(
+    directory,
+    "encrypted-restored.sqlite",
+  );
+  const encryptedRestoredDocuments = path.join(
+    directory,
+    "documents-encrypted-restored",
+  );
+  await restoreEncryptedSqliteBackup({
+    sourcePath: encryptedBackupPath,
+    targetDatabaseUrl: `file:${encryptedRestoredDatabasePath}`,
+    targetDocumentsDirectory: encryptedRestoredDocuments,
+    passphrase: backupPassphrase,
+  });
+  const encryptedRestored = createDatabaseClient(
+    `file:${encryptedRestoredDatabasePath}`,
+  );
+  assert.equal(
+    (
+      await encryptedRestored.calendarEvent.findUniqueOrThrow({
+        where: { id: event.id },
+      })
+    ).etag,
+    event.etag,
+  );
+  assert.equal(
+    (
+      await encryptedRestored.financeTransaction.findUniqueOrThrow({
+        where: { id: financeTransaction.id },
+      })
+    ).amountMinor,
+    financeTransaction.amountMinor,
+  );
+  await encryptedRestored.$disconnect();
+  assert.equal(
+    await readFile(
+      path.join(encryptedRestoredDocuments, user.id, storageKey),
+      "utf8",
+    ),
+    "synthetisches Dokument\n",
+  );
+
+  const wrongKeyDatabase = path.join(directory, "wrong-key.sqlite");
+  const wrongKeyDocuments = path.join(directory, "documents-wrong-key");
+  await assert.rejects(
+    () =>
+      restoreEncryptedSqliteBackup({
+        sourcePath: encryptedBackupPath,
+        targetDatabaseUrl: `file:${wrongKeyDatabase}`,
+        targetDocumentsDirectory: wrongKeyDocuments,
+        passphrase: "synthetic-but-incorrect-passphrase",
+      }),
+    /nicht authentifiziert/,
+  );
+  await assert.rejects(() => stat(wrongKeyDatabase), /ENOENT/);
+  await assert.rejects(() => stat(wrongKeyDocuments), /ENOENT/);
+
+  const corruptedEncryptedBackup = path.join(
+    directory,
+    "backup-corrupted.lifeos-backup",
+  );
+  const corruptedBytes = Buffer.from(encryptedBackupBytes);
+  corruptedBytes[Math.floor(corruptedBytes.length / 2)]! ^= 0xff;
+  await writeFile(corruptedEncryptedBackup, corruptedBytes, { mode: 0o600 });
+  await assert.rejects(
+    () =>
+      restoreEncryptedSqliteBackup({
+        sourcePath: corruptedEncryptedBackup,
+        targetDatabaseUrl: `file:${path.join(directory, "corrupted.sqlite")}`,
+        targetDocumentsDirectory: path.join(directory, "documents-corrupted"),
+        passphrase: backupPassphrase,
+      }),
+    /nicht authentifiziert/,
+  );
+
+  await assert.rejects(
+    () =>
+      restoreEncryptedSqliteBackup({
+        sourcePath: path.join(directory, "missing.lifeos-backup"),
+        targetDatabaseUrl: `file:${path.join(directory, "missing.sqlite")}`,
+        targetDocumentsDirectory: path.join(directory, "documents-missing"),
+        passphrase: backupPassphrase,
+      }),
+    /Backup-Datei fehlt/,
+  );
+  const encryptedBackupLink = path.join(directory, "backup-link.lifeos-backup");
+  await symlink(encryptedBackupPath, encryptedBackupLink);
+  await assert.rejects(
+    () =>
+      restoreEncryptedSqliteBackup({
+        sourcePath: encryptedBackupLink,
+        targetDatabaseUrl: `file:${path.join(directory, "link.sqlite")}`,
+        targetDocumentsDirectory: path.join(directory, "documents-link"),
+        passphrase: backupPassphrase,
+      }),
+    /reguläre Datei/,
+  );
+  await assert.rejects(
+    () =>
+      restoreEncryptedSqliteBackup({
+        sourcePath: encryptedBackupPath,
+        targetDatabaseUrl: `file:${encryptedRestoredDatabasePath}`,
+        targetDocumentsDirectory: path.join(directory, "documents-existing"),
+        passphrase: backupPassphrase,
+      }),
+    /existieren bereits/,
   );
 
   const tamperedBackup = path.join(directory, "backup-tampered");

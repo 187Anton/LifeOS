@@ -16,6 +16,20 @@ Die operative Roadmap fasst mehrere ursprünglich getrennte Punkte aus dem
 Leitfaden zusammen. Die Zuordnung, der genaue Umsetzungsumfang sowie die noch
 offenen fachlichen und externen Gates stehen in der [Roadmap](docs/roadmap.md).
 
+Die ersten beiden Lieferstufen der lokalen Einkaufsliste sind implementiert:
+Auf Datenmodell, Parser und API folgt eine responsive Oberfläche mit
+bearbeitbarer Vorschau, Systemdiktat-Kennzeichnung, Kategorien, Statuswechsel
+und Archiv. Der Ablauf ist lokal in echten Desktop- und Smartphone-Browsern
+nachgewiesen. Der technische ARM64-Mac-Test hat anschließend bestätigt, dass
+die neue lokale Apple-Transkription Deutsch unterstützt, das deutsche Modell
+aber nicht installiert und die Speech-Berechtigung noch nicht erteilt ist.
+Deshalb bleibt der eigene Mikrofonmodus gesperrt. Der
+[`Umsetzungsplan`](docs/grocery-list-voice-plan.md) trennt diesen vollständigen
+Text-/Systemdiktat-Pfad von einem eigenen Mikrofonmodus, der nur nach einem
+End-to-End-Nachweis lokaler Verarbeitung ohne stillen Cloud-Rückfall
+freigegeben wird. Der aktuelle, reproduzierbare Befund steht im
+[`lokalen Sprach-Gate`](docs/grocery-local-speech-gate.md).
+
 ## Leitentscheidungen
 
 - modularer Monolith statt Microservices
@@ -62,8 +76,15 @@ Beispiele sind `feat(calendar): add event model` oder
 
 Pull Requests gegen `develop` und `main` starten automatisch die GitHub-
 Actions-CI. Sie prüft Formatierung, Compose-Konfiguration und alle vorhandenen
-automatisierten Tests. Auf GitHub sollten für beide Branches erforderliche
-Statusprüfungen und Pull Requests als Branch-Schutz eingerichtet werden.
+automatisierten Tests. Die aktiven Rulesets beider Branches verlangen exakt
+`Repository checks` und `Local macOS release` für den aktuellen PR-Stand; ein
+fehlender oder fehlgeschlagener Job blockiert den Squash-Merge. Details und der
+kontrollierte Negativnachweis stehen unter
+[Verbindliche Branch-Prüfungen](docs/branch-rulesets.md).
+Externe Actions sind auf vollständige Commit-SHAs festgelegt; der zugehörige
+Release bleibt als Kommentar lesbar. Die Repositorytests verhindern neue
+veränderliche Action-Referenzen. Details und der kontrollierte Updateablauf
+stehen unter [Abgesicherte GitHub Actions](docs/ci-actions.md).
 
 Codex darf und soll Pull Requests selbstständig erstellen, wenn das Repository
 mit einem GitHub-Remote verbunden ist und die nötigen Berechtigungen vorhanden
@@ -241,6 +262,21 @@ Optionale Aufgaben- und Kalenderbezüge werden besitzgeprüft und lösen keine
 automatische Änderung des referenzierten Objekts aus.
 Offene Prüfungen, Abgaben und Lernzeiten erscheinen zusätzlich rein lesend im
 Organisations-Dashboard und im sichtbaren Zeitraum der Kalenderansicht.
+
+Die Einkaufsliste ist nach Anmeldung unter `/api/v1/shopping-lists` verfügbar.
+Die ersten beiden Lieferstufen umfassen genau eine aktive Liste pro Besitzer,
+archivierbare Listen, bestätigte atomare Mehrfacheingabe, zehn stabile
+Systemkategorien, sichtbares `Sonstiges`, persönliche Kategorieregeln nur nach
+ausdrücklicher Bestätigung sowie Positionen mit unterstützten Einheiten. Die
+flüchtige Vorschau unter `/api/v1/shopping-lists/parse-preview` schreibt keine
+Positionen. Die gemeinsame responsive Oberfläche stellt offene Positionen vor
+erledigten Positionen nach Kategorien dar. Sie kann die aktive Liste in einem
+atomaren Schritt archivieren und durch eine neue aktive Liste ersetzen. Text
+und Betriebssystem-Diktat sind der vollständige Basispfad; ein eigener
+Mikrofonmodus ist nicht freigegeben. `npm run grocery:verify:local-speech`
+prüft die lokale Apple-Fähigkeit read-only im App-Bundle-Kontext; der aktuelle
+ARM64-Mac-Befund und die noch fehlenden End-to-End-Gates sind
+[separat dokumentiert](docs/grocery-local-speech-gate.md).
 
 Die gemeinsame Planung unter `/api/v1/planning` führt Kalendertermine,
 Aufgabenfristen, Studium, Arbeit, geplante und tatsächliche Zeit sowie die
@@ -479,6 +515,8 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 | PostgreSQL vollständig nach SQLite übertragen    | `npm run db:sqlite:import`                                                 |
 | SQLite und Dokumente sichern                     | `npm run db:sqlite:backup -- …`                                            |
 | SQLite-Backup in neue Ziele restaurieren         | `npm run db:sqlite:restore -- …`                                           |
+| SQLite und Dokumente verschlüsselt sichern       | `npm run db:sqlite:backup:encrypted -- …`                                  |
+| Verschlüsseltes Backup in neue Ziele laden       | `npm run db:sqlite:restore:encrypted -- …`                                 |
 | SQLite-Import und Recovery isoliert prüfen       | `npm run db:sqlite:verify:recovery`                                        |
 | Lokales PostgreSQL-Backup erstellen              | `npm run db:backup`                                                        |
 | Backup sicher in neue Datenbank restaurieren     | `npm run db:restore -- …`                                                  |
@@ -548,7 +586,11 @@ Migrationen müssen ein PostgreSQL-Backup und eine Sicherung des
 Dokumentenverzeichnisses erstellt werden. Der vollständige automatisierte
 Backup-/Wiederherstellungsnachweis umfasst Prüfsummen, manipulierte Archive,
 Symlinks, disjunkte neue Ziele und Datenvergleich; Details stehen im
-[Recovery-Nachweis 0.6](docs/reliability-recovery-0.6.md).
+[Recovery-Nachweis 0.6](docs/reliability-recovery-0.6.md). Für portable
+SQLite-Sicherungen schützt der empfohlene verschlüsselte Container Datenbank
+und Dokumente gemeinsam. Unterstützte Ziele, Passphrasenübergabe,
+Wiederherstellung und der kompatibel erhaltene unverschlüsselte Bestand sind
+unter [Verschlüsselte Backups](docs/encrypted-backups.md) dokumentiert.
 
 ## Optionale GitHub-Planung
 
@@ -575,6 +617,12 @@ gh auth refresh -s project
 Die Einrichtung wird im eigenen, bereits bei GitHub angemeldeten Terminal
 ausgeführt. Für persönliche Projects muss die Anmeldung den `project`-Scope
 besitzen; das Skript legt keine Zugangsdaten im Repository ab.
+
+Reguläre Abhängigkeitsupdates laufen ebenfalls zuerst über `develop`.
+Gruppierung, Major-Update-Grenze, die abweichende GitHub-Behandlung
+automatischer Sicherheitsupdates und der noch offene reale Dependabot-Nachweis
+sind unter [Abhängigkeitsupdates über `develop`](docs/dependency-updates.md)
+dokumentiert.
 
 Es ist wiederholbar: Bereits vorhandene Labels, Milestones, Project-Felder und
 Ansichten werden nicht doppelt angelegt. Das Project enthält die Ansichten

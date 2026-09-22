@@ -161,3 +161,11 @@ export const FitnessIcon = (props: IconProps) => (
     <path d="M7 8v8M4 10v4M17 8v8M20 10v4M7 12h10" />
   </Icon>
 );
+
+export const ShoppingIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M3 4h2l2.2 10.5a2 2 0 0 0 2 1.5h7.7a2 2 0 0 0 1.9-1.4L21 7H7" />
+    <circle cx="10" cy="20" r="1" />
+    <circle cx="18" cy="20" r="1" />
+  </Icon>
+);

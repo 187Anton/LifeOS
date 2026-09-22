@@ -30,6 +30,9 @@ Sie wird als nächster operativer Schritt 0.7 fortgeführt. Der ausdrücklich
 begrenzte read-only-Umfang der Integrationen ist in 0.8 umgesetzt;
 weiterführende Integrationen bleiben dort als neue Arbeitspakete offen. Das
 öffentliche Release und die laufende Wartung folgen getrennt in 0.9 und 1.0.
+Die anschließend geplante Phase 1.1 ergänzt eine lokale Einkaufsliste mit
+bestätigter Kategorisierung und eng begrenzter Spracheingabe. Sie ist keine
+allgemeine Sprachsteuerung und derzeit nicht implementiert.
 
 „Lokal nachgewiesen“ bezeichnet reproduzierte Prüfungen auf dem unterstützten
 ARM64-Entwicklungs-Mac. „Öffentlich freigegeben“ gilt erst nach allen dafür
@@ -688,6 +691,23 @@ ist weder eine Developer-ID-Freigabe noch ein öffentliches Download-Release.
   npm-Advisory-Datenbank erforderlich und damit offen.
 - Befunde, Ursachen, Korrekturen, Nachweise und Grenzen stehen im
   [`Sicherheitsreview 0.6.1`](security-review-0.6.md).
+- **Erweitert (15. September 2026):** Reguläre Dependabot-Updates für npm und
+  GitHub Actions werden auf `develop` begrenzt, nur fachlich zusammengehörige
+  Minor-/Patch-Updates gruppiert und Major-Updates einzeln gehalten. Der
+  GitHub-seitig feste Default-Branch-Pfad automatischer Sicherheitsupdates und
+  der erst nach einer späteren `main`-Integration mögliche reale
+  Zielbranch-Nachweis bleiben ausdrücklich offen. Details stehen unter
+  [Abhängigkeitsupdates über `develop`](dependency-updates.md).
+- **Erweitert (15. September 2026):** Alle externen GitHub Actions verwenden
+  vollständige Commit-SHAs mit lesbarer Releaseversion. Eine
+  repositoryweite Prüfung verhindert neue veränderliche Action-Referenzen;
+  Dependabot pflegt die Pins weiter über `develop`. Details stehen unter
+  [Abgesicherte GitHub Actions](ci-actions.md).
+- **Erweitert (15. September 2026):** Die aktiven Rulesets für `main` und
+  `develop` verlangen streng sowohl `Repository checks` als auch
+  `Local macOS release`. Ein kontrollierter Negativtest belegt, dass ein
+  ausschließlich roter Mac-Job den Merge blockiert. Details stehen unter
+  [Verbindliche Branch-Prüfungen](branch-rulesets.md).
 
 Abschlusskriterium: Konkrete Sicherheitsbefunde sind behoben oder ausdrücklich
 offen dokumentiert; bestehende Funktionen und `/api/v1` bleiben erhalten.
@@ -709,6 +729,14 @@ offen dokumentiert; bestehende Funktionen und `/api/v1` bleiben erhalten.
 - Details, Befunde, ausgeführte Prüfungen und die klare Grenze zum finalen
   Zwei-Versionen-Lauf stehen im
   [`Recovery-Nachweis 0.6.2`](reliability-recovery-0.6.md).
+- **Erweitert (15. September 2026):** Der portable SQLite-Backup-Pfad schützt
+  Datenbank und Dokumente gemeinsam in einem versionierten AES-256-GCM-
+  Container. Falsche Passphrase, Manipulation, fehlende Datei, Symlinkquelle
+  und vorhandene Ziele werden abgewiesen; das bisherige unverschlüsselte
+  Format bleibt ohne stille Migration lesbar. PostgreSQL-Dump und separates
+  Dokumentenbackup bleiben unverschlüsselt und benötigen einen geschützten
+  lokalen Speicher. Details stehen unter
+  [Verschlüsselte Backups](encrypted-backups.md).
 
 Abschlusskriterium: Migration, Seed, Parität und Recovery sind aktuell
 nachgewiesen. Der finale 0.6-Update-/Rollback-Lauf ist mit 0.6.4 abgeschlossen.
@@ -896,3 +924,55 @@ bereits heute als CI- und Recovery-Gates.
 
 Abschlusskriterium: Wartung ist ein fortlaufender Prozess; jeder veröffentlichte
 Stand besitzt aktuelle Sicherheits-, Kompatibilitäts- und Recovery-Nachweise.
+
+## 1.1 Einkaufsliste mit Spracheingabe
+
+Ziel: Lebensmittel schnell als Text oder Sprache erfassen, vor dem Speichern
+prüfen und in einer lokal gespeicherten Einkaufsliste nach nachvollziehbaren
+Kategorien gruppieren.
+
+Status: Lieferstufen 1 und 2 implementiert. Datenmodell, Parser und API sind auf
+SQLite lokal nachgewiesen; die responsive Oberfläche und ihr vollständiger
+Text-/Systemdiktat-Ablauf sind in Desktop- und Smartphone-Chrome nachgewiesen.
+Der technische ARM64-Mac-Test ist reproduzierbar, aber sein Gate bleibt offen:
+Deutsch wird unterstützt, das deutsche `SpeechTranscriber`-Modell ist nicht
+installiert und ein berechtigter Offline-End-to-End-Lauf fehlt. Deshalb ist
+kein eigener Mikrofonmodus enthalten. Der vollständige fachliche, technische
+und datenschutzbezogene Plan steht unter
+[`Einkaufsliste mit Spracheingabe`](grocery-list-voice-plan.md).
+
+- Besitzgebundene Einkaufslisten, Kategorien und Positionen mit der Migration
+  `20260921190000_grocery_lists` in PostgreSQL und SQLite ergänzen. Genau eine
+  aktive Liste pro Besitzer wird durch einen partiellen eindeutigen Index
+  konkurrenzsicher erzwungen; archivierte Listen bleiben erhalten.
+- Mehrere geschriebene oder diktierte Einträge über einen versionierten
+  `/parse-preview`-Vertrag in eine bearbeitbare Vorschau zerlegen; erst die
+  ausdrückliche Bestätigung schreibt atomar.
+- Lebensmittel über lokale, deterministische Regeln kategorisieren. Unbekannte
+  Begriffe werden sichtbar unter `Sonstiges` eingeordnet; persönliche Regeln
+  entstehen nur aus einer ausdrücklich bestätigten Korrektur.
+- Text und Systemdiktat als vollständigen Basispfad umsetzen. Einen eigenen
+  Mikrofonmodus nur bei nachgewiesen lokaler Verarbeitung ohne stillen
+  Cloud-Rückfall freigeben.
+- Kein Audio in API, Datenbank, Browser-Storage, Logs, Audit oder Backup
+  speichern.
+- Migration, Import, Backup, Restore, Besitzgrenzen, Barrierefreiheit sowie
+  Desktop- und Mobilabläufe mit synthetischen Daten prüfen.
+
+Nicht Bestandteil sind allgemeine Sprachsteuerung, Ernährungs- oder
+Gesundheitsbewertung, Rezepte, Preise, Beleg- oder Barcode-Erkennung,
+Lieferdienstintegration, automatische Bestellungen und gemeinsame
+Mehrbenutzerlisten.
+
+Abschlusskriterium: Eine Eingabe wie „Milch, Käse, Hähnchenbrust, Chips und
+Äpfel“ erzeugt fünf korrigierbare Vorschaupositionen in nachvollziehbaren
+Kategorien; ohne Bestätigung entsteht keine Position. Lieferstufe 1 erfüllt
+Parser-, API-, Besitz-, Atomaritäts-, Migration- und SQLite-Transferprüfungen.
+Lieferstufe 2 ergänzt die responsive Bedienung, atomaren Listenwechsel und
+Browsernachweise auf Desktop und Smartphone. Der PostgreSQL-Lauf einschließlich
+aller Migrationen und Einkaufslisten-Integrationstest ist lokal nachgewiesen.
+Die CI der Lieferstufen 1 und 2 ist vollständig grün. Der technische
+Sprachnachweis ist ausgeführt und unter
+[`Lokales Gate für deutsche Spracheingabe`](grocery-local-speech-gate.md)
+dokumentiert; sein fehlender berechtigter Offline-End-to-End-Lauf bleibt ein
+offenes externes Gate.

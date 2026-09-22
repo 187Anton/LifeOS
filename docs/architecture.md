@@ -24,6 +24,52 @@ React-Weboberfläche ── REST/API ── Node.js-Backend
 - Keine externe KI-Verarbeitung ohne Freigabe.
 - Keine vollständige native App im ersten Schritt.
 
+## Einkaufsliste und Spracheingabe
+
+Status: Lieferstufen 1 und 2 implementiert. Datenmodell, Parser und API sind auf
+SQLite lokal nachgewiesen; die responsive Oberfläche ist zusätzlich in echten
+Desktop- und Smartphone-Browsern geprüft. Der read-only Plattformtest auf
+ARM64/macOS 26.6 weist deutsche Unterstützung, aber weder das installierte
+deutsche `SpeechTranscriber`-Modell noch einen berechtigten End-to-End-Lauf
+nach. Deshalb enthält die Architektur weiterhin keinen eigenen
+Mikrofonadapter, keine Mikrofonberechtigung und keinen Cloud-Fallback. Die
+Einkaufsliste ist ein eigenes besitzgebundenes Fachmodul innerhalb des
+modularen Monolithen. Sie verändert weder Fitness-, Finanz-, Aufgaben- noch
+Kalenderdaten automatisch.
+
+Text und Sprache führen zunächst in dieselbe bearbeitbare Vorschau. Ein
+versionierter lokaler Parser trennt Positionen, erkennt unterstützte Mengen und
+ordnet Produktbegriffe über deterministische Regeln Kategorien zu. Unbekannte
+Begriffe bleiben als `Sonstiges` sichtbar. Erst eine ausdrückliche Bestätigung
+schreibt alle Positionen atomar; die Vorschau selbst bleibt flüchtig.
+
+LifeOS erhält und persistiert nur den sichtbaren Text beziehungsweise die
+bestätigten Positionen. Audio darf weder die API erreichen noch in Datenbank,
+Browser-Storage, Service-Worker-Cache, Logs, Audit oder Backup gelangen. Ein
+eigener Mikrofonmodus ist nur zulässig, wenn die konkrete Plattform lokale
+deutsche Spracherkennung erzwingen kann. Fehlt dieser Nachweis, bleibt der
+vollständige Text- und Systemdiktat-Pfad verfügbar; es gibt keinen stillen
+Cloud-Rückfall.
+
+Die Modelle `ShoppingList`, `ShoppingCategory`, `ShoppingItem` und die
+besitzgebundene `ShoppingCategoryRule` für ausdrücklich bestätigte persönliche
+Korrekturen sind umgesetzt. Genau eine aktive Liste pro Besitzer wird mit
+einem partiellen eindeutigen Index erzwungen; die zehn Systemkategorien werden
+erst bei einem fachlichen Listenaufruf angelegt. Alle Modelle besitzen
+gleichwertige versionierte PostgreSQL- und SQLite-Migrationen sowie
+Besitzergrenzen. Transfer und Recovery berücksichtigen die neuen Tabellen. Der
+vollständige Plan steht unter
+[`Einkaufsliste mit Spracheingabe`](grocery-list-voice-plan.md); der konkrete
+Plattformbefund unter
+[`Lokales Gate für deutsche Spracheingabe`](grocery-local-speech-gate.md).
+
+Die React-Oberfläche hält Eingabetext und Vorschau ausschließlich im flüchtigen
+Komponentenzustand. Sie zeigt unklare Kategorien, verlangt eine getrennte
+Bestätigung zum Merken persönlicher Zuordnungen und lädt bestätigte Änderungen
+neu aus der API. Das Archivieren der aktiven und Erstellen der nächsten Liste
+erfolgt serverseitig in einer Transaktion; dadurch entsteht zwischen beiden
+Schritten kein Zustand ohne aktive Liste.
+
 ## Weboberfläche und PWA
 
 Desktop und Smartphone verwenden dieselbe React-Anwendung. Eine separate
@@ -70,6 +116,17 @@ Unerwartete interne Fehlermeldungen und ungefilterte Eingaben werden weder an
 Clients ausgegeben noch protokolliert. Strukturierte Logs enthalten nur
 betriebliche Metadaten wie Ereignis, Anfrage-ID, Methode, Routenmuster, Status
 und Dauer.
+
+Das Einkaufslistenmodul verwendet `/api/v1/shopping-lists` für Listen und
+Positionen sowie `/api/v1/shopping-categories` für aktive Systemkategorien.
+`POST /shopping-lists/parse-preview` arbeitet mit einem versionierten,
+deterministischen Parser ohne Schreibzugriff. Erst
+`POST /shopping-lists/{id}/items/batch` validiert die Vorschau erneut und
+speichert alle Positionen einschließlich bestätigter persönlicher Regeln in
+einer Transaktion. Kategorien und Positionen tragen zusammengesetzte
+Besitzerbezüge; unbekannte Lebensmittel erscheinen als `Sonstiges`.
+`POST /shopping-lists/{id}/archive-and-create` archiviert die aktuelle und
+erstellt die nächste aktive Liste ebenfalls atomar.
 
 ## Lokales Profil und Sitzungen
 
@@ -349,3 +406,13 @@ synthetischen Datenbanken und räumt sie unabhängig vom Ergebnis wieder auf.
 Das PostgreSQL-Archiv umfasst keine Dokumentdateien unter `data/`; sobald dort
 echte Dateien verwaltet werden, benötigt ein konsistentes Backup beide
 Speicherbereiche und einen gemeinsamen Wiederherstellungstest.
+
+Der portable Backup-Pfad der lokalen SQLite-/Mac-App verschlüsselt Datenbank,
+Dokumente und das bestehende SHA-256-Manifest gemeinsam in einem versionierten,
+mit AES-256-GCM authentifizierten Container. Die Passphrase wird mit `scrypt`
+und zufälligem Salz abgeleitet, nicht gespeichert und nicht protokolliert. Der
+Restore authentifiziert zuerst den Container und übernimmt das innere Backup
+danach ausschließlich über die bestehenden Manifest-, Integritäts-,
+Migrations- und Neuzielprüfungen. Bestehende unverschlüsselte Backupformate
+bleiben lesbar und werden nicht automatisch migriert. Details stehen unter
+[Verschlüsselte Backups](encrypted-backups.md).

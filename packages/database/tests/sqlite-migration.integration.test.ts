@@ -48,6 +48,10 @@ const readMigrationSnapshot = async (
       fitnessSessions: { orderBy: { id: "asc" } },
       fitnessSets: { orderBy: { id: "asc" } },
       bodyWeightEntries: { orderBy: { id: "asc" } },
+      shoppingLists: { orderBy: { id: "asc" } },
+      shoppingCategories: { orderBy: { id: "asc" } },
+      shoppingItems: { orderBy: { id: "asc" } },
+      shoppingCategoryRules: { orderBy: { id: "asc" } },
       auditEvents: { orderBy: { id: "asc" } },
     },
   });
@@ -70,6 +74,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
     "20260820200000_fitness_module",
     "20260820210000_external_caldav",
     "20260820220000_github_integration",
+    "20260921190000_grocery_lists",
   ]);
 
   const database = createSqliteDatabaseClient(databaseUrl);
@@ -78,7 +83,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const migrationRows = await database.$queryRawUnsafe<
     Array<{ name: string; checksum: string }>
   >('SELECT "name", "checksum" FROM "_lifeos_migrations"');
-  assert.equal(migrationRows.length, 10);
+  assert.equal(migrationRows.length, 11);
   assert.equal(migrationRows[0]?.name, "20260809190000_sqlite_foundation");
   assert.match(migrationRows[0]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[1]?.name, "20260809203000_product_modules");
@@ -99,6 +104,8 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   assert.match(migrationRows[8]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[9]?.name, "20260820220000_github_integration");
   assert.match(migrationRows[9]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[10]?.name, "20260921190000_grocery_lists");
+  assert.match(migrationRows[10]?.checksum ?? "", /^[0-9a-f]{64}$/);
 
   const foreignKeys = await database.$queryRawUnsafe<
     Array<{ foreign_keys: bigint }>
@@ -190,6 +197,72 @@ test("übernimmt stabile Kalenderidentitäten, Zeitpunkte und reine Ganztagsdate
   assert.deepEqual(allDay.reminderMinutes, allDayFixture.reminderMinutes);
   assert.equal(allDay.startsAt, null);
   assert.equal(allDay.endsAt, null);
+});
+
+test("erzwingt genau eine aktive Einkaufsliste und besitzgebundene Positionen", async (t) => {
+  const databaseUrl = await createIsolatedDatabase(t);
+  await migrateSqliteDatabase(databaseUrl);
+  const database = createSqliteDatabaseClient(databaseUrl);
+  t.after(async () => database.$disconnect());
+
+  const owner = await database.user.create({
+    data: {
+      externalId: "sqlite-shopping-owner",
+      displayName: "Synthetische Einkaufsperson",
+    },
+  });
+  const other = await database.user.create({
+    data: {
+      externalId: "sqlite-shopping-other",
+      displayName: "Andere synthetische Person",
+    },
+  });
+  const category = await database.shoppingCategory.create({
+    data: {
+      userId: owner.id,
+      key: "synthetic",
+      name: "Synthetisch",
+      sortOrder: 1,
+      origin: "custom",
+    },
+  });
+  const list = await database.shoppingList.create({
+    data: { userId: owner.id, title: "Synthetische Liste" },
+  });
+  await assert.rejects(() =>
+    database.shoppingList.create({
+      data: { userId: owner.id, title: "Zweite aktive Liste" },
+    }),
+  );
+  const item = await database.shoppingItem.create({
+    data: {
+      userId: owner.id,
+      shoppingListId: list.id,
+      productName: "Synthetisches Produkt",
+      quantity: 2,
+      unit: "piece",
+      categoryId: category.id,
+    },
+  });
+  assert.equal(item.userId, owner.id);
+  await assert.rejects(() =>
+    database.shoppingItem.create({
+      data: {
+        userId: other.id,
+        shoppingListId: list.id,
+        productName: "Fremdes Produkt",
+        categoryId: category.id,
+      },
+    }),
+  );
+  await database.shoppingList.update({
+    where: { id: list.id },
+    data: { status: "archived", archivedAt: new Date() },
+  });
+  const replacement = await database.shoppingList.create({
+    data: { userId: owner.id, title: "Neue aktive Liste" },
+  });
+  assert.equal(replacement.status, "active");
 });
 
 test("weist fremden Besitz, gemischte Zeitformen und ungültige Erinnerungen ab", async (t) => {

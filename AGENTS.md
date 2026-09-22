@@ -143,6 +143,16 @@ Kennzahlen, verwendet die Profilzeitzone für „heute“ und „überfällig“
 öffnet bei Schnellaktionen nur bestehende Formulare; Schreiben bleibt eine
 getrennte, bestätigte Fachaktion.
 
+Die Einkaufsliste besitzt pro Nutzer höchstens eine aktive Liste; archivierte
+Listen bleiben lesbar. Mehrfacheingaben aus Text oder Systemdiktat werden lokal
+deterministisch in eine flüchtige, bearbeitbare Vorschau zerlegt und erst nach
+Bestätigung atomar gespeichert. Systemkategorien bilden die erste
+Kategorieversion; persönliche Zuordnungsregeln entstehen nur über eine eigene,
+standardmäßig abgewählte Bestätigung. Audio darf weder API, Persistenz, Logs,
+Audit, Browser-Storage noch Backup erreichen. Ein eigener Mikrofonmodus bleibt
+gesperrt, solange lokale deutsche Erkennung auf der konkreten Plattform nicht
+reproduzierbar ohne Cloud-Rückfall erzwungen ist.
+
 Der Projektfortschritt ist eine rein lesende, nicht persistierte Projektion.
 Aktive, nicht archivierte, nicht gelöschte und nicht abgebrochene Ziele,
 Meilensteine und Aufgaben zählen gleichgewichtet; Ziele und Meilensteine gelten
@@ -275,8 +285,13 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
   geprüfte Zieldatei. SQLite-Backup und Restore umfassen Datenbank und
   Dokumente, verwenden SHA-256-Manifeste und schreiben niemals über aktive
   Ziele. Quelle, Backup, Zieldatenbank und Zieldokumente müssen disjunkt sein;
-  symbolische Links werden vor jedem Schreiben abgewiesen. Backups sind
-  unverschlüsselt und vertraulich zu behandeln.
+  symbolische Links werden vor jedem Schreiben abgewiesen. Portable
+  SQLite-/Dokumentenbackups verwenden zusätzlich einen versionierten,
+  authentifiziert verschlüsselten Gesamtcontainer; Passphrasen werden weder
+  gespeichert noch protokolliert. Die bisherigen unverschlüsselten Formate
+  bleiben kompatibel, dürfen aber nur auf vertrauenswürdigen verschlüsselten
+  lokalen Datenträgern liegen und nicht unverschlüsselt in Cloudspeicher oder
+  auf Wechselmedien kopiert werden.
 - Kalenderzeitpunkte werden als `TIMESTAMPTZ` plus fachliche IANA-Zeitzone,
   ganztägige Ereignisse ausschließlich als `DATE`-Werte gespeichert. Ein
   Datenbank-Constraint muss beide Formen eindeutig voneinander trennen.
@@ -339,6 +354,17 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
   npm-Advisory-Datenbank und das Tauri-`Cargo.lock` mit einer festgelegten
   `cargo-audit`-Version. Wartungswarnungen werden getrennt von bestätigten
   Sicherheitslücken dokumentiert.
+- Reguläre Dependabot-Versionsupdates für npm und GitHub Actions zielen auf
+  `develop`; Minor-/Patch-Updates dürfen nur in fachlich zusammengehörigen
+  Gruppen gebündelt werden, Major-Updates bleiben einzeln. Automatische
+  Sicherheitsupdate-PRs, die GitHub technisch weiterhin gegen den
+  Default-Branch richtet, werden nicht direkt nach `main` gemergt, sondern auf
+  einem aktuellen `develop`-Branch neu geprüft und zuerst dort integriert.
+- Externe GitHub Actions werden ausschließlich über vollständige Commit-SHAs
+  eingebunden; die exakte Releaseversion bleibt als Kommentar lesbar.
+  Repositorytests erfassen Workflows und zusammengesetzte Actions und weisen
+  neue veränderliche Referenzen ab. Aktualisierungen laufen weiter über
+  Dependabot gegen `develop`; Workflowberechtigungen bleiben minimal.
 - Passwörter nur mit einem geeigneten Passwort-Hash speichern.
 - Das lokale Passwort wird mit gesalzenem `scrypt` gespeichert. Sitzungen
   verwenden zufällige Tokens, von denen nur SHA-256-Hashes, Ablauf und
@@ -438,6 +464,11 @@ Branch-Strategie:
   weiteren Pull Request von `develop` nach `main` gebracht.
 - Direkte Pushes auf `main` und `develop` sind zu vermeiden; GitHub-
   Branch-Schutzregeln sollen Pull Requests und erfolgreiche CI voraussetzen.
+- Die aktiven Rulesets `protect-main` und `protect-develop` verlangen streng
+  die exakten Statuschecks `Repository checks` und `Local macOS release` für
+  den aktuellen Pull-Request-Stand. Kein fehlender oder fehlgeschlagener Check
+  darf umgangen werden; beide Rulesets bleiben ohne Bypass-Akteure und erlauben
+  ausschließlich Squash-Merges.
 - Ein GitHub-Issue ist optional und keine Voraussetzung für jede Unteraufgabe.
   Issues, Milestones, Projects oder Browser-Aktionen werden nur bei
   ausdrücklichem Bedarf angelegt; der verbindliche Umsetzungsweg bleibt Branch,
@@ -684,3 +715,28 @@ gemeldet.
   und hart validierten GitHub-Ergebnismengen nach API-, SQLite-,
   Client- und Oberflächentests festgehalten; externe Schreibpfade und der
   native Schlüsselbund bleiben offen.
+- **2026-09-15:** Versionierten AES-256-GCM-Container für gemeinsame portable
+  SQLite-/Dokumentenbackups, verdeckte Passphrasenübergabe sowie kompatiblen
+  Legacy- und Neuziel-Restore nach vollständigem synthetischem Recovery-,
+  Manipulations- und Fehlerschutztest festgehalten.
+- **2026-09-15:** Reguläre npm- und GitHub-Actions-Updates über `develop`,
+  begrenzte fachliche Minor-/Patch-Gruppen und einzeln geprüfte Major-Updates
+  festgelegt; GitHubs abweichender Default-Branch-Pfad für automatische
+  Sicherheitsupdates bleibt ausdrücklich dokumentiert.
+- **2026-09-15:** Externe GitHub Actions auf vollständige Commit-SHAs mit
+  lesbaren Releasekommentaren festgelegt und die Regel durch eine
+  repositoryweite Prüfung für Workflows und zusammengesetzte Actions
+  abgesichert; Berechtigungen und Dependabot-Zielbranch bleiben unverändert.
+- **2026-09-15:** `Repository checks` und `Local macOS release` in den aktiven
+  Rulesets für `main` und `develop` als strikte Pflichtchecks festgelegt; alle
+  bisherigen Schutzregeln und die leere Bypass-Liste bleiben unverändert.
+- **2026-09-22:** Besitzgebundene Einkaufsliste mit flüchtiger Vorschau,
+  atomarer Bestätigung, Systemkategorien, bestätigten persönlichen Regeln und
+  audiofreiem Text-/Systemdiktat-Pfad nach PostgreSQL-/SQLite-, Unit- und
+  Desktop-/Mobil-Browsernachweis festgehalten; eigener Mikrofonmodus bleibt
+  bis zum lokalen Plattformnachweis gesperrt.
+- **2026-09-22:** Read-only App-Bundle-Test für lokale deutsche
+  Apple-Spracherkennung ergänzt. Auf dem geprüften ARM64-Mac unterstützt
+  `SpeechTranscriber` Deutsch, das deutsche Modell und ein berechtigter
+  Offline-End-to-End-Nachweis fehlen jedoch; deshalb bleiben Mikrofonadapter,
+  Mikrofonberechtigung und Cloud-Fallback ausgeschlossen.

@@ -562,6 +562,7 @@ try {
     "20260820200000_fitness_module",
     "20260820210000_external_caldav",
     "20260820220000_github_integration",
+    "20260921190000_grocery_lists",
   ]);
   const identityBeforeRestart = database
     .prepare(

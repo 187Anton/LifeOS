@@ -1,0 +1,415 @@
+# Einkaufsliste mit Spracheingabe
+
+## Ergebnis und Status
+
+LifeOS soll eine lokale, besitzgebundene Einkaufsliste erhalten. Mehrere frei
+gesprochene oder geschriebene Lebensmittel werden in einzelne Positionen
+zerlegt, deterministisch Kategorien zugeordnet und vor dem Speichern als
+bearbeitbare Vorschau angezeigt. Erst eine ausdrückliche Bestätigung schreibt
+die Positionen in die aktive Einkaufsliste.
+
+Status: Lieferstufen 1 und 2 sind implementiert. Datenmodell, Parser, Verträge
+und API sind lokal auf SQLite sowie mit einer frisch migrierten
+PostgreSQL-Datenbank nachgewiesen. Die responsive Oberfläche ist in echten
+Desktop- und Smartphone-Browsern geprüft. Der eigene Mikrofonmodus
+bleibt bis zu einem reproduzierbaren Nachweis lokaler deutscher Erkennung auf
+der konkreten Plattform gesperrt. Dieser Status ist kein öffentlicher
+Release-Nachweis.
+
+## Nutzererlebnis
+
+Ein typischer Ablauf lautet:
+
+1. Anton öffnet die aktive Einkaufsliste und wählt „Mehrere Einträge erfassen“.
+2. Er spricht oder schreibt beispielsweise „zwei Liter Milch, Käse,
+   Hähnchenbrust, Chips und sechs Äpfel“.
+3. LifeOS zeigt die erkannten Positionen samt Menge und vorgeschlagener
+   Kategorie in einer Vorschau.
+4. Anton korrigiert bei Bedarf Bezeichnung, Menge oder Kategorie.
+5. Erst „Zur Liste hinzufügen“ speichert alle bestätigten Positionen atomar.
+6. Die Einkaufsliste zeigt offene Positionen vor erledigten Positionen,
+   gruppiert nach der gewählten Reihenfolge der Kategorien.
+7. „Archivieren & neu beginnen“ archiviert die aktuelle und erstellt die neue
+   aktive Liste in einer einzigen Transaktion.
+
+Die Spracheingabe ist eine zusätzliche Eingabemethode. Texteingabe, Bearbeiten,
+Kategoriewechsel, Entfernen und Bestätigen funktionieren vollständig ohne
+eigenen Mikrofonzugriff. Der Nutzer kann sichtbar kennzeichnen, dass der Text
+mit der Diktierfunktion des Betriebssystems entstand; LifeOS erhält in beiden
+Fällen nur Text. Eine Aufnahmeanzeige mit Stoppen und Verwerfen wäre erst Teil
+eines später nachgewiesenen eigenen Mikrofonmodus.
+
+## Fachlicher Umfang der ersten Ausbaustufe
+
+### Einkaufslisten
+
+- Genau eine aktive Einkaufsliste pro Besitzer; archivierte Listen bleiben
+  erhalten und können beliebig viele sein. Die Datenbank erzwingt dies mit
+  einem partiellen eindeutigen Index auch bei parallelen Erstellungsversuchen.
+- Titel, Status, Erstellungs- und Änderungszeitpunkt.
+- Positionen anlegen, bearbeiten, abhaken, wieder öffnen, sortieren und mit
+  Löschmarkierung entfernen.
+- Offene und erledigte Positionen getrennt darstellen.
+- Mehrere bestätigte Positionen in einer Datenbanktransaktion hinzufügen.
+- Keine automatische Änderung anderer LifeOS-Module.
+
+### Einkaufspositionen
+
+Die flüchtige Vorschau hält den ursprünglichen Eingabetext nur bis zur
+Bestätigung oder zum Abbruch. Eine gespeicherte Position enthält mindestens:
+
+- normalisierte und angezeigte Produktbezeichnung,
+- optionale Menge und Einheit als getrennte, validierte Werte,
+- Kategorie und Sortierposition,
+- Status `open` oder `completed`,
+- Eingabequelle `manual`, `dictation` oder `voice`,
+- Besitzer-, Listen- und Zeitstempelbezug.
+
+Unklare Mengen bleiben als sichtbarer Text erhalten, statt stillschweigend in
+einen erfundenen Zahlenwert umgewandelt zu werden. Doppelte Produkte werden
+nicht automatisch zusammengeführt. LifeOS darf eine Zusammenführung
+vorschlagen, sie aber erst nach Bestätigung ausführen.
+
+### Kategorien
+
+Die erste Version verwendet eine kleine, verständliche Grundmenge:
+
+- Obst und Gemüse
+- Brot und Backwaren
+- Milchprodukte und Eier
+- Fleisch und Fisch
+- Tiefkühlprodukte
+- Vorrat und Grundnahrungsmittel
+- Getränke
+- Snacks und Süßes
+- Drogerie und Haushalt
+- Sonstiges
+
+Kategorien sind keine medizinische oder ernährungswissenschaftliche
+Bewertung. Begriffe werden über eine versionierte lokale Aliasliste zugeordnet,
+beispielsweise `Käse` zu `Milchprodukte und Eier` und `Chips` zu `Snacks und
+Süßes`. Direkte Nutzerauswahl hat Vorrang. Unbekannte oder mehrdeutige Begriffe
+landen sichtbar in `Sonstiges`.
+
+Eine spätere persönliche Zuordnungsregel darf nur aus einer ausdrücklich
+bestätigten Korrektur entstehen. Sie bleibt lokal, besitzgebunden, löschbar und
+überschreibt keine globale Grundregel für andere Nutzerprofile.
+
+## Abgrenzung der Spracheingabe
+
+Die Erweiterung ist keine allgemeine Sprachsteuerung. Sie lauscht nicht im
+Hintergrund, interpretiert keine freien App-Befehle und startet keine
+schreibende Aktion allein durch Sprache.
+
+Die Umsetzung erfolgt in zwei Stufen:
+
+1. **Text und Systemdiktat:** Das Mehrfacheingabefeld funktioniert sofort mit
+   Tastatur und der vom Betriebssystem angebotenen Diktierfunktion. LifeOS
+   erhält dabei nur den eingefügten Text und öffnet selbst keinen Audiokanal.
+   Ob das Betriebssystem die Diktierfunktion lokal oder extern verarbeitet,
+   liegt außerhalb der App und darf von LifeOS nicht als lokale Verarbeitung
+   behauptet werden.
+2. **Eigener Mikrofonmodus:** Ein Mikrofonknopf wird erst nach einem technischen
+   Nachweis aktiviert, dass die gewählte Plattform für die deutsche Sprache
+   lokale Verarbeitung erzwingen kann. Wenn dieser Nachweis auf dem aktuellen
+   Gerät fehlt, gibt es keinen stillen Cloud-Rückfall; die Oberfläche bleibt
+   bei Text beziehungsweise Systemdiktat.
+
+Die Web-Speech-Schnittstelle ist nicht in allen verbreiteten Browsern
+verfügbar; ihre lokale Verarbeitung ist experimentell. Auch Apples Speech-
+Framework muss die lokale Erkennung für Gerät und Sprache ausdrücklich
+unterstützen, bevor sie erzwungen werden kann. Diese Eigenschaften werden zum
+Zeitpunkt der Implementierung erneut gegen die offiziellen Quellen geprüft:
+
+- [MDN SpeechRecognition](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition)
+- [MDN processLocally](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition/processLocally)
+- [Apple supportsOnDeviceRecognition](https://developer.apple.com/documentation/speech/sfspeechrecognizer/supportsondevicerecognition)
+- [Apple requiresOnDeviceRecognition](https://developer.apple.com/documentation/speech/sfspeechrecognitionrequest/requiresondevicerecognition)
+
+## Vorgesehene Architektur
+
+### Datenfluss
+
+```text
+Tastatur oder lokal nachgewiesene Spracherkennung
+│
+▼
+bearbeitbarer Text im React-Formular
+│
+▼
+POST /api/v1/shopping-lists/parse-preview
+│
+├── Zerlegung in Positionen
+├── Mengen- und Einheitenanalyse
+└── deterministische Kategorisierung
+│
+▼
+bearbeitbare Vorschau ohne Datenbankschreibzugriff
+│
+▼ ausdrückliche Bestätigung
+POST /api/v1/shopping-lists/{id}/items/batch
+│
+▼
+atomare Speicherung in PostgreSQL oder SQLite
+```
+
+Audio wird weder an die LifeOS-API übertragen noch in Datenbank, Browser-
+Storage, Service-Worker-Cache, Logs, Audit oder Backup gespeichert. Die API
+erhält nur den vom Nutzer sichtbaren Text. Vorschau und Bestätigung verwenden
+denselben versionierten Parservertrag; der Server validiert beim Schreiben
+Besitz, Kategorie, Limits und Vorschauversion erneut.
+
+### Fachmodul und Verträge
+
+Das Einkaufslistenmodul bleibt innerhalb des modularen Monolithen ein eigenes
+Fachmodul. Es verwendet gemeinsame Authentifizierung, Fehlervertrag, Audit,
+PostgreSQL-/SQLite-Fabrik, Migration, Backup und Restore. Es greift nicht direkt
+auf Fitness-, Finanz-, Aufgaben- oder Kalenderdaten zu.
+
+Vorgesehene Endpunkte unter `/api/v1`:
+
+- `GET /shopping-lists` und `POST /shopping-lists`
+- `GET`, `PATCH` und `DELETE /shopping-lists/{id}`
+- `POST /shopping-lists/{id}/archive-and-create` für den atomaren Listenwechsel
+- `POST /shopping-lists/parse-preview` ohne Persistenz
+- `POST /shopping-lists/{id}/items/batch` nach Bestätigung
+- `PATCH` und `DELETE /shopping-lists/{id}/items/{itemId}`
+- `GET`, `POST`, `PATCH` und `DELETE /shopping-categories`
+
+Die genaue Request- und Response-Struktur wird bei der Implementierung in
+`packages/contracts` versioniert. Grenzen für einen Vorschauaufruf sind
+höchstens 100 Positionen und 10.000 Zeichen. Überschreitungen werden vor jeder
+Schreibaktion verständlich abgewiesen.
+
+### Datenmodell
+
+Geplante Kernmodelle:
+
+- `ShoppingList`: Besitzer, Titel, Status, Zeitstempel und Archivierung.
+- `ShoppingCategory`: Besitzer oder Systemursprung, Name, Sortierung, Farbe und
+  Aktivstatus.
+- `ShoppingItem`: Liste, Besitzer, Bezeichnung, optionale Menge und Einheit,
+  Kategorie, Status, Sortierung, Quelle und Löschmarkierung.
+- `ShoppingCategoryRule`: Besitzer, normalisierter Begriff, Kategorie und
+  Ursprung `default` oder `confirmed_correction`.
+
+Alle Beziehungen enthalten einen Besitzerbezug. Kategorien und Positionen
+können nicht listen- oder besitzerübergreifend referenziert werden. Jede
+Schemaänderung erhält gleichwertige, versionierte PostgreSQL- und
+SQLite-Migrationen sowie Import-, Backup- und Restore-Prüfungen.
+
+## Parser und Kategorisierung
+
+Der Parser arbeitet ohne externe KI:
+
+1. Unicode, Leerzeichen und Großschreibung normalisieren, ohne den sichtbaren
+   Originaltext zu verlieren.
+2. Einträge anhand von Zeilenumbrüchen, Aufzählungen, Kommata und den Wörtern
+   `und` beziehungsweise `sowie` trennen.
+3. Unterstützte Mengen und Einheiten erkennen, zum Beispiel `2 Liter`,
+   `500 Gramm`, `6 Stück` oder `eine Packung`.
+4. Produktnamen über exakte Aliase und kontrollierte Singular-/Pluralformen
+   zuordnen.
+5. Persönliche, bestätigte Regel vor der globalen Grundregel anwenden.
+6. Fehlende oder mehrdeutige Zuordnung als `Sonstiges` kennzeichnen.
+
+Der Parser zeigt Unsicherheit an und erfindet keine Kategorien, Mengen oder
+Produkte. Eine spätere KI-Unterstützung ist kein Bestandteil dieser Planung
+und benötigt eine eigene Freigabe mit Quellen-, Datenschutz- und
+Bestätigungsregeln.
+
+## Datenschutz und Sicherheit
+
+- Mikrofonzugriff wird erst beim bewussten Start angefragt und endet bei
+  Stoppen, Abbruch, Navigation oder Fehler.
+- Kein dauerhaftes oder verstecktes Zuhören.
+- Kein Audio, Rohtranskript oder Produktname in Logs oder Audit-Metadaten.
+- Audit speichert nur Aktion, Anzahl betroffener Positionen und geänderte
+  Feldnamen.
+- Die Vorschau wird nicht in `localStorage`, `sessionStorage` oder im Service
+  Worker persistiert.
+- Schreibende Endpunkte prüfen Sitzung, Besitzer, Eingabelimits und
+  referenzierte Kategorien serverseitig.
+- Export, Löschmarkierung, Backup und Restore umfassen die bestätigten
+  Einkaufsdaten; verworfene Vorschauen und Audio gehören nicht dazu.
+- Synthetische Lebensmittel und Kategorien werden für Seeds, Screenshots und
+  Tests verwendet.
+
+## Barrierefreiheit und Fehlerfälle
+
+- Der Mikrofonknopf besitzt eine verständliche Beschriftung, sichtbaren Fokus,
+  Statusanzeige und Tastaturbedienung.
+- Farbe ist nie das einzige Merkmal für Kategorie oder Aufnahmestatus.
+- Bei verweigerter Berechtigung, fehlender lokaler Erkennung oder Abbruch bleibt
+  der Textweg vollständig nutzbar.
+- Teiltranskripte werden als vorläufig gekennzeichnet und erst nach Ende der
+  Aufnahme zur Vorschau übergeben.
+- Eine Parserstörung oder ungültige Position verhindert den atomaren
+  Schreibschritt; bereits vorhandene Listenpositionen bleiben unverändert.
+- Leere Eingabe, nur Satzzeichen und nicht erkannte Sprache erzeugen keine
+  Position.
+
+## Arbeitspakete
+
+### 1 Technischer Sprachtest
+
+- Deutsche lokale Erkennung in Tauri auf dem unterstützten ARM64-Mac prüfen.
+- Browserunterstützung und lokale Sprachpakete im tatsächlichen PWA-Pfad
+  prüfen.
+- Berechtigungen, Aufnahmeanzeige, Abbruch und fehlende Verfügbarkeit testen.
+- Entscheidung dokumentieren: eigener lokaler Mikrofonmodus oder zunächst nur
+  Systemdiktat.
+
+Ergebnis: Der read-only Fähigkeitsnachweis ist reproduzierbar, der notwendige
+Offline-End-to-End-Nachweis jedoch noch nicht erbracht. Auf ARM64/macOS 26.6
+unterstützt `SpeechTranscriber` Deutsch, sein deutsches Modell ist aber nicht
+installiert; außerdem wurde für LifeOS noch keine Speech- oder
+Mikrofonberechtigung erteilt. Deshalb bleibt der eigene Mikrofonmodus gesperrt.
+Details und Wiederholungsbefehl stehen im
+[`lokalen Sprach-Gate`](grocery-local-speech-gate.md).
+
+### 2 Datenmodell und Verträge
+
+- PostgreSQL- und SQLite-Migrationen erstellen.
+- Gemeinsame Verträge, Validierung, Besitzregeln und wertfreies Audit ergänzen.
+- Transfer, Backup, Restore und Neustart prüfen.
+
+### 3 Textbasierte Einkaufsliste
+
+- Responsive Listenansicht und Mehrfacheingabefeld erstellen.
+- Positionen bearbeiten, gruppieren, abhaken, wieder öffnen, archivieren und
+  löschen.
+- Text- und Systemdiktat-Pfad auf Desktop und Smartphone prüfen.
+
+Ergebnis: umgesetzt. Die gemeinsame React-Oberfläche deckt Erstellen,
+Vorschaukorrektur, bestätigtes Merken, Gruppierung, Bearbeiten, Statuswechsel,
+Löschen, Archivansicht und atomaren Listenwechsel ab. Der reale Browsertest
+läuft in Desktop-Chrome und mit Pixel-7-Viewport; `localStorage` und
+`sessionStorage` bleiben leer.
+
+### 4 Vorschau und Kategorisierung
+
+- Versionierten Parser und Grundregeln implementieren.
+- Vorschau mit Mengen-, Kategorie- und Unsicherheitskorrektur erstellen.
+- Bestätigte Batch-Speicherung atomar umsetzen.
+- Persönliche Regeln erst nach ausdrücklicher Korrekturbestätigung ergänzen.
+
+### 5 Eigener Mikrofonmodus
+
+- Nur den in Arbeitspaket 1 nachgewiesenen lokalen Adapter implementieren.
+- Audiokanal ausschließlich im Client beziehungsweise nativen App-Teil halten.
+- Kein Netzwerk-Fallback; Textweg bei fehlender Verfügbarkeit anbieten.
+- Berechtigungen und Datenschutzbeschreibung in App und Dokumentation ergänzen.
+
+### 6 Gesamtverifikation
+
+- Unit-Tests für Parser, Mengen, Aliase, Mehrdeutigkeit und Grenzwerte.
+- API-Tests für Besitz, Vorschau ohne Persistenz, atomare Bestätigung,
+  Kategorien, Archivierung und Löschmarkierung.
+- PostgreSQL-/SQLite-Parität, Migration, Import, Backup und Restore.
+- Responsive Browser- und Mac-App-Abläufe einschließlich Tastaturbedienung,
+  verweigerter Mikrofonberechtigung und nicht verfügbarer lokaler Erkennung.
+- Secret-Scan, Formatierung, Linting, Build und vollständige CI.
+
+## Akzeptanzkriterien
+
+- „Milch, Käse, Hähnchenbrust, Chips und Äpfel“ ergibt fünf bearbeitbare
+  Vorschaupositionen in nachvollziehbaren Kategorien.
+- Mengen wie „zwei Liter Milch“ bleiben mit Produkt und Einheit verbunden.
+- Unbekannte Begriffe erscheinen in `Sonstiges` und bleiben korrigierbar.
+- Keine Vorschau schreibt Daten; Abbruch hinterlässt keine Positionen.
+- Eine Bestätigung schreibt entweder alle gültigen Positionen oder keine.
+- Eine Kategoriekorrektur beeinflusst andere Einträge nur nach separater,
+  ausdrücklicher Bestätigung als persönliche Regel.
+- Ohne Mikrofonberechtigung oder lokale Spracherkennung funktioniert der
+  vollständige Textweg weiter.
+- LifeOS speichert und protokolliert kein Audio.
+- Externe KI- oder Cloud-Spracherkennung ist weder erforderlich noch als
+  stiller Rückfall verdrahtet.
+- Funktion, Migration und Recovery sind mit synthetischen Daten auf PostgreSQL
+  und SQLite automatisiert geprüft.
+
+## Nicht Bestandteil dieser Erweiterung
+
+- allgemeine Sprachsteuerung der App oder ständig aktives Zuhören,
+- Ernährungsanalyse, Kalorienberechnung oder medizinische Empfehlungen,
+- Rezepte, Essensplanung oder automatische Bestellvorschläge,
+- Preisvergleich, Angebots-, Kassenbon- oder Barcode-Erkennung,
+- Supermarkt- oder Lieferdienstintegration,
+- gemeinsame Haushaltslisten oder Echtzeit-Mehrbenutzersynchronisation,
+- automatische Käufe, Bestellungen oder externe Schreibaktionen,
+- externe KI-Kategorisierung oder Cloud-Spracherkennung als Standard.
+
+## Aufwand und Reihenfolge
+
+Für eine repository-reife Umsetzung mit beiden Datenbankpfaden, Recovery,
+responsiver Oberfläche, Tests und Dokumentation ist grob mit 15 bis 25
+Entwicklungstagen zu rechnen. Davon entfallen voraussichtlich zwei bis vier
+Tage auf den technischen Sprachtest. Ein eigener lokaler Mikrofonmodus kann den
+Aufwand abhängig von Plattformunterstützung und Berechtigungsintegration um
+weitere drei bis sieben Tage erhöhen. Diese Spanne ist eine Planungshilfe und
+keine Terminzusage.
+
+Die Umsetzung beginnt erst auf einem zweckbezogenen Branch aus dem dann
+aktuellen `develop`. Jedes Arbeitspaket benötigt passende Tests, einen
+Conventional Commit, einen Pull Request nach `develop` und grüne Pflicht-CI.
+
+## Getroffene MVP Entscheidungen
+
+- Pro Besitzer gibt es genau eine aktive Liste und beliebig viele archivierte
+  Listen.
+- Die zehn dokumentierten Systemkategorien sind die vollständige erste
+  Kategorieversion; benutzerdefinierte Kategorien bleiben offen.
+- Eine korrigierte Kategorie wird nur bei ausdrücklicher Bestätigung als
+  persönliche Regel gespeichert.
+- Strukturierte Einheiten sind zunächst Stück, Packung, Gramm, Kilogramm,
+  Milliliter und Liter. Andere Mengen bleiben als Text sichtbar.
+- Der eigene Mikrofonmodus wird erst nach einem reproduzierbaren Nachweis
+  lokaler deutscher Erkennung auf einer konkreten Plattform aktiviert.
+
+## Lieferstufen 1 und 2 Nachweis
+
+Die Migration `20260921190000_grocery_lists` ist für PostgreSQL und SQLite
+versioniert. Die API stellt Vorschau, atomare Batch-Bestätigung, Listen-CRUD,
+Positionen, Kategorien und persönliche Regeln unter `/api/v1` bereit. Die
+Vorschau schreibt keine Positionen; Audio wird in dieser Lieferstufe nicht
+verarbeitet. Parser-, Besitzer-, Atomaritäts-, Migration-, Import- und
+Recovery-Abdeckung ist ergänzt. Eine frische PostgreSQL-Datenbank hat alle 20
+Migrationen sowie den Einkaufslisten-Integrationstest einschließlich des
+atomaren Listenwechsels bestanden. Die Pflicht-CI beider Lieferstufen war vor
+dem jeweiligen Merge vollständig grün.
+
+Die responsive Oberfläche verwendet dieselbe API auf Desktop und Smartphone.
+Sie hält Eingabe und Vorschau nur im React-Zustand, zeigt Unsicherheit sichtbar
+an und erzeugt persönliche Zuordnungsregeln nur über eine standardmäßig
+abgewählte Bestätigung. Der Browsernachweis deckt den Text-/Systemdiktat-Pfad,
+Korrektur, Entfernen, Batch-Bestätigung, Statuswechsel und den atomaren
+Archivwechsel ab. Ein eigener Mikrofonmodus ist nicht enthalten.
+
+## Lieferstufe 3: Plattformnachweis und offenes Gate
+
+`npm run grocery:verify:local-speech` erstellt auf dem konkreten ARM64-Mac
+einen temporären, ad-hoc-signierten App-Bundle und liest darin ausschließlich
+die Apple-Speech-Fähigkeiten, installierten Modelle und den vorhandenen
+Berechtigungsstatus. Der Prüfer fordert keine Berechtigung an, öffnet kein
+Mikrofon, startet keine Transkription und installiert oder reserviert kein
+Modell.
+
+Der Lauf vom 22. September 2026 auf macOS 26.6 (Build 25G72) bestätigt:
+
+- `SpeechTranscriber` ist verfügbar und unterstützt `de-DE` als `de_DE`.
+- Das deutsche `SpeechTranscriber`-Modell ist nicht installiert.
+- Der ältere Erkenner ist verfügbar und meldet lokale Unterstützung.
+- Die bundlebezogene Speech-Berechtigung ist noch nicht bestimmt.
+- Eine berechtigte deutsche Transkription mit abgeschaltetem Netzwerk wurde
+  nicht ausgeführt.
+
+Damit ist die Plattform ein Kandidat, aber noch nicht für den Produktadapter
+freigegeben. Der Funktionsumfang endet bewusst beim vollständigen
+Text-/Systemdiktat-Pfad. Es gibt keinen Mikrofonknopf, keine
+`NSMicrophoneUsageDescription`, keine Audioverarbeitung, keinen Cloud-Fallback
+und keine externe KI. Modellinstallation, Systemberechtigung und ein echter
+Offline-End-to-End-Lauf bleiben das klar dokumentierte externe Gate.
+
+Keine dieser Entscheidungen darf die lokale textbasierte Kernfunktion
+blockieren.

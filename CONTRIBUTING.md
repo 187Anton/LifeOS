@@ -37,7 +37,11 @@ Pull Requests enthalten:
 Die GitHub-Actions-CI läuft automatisch für Pull Requests nach `develop` und
 `main`. Pull Requests bleiben Entwürfe, bis Akzeptanzkriterien, relevante Tests
 und Dokumentation vollständig sind. Fehlgeschlagene erforderliche Checks
-dürfen nicht umgangen werden.
+dürfen nicht umgangen werden. Die Rulesets `protect-develop` und
+`protect-main` verlangen für den aktuellen PR-Stand exakt `Repository checks`
+und `Local macOS release`; beide müssen erfolgreich sein. Die unveränderten
+Schutzregeln und der kontrollierte Negativtest sind unter
+[Verbindliche Branch-Prüfungen](docs/branch-rulesets.md) dokumentiert.
 
 Vor dem Push mindestens ausführen:
 
@@ -46,3 +50,30 @@ npm run format:check
 npm run repo:check
 npm test
 ```
+
+## Abhängigkeitsupdates
+
+Reguläre Dependabot-Versionsupdates für npm und GitHub Actions zielen auf
+`develop` und durchlaufen dort dieselben beiden CI-Jobs wie andere Pull
+Requests. Zusammengehörige Minor- und Patch-Updates dürfen gruppiert werden;
+Major-Updates bleiben einzeln und benötigen eine eigene Migrations- und
+Kompatibilitätsprüfung.
+
+GitHub richtet automatische Sicherheitsupdate-PRs technisch weiterhin gegen
+den Default-Branch `main`; `target-branch` gilt laut GitHub nur für reguläre
+Versionsupdates. Solche Sicherheits-PRs werden deshalb nicht direkt nach
+`main` gemergt, sondern als eigener Branch aus dem aktuellen `develop`
+übernommen, vollständig geprüft und zuerst nach `develop` integriert.
+
+## GitHub Actions
+
+Externe Actions in Workflows und zusammengesetzten Actions müssen einen
+vollständigen 40-stelligen Commit-SHA verwenden. Direkt dahinter bleibt die
+exakte Releaseversion als Kommentar sichtbar, zum Beispiel
+`owner/action@<commit-sha> # v1.2.3`. Lokale Actions mit einem Pfad unter `./`
+sind davon ausgenommen.
+
+GitHub-Actions-Updates werden von Dependabot gegen `develop` vorgeschlagen.
+Der PR wird nur nach Prüfung der Releasehinweise, des neuen Commits und beider
+CI-Jobs integriert. Workflowberechtigungen dürfen bei einem reinen
+Action-Update nicht erweitert werden.
