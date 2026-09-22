@@ -81,6 +81,12 @@ Die Umschaltung auf diese Ziele bleibt eine bewusste Aktion nach Readiness-,
 Integritäts- und Datenvergleich. Die aktive Datenbank und das aktive
 Dokumentverzeichnis werden nicht überschrieben.
 
+Bestätigte Einkaufslisten, Kategorien, Positionen und persönliche Regeln sind
+reguläre Datenbankmodelle und werden deshalb mitgesichert und im
+PostgreSQL-/SQLite-Recovery-Test verglichen. Flüchtige Parservorschauen und
+Audio sind keine persistierten Daten und gehören ausdrücklich nicht in Backup
+oder Restore.
+
 Backup- und Prüfsummenziele dürfen weder vorhandene Dateien noch symbolische
 Links sein. Ein Dokumenten- oder SQLite-Backup darf nicht innerhalb seiner
 Quelle liegen; Restore-Datenbank und -Dokumentverzeichnis dürfen weder im

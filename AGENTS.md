@@ -735,3 +735,8 @@ gemeldet.
   audiofreiem Text-/Systemdiktat-Pfad nach PostgreSQL-/SQLite-, Unit- und
   Desktop-/Mobil-Browsernachweis festgehalten; eigener Mikrofonmodus bleibt
   bis zum lokalen Plattformnachweis gesperrt.
+- **2026-09-22:** Read-only App-Bundle-Test für lokale deutsche
+  Apple-Spracherkennung ergänzt. Auf dem geprüften ARM64-Mac unterstützt
+  `SpeechTranscriber` Deutsch, das deutsche Modell und ein berechtigter
+  Offline-End-to-End-Nachweis fehlen jedoch; deshalb bleiben Mikrofonadapter,
+  Mikrofonberechtigung und Cloud-Fallback ausgeschlossen.

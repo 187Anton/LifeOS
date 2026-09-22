@@ -78,6 +78,35 @@ test("schützt lokale Secrets und Anwendungsdaten vor Git", async () => {
   assert.match(gitignore, /packages\/database\/src\/generated\//);
 });
 
+test("prüft lokale deutsche Sprache read-only im macOS-App-Kontext", async () => {
+  const packageJson = JSON.parse(await readRepositoryFile("package.json"));
+  const probeSource = await readRepositoryFile(
+    "scripts/speech-probe/CapabilityProbe.swift",
+  );
+  const probeInfo = await readRepositoryFile("scripts/speech-probe/Info.plist");
+  const probeScript = await readRepositoryFile(
+    "scripts/verify-local-german-speech.sh",
+  );
+
+  assert.equal(
+    packageJson.scripts["grocery:verify:local-speech"],
+    "bash scripts/verify-local-german-speech.sh",
+  );
+  assert.match(probeSource, /SpeechTranscriber\.supportedLocale/);
+  assert.match(probeSource, /SpeechTranscriber\.installedLocales/);
+  assert.match(probeSource, /supportsOnDeviceRecognition/);
+  assert.match(probeSource, /gateStatus/);
+  assert.doesNotMatch(probeSource, /requestAuthorization/);
+  assert.doesNotMatch(probeSource, /downloadAndInstall/);
+  assert.doesNotMatch(probeSource, /AssetInventory\.reserve\s*\(/);
+  assert.doesNotMatch(probeSource, /recognitionTask/);
+  assert.doesNotMatch(probeSource, /AVAudioEngine/);
+  assert.match(probeInfo, /NSSpeechRecognitionUsageDescription/);
+  assert.doesNotMatch(probeInfo, /NSMicrophoneUsageDescription/);
+  assert.match(probeScript, /open -W -n -g/);
+  assert.match(probeScript, /mktemp -d/);
+});
+
 test("führt CI für develop und main mit den verbindlichen Prüfungen aus", async () => {
   const workflow = await readRepositoryFile(".github/workflows/ci.yml");
 

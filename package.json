@@ -49,6 +49,7 @@
     "release:verify:public": "bash scripts/verify-public-mac-release.sh",
     "release:verify:downloaded": "env LIFEOS_REQUIRE_QUARANTINE=1 bash scripts/verify-public-mac-release.sh",
     "caldav:verify:lan": "npm run desktop:prepare && node scripts/verify-caldav-lan.mjs",
+    "grocery:verify:local-speech": "bash scripts/verify-local-german-speech.sh",
     "demo:stabilization": "bash scripts/verify-stabilization-demo.sh",
     "db:backup": "bash scripts/backup-database.sh",
     "db:restore": "bash scripts/restore-database.sh",

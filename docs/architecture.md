@@ -28,7 +28,11 @@ React-Weboberfläche ── REST/API ── Node.js-Backend
 
 Status: Lieferstufen 1 und 2 implementiert. Datenmodell, Parser und API sind auf
 SQLite lokal nachgewiesen; die responsive Oberfläche ist zusätzlich in echten
-Desktop- und Smartphone-Browsern geprüft. Die
+Desktop- und Smartphone-Browsern geprüft. Der read-only Plattformtest auf
+ARM64/macOS 26.6 weist deutsche Unterstützung, aber weder das installierte
+deutsche `SpeechTranscriber`-Modell noch einen berechtigten End-to-End-Lauf
+nach. Deshalb enthält die Architektur weiterhin keinen eigenen
+Mikrofonadapter, keine Mikrofonberechtigung und keinen Cloud-Fallback. Die
 Einkaufsliste ist ein eigenes besitzgebundenes Fachmodul innerhalb des
 modularen Monolithen. Sie verändert weder Fitness-, Finanz-, Aufgaben- noch
 Kalenderdaten automatisch.
@@ -55,7 +59,9 @@ erst bei einem fachlichen Listenaufruf angelegt. Alle Modelle besitzen
 gleichwertige versionierte PostgreSQL- und SQLite-Migrationen sowie
 Besitzergrenzen. Transfer und Recovery berücksichtigen die neuen Tabellen. Der
 vollständige Plan steht unter
-[`Einkaufsliste mit Spracheingabe`](grocery-list-voice-plan.md).
+[`Einkaufsliste mit Spracheingabe`](grocery-list-voice-plan.md); der konkrete
+Plattformbefund unter
+[`Lokales Gate für deutsche Spracheingabe`](grocery-local-speech-gate.md).
 
 Die React-Oberfläche hält Eingabetext und Vorschau ausschließlich im flüchtigen
 Komponentenzustand. Sie zeigt unklare Kategorien, verlangt eine getrennte

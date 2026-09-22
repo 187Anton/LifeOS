@@ -4,6 +4,14 @@ Die Desktop-Anwendung ist der in M5 nachgewiesene Tauri-2-Prototyp. Sie startet
 dieselbe gebaute React-Oberfläche und denselben Express-/CalDAV-Kern wie der
 Browserbetrieb. Eine zweite Fach- oder Kalenderimplementierung gibt es nicht.
 
+Die Einkaufsliste nutzt Text und Betriebssystem-Diktat als vollständigen
+Basispfad. Der Desktop-Bundle enthält aktuell weder einen eigenen
+Mikrofonadapter noch eine Mikrofonberechtigung. Der read-only Plattformtest
+läuft separat mit `npm run grocery:verify:local-speech`; sein aktuelles offenes
+Gate und die später erforderliche Offline-End-to-End-Prüfung sind unter
+[`Lokales Gate für deutsche Spracheingabe`](../../docs/grocery-local-speech-gate.md)
+dokumentiert.
+
 ## Laufzeitaufbau
 
 Tauri wählt beim Start einen freien Port auf `127.0.0.1`, legt die privaten
