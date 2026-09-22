@@ -28,6 +28,10 @@ besitzgebundene persönliche Kategorieregel.
   Positionen.
 - `POST /shopping-lists` legt eine aktive Liste an. Eine zweite aktive Liste
   für denselben Besitzer liefert `409 CONFLICT`.
+- `POST /shopping-lists/{listId}/archive-and-create` archiviert die angegebene
+  aktive Liste und erstellt innerhalb derselben Datenbanktransaktion eine neue
+  aktive Liste. Bei einem Fehler bleibt der vorherige Stand vollständig
+  erhalten.
 - `GET`, `PATCH` und `DELETE /shopping-lists/{listId}` lesen, archivieren,
   reaktivieren oder markieren eine eigene Liste als gelöscht.
 - `GET /shopping-categories` liefert die zehn stabil sortierten

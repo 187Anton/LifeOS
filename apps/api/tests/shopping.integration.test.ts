@@ -195,24 +195,33 @@ test("speichert eine bestätigte Vorschau atomar und schützt Besitzergrenzen", 
     ).status,
     409,
   );
+  const replacementResponse = await fetch(
+    `${base}/shopping-lists/${list.id}/archive-and-create`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ title: "Neue Liste" }),
+    },
+  );
+  assert.equal(replacementResponse.status, 201);
+  const replacement = (await replacementResponse.json()) as {
+    id: string;
+    status: string;
+  };
+  assert.notEqual(replacement.id, list.id);
+  assert.equal(replacement.status, "active");
   assert.equal(
-    (
-      await fetch(`${base}/shopping-lists/${list.id}`, {
-        method: "PATCH",
-        headers,
-        body: JSON.stringify({ archived: true }),
-      })
-    ).status,
-    200,
+    await database.shoppingList.count({
+      where: { userId: owner.id, status: "active", deletedAt: null },
+    }),
+    1,
   );
   assert.equal(
     (
-      await fetch(`${base}/shopping-lists`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ title: "Neue Liste" }),
+      await database.shoppingList.findUniqueOrThrow({
+        where: { id: list.id },
       })
     ).status,
-    201,
+    "archived",
   );
 });

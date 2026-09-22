@@ -85,6 +85,14 @@ import type {
   GitHubIntegrationOverviewResponse,
   GitHubRepositoryListResponse,
   GitHubRepositorySnapshotResponse,
+  ConfirmShoppingItemsRequest,
+  CreateShoppingListRequest,
+  ShoppingBatchResponse,
+  ShoppingCategoryResponse,
+  ShoppingListResponse,
+  ShoppingParsePreviewRequest,
+  ShoppingParsePreviewResponse,
+  UpdateShoppingItemRequest,
 } from "@lifeos/contracts";
 
 const API_BASE = "/api/v1";
@@ -691,6 +699,55 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
+  },
+  listShoppingLists() {
+    return request<ShoppingListResponse[]>("/shopping-lists");
+  },
+  createShoppingList(payload: CreateShoppingListRequest = {}) {
+    return request<ShoppingListResponse>("/shopping-lists", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  archiveAndCreateShoppingList(
+    listId: string,
+    payload: CreateShoppingListRequest = {},
+  ) {
+    return request<ShoppingListResponse>(
+      `/shopping-lists/${encodeURIComponent(listId)}/archive-and-create`,
+      { method: "POST", body: JSON.stringify(payload) },
+    );
+  },
+  listShoppingCategories() {
+    return request<ShoppingCategoryResponse[]>("/shopping-categories");
+  },
+  previewShoppingText(payload: ShoppingParsePreviewRequest) {
+    return request<ShoppingParsePreviewResponse>(
+      "/shopping-lists/parse-preview",
+      { method: "POST", body: JSON.stringify(payload) },
+    );
+  },
+  confirmShoppingItems(listId: string, payload: ConfirmShoppingItemsRequest) {
+    return request<ShoppingBatchResponse>(
+      `/shopping-lists/${encodeURIComponent(listId)}/items/batch`,
+      { method: "POST", body: JSON.stringify(payload) },
+    );
+  },
+  updateShoppingItem(
+    listId: string,
+    itemId: string,
+    payload: UpdateShoppingItemRequest,
+  ) {
+    return request(
+      `/shopping-lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(itemId)}`,
+      { method: "PATCH", body: JSON.stringify(payload) },
+    );
+  },
+  deleteShoppingItem(listId: string, itemId: string) {
+    return request<void>(
+      `/shopping-lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(itemId)}`,
+      { method: "DELETE" },
+    );
   },
   previewIcsImport(calendarId: string, source: string) {
     return request<IcsImportPreviewResponse>(

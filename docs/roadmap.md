@@ -931,8 +931,10 @@ Ziel: Lebensmittel schnell als Text oder Sprache erfassen, vor dem Speichern
 prüfen und in einer lokal gespeicherten Einkaufsliste nach nachvollziehbaren
 Kategorien gruppieren.
 
-Status: Lieferstufe 1 implementiert und auf SQLite lokal nachgewiesen. Die
-responsive Oberfläche und der eigene Mikrofonmodus bleiben offen. Der
+Status: Lieferstufen 1 und 2 implementiert. Datenmodell, Parser und API sind auf
+SQLite lokal nachgewiesen; die responsive Oberfläche und ihr vollständiger
+Text-/Systemdiktat-Ablauf sind in Desktop- und Smartphone-Chrome nachgewiesen.
+Der eigene Mikrofonmodus bleibt bis zum separaten lokalen Sprachnachweis offen. Der
 vollständige fachliche, technische und datenschutzbezogene Plan steht unter
 [`Einkaufsliste mit Spracheingabe`](grocery-list-voice-plan.md).
 
@@ -963,5 +965,8 @@ Abschlusskriterium: Eine Eingabe wie „Milch, Käse, Hähnchenbrust, Chips und
 Äpfel“ erzeugt fünf korrigierbare Vorschaupositionen in nachvollziehbaren
 Kategorien; ohne Bestätigung entsteht keine Position. Lieferstufe 1 erfüllt
 Parser-, API-, Besitz-, Atomaritäts-, Migration- und SQLite-Transferprüfungen.
-PostgreSQL-Lauf, responsive Oberfläche, vollständige CI und der technische
-Nachweis für lokale deutsche Spracherkennung bleiben die nächsten Gates.
+Lieferstufe 2 ergänzt die responsive Bedienung, atomaren Listenwechsel und
+Browsernachweise auf Desktop und Smartphone. Der PostgreSQL-Lauf einschließlich
+aller Migrationen und Einkaufslisten-Integrationstest ist lokal nachgewiesen.
+Vollständige CI und der technische Nachweis für lokale deutsche
+Spracherkennung bleiben die nächsten Gates.

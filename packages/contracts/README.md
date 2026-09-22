@@ -18,6 +18,8 @@ Aktuell definiert es:
   versionierten eigenen Export,
 - lokale Trainingspläne, Übungen, Einheiten, Sätze, Gewichtseinträge und
   einfache Fortschrittsauswertungen,
+- Einkaufslisten, Systemkategorien, strukturierte Mengen und Einheiten sowie
+  die versionierte flüchtige Parser-Vorschau und atomare Batch-Bestätigung,
 - ausschließlich redigierte externe CalDAV-Verbindungen, Kalenderlisten sowie
   kurzlebige read-only-Importvorschauen und Commit-Nachweise,
 - ausschließlich redigierte GitHub-Verbindungen, Rate-Limit-Metadaten und

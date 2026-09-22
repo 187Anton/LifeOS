@@ -74,6 +74,13 @@ begrenzte ganzzahlige Basiseinheiten. Ein optionaler Kalenderbezug wird nur
 Sync-Token werden nicht verändert. Details stehen im
 [`Fitnessvertrag`](../../docs/api/fitness.md).
 
+Der lokale [`Einkaufslistenvertrag`](../../docs/api/shopping.md) stellt genau
+eine aktive Liste pro Besitzer, Systemkategorien, eine nicht persistierende
+Parser-Vorschau und atomare Batch-Bestätigung bereit. Persönliche
+Kategoriezuordnungen entstehen nur mit `rememberCategory: true`; ein atomarer
+Listenwechsel archiviert die aktuelle und erstellt die nächste aktive Liste in
+derselben Transaktion. Audio wird von der API nicht angenommen.
+
 Der lokale [`ICS-Vertrag`](../../docs/api/ics.md) ergänzt den Kalenderkern um
 Export sowie einen zweistufigen Import mit flüchtiger Vorschau. Dateien sind
 auf 2 MiB und 500 Ereignisse begrenzt; Konflikte, doppelte UIDs und ungültige

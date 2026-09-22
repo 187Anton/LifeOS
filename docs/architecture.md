@@ -24,9 +24,11 @@ React-Weboberfläche ── REST/API ── Node.js-Backend
 - Keine externe KI-Verarbeitung ohne Freigabe.
 - Keine vollständige native App im ersten Schritt.
 
-## Geplante Einkaufsliste und Spracheingabe
+## Einkaufsliste und Spracheingabe
 
-Status: Lieferstufe 1 implementiert und auf SQLite lokal nachgewiesen. Die
+Status: Lieferstufen 1 und 2 implementiert. Datenmodell, Parser und API sind auf
+SQLite lokal nachgewiesen; die responsive Oberfläche ist zusätzlich in echten
+Desktop- und Smartphone-Browsern geprüft. Die
 Einkaufsliste ist ein eigenes besitzgebundenes Fachmodul innerhalb des
 modularen Monolithen. Sie verändert weder Fitness-, Finanz-, Aufgaben- noch
 Kalenderdaten automatisch.
@@ -54,6 +56,13 @@ gleichwertige versionierte PostgreSQL- und SQLite-Migrationen sowie
 Besitzergrenzen. Transfer und Recovery berücksichtigen die neuen Tabellen. Der
 vollständige Plan steht unter
 [`Einkaufsliste mit Spracheingabe`](grocery-list-voice-plan.md).
+
+Die React-Oberfläche hält Eingabetext und Vorschau ausschließlich im flüchtigen
+Komponentenzustand. Sie zeigt unklare Kategorien, verlangt eine getrennte
+Bestätigung zum Merken persönlicher Zuordnungen und lädt bestätigte Änderungen
+neu aus der API. Das Archivieren der aktiven und Erstellen der nächsten Liste
+erfolgt serverseitig in einer Transaktion; dadurch entsteht zwischen beiden
+Schritten kein Zustand ohne aktive Liste.
 
 ## Weboberfläche und PWA
 
@@ -110,6 +119,8 @@ deterministischen Parser ohne Schreibzugriff. Erst
 speichert alle Positionen einschließlich bestätigter persönlicher Regeln in
 einer Transaktion. Kategorien und Positionen tragen zusammengesetzte
 Besitzerbezüge; unbekannte Lebensmittel erscheinen als `Sonstiges`.
+`POST /shopping-lists/{id}/archive-and-create` archiviert die aktuelle und
+erstellt die nächste aktive Liste ebenfalls atomar.
 
 ## Lokales Profil und Sitzungen
 
