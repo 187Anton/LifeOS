@@ -49,3 +49,8 @@ Die Vorschau lebt nur im laufenden API-Aufruf und im React-Zustand. Audio,
 Teiltranskripte und Rohtranskripte gelangen weder in API, Datenbank,
 Browser-Storage, Service-Worker-Cache, Logs, Audit noch Backup. Audit-Metadaten
 enthalten nur Aktionen, Mengen und geänderte Feldnamen.
+
+Ein eigener Mikrofonendpunkt existiert nicht. Der aktuelle ARM64-Mac-Nachweis
+und das bewusst offene Offline-End-to-End-Gate sind unter
+[`Lokales Gate für deutsche Spracheingabe`](../grocery-local-speech-gate.md)
+dokumentiert.

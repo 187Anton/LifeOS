@@ -934,8 +934,11 @@ Kategorien gruppieren.
 Status: Lieferstufen 1 und 2 implementiert. Datenmodell, Parser und API sind auf
 SQLite lokal nachgewiesen; die responsive Oberfläche und ihr vollständiger
 Text-/Systemdiktat-Ablauf sind in Desktop- und Smartphone-Chrome nachgewiesen.
-Der eigene Mikrofonmodus bleibt bis zum separaten lokalen Sprachnachweis offen. Der
-vollständige fachliche, technische und datenschutzbezogene Plan steht unter
+Der technische ARM64-Mac-Test ist reproduzierbar, aber sein Gate bleibt offen:
+Deutsch wird unterstützt, das deutsche `SpeechTranscriber`-Modell ist nicht
+installiert und ein berechtigter Offline-End-to-End-Lauf fehlt. Deshalb ist
+kein eigener Mikrofonmodus enthalten. Der vollständige fachliche, technische
+und datenschutzbezogene Plan steht unter
 [`Einkaufsliste mit Spracheingabe`](grocery-list-voice-plan.md).
 
 - Besitzgebundene Einkaufslisten, Kategorien und Positionen mit der Migration
@@ -968,5 +971,8 @@ Parser-, API-, Besitz-, Atomaritäts-, Migration- und SQLite-Transferprüfungen.
 Lieferstufe 2 ergänzt die responsive Bedienung, atomaren Listenwechsel und
 Browsernachweise auf Desktop und Smartphone. Der PostgreSQL-Lauf einschließlich
 aller Migrationen und Einkaufslisten-Integrationstest ist lokal nachgewiesen.
-Vollständige CI und der technische Nachweis für lokale deutsche
-Spracherkennung bleiben die nächsten Gates.
+Die CI der Lieferstufen 1 und 2 ist vollständig grün. Der technische
+Sprachnachweis ist ausgeführt und unter
+[`Lokales Gate für deutsche Spracheingabe`](grocery-local-speech-gate.md)
+dokumentiert; sein fehlender berechtigter Offline-End-to-End-Lauf bleibt ein
+offenes externes Gate.

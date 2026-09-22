@@ -260,8 +260,13 @@ Bestätigungsregeln.
 - Entscheidung dokumentieren: eigener lokaler Mikrofonmodus oder zunächst nur
   Systemdiktat.
 
-Ergebnis: reproduzierbarer Nachweis ohne Cloud-Rückfall. Ohne diesen Nachweis
-bleibt der eigene Mikrofonmodus gesperrt.
+Ergebnis: Der read-only Fähigkeitsnachweis ist reproduzierbar, der notwendige
+Offline-End-to-End-Nachweis jedoch noch nicht erbracht. Auf ARM64/macOS 26.6
+unterstützt `SpeechTranscriber` Deutsch, sein deutsches Modell ist aber nicht
+installiert; außerdem wurde für LifeOS noch keine Speech- oder
+Mikrofonberechtigung erteilt. Deshalb bleibt der eigene Mikrofonmodus gesperrt.
+Details und Wiederholungsbefehl stehen im
+[`lokalen Sprach-Gate`](grocery-local-speech-gate.md).
 
 ### 2 Datenmodell und Verträge
 
@@ -371,8 +376,8 @@ Vorschau schreibt keine Positionen; Audio wird in dieser Lieferstufe nicht
 verarbeitet. Parser-, Besitzer-, Atomaritäts-, Migration-, Import- und
 Recovery-Abdeckung ist ergänzt. Eine frische PostgreSQL-Datenbank hat alle 20
 Migrationen sowie den Einkaufslisten-Integrationstest einschließlich des
-atomaren Listenwechsels bestanden. Der abschließende CI-Nachweis bleibt bis zum
-PR-Gate offen.
+atomaren Listenwechsels bestanden. Die Pflicht-CI beider Lieferstufen war vor
+dem jeweiligen Merge vollständig grün.
 
 Die responsive Oberfläche verwendet dieselbe API auf Desktop und Smartphone.
 Sie hält Eingabe und Vorschau nur im React-Zustand, zeigt Unsicherheit sichtbar
@@ -380,6 +385,31 @@ an und erzeugt persönliche Zuordnungsregeln nur über eine standardmäßig
 abgewählte Bestätigung. Der Browsernachweis deckt den Text-/Systemdiktat-Pfad,
 Korrektur, Entfernen, Batch-Bestätigung, Statuswechsel und den atomaren
 Archivwechsel ab. Ein eigener Mikrofonmodus ist nicht enthalten.
+
+## Lieferstufe 3: Plattformnachweis und offenes Gate
+
+`npm run grocery:verify:local-speech` erstellt auf dem konkreten ARM64-Mac
+einen temporären, ad-hoc-signierten App-Bundle und liest darin ausschließlich
+die Apple-Speech-Fähigkeiten, installierten Modelle und den vorhandenen
+Berechtigungsstatus. Der Prüfer fordert keine Berechtigung an, öffnet kein
+Mikrofon, startet keine Transkription und installiert oder reserviert kein
+Modell.
+
+Der Lauf vom 22. September 2026 auf macOS 26.6 (Build 25G72) bestätigt:
+
+- `SpeechTranscriber` ist verfügbar und unterstützt `de-DE` als `de_DE`.
+- Das deutsche `SpeechTranscriber`-Modell ist nicht installiert.
+- Der ältere Erkenner ist verfügbar und meldet lokale Unterstützung.
+- Die bundlebezogene Speech-Berechtigung ist noch nicht bestimmt.
+- Eine berechtigte deutsche Transkription mit abgeschaltetem Netzwerk wurde
+  nicht ausgeführt.
+
+Damit ist die Plattform ein Kandidat, aber noch nicht für den Produktadapter
+freigegeben. Der Funktionsumfang endet bewusst beim vollständigen
+Text-/Systemdiktat-Pfad. Es gibt keinen Mikrofonknopf, keine
+`NSMicrophoneUsageDescription`, keine Audioverarbeitung, keinen Cloud-Fallback
+und keine externe KI. Modellinstallation, Systemberechtigung und ein echter
+Offline-End-to-End-Lauf bleiben das klar dokumentierte externe Gate.
 
 Keine dieser Entscheidungen darf die lokale textbasierte Kernfunktion
 blockieren.

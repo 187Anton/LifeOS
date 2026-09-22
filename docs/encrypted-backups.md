@@ -77,8 +77,10 @@ unset LIFEOS_BACKUP_PASSPHRASE
 ```
 
 Nach dem Restore werden Readiness, Anmeldung, stabile Kalender-IDs, ETags,
-Sync-Werte und Dokumente am neuen Bestand geprüft. Die bewusste Umschaltung auf
-diese Ziele ist ein separater Schritt; die Quelle bleibt bis zum erfolgreichen
+Sync-Werte, bestätigte Einkaufslisten samt Kategorien und Regeln sowie
+Dokumente am neuen Bestand geprüft. Flüchtige Einkaufsvorschauen und Audio
+existieren nicht im Sicherungsbestand. Die bewusste Umschaltung auf diese Ziele
+ist ein separater Schritt; die Quelle bleibt bis zum erfolgreichen
 Datenvergleich erhalten.
 
 ## Fehler- und Übergangsverhalten

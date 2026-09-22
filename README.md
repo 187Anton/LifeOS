@@ -20,10 +20,15 @@ Die ersten beiden Lieferstufen der lokalen Einkaufsliste sind implementiert:
 Auf Datenmodell, Parser und API folgt eine responsive Oberfläche mit
 bearbeitbarer Vorschau, Systemdiktat-Kennzeichnung, Kategorien, Statuswechsel
 und Archiv. Der Ablauf ist lokal in echten Desktop- und Smartphone-Browsern
-nachgewiesen. Der
+nachgewiesen. Der technische ARM64-Mac-Test hat anschließend bestätigt, dass
+die neue lokale Apple-Transkription Deutsch unterstützt, das deutsche Modell
+aber nicht installiert und die Speech-Berechtigung noch nicht erteilt ist.
+Deshalb bleibt der eigene Mikrofonmodus gesperrt. Der
 [`Umsetzungsplan`](docs/grocery-list-voice-plan.md) trennt diesen vollständigen
 Text-/Systemdiktat-Pfad von einem eigenen Mikrofonmodus, der nur nach einem
-Nachweis lokaler Verarbeitung ohne stillen Cloud-Rückfall freigegeben wird.
+End-to-End-Nachweis lokaler Verarbeitung ohne stillen Cloud-Rückfall
+freigegeben wird. Der aktuelle, reproduzierbare Befund steht im
+[`lokalen Sprach-Gate`](docs/grocery-local-speech-gate.md).
 
 ## Leitentscheidungen
 
@@ -268,7 +273,10 @@ Positionen. Die gemeinsame responsive Oberfläche stellt offene Positionen vor
 erledigten Positionen nach Kategorien dar. Sie kann die aktive Liste in einem
 atomaren Schritt archivieren und durch eine neue aktive Liste ersetzen. Text
 und Betriebssystem-Diktat sind der vollständige Basispfad; ein eigener
-Mikrofonmodus ist noch nicht freigegeben.
+Mikrofonmodus ist nicht freigegeben. `npm run grocery:verify:local-speech`
+prüft die lokale Apple-Fähigkeit read-only im App-Bundle-Kontext; der aktuelle
+ARM64-Mac-Befund und die noch fehlenden End-to-End-Gates sind
+[separat dokumentiert](docs/grocery-local-speech-gate.md).
 
 Die gemeinsame Planung unter `/api/v1/planning` führt Kalendertermine,
 Aufgabenfristen, Studium, Arbeit, geplante und tatsächliche Zeit sowie die
