@@ -166,6 +166,27 @@ const installApi = async (page: Page) => {
     },
   ];
   const fitnessExercises: Array<Record<string, unknown>> = [];
+  const shoppingCategories = [
+    {
+      id: "shopping-category-drinks",
+      ownerId: profile.id,
+      key: "drinks",
+      name: "Getränke",
+      sortOrder: 10,
+      origin: "system",
+      isActive: true,
+    },
+    {
+      id: "shopping-category-other",
+      ownerId: profile.id,
+      key: "other",
+      name: "Sonstiges",
+      sortOrder: 90,
+      origin: "system",
+      isActive: true,
+    },
+  ];
+  const shoppingLists: Array<Record<string, unknown>> = [];
   const externalCalDavConnections: Array<Record<string, unknown>> = [
     {
       id: "external-caldav-1",
@@ -1418,6 +1439,143 @@ const installApi = async (page: Page) => {
       await route.fulfill({ status: 201, json: created });
       return;
     }
+    if (path === "/api/v1/shopping-lists" && method === "GET") {
+      await route.fulfill({ json: shoppingLists });
+      return;
+    }
+    if (path === "/api/v1/shopping-categories" && method === "GET") {
+      await route.fulfill({ json: shoppingCategories });
+      return;
+    }
+    if (path === "/api/v1/shopping-lists" && method === "POST") {
+      const now = new Date().toISOString();
+      const created = {
+        id: `shopping-list-${shoppingLists.length + 1}`,
+        ownerId: profile.id,
+        title: "Einkaufsliste",
+        status: "active",
+        archivedAt: null,
+        deletedAt: null,
+        createdAt: now,
+        updatedAt: now,
+        items: [] as Array<Record<string, unknown>>,
+      };
+      shoppingLists.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    if (path === "/api/v1/shopping-lists/parse-preview" && method === "POST") {
+      const payload = request.postDataJSON() as { source?: string };
+      await route.fulfill({
+        json: {
+          parserVersion: 1,
+          previewVersion: 1,
+          items: [
+            {
+              clientId: "preview-milk",
+              productName: "Milch",
+              quantity: 2,
+              quantityText: "zwei",
+              unit: "liter",
+              categoryId: "shopping-category-drinks",
+              categoryName: "Getränke",
+              uncertain: false,
+              source: payload.source ?? "manual",
+              rememberCategory: false,
+            },
+            {
+              clientId: "preview-unknown",
+              productName: "Synthetischer Artikel",
+              quantity: null,
+              quantityText: null,
+              unit: null,
+              categoryId: "shopping-category-other",
+              categoryName: "Sonstiges",
+              uncertain: true,
+              source: payload.source ?? "manual",
+              rememberCategory: false,
+            },
+          ],
+        },
+      });
+      return;
+    }
+    const shoppingBatchMatch = path.match(
+      /^\/api\/v1\/shopping-lists\/([^/]+)\/items\/batch$/,
+    );
+    if (shoppingBatchMatch && method === "POST") {
+      const list = shoppingLists.find(
+        (value) => value.id === shoppingBatchMatch[1],
+      );
+      const payload = request.postDataJSON() as {
+        items: Array<Record<string, unknown>>;
+      };
+      const items = payload.items.map((item, index) => ({
+        ...item,
+        id: `shopping-item-${index + 1}`,
+        ownerId: profile.id,
+        shoppingListId: shoppingBatchMatch[1],
+        status: "open",
+        sortOrder: index,
+        deletedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        category: shoppingCategories.find(
+          (category) => category.id === item.categoryId,
+        ),
+      }));
+      if (list) list.items = items;
+      await route.fulfill({ status: 201, json: { items } });
+      return;
+    }
+    const shoppingItemMatch = path.match(
+      /^\/api\/v1\/shopping-lists\/([^/]+)\/items\/([^/]+)$/,
+    );
+    if (shoppingItemMatch && method === "PATCH") {
+      const list = shoppingLists.find(
+        (value) => value.id === shoppingItemMatch[1],
+      );
+      const items = (list?.items ?? []) as Array<Record<string, unknown>>;
+      const item = items.find((value) => value.id === shoppingItemMatch[2]);
+      if (item) Object.assign(item, request.postDataJSON());
+      await route.fulfill({ json: item });
+      return;
+    }
+    if (shoppingItemMatch && method === "DELETE") {
+      const list = shoppingLists.find(
+        (value) => value.id === shoppingItemMatch[1],
+      );
+      const items = (list?.items ?? []) as Array<Record<string, unknown>>;
+      if (list)
+        list.items = items.filter((value) => value.id !== shoppingItemMatch[2]);
+      await route.fulfill({ status: 204, body: "" });
+      return;
+    }
+    const shoppingReplaceMatch = path.match(
+      /^\/api\/v1\/shopping-lists\/([^/]+)\/archive-and-create$/,
+    );
+    if (shoppingReplaceMatch && method === "POST") {
+      const previous = shoppingLists.find(
+        (value) => value.id === shoppingReplaceMatch[1],
+      );
+      const now = new Date().toISOString();
+      if (previous)
+        Object.assign(previous, { status: "archived", archivedAt: now });
+      const created = {
+        id: `shopping-list-${shoppingLists.length + 1}`,
+        ownerId: profile.id,
+        title: "Einkaufsliste",
+        status: "active",
+        archivedAt: null,
+        deletedAt: null,
+        createdAt: now,
+        updatedAt: now,
+        items: [] as Array<Record<string, unknown>>,
+      };
+      shoppingLists.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
     await route.fulfill({
       status: 404,
       json: { error: { code: "NOT_FOUND", message: "Nicht gefunden" } },
@@ -1494,6 +1652,68 @@ test("verwaltet Fitness lokal und zeigt medizinische Grenzen", async ({
   await exerciseForm.getByLabel("Name").fill("Synthetische Kniebeuge");
   await exerciseForm.getByRole("button", { name: "Übung speichern" }).click();
   await expect(page.getByText("Die Übung wurde angelegt.")).toBeVisible();
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
+});
+
+test("erfasst, prüft und archiviert eine Einkaufsliste auf Desktop und Smartphone", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Einkauf", exact: true })
+    .filter({ visible: true })
+    .click();
+
+  await expect(
+    page.getByRole("heading", { name: "Einkaufsliste", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Audio wird weder übertragen noch gespeichert/),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /Mikrofon/i })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Einkaufsliste anlegen" }).click();
+  await page
+    .getByLabel("Einkaufstext")
+    .fill("zwei Liter Milch und etwas Neues");
+  await page
+    .getByLabel("Der Text wurde mit der System-Diktierfunktion eingegeben")
+    .check();
+  await page.getByRole("button", { name: "Vorschau erstellen" }).click();
+
+  const milk = page.locator(".shopping-preview-card").first();
+  await milk.getByLabel("Produkt", { exact: true }).fill("Haferdrink");
+  await milk
+    .getByLabel("Diese Produkt-Kategorie-Zuordnung künftig merken")
+    .check();
+  const unknown = page.locator(".shopping-preview-card").filter({
+    hasText: "Zuordnung unsicher",
+  });
+  await unknown.getByRole("button", { name: "Aus Vorschau entfernen" }).click();
+  await page
+    .getByRole("button", { name: "Alle geprüften Positionen speichern" })
+    .click();
+
+  await expect(page.locator('input[value="Haferdrink"]')).toBeVisible();
+  await page
+    .getByRole("button", { name: "Haferdrink als erledigt markieren" })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Haferdrink wieder öffnen" }),
+  ).toBeVisible();
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page
+    .getByRole("button", { name: "Archivieren & neu beginnen" })
+    .click();
+  await expect(page.getByText("Noch keine Position vorhanden.")).toBeVisible();
+  await expect(page.getByText(/Einkaufsliste · 1 Positionen/)).toBeVisible();
+
   expect(
     await page.evaluate(() => ({
       local: Object.keys(localStorage),

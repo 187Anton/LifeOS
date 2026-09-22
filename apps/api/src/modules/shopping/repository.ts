@@ -85,6 +85,12 @@ export interface ShoppingRepository {
   readCategories(userId: string): Promise<ShoppingCategoryResponse[]>;
   getRules(userId: string): Promise<ShoppingCategoryRuleModel[]>;
   createList(userId: string, title: string): Promise<ShoppingListResponse>;
+  archiveAndCreateList(
+    userId: string,
+    listId: string,
+    title: string,
+    archivedAt: Date,
+  ): Promise<ShoppingListResponse>;
   updateList(
     userId: string,
     listId: string,
@@ -186,6 +192,52 @@ export class PrismaShoppingRepository implements ShoppingRepository {
       if (isUniqueViolation(error)) throw new ActiveShoppingListConflictError();
       throw error;
     }
+  }
+
+  async archiveAndCreateList(
+    userId: string,
+    listId: string,
+    title: string,
+    archivedAt: Date,
+  ): Promise<ShoppingListResponse> {
+    await this.ensureSystemCategories(userId);
+    const created = await this.database.$transaction(async (transaction) => {
+      const current = await transaction.shoppingList.findFirst({
+        where: {
+          id: listId,
+          userId,
+          status: "active",
+          deletedAt: null,
+        },
+      });
+      if (!current) throw new ShoppingListNotFoundError();
+
+      await transaction.shoppingList.update({
+        where: { id: current.id },
+        data: { status: "archived", archivedAt },
+      });
+      const next = await transaction.shoppingList.create({
+        data: { userId, title, status: "active" },
+      });
+      await transaction.auditEvent.createMany({
+        data: [
+          {
+            userId,
+            action: "shopping_list.archived",
+            entityType: "ShoppingList",
+            entityId: current.id,
+          },
+          {
+            userId,
+            action: "shopping_list.created",
+            entityType: "ShoppingList",
+            entityId: next.id,
+          },
+        ],
+      });
+      return next;
+    });
+    return this.getList(userId, created.id);
   }
 
   async updateList(

@@ -63,6 +63,21 @@ export class ShoppingService {
     );
   }
 
+  archiveAndCreateList(
+    userId: string,
+    listId: string,
+    input: CreateShoppingListRequest,
+  ) {
+    return this.handle(() =>
+      this.repository.archiveAndCreateList(
+        userId,
+        listId,
+        input.title?.trim() || "Einkaufsliste",
+        this.now(),
+      ),
+    );
+  }
+
   updateList(userId: string, listId: string, input: UpdateShoppingListRequest) {
     const changes: {
       title?: string;

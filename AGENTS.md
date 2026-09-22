@@ -143,6 +143,16 @@ Kennzahlen, verwendet die Profilzeitzone für „heute“ und „überfällig“
 öffnet bei Schnellaktionen nur bestehende Formulare; Schreiben bleibt eine
 getrennte, bestätigte Fachaktion.
 
+Die Einkaufsliste besitzt pro Nutzer höchstens eine aktive Liste; archivierte
+Listen bleiben lesbar. Mehrfacheingaben aus Text oder Systemdiktat werden lokal
+deterministisch in eine flüchtige, bearbeitbare Vorschau zerlegt und erst nach
+Bestätigung atomar gespeichert. Systemkategorien bilden die erste
+Kategorieversion; persönliche Zuordnungsregeln entstehen nur über eine eigene,
+standardmäßig abgewählte Bestätigung. Audio darf weder API, Persistenz, Logs,
+Audit, Browser-Storage noch Backup erreichen. Ein eigener Mikrofonmodus bleibt
+gesperrt, solange lokale deutsche Erkennung auf der konkreten Plattform nicht
+reproduzierbar ohne Cloud-Rückfall erzwungen ist.
+
 Der Projektfortschritt ist eine rein lesende, nicht persistierte Projektion.
 Aktive, nicht archivierte, nicht gelöschte und nicht abgebrochene Ziele,
 Meilensteine und Aufgaben zählen gleichgewichtet; Ziele und Meilensteine gelten
@@ -720,3 +730,8 @@ gemeldet.
 - **2026-09-15:** `Repository checks` und `Local macOS release` in den aktiven
   Rulesets für `main` und `develop` als strikte Pflichtchecks festgelegt; alle
   bisherigen Schutzregeln und die leere Bypass-Liste bleiben unverändert.
+- **2026-09-22:** Besitzgebundene Einkaufsliste mit flüchtiger Vorschau,
+  atomarer Bestätigung, Systemkategorien, bestätigten persönlichen Regeln und
+  audiofreiem Text-/Systemdiktat-Pfad nach PostgreSQL-/SQLite-, Unit- und
+  Desktop-/Mobil-Browsernachweis festgehalten; eigener Mikrofonmodus bleibt
+  bis zum lokalen Plattformnachweis gesperrt.

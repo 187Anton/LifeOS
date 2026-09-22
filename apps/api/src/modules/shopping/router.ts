@@ -105,6 +105,21 @@ export const createShoppingRouter = ({
       );
     },
   );
+  router.post(
+    "/shopping-lists/:listId/archive-and-create",
+    validateRequest({ params: listParams, body: listCreate }),
+    async (_request, response) => {
+      response
+        .status(201)
+        .json(
+          await shopping.archiveAndCreateList(
+            String(response.locals.userId),
+            response.locals.validated.params.listId,
+            response.locals.validated.body as CreateShoppingListRequest,
+          ),
+        );
+    },
+  );
   router.patch(
     "/shopping-lists/:listId",
     validateRequest({ params: listParams, body: listUpdate }),

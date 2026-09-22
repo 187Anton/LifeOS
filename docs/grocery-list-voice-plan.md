@@ -8,9 +8,12 @@ zerlegt, deterministisch Kategorien zugeordnet und vor dem Speichern als
 bearbeitbare Vorschau angezeigt. Erst eine ausdrückliche Bestätigung schreibt
 die Positionen in die aktive Einkaufsliste.
 
-Status: Lieferstufe 1 ist implementiert; Datenmodell, Parser, Verträge und API
-sind lokal auf SQLite nachgewiesen. Die responsive Oberfläche und der eigene
-Mikrofonmodus bleiben weitere Lieferstufen. Dieser Status ist kein öffentlicher
+Status: Lieferstufen 1 und 2 sind implementiert. Datenmodell, Parser, Verträge
+und API sind lokal auf SQLite sowie mit einer frisch migrierten
+PostgreSQL-Datenbank nachgewiesen. Die responsive Oberfläche ist in echten
+Desktop- und Smartphone-Browsern geprüft. Der eigene Mikrofonmodus
+bleibt bis zu einem reproduzierbaren Nachweis lokaler deutscher Erkennung auf
+der konkreten Plattform gesperrt. Dieser Status ist kein öffentlicher
 Release-Nachweis.
 
 ## Nutzererlebnis
@@ -24,13 +27,17 @@ Ein typischer Ablauf lautet:
    Kategorie in einer Vorschau.
 4. Anton korrigiert bei Bedarf Bezeichnung, Menge oder Kategorie.
 5. Erst „Zur Liste hinzufügen“ speichert alle bestätigten Positionen atomar.
-6. Die Einkaufsliste zeigt offene Positionen untereinander, gruppiert nach der
-   gewählten Reihenfolge der Kategorien.
+6. Die Einkaufsliste zeigt offene Positionen vor erledigten Positionen,
+   gruppiert nach der gewählten Reihenfolge der Kategorien.
+7. „Archivieren & neu beginnen“ archiviert die aktuelle und erstellt die neue
+   aktive Liste in einer einzigen Transaktion.
 
 Die Spracheingabe ist eine zusätzliche Eingabemethode. Texteingabe, Bearbeiten,
-Kategoriewechsel, Abbrechen und Bestätigen müssen vollständig ohne Mikrofon
-funktionieren. Während einer Aufnahme zeigt die Oberfläche eindeutig an, dass
-das Mikrofon aktiv ist, und bietet jederzeit Stoppen und Verwerfen an.
+Kategoriewechsel, Entfernen und Bestätigen funktionieren vollständig ohne
+eigenen Mikrofonzugriff. Der Nutzer kann sichtbar kennzeichnen, dass der Text
+mit der Diktierfunktion des Betriebssystems entstand; LifeOS erhält in beiden
+Fällen nur Text. Eine Aufnahmeanzeige mit Stoppen und Verwerfen wäre erst Teil
+eines später nachgewiesenen eigenen Mikrofonmodus.
 
 ## Fachlicher Umfang der ersten Ausbaustufe
 
@@ -163,6 +170,7 @@ Vorgesehene Endpunkte unter `/api/v1`:
 
 - `GET /shopping-lists` und `POST /shopping-lists`
 - `GET`, `PATCH` und `DELETE /shopping-lists/{id}`
+- `POST /shopping-lists/{id}/archive-and-create` für den atomaren Listenwechsel
 - `POST /shopping-lists/parse-preview` ohne Persistenz
 - `POST /shopping-lists/{id}/items/batch` nach Bestätigung
 - `PATCH` und `DELETE /shopping-lists/{id}/items/{itemId}`
@@ -268,6 +276,12 @@ bleibt der eigene Mikrofonmodus gesperrt.
   löschen.
 - Text- und Systemdiktat-Pfad auf Desktop und Smartphone prüfen.
 
+Ergebnis: umgesetzt. Die gemeinsame React-Oberfläche deckt Erstellen,
+Vorschaukorrektur, bestätigtes Merken, Gruppierung, Bearbeiten, Statuswechsel,
+Löschen, Archivansicht und atomaren Listenwechsel ab. Der reale Browsertest
+läuft in Desktop-Chrome und mit Pixel-7-Viewport; `localStorage` und
+`sessionStorage` bleiben leer.
+
 ### 4 Vorschau und Kategorisierung
 
 - Versionierten Parser und Grundregeln implementieren.
@@ -348,15 +362,24 @@ Conventional Commit, einen Pull Request nach `develop` und grüne Pflicht-CI.
 - Der eigene Mikrofonmodus wird erst nach einem reproduzierbaren Nachweis
   lokaler deutscher Erkennung auf einer konkreten Plattform aktiviert.
 
-## Lieferstufe 1 Nachweis
+## Lieferstufen 1 und 2 Nachweis
 
 Die Migration `20260921190000_grocery_lists` ist für PostgreSQL und SQLite
 versioniert. Die API stellt Vorschau, atomare Batch-Bestätigung, Listen-CRUD,
 Positionen, Kategorien und persönliche Regeln unter `/api/v1` bereit. Die
 Vorschau schreibt keine Positionen; Audio wird in dieser Lieferstufe nicht
 verarbeitet. Parser-, Besitzer-, Atomaritäts-, Migration-, Import- und
-Recovery-Abdeckung ist ergänzt. PostgreSQL-Ausführung und der abschließende
-CI-Nachweis bleiben bis zum PR-Gate offen.
+Recovery-Abdeckung ist ergänzt. Eine frische PostgreSQL-Datenbank hat alle 20
+Migrationen sowie den Einkaufslisten-Integrationstest einschließlich des
+atomaren Listenwechsels bestanden. Der abschließende CI-Nachweis bleibt bis zum
+PR-Gate offen.
+
+Die responsive Oberfläche verwendet dieselbe API auf Desktop und Smartphone.
+Sie hält Eingabe und Vorschau nur im React-Zustand, zeigt Unsicherheit sichtbar
+an und erzeugt persönliche Zuordnungsregeln nur über eine standardmäßig
+abgewählte Bestätigung. Der Browsernachweis deckt den Text-/Systemdiktat-Pfad,
+Korrektur, Entfernen, Batch-Bestätigung, Statuswechsel und den atomaren
+Archivwechsel ab. Ein eigener Mikrofonmodus ist nicht enthalten.
 
 Keine dieser Entscheidungen darf die lokale textbasierte Kernfunktion
 blockieren.
