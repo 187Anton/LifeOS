@@ -1278,3 +1278,115 @@ export interface GitHubRepositorySnapshotResponse {
   ciRuns: GitHubCiRunSummaryResponse[];
   rateLimit: GitHubRateLimitResponse;
 }
+
+export type ShoppingListStatus = "active" | "archived";
+export type ShoppingCategoryOrigin = "system" | "custom";
+export type ShoppingItemStatus = "open" | "completed";
+export type ShoppingItemSource = "manual" | "dictation" | "voice";
+export type ShoppingUnit =
+  "piece" | "pack" | "gram" | "kilogram" | "milliliter" | "liter";
+
+export interface ShoppingCategoryResponse {
+  id: string;
+  ownerId: string;
+  key: string;
+  name: string;
+  sortOrder: number;
+  origin: ShoppingCategoryOrigin;
+  isActive: boolean;
+}
+
+export interface ShoppingItemResponse {
+  id: string;
+  ownerId: string;
+  shoppingListId: string;
+  productName: string;
+  quantity: number | null;
+  quantityText: string | null;
+  unit: ShoppingUnit | null;
+  categoryId: string;
+  status: ShoppingItemStatus;
+  sortOrder: number;
+  source: ShoppingItemSource;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  category: ShoppingCategoryResponse;
+}
+
+export interface ShoppingListResponse {
+  id: string;
+  ownerId: string;
+  title: string;
+  status: ShoppingListStatus;
+  archivedAt: string | null;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: ShoppingItemResponse[];
+}
+
+export interface CreateShoppingListRequest {
+  title?: string;
+}
+
+export interface UpdateShoppingListRequest {
+  title?: string;
+  archived?: boolean;
+}
+
+export interface ShoppingPreviewItemResponse {
+  clientId: string;
+  productName: string;
+  quantity: number | null;
+  quantityText: string | null;
+  unit: ShoppingUnit | null;
+  categoryId: string;
+  categoryName: string;
+  uncertain: boolean;
+  source: ShoppingItemSource;
+  rememberCategory: boolean;
+}
+
+export interface ShoppingParsePreviewRequest {
+  text: string;
+  source?: ShoppingItemSource;
+}
+
+export interface ShoppingParsePreviewResponse {
+  parserVersion: number;
+  previewVersion: number;
+  items: ShoppingPreviewItemResponse[];
+}
+
+export interface ConfirmShoppingItemRequest {
+  clientId?: string;
+  productName: string;
+  quantity?: number | null;
+  quantityText?: string | null;
+  unit?: ShoppingUnit | null;
+  categoryId: string;
+  categoryName?: string;
+  uncertain?: boolean;
+  source?: ShoppingItemSource;
+  rememberCategory?: boolean;
+}
+
+export interface ConfirmShoppingItemsRequest {
+  parserVersion: number;
+  previewVersion: number;
+  items: ConfirmShoppingItemRequest[];
+}
+
+export interface ShoppingBatchResponse {
+  items: ShoppingItemResponse[];
+}
+
+export interface UpdateShoppingItemRequest {
+  productName?: string;
+  quantity?: number | null;
+  quantityText?: string | null;
+  unit?: ShoppingUnit | null;
+  categoryId?: string;
+  status?: ShoppingItemStatus;
+}

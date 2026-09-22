@@ -57,6 +57,7 @@ import { KnowledgeWorkspace } from "./components/KnowledgeWorkspace";
 import { FinanceWorkspace } from "./components/FinanceWorkspace";
 import { FitnessWorkspace } from "./components/FitnessWorkspace";
 import { IntegrationsWorkspace } from "./components/IntegrationsWorkspace";
+import { ShoppingWorkspace } from "./components/ShoppingWorkspace";
 import { weekRange, type DateRange } from "./planning";
 
 type SessionState = "checking" | "anonymous" | "authenticated";
@@ -1111,6 +1112,8 @@ export const App = () => {
           selectedCalendarId={selectedCalendarId}
           timezone={profile.settings.timezone}
         />
+      ) : view === "shopping" ? (
+        <ShoppingWorkspace />
       ) : view === "integrations" ? (
         <IntegrationsWorkspace calendars={calendars} />
       ) : view === "knowledge" ? (

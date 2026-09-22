@@ -2,6 +2,12 @@
 
 Stand: 5. September 2026
 
+Dieser Nachweis bleibt als historischer 0.6.0-Abschluss unverändert maßgeblich.
+Die 0.9.0-Releasekandidatin, neue öffentliche Prüfskripte und die datierte
+Trennung zwischen lokalem Ergebnis, CI, Apple-Gates, zweitem Mac, physischem
+Apple Kalender und öffentlicher Freigabe stehen im
+[`Release-Nachweis Roadmap 0.9`](release-0.9.md).
+
 ## Ergebnis
 
 Roadmap 0.6 ist für den lokalen ARM64-Betrieb mit ausschließlich synthetischen

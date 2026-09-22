@@ -43,6 +43,9 @@ aktuell folgende Abläufe ab:
 - lokale Fitnessverwaltung mit Trainingsplänen, Übungen, Zielwerten, Einheiten,
   Sätzen, Gewichtseinträgen, Verlauf und persönlichen Bestleistungen ohne
   Gesundheitsbewertung,
+- responsive Einkaufsliste mit Text-/Systemdiktat-Eingabe, bearbeitbarer
+  Vorschau, bestätigten persönlichen Kategoriezuordnungen, Gruppierung,
+  Statuswechsel, Archivansicht und atomarem Neubeginn ohne Mikrofonzugriff,
 - optionale, standardmäßig deaktivierte externe CalDAV-Verbindung mit
   Status, bewusstem Aktivieren, Test, Kalenderliste sowie bestätigter
   read-only-Importvorschau ohne Zugangsdaten im Frontend,
@@ -88,6 +91,8 @@ Sitzung bleibt in einem vom Backend gesetzten `HttpOnly`-Cookie. Auch
 Finanzfilter, Buchungsformulare, Auswertungen und Exporte bleiben flüchtig oder
 werden nur als bewusst heruntergeladene lokale Datei erzeugt.
 Dasselbe gilt für Fitnessformulare, Kalenderzuordnungen und Auswertungen.
+Einkaufstext und Vorschau bleiben ebenfalls ausschließlich React-Zustand;
+LifeOS öffnet in diesem Basispfad keinen Audiokanal.
 ICS-Dateien werden nur für die aktuelle Vorschau gelesen; Vorschauinhalt und
 Importstatus bleiben flüchtig und werden nicht im Browser gespeichert.
 Dasselbe gilt für externe CalDAV-Formulare, Status und Vorschauen. Benutzername
@@ -120,7 +125,9 @@ getrennte Zeitarten, kombinierte Studien- und Arbeitswochen, Bereichsfilter,
 Konflikt- und Kapazitätswarnungen, fehlende Browserpersistenz, horizontalen
 Überlauf, Finanzkennzahlen, Buchungserfassung, Budgetwarnungen sowie lokale
 Fitnesserfassung und deren medizinische Abgrenzung auf Desktop und Smartphone
-sowie ICS-Vorschau, bestätigten Import, Export, Manifest, Service Worker und
-Offline-App-Shell. Der Integrationsablauf prüft zusätzlich den deaktivierten
+und den vollständigen Einkaufslistenablauf mit Vorschau, Korrektur,
+Bestätigung, Statuswechsel und Archivierung sowie ICS-Vorschau, bestätigten
+Import, Export, Manifest, Service Worker und Offline-App-Shell. Der
+Integrationsablauf prüft zusätzlich den deaktivierten
 Ausgangszustand, bewusstes Aktivieren, Test, Kalenderliste, Vorschau,
 bestätigten read-only-Import, erneutes Deaktivieren und leeren Browser-Storage.

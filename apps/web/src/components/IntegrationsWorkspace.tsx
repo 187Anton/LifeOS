@@ -23,6 +23,21 @@ const importActionLabel = {
   conflict: "Konflikt",
   invalid: "Ungültig",
 } as const;
+const calDavStatusMessage = (code: string) =>
+  ({
+    AUTHORIZATION_FAILED:
+      "Der externe Dienst hat Benutzername, Passwort oder Leseberechtigung abgelehnt.",
+    TIMEOUT:
+      "Der externe Dienst hat nicht innerhalb von fünf Sekunden geantwortet.",
+    RESPONSE_TOO_LARGE:
+      "Die externe Antwort überschreitet die Grenze von 2 MiB.",
+    TOO_MANY_RESOURCES:
+      "Der externe Dienst hat mehr Kalender oder Ereignisse als erlaubt geliefert.",
+    ADDRESS_NOT_ALLOWED:
+      "Die aufgelöste Netzwerkadresse ist aus Sicherheitsgründen nicht zulässig.",
+    TOO_MANY_REDIRECTS:
+      "Der externe Dienst hat die Grenze von zwei Weiterleitungen überschritten.",
+  })[code] ?? "Die externe CalDAV-Verbindung ist derzeit nicht nutzbar.";
 
 export const IntegrationsWorkspace = ({
   calendars,
@@ -210,31 +225,36 @@ export const IntegrationsWorkspace = ({
           selectedLocal={selectedLocal[connection.id] ?? calendars[0]?.id ?? ""}
           preview={
             preview &&
-            preview.externalCalendarId === selectedExternal[connection.id]
+            preview.externalCalendarId === selectedExternal[connection.id] &&
+            preview.localCalendarId ===
+              (selectedLocal[connection.id] ?? calendars[0]?.id ?? "")
               ? preview
               : null
           }
           confirmRevoke={confirmRevoke === connection.id}
-          onSelectExternal={(value) =>
+          onSelectExternal={(value) => {
+            setPreview(null);
             setSelectedExternal((current) => ({
               ...current,
               [connection.id]: value,
-            }))
-          }
-          onSelectLocal={(value) =>
+            }));
+          }}
+          onSelectLocal={(value) => {
+            setPreview(null);
             setSelectedLocal((current) => ({
               ...current,
               [connection.id]: value,
-            }))
-          }
-          onEnable={(enabled) =>
+            }));
+          }}
+          onEnable={(enabled) => {
+            if (!enabled) setPreview(null);
             void action(
               () => api.setExternalCalDavEnabled(connection.id, enabled),
               enabled
                 ? "Die read-only-Verbindung wurde ausdrücklich aktiviert."
                 : "Die externe Verbindung wurde deaktiviert.",
-            )
-          }
+            );
+          }}
           onTest={() =>
             void action(
               () => api.testExternalCalDav(connection.id),
@@ -280,12 +300,13 @@ export const IntegrationsWorkspace = ({
           }}
           onRequestRevoke={() => setConfirmRevoke(connection.id)}
           onCancelRevoke={() => setConfirmRevoke(null)}
-          onRevoke={() =>
+          onRevoke={() => {
+            setPreview(null);
             void action(
               () => api.revokeExternalCalDav(connection.id),
               "Die Verbindung und ihre verschlüsselten Zugangsdaten wurden widerrufen.",
-            ).then(() => setConfirmRevoke(null))
-          }
+            ).then(() => setConfirmRevoke(null));
+          }}
         />
       ))}
       <GitHubIntegrationPanel />
@@ -346,7 +367,9 @@ const ConnectionCard = ({
       Ereignisse: {connection.importedEventCount}
     </p>
     {connection.lastErrorCode ? (
-      <p className="conflict-banner">Fehlercode: {connection.lastErrorCode}</p>
+      <p className="conflict-banner" role="alert">
+        {calDavStatusMessage(connection.lastErrorCode)}
+      </p>
     ) : null}
     <div className="button-row">
       <button

@@ -31,11 +31,16 @@ identischer Daten erzeugt keine Duplikate.
 ## Sicherheitsgrenzen
 
 - Jede Route benötigt die lokale Sitzung und prüft den Kalenderbesitz.
-- Dateien sind auf 2 MiB und 500 `VEVENT`-Komponenten begrenzt.
+- Dateien müssen gültiges UTF-8 enthalten und sind auf 2 MiB und 500
+  `VEVENT`-Komponenten begrenzt. Ungültige Bytefolgen werden abgelehnt und
+  nicht durch Ersatzzeichen verändert.
 - Importierte Serien benötigen `COUNT` oder `UNTIL`; `COUNT` ist auf 1000
   begrenzt. Beim Import werden keine Serieninstanzen expandiert.
 - Doppelte UIDs, gelöschte lokale UIDs, fehlerhafte Ereignisse und abweichende
   vorhandene Inhalte blockieren den Commit.
+- Ändert sich ein vorhandenes Ereignis einschließlich seines ETags zwischen
+  Vorschau und Commit, wird der gesamte Import verworfen und eine neue
+  Vorschau verlangt.
 - Titel, Orte und Beschreibungen gelten als nicht vertrauenswürdig und werden
   in React ausschließlich als Text angezeigt.
 - Vorschauen und persönliche ICS-Daten werden weder im Browser-Storage noch im

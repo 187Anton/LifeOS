@@ -24,6 +24,7 @@ secrets/
 data/*
 !data/.gitkeep
 backups/
+*.lifeos-backup
 *.sqlite
 *.sqlite-journal
 

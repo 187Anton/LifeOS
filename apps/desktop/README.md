@@ -4,6 +4,14 @@ Die Desktop-Anwendung ist der in M5 nachgewiesene Tauri-2-Prototyp. Sie startet
 dieselbe gebaute React-Oberfläche und denselben Express-/CalDAV-Kern wie der
 Browserbetrieb. Eine zweite Fach- oder Kalenderimplementierung gibt es nicht.
 
+Die Einkaufsliste nutzt Text und Betriebssystem-Diktat als vollständigen
+Basispfad. Der Desktop-Bundle enthält aktuell weder einen eigenen
+Mikrofonadapter noch eine Mikrofonberechtigung. Der read-only Plattformtest
+läuft separat mit `npm run grocery:verify:local-speech`; sein aktuelles offenes
+Gate und die später erforderliche Offline-End-to-End-Prüfung sind unter
+[`Lokales Gate für deutsche Spracheingabe`](../../docs/grocery-local-speech-gate.md)
+dokumentiert.
+
 ## Laufzeitaufbau
 
 Tauri wählt beim Start einen freien Port auf `127.0.0.1`, legt die privaten
@@ -60,8 +68,8 @@ Das lokale, versionierte ARM64-Ergebnis liegt danach unter:
 
 ```text
 apps/desktop/src-tauri/target/release/bundle/macos/Anton Life OS.app
-apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.6.0_aarch64.dmg
-apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.6.0_aarch64.dmg.sha256
+apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.9.0_aarch64.dmg
+apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.9.0_aarch64.dmg.sha256
 ```
 
 Der erste Download wird unter `apps/desktop/.cache/` wiederverwendet. Alle
@@ -122,6 +130,32 @@ Anfragekörper, Cookies oder Zugangsdaten.
 - Ein zweiter sauberer unterstützter Mac, Developer-ID, Notarisierung und ein
   Intel-/Universal-Build bleiben externe Release-Gates; M6 ist deshalb noch
   nicht vollständig freigegeben.
+
+## Öffentlichen Releasekandidaten vorbereiten
+
+Roadmap 0.9 ergänzt den lokalen Ablauf um einen strikt gesperrten öffentlichen
+Pfad. Er benötigt eine gültige Developer-ID-Application-Identität sowie ein
+außerhalb des Repositorys gespeichertes `notarytool`-Schlüsselbundprofil:
+
+```bash
+export APPLE_SIGNING_IDENTITY="Developer ID Application: Name (TEAMID)"
+export APPLE_NOTARY_KEYCHAIN_PROFILE="lifeos-notary"
+npm run release:build:public
+unset APPLE_SIGNING_IDENTITY APPLE_NOTARY_KEYCHAIN_PROFILE
+```
+
+Ohne diese Voraussetzungen bricht der Befehl ab. Nach der Notarisierung wird
+das Ticket gestapelt und erst danach die DMG-Prüfsumme neu erzeugt. Ein
+tatsächlich heruntergeladenes Artefakt wird getrennt geprüft:
+
+```bash
+npm run release:verify:downloaded -- \
+  "/absoluter/Downloadpfad/Anton Life OS_0.9.0_aarch64.dmg"
+```
+
+Dieser Download-Nachweis verlangt das macOS-Quarantäneattribut. Die vollständige
+Gate-Matrix und die Zweit-Mac-Checkliste stehen im
+[`Release-Nachweis 0.9`](../../docs/release-0.9.md).
 
 Der vollständige Zwei-Versionen-Test kann mit zwei regulären DMGs wiederholt
 werden:

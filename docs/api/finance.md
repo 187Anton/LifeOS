@@ -52,6 +52,14 @@ Der Export hat `formatVersion: 1`, enthält ausschließlich eigene Daten und
 wird mit `Cache-Control: private, no-store` ausgeliefert. Er ist ein lokaler
 Datenauszug, kein steuerliches oder rechtliches Format.
 
+Ein CSV-Import ist bewusst nicht Teil dieses Stands. Der Leitfaden erlaubt für
+das MVP manuelle Eingabe **oder** CSV-Import; die vorhandene manuelle Eingabe
+erfüllt diese Grenze. Solange kein fachlich verbindliches Spaltenschema,
+Trennzeichen, Währungs- und Konfliktformat festgelegt ist, wäre ein generischer
+Importer mehrdeutig und könnte Finanzdaten falsch zuordnen. Ein späterer
+CSV-Import benötigt deshalb einen eigenen versionierten Vertrag mit Vorschau,
+zeilenweiser Validierung und atomarer Bestätigung.
+
 ## Auswertungen
 
 Einnahmen, Ausgaben und Saldo werden ausschließlich mit ganzen Zahlen

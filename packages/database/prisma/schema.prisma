@@ -50,6 +50,10 @@ model User {
   fitnessSessions           FitnessSession[]
   fitnessSets               FitnessSet[]
   bodyWeightEntries         BodyWeightEntry[]
+  shoppingLists             ShoppingList[]
+  shoppingCategories        ShoppingCategory[]
+  shoppingItems             ShoppingItem[]
+  shoppingCategoryRules     ShoppingCategoryRule[]
   aiInteractions            AiInteraction[]
   auditEvents               AuditEvent[]
 }
@@ -729,6 +733,110 @@ enum FinanceRecurrenceFrequency {
 enum FinanceBudgetPeriod {
   month
   year
+}
+
+enum ShoppingListStatus {
+  active
+  archived
+}
+
+enum ShoppingCategoryOrigin {
+  system
+  custom
+}
+
+enum ShoppingItemStatus {
+  open
+  completed
+}
+
+enum ShoppingItemSource {
+  manual
+  dictation
+  voice
+}
+
+enum ShoppingUnit {
+  piece
+  pack
+  gram
+  kilogram
+  milliliter
+  liter
+}
+
+model ShoppingList {
+  id         String            @id @default(uuid()) @db.Uuid
+  userId     String            @db.Uuid
+  title      String            @db.VarChar(200)
+  status     ShoppingListStatus @default(active)
+  archivedAt DateTime?         @db.Timestamptz(3)
+  deletedAt  DateTime?         @db.Timestamptz(3)
+  createdAt  DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime          @updatedAt @db.Timestamptz(3)
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items      ShoppingItem[]
+
+  @@unique([id, userId])
+  @@index([userId, status, deletedAt])
+  @@index([userId, archivedAt])
+}
+
+model ShoppingCategory {
+  id         String                 @id @default(uuid()) @db.Uuid
+  userId     String                 @db.Uuid
+  key        String                 @db.VarChar(100)
+  name       String                 @db.VarChar(100)
+  sortOrder  Int
+  origin     ShoppingCategoryOrigin @default(system)
+  isActive   Boolean                @default(true)
+  createdAt  DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime               @updatedAt @db.Timestamptz(3)
+  user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items      ShoppingItem[]
+  rules      ShoppingCategoryRule[]
+
+  @@unique([id, userId])
+  @@unique([userId, key])
+  @@index([userId, sortOrder])
+}
+
+model ShoppingCategoryRule {
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @db.Uuid
+  normalizedTerm String           @db.VarChar(200)
+  categoryId     String           @db.Uuid
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @db.Timestamptz(3)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category       ShoppingCategory @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([userId, normalizedTerm])
+  @@index([userId, categoryId])
+}
+
+model ShoppingItem {
+  id            String             @id @default(uuid()) @db.Uuid
+  userId        String             @db.Uuid
+  shoppingListId String            @db.Uuid
+  productName   String             @db.VarChar(500)
+  quantity      Float?
+  quantityText  String?            @db.VarChar(200)
+  unit          ShoppingUnit?
+  categoryId    String             @db.Uuid
+  status        ShoppingItemStatus @default(open)
+  sortOrder     Int                @default(0)
+  source        ShoppingItemSource @default(manual)
+  deletedAt     DateTime?          @db.Timestamptz(3)
+  createdAt     DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime           @updatedAt @db.Timestamptz(3)
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shoppingList  ShoppingList       @relation(fields: [shoppingListId, userId], references: [id, userId], onDelete: Cascade)
+  category      ShoppingCategory   @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
+
+  @@unique([id, userId])
+  @@index([userId, shoppingListId, deletedAt, status])
+  @@index([userId, categoryId, deletedAt])
 }
 
 model FinanceCategory {

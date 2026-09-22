@@ -3,8 +3,32 @@
 Persönliche, lokal startbare Plattform für Studium, Arbeit, Projekte, Aufgaben,
 Kalender, Finanzen, Fitness und Wissen.
 
-Der aktuelle Stand ist bewusst ein stabiles Projektfundament. Die eigentliche
-Fachlogik wird schrittweise ergänzt.
+Der operative Stand 0.1 bis 0.5 ist fachlich umgesetzt; 0.6 ist für den lokalen
+ARM64-Betrieb umgesetzt und nachgewiesen. Der begrenzte read-only-Ausbau der
+optionalen Integrationen aus 0.8 ist ebenfalls umgesetzt. Roadmap 0.9 ist als
+lokale ARM64-Releasekandidatin `0.9.0` mit einem gesicherten Signatur-,
+Notarisierungs-, Download- und LAN-Prüfpfad vorbereitet. Das umfasst
+Fundament, Organisation, Studium und Arbeit, Projekte und Wissen sowie
+Finanzen, Fitness und bewusst begrenzte Integrationen. Das lokale Artefakt ist
+noch kein öffentlich freigegebenes Release.
+
+Die operative Roadmap fasst mehrere ursprünglich getrennte Punkte aus dem
+Leitfaden zusammen. Die Zuordnung, der genaue Umsetzungsumfang sowie die noch
+offenen fachlichen und externen Gates stehen in der [Roadmap](docs/roadmap.md).
+
+Die ersten beiden Lieferstufen der lokalen Einkaufsliste sind implementiert:
+Auf Datenmodell, Parser und API folgt eine responsive Oberfläche mit
+bearbeitbarer Vorschau, Systemdiktat-Kennzeichnung, Kategorien, Statuswechsel
+und Archiv. Der Ablauf ist lokal in echten Desktop- und Smartphone-Browsern
+nachgewiesen. Der technische ARM64-Mac-Test hat anschließend bestätigt, dass
+die neue lokale Apple-Transkription Deutsch unterstützt, das deutsche Modell
+aber nicht installiert und die Speech-Berechtigung noch nicht erteilt ist.
+Deshalb bleibt der eigene Mikrofonmodus gesperrt. Der
+[`Umsetzungsplan`](docs/grocery-list-voice-plan.md) trennt diesen vollständigen
+Text-/Systemdiktat-Pfad von einem eigenen Mikrofonmodus, der nur nach einem
+End-to-End-Nachweis lokaler Verarbeitung ohne stillen Cloud-Rückfall
+freigegeben wird. Der aktuelle, reproduzierbare Befund steht im
+[`lokalen Sprach-Gate`](docs/grocery-local-speech-gate.md).
 
 ## Leitentscheidungen
 
@@ -21,6 +45,8 @@ Fachlogik wird schrittweise ergänzt.
 - lokaler ICS-Import mit Vorschau und konfliktgeschützter Kalenderexport
 - lokale Speicherung und synthetische Beispieldaten
 - externe Integrationen und KI standardmäßig deaktiviert
+- schreibende Automationen und KI-Vorschläge nur nach ausdrücklicher
+  Bestätigung als getrennte Fachaktion
 
 Weitere Regeln stehen in [AGENTS.md](AGENTS.md) und im
 [Produkt- und Entwicklungsleitfaden](LifeOS%20Leitfaden.docx).
@@ -36,6 +62,8 @@ Neue Änderungen beginnen auf einem zweckbezogenen Branch aus `develop`, zum
 Beispiel `feat/calendar`, `fix/caldav-sync` oder `chore/repository`. Sie werden
 zuerst per Pull Request nach `develop` gebracht. Erst nach erfolgreicher
 Prüfung und Integration wird `develop` per Pull Request nach `main` überführt.
+Ein GitHub-Issue ist dafür optional und nicht für jede Unteraufgabe
+verpflichtend.
 
 Commits verwenden dieses Format:
 
@@ -48,8 +76,15 @@ Beispiele sind `feat(calendar): add event model` oder
 
 Pull Requests gegen `develop` und `main` starten automatisch die GitHub-
 Actions-CI. Sie prüft Formatierung, Compose-Konfiguration und alle vorhandenen
-automatisierten Tests. Auf GitHub sollten für beide Branches erforderliche
-Statusprüfungen und Pull Requests als Branch-Schutz eingerichtet werden.
+automatisierten Tests. Die aktiven Rulesets beider Branches verlangen exakt
+`Repository checks` und `Local macOS release` für den aktuellen PR-Stand; ein
+fehlender oder fehlgeschlagener Job blockiert den Squash-Merge. Details und der
+kontrollierte Negativnachweis stehen unter
+[Verbindliche Branch-Prüfungen](docs/branch-rulesets.md).
+Externe Actions sind auf vollständige Commit-SHAs festgelegt; der zugehörige
+Release bleibt als Kommentar lesbar. Die Repositorytests verhindern neue
+veränderliche Action-Referenzen. Details und der kontrollierte Updateablauf
+stehen unter [Abgesicherte GitHub Actions](docs/ci-actions.md).
 
 Codex darf und soll Pull Requests selbstständig erstellen, wenn das Repository
 mit einem GitHub-Remote verbunden ist und die nötigen Berechtigungen vorhanden
@@ -66,8 +101,9 @@ externe Assets bleiben unter ihren jeweiligen Lizenzen.
 
 ## Projektziel: installierbares lokales Release
 
-LifeOS lässt sich in Version `0.6.0` ohne manuelles Zusammensuchen einzelner
-Komponenten als lokales ARM64-DMG bauen und prüfen. Der aktuelle Stand:
+LifeOS lässt sich in Version `0.9.0` ohne manuelles Zusammensuchen einzelner
+Komponenten als lokale ARM64-Releasekandidatin bauen und prüfen. Der aktuelle
+Stand:
 
 - Die Tauri-App bündelt Weboberfläche, Express-/CalDAV-Sidecar, SQLite und eine
   offizielle Node.js-22-Laufzeit. Zur Nutzung sind weder Docker noch ein
@@ -80,9 +116,13 @@ Komponenten als lokales ARM64-DMG bauen und prüfen. Der aktuelle Stand:
   aus einem schreibgeschützten Abbild geprüft.
 
 Das lokale Artefakt ist noch kein öffentlich freigegebenes GitHub-Release.
-Developer-ID-Signatur, Apple-Notarisierung, Gatekeeper-Prüfung, ein zweiter
-sauberer unterstützter Mac, weitere Architekturen und ein physischer
-Apple-Kalender-Test über abgesichertes LAN bleiben offene Release-Gates.
+Developer-ID-Signatur, Apple-Notarisierung, Gatekeeper-Prüfung nach einem
+tatsächlichen Download, ein zweiter sauberer unterstützter Mac, weitere
+Architekturen und ein physischer Apple-Kalender-Test über abgesichertes LAN
+bleiben offene Release-Gates. Vor einer Veröffentlichung ist außerdem ein dann
+aktueller Online-Abgleich der npm-Advisory-Datenbank erforderlich. Die aktuelle
+Gate-Matrix und die reproduzierbaren Zweit-Mac- und Apple-Kalender-Checklisten
+stehen im [Release-Nachweis 0.9](docs/release-0.9.md).
 
 ## Repository-Struktur
 
@@ -123,7 +163,7 @@ npm run release:verify:local
 ```
 
 Das geprüfte ARM64-Ergebnis liegt als
-`apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.6.0_aarch64.dmg`
+`apps/desktop/src-tauri/target/release/bundle/dmg/Anton Life OS_0.9.0_aarch64.dmg`
 mit gleichnamiger `.sha256`-Datei vor. Im DMG wird die App in den Programme-
 Ordner gezogen und anschließend von dort gestartet. Persönliche Daten liegen
 außerhalb des App-Bundles im anwendungsspezifischen macOS-Datenverzeichnis und
@@ -142,7 +182,9 @@ Der tatsächliche Abschlusslauf mit Produktdemo, nativem App-Start, Update
 Der aktuelle providerübergreifende Stabilitäts- und Backup-Nachweis steht in
 [`docs/reliability-recovery-0.6.md`](docs/reliability-recovery-0.6.md).
 Versionsquelle, Buildablauf, Prüfsumme und öffentliche Gates beschreibt die
-[`Release-Dokumentation 0.6`](docs/release-0.6.md).
+historische [`Release-Dokumentation 0.6`](docs/release-0.6.md). Der aktuelle
+Signatur-, Notarisierungs-, Architektur-, Zweit-Mac- und LAN-Prüfpfad steht im
+[`Release-Nachweis 0.9`](docs/release-0.9.md).
 
 ## Browser- und Entwicklungsbetrieb
 
@@ -220,6 +262,21 @@ Optionale Aufgaben- und Kalenderbezüge werden besitzgeprüft und lösen keine
 automatische Änderung des referenzierten Objekts aus.
 Offene Prüfungen, Abgaben und Lernzeiten erscheinen zusätzlich rein lesend im
 Organisations-Dashboard und im sichtbaren Zeitraum der Kalenderansicht.
+
+Die Einkaufsliste ist nach Anmeldung unter `/api/v1/shopping-lists` verfügbar.
+Die ersten beiden Lieferstufen umfassen genau eine aktive Liste pro Besitzer,
+archivierbare Listen, bestätigte atomare Mehrfacheingabe, zehn stabile
+Systemkategorien, sichtbares `Sonstiges`, persönliche Kategorieregeln nur nach
+ausdrücklicher Bestätigung sowie Positionen mit unterstützten Einheiten. Die
+flüchtige Vorschau unter `/api/v1/shopping-lists/parse-preview` schreibt keine
+Positionen. Die gemeinsame responsive Oberfläche stellt offene Positionen vor
+erledigten Positionen nach Kategorien dar. Sie kann die aktive Liste in einem
+atomaren Schritt archivieren und durch eine neue aktive Liste ersetzen. Text
+und Betriebssystem-Diktat sind der vollständige Basispfad; ein eigener
+Mikrofonmodus ist nicht freigegeben. `npm run grocery:verify:local-speech`
+prüft die lokale Apple-Fähigkeit read-only im App-Bundle-Kontext; der aktuelle
+ARM64-Mac-Befund und die noch fehlenden End-to-End-Gates sind
+[separat dokumentiert](docs/grocery-local-speech-gate.md).
 
 Die gemeinsame Planung unter `/api/v1/planning` führt Kalendertermine,
 Aufgabenfristen, Studium, Arbeit, geplante und tatsächliche Zeit sowie die
@@ -339,7 +396,9 @@ Monatsvergleich, Sparquote und Budgetwarnungen verändern keine Quelldaten. Ein
 versionierter JSON-Export enthält ausschließlich die Daten des angemeldeten
 Profils. Wiederholungen werden vorbereitet, aber nicht automatisch gebucht.
 Es gibt keine Bankanbindung, Steuer- oder Rechtsbewertung, KI-Freigabe oder
-externe Übertragung. Details stehen im
+externe Übertragung. Ein generischer CSV-Import bleibt mangels verbindlichem
+Spalten-, Währungs- und Konfliktformat bewusst zurückgestellt; die im Leitfaden
+alternativ vorgesehene manuelle Eingabe ist vorhanden. Details stehen im
 [Finanzvertrag](docs/api/finance.md).
 
 Der Bereich **Fitness** verwaltet Trainingspläne, Übungen, Einheiten, Sätze und
@@ -358,9 +417,11 @@ nur die lokale API und liegen dort AES-256-GCM-verschlüsselt; ohne den
 separaten lokalen `INTEGRATION_SECRET_KEY` bleibt die Funktion vollständig
 aus. Nach ausdrücklicher Aktivierung lassen sich Verbindung und Kalender
 kontrolliert prüfen. Ereignisse werden erst nach Importvorschau und erneuter
-Bestätigung in den vorhandenen Kalenderkern übernommen. Es gibt keine
-automatische oder bidirektionale Synchronisation und keine Schreibaktion zum
-externen Dienst. Details und offene Grenzen stehen im
+Bestätigung in den vorhandenen Kalenderkern übernommen. Der Abruf ist auf 365
+Tage Vergangenheit und 730 Tage Zukunft begrenzt; Ereignisse und ihre externe
+UID-/ETag-Zuordnung werden atomar geschrieben. Es gibt keine automatische oder
+bidirektionale Synchronisation und keine Schreibaktion zum externen Dienst.
+Details und offene Grenzen stehen im
 [externen CalDAV-Vertrag](docs/api/external-caldav.md).
 
 Im selben Bereich kann optional eine ausschließlich lesende GitHub-Verbindung
@@ -368,9 +429,17 @@ eingerichtet werden. Sie bleibt ohne `INTEGRATION_SECRET_KEY` und bis zur
 bewussten Aktivierung netzwerkfrei. Das Token wird nur verschlüsselt im
 Backend gespeichert und nie wieder ausgegeben. Danach lassen sich
 Repository-Metadaten, Issues, Pull Requests, Commits, Releases und CI-Status
-flüchtig anzeigen; LifeOS speichert diese Inhalte nicht dauerhaft und führt
-keine GitHub-Schreibaktion aus. Details, Berechtigungen, Limits und offene
-Grenzen stehen im [GitHub-Integrationsvertrag](docs/api/github-integration.md).
+flüchtig innerhalb harter Antwort- und Mengenlimits anzeigen; LifeOS speichert
+diese Inhalte nicht dauerhaft und führt keine GitHub-Schreibaktion aus.
+Details, Berechtigungen, Limits und offene Grenzen stehen im
+[GitHub-Integrationsvertrag](docs/api/github-integration.md).
+
+Der eigene LifeOS-Kalender, der lokale CalDAV-Server, ICS-Import/-Export und
+der Browserbetrieb benötigen keine externe Verbindung. OAuth, Webhooks,
+Hintergrundsynchronisation, externe Schreibaktionen und Löschspiegelung bleiben
+bewusst offen. Die installierte Mac-App erhält weiterhin keinen
+Integrationsschlüssel; eine spätere Aktivierung erfordert einen separat
+geprüften Schlüsselbundpfad.
 
 Der vollständige synthetische Abschlusslauf für Finanzen, Fitness, ICS,
 optionale Integrationen, PostgreSQL, SQLite, Recovery, Browser und Mac-Sidecar
@@ -413,55 +482,61 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 
 ### Aktuell verfügbare Befehle
 
-| Aufgabe                                       | Befehl                                                                     |
-| --------------------------------------------- | -------------------------------------------------------------------------- |
-| Abhängigkeiten installieren                   | `npm ci`                                                                   |
-| Docker und lokale Konfiguration prüfen        | `npm run env:check`                                                        |
-| Datenbank starten und Verbindung prüfen       | `npm run db:start`                                                         |
-| Datenbankstatus und SQL-Verbindung prüfen     | `npm run db:check`                                                         |
-| Lokale Dienste ohne Datenverlust stoppen      | `npm run db:stop`                                                          |
-| Prisma-Schema prüfen                          | `npm run db:validate`                                                      |
-| Versionierte Migrationen anwenden             | `npm run db:migrate`                                                       |
-| Synthetische Seed-Daten anlegen               | `npm run db:seed`                                                          |
-| Datenbank-Integrationstest ausführen          | `npm run db:test`                                                          |
-| SQLite-Spike-Schema prüfen                    | `npm run db:sqlite:validate`                                               |
-| SQLite-Spike-Migration anwenden               | `npm run db:sqlite:migrate`                                                |
-| SQLite-Spike synthetisch befüllen             | `npm run db:sqlite:seed`                                                   |
-| SQLite-Migrationsgate prüfen                  | `npm run db:sqlite:test`                                                   |
-| Vollständige API auf SQLite prüfen            | `npm run test:sqlite:api`                                                  |
-| Gebaute SQLite-API mit Neustart prüfen        | `npm run verify:sqlite:api-runtime`                                        |
-| Gebündelten Mac-Sidecar prüfen                | `npm run desktop:verify:sidecar`                                           |
-| Native Mac-App lokal bauen                    | `npm run desktop:build:app`                                                |
-| ARM64-DMG lokal bauen                         | `npm run desktop:build:dmg`                                                |
-| Lokales DMG und gebündelten Sidecar prüfen    | `npm run desktop:verify:dmg`                                               |
-| Release-Metadaten abgleichen                  | `npm run release:verify`                                                   |
-| Lokales Release vollständig bauen             | `npm run release:build:local`                                              |
-| Lokales Release vollständig prüfen            | `npm run release:verify:local`                                             |
-| Zwei Versionen, Update und Rollback prüfen    | `npm run desktop:verify:update-rollback -- <baseline-dmg> <aktuelles-dmg>` |
-| Vollständige Stabilitätsdemo ausführen        | `npm run demo:stabilization -- <baseline-dmg>`                             |
-| PostgreSQL vollständig nach SQLite übertragen | `npm run db:sqlite:import`                                                 |
-| SQLite und Dokumente sichern                  | `npm run db:sqlite:backup -- …`                                            |
-| SQLite-Backup in neue Ziele restaurieren      | `npm run db:sqlite:restore -- …`                                           |
-| SQLite-Import und Recovery isoliert prüfen    | `npm run db:sqlite:verify:recovery`                                        |
-| Lokales PostgreSQL-Backup erstellen           | `npm run db:backup`                                                        |
-| Backup sicher in neue Datenbank restaurieren  | `npm run db:restore -- …`                                                  |
-| Dokumente prüfsummengeschützt sichern         | `npm run documents:backup -- …`                                            |
-| Dokumente ausschließlich in neues Ziel laden  | `npm run documents:restore -- …`                                           |
-| Migration, Backup und Restore isoliert prüfen | `npm run db:verify:recovery`                                               |
-| API lokal starten                             | `npm run api:start`                                                        |
-| API im Watch-Modus starten                    | `npm run api:dev`                                                          |
-| Weboberfläche lokal starten                   | `npm run web:dev`                                                          |
-| Gebaute Weboberfläche lokal prüfen            | `npm run web:preview`                                                      |
-| Lokales Passwort setzen/Sitzungen widerrufen  | `npm run auth:bootstrap`                                                   |
-| Getrennten CalDAV-Zugang setzen               | `npm run caldav:bootstrap`                                                 |
-| Getrennten CalDAV-Zugang widerrufen           | `npm run caldav:revoke`                                                    |
-| Workspaces linten                             | `npm run lint`                                                             |
-| Workspaces typprüfen                          | `npm run typecheck`                                                        |
-| Anwendungen und Packages bauen                | `npm run build`                                                            |
-| Compose-Konfiguration ohne Start prüfen       | `npm run repo:check`                                                       |
-| Versionierte Dateien auf Secrets prüfen       | `npm run security:secrets`                                                 |
-| Formatierung prüfen                           | `npm run format:check`                                                     |
-| Repository- und vorhandene Workspace-Tests    | `npm test`                                                                 |
+| Aufgabe                                          | Befehl                                                                     |
+| ------------------------------------------------ | -------------------------------------------------------------------------- |
+| Abhängigkeiten installieren                      | `npm ci`                                                                   |
+| Docker und lokale Konfiguration prüfen           | `npm run env:check`                                                        |
+| Datenbank starten und Verbindung prüfen          | `npm run db:start`                                                         |
+| Datenbankstatus und SQL-Verbindung prüfen        | `npm run db:check`                                                         |
+| Lokale Dienste ohne Datenverlust stoppen         | `npm run db:stop`                                                          |
+| Prisma-Schema prüfen                             | `npm run db:validate`                                                      |
+| Versionierte Migrationen anwenden                | `npm run db:migrate`                                                       |
+| Synthetische Seed-Daten anlegen                  | `npm run db:seed`                                                          |
+| Datenbank-Integrationstest ausführen             | `npm run db:test`                                                          |
+| SQLite-Spike-Schema prüfen                       | `npm run db:sqlite:validate`                                               |
+| SQLite-Spike-Migration anwenden                  | `npm run db:sqlite:migrate`                                                |
+| SQLite-Spike synthetisch befüllen                | `npm run db:sqlite:seed`                                                   |
+| SQLite-Migrationsgate prüfen                     | `npm run db:sqlite:test`                                                   |
+| Vollständige API auf SQLite prüfen               | `npm run test:sqlite:api`                                                  |
+| Gebaute SQLite-API mit Neustart prüfen           | `npm run verify:sqlite:api-runtime`                                        |
+| Gebündelten Mac-Sidecar prüfen                   | `npm run desktop:verify:sidecar`                                           |
+| Native Mac-App lokal bauen                       | `npm run desktop:build:app`                                                |
+| ARM64-DMG lokal bauen                            | `npm run desktop:build:dmg`                                                |
+| Lokales DMG und gebündelten Sidecar prüfen       | `npm run desktop:verify:dmg`                                               |
+| Release-Metadaten abgleichen                     | `npm run release:verify`                                                   |
+| Lokales Release vollständig bauen                | `npm run release:build:local`                                              |
+| Lokales Release vollständig prüfen               | `npm run release:verify:local`                                             |
+| Developer-ID-Build notarisiert vorbereiten       | `npm run release:build:public`                                             |
+| Notarisiertes lokales Artefakt prüfen            | `npm run release:verify:public -- <dmg>`                                   |
+| Heruntergeladenes Artefakt mit Gatekeeper prüfen | `npm run release:verify:downloaded -- <dmg>`                               |
+| CalDAV über die private LAN-Adresse vorprüfen    | `npm run caldav:verify:lan`                                                |
+| Zwei Versionen, Update und Rollback prüfen       | `npm run desktop:verify:update-rollback -- <baseline-dmg> <aktuelles-dmg>` |
+| Vollständige Stabilitätsdemo ausführen           | `npm run demo:stabilization -- <baseline-dmg>`                             |
+| PostgreSQL vollständig nach SQLite übertragen    | `npm run db:sqlite:import`                                                 |
+| SQLite und Dokumente sichern                     | `npm run db:sqlite:backup -- …`                                            |
+| SQLite-Backup in neue Ziele restaurieren         | `npm run db:sqlite:restore -- …`                                           |
+| SQLite und Dokumente verschlüsselt sichern       | `npm run db:sqlite:backup:encrypted -- …`                                  |
+| Verschlüsseltes Backup in neue Ziele laden       | `npm run db:sqlite:restore:encrypted -- …`                                 |
+| SQLite-Import und Recovery isoliert prüfen       | `npm run db:sqlite:verify:recovery`                                        |
+| Lokales PostgreSQL-Backup erstellen              | `npm run db:backup`                                                        |
+| Backup sicher in neue Datenbank restaurieren     | `npm run db:restore -- …`                                                  |
+| Dokumente prüfsummengeschützt sichern            | `npm run documents:backup -- …`                                            |
+| Dokumente ausschließlich in neues Ziel laden     | `npm run documents:restore -- …`                                           |
+| Migration, Backup und Restore isoliert prüfen    | `npm run db:verify:recovery`                                               |
+| API lokal starten                                | `npm run api:start`                                                        |
+| API im Watch-Modus starten                       | `npm run api:dev`                                                          |
+| Weboberfläche lokal starten                      | `npm run web:dev`                                                          |
+| Gebaute Weboberfläche lokal prüfen               | `npm run web:preview`                                                      |
+| Lokales Passwort setzen/Sitzungen widerrufen     | `npm run auth:bootstrap`                                                   |
+| Getrennten CalDAV-Zugang setzen                  | `npm run caldav:bootstrap`                                                 |
+| Getrennten CalDAV-Zugang widerrufen              | `npm run caldav:revoke`                                                    |
+| Workspaces linten                                | `npm run lint`                                                             |
+| Workspaces typprüfen                             | `npm run typecheck`                                                        |
+| Anwendungen und Packages bauen                   | `npm run build`                                                            |
+| Compose-Konfiguration ohne Start prüfen          | `npm run repo:check`                                                       |
+| Versionierte Dateien auf Secrets prüfen          | `npm run security:secrets`                                                 |
+| Formatierung prüfen                              | `npm run format:check`                                                     |
+| Repository- und vorhandene Workspace-Tests       | `npm test`                                                                 |
 
 Die SQLite-Befehle bilden alle vorhandenen Fachmodelle ab. Die gebaute API
 läuft damit ohne Docker und behält synthetische Daten nach einem Neustart. M3
@@ -473,7 +548,9 @@ ergänzt das geprüfte DMG, die terminalfreie Ersteinrichtung sowie einen
 datenerhaltenden Update-, Rollback- und Restore-Nachweis. Noch offen sind
 Developer-ID-Signierung, Notarisierung, Gatekeeper-Downloadpfad, weitere
 Architekturen, der Gegencheck auf einem zweiten sauberen Mac und der physische
-Apple-Kalender-Test. Buildweg, App-Pfade und Grenzen stehen in
+Apple-Kalender-Test. Roadmap 0.9 stellt dafür reproduzierbare Prüfpfade und
+Checklisten bereit, erklärt die Gates aber erst nach einem tatsächlichen
+Nachweis für bestanden. Buildweg, App-Pfade und Grenzen stehen in
 [`apps/desktop/README.md`](apps/desktop/README.md). Weitere Datenregeln stehen in
 [`packages/database/README.md`](packages/database/README.md) und im
 [`Migrationsprotokoll`](docs/mac-desktop-migration-log.md).
@@ -509,12 +586,22 @@ Migrationen müssen ein PostgreSQL-Backup und eine Sicherung des
 Dokumentenverzeichnisses erstellt werden. Der vollständige automatisierte
 Backup-/Wiederherstellungsnachweis umfasst Prüfsummen, manipulierte Archive,
 Symlinks, disjunkte neue Ziele und Datenvergleich; Details stehen im
-[Recovery-Nachweis 0.6](docs/reliability-recovery-0.6.md).
+[Recovery-Nachweis 0.6](docs/reliability-recovery-0.6.md). Für portable
+SQLite-Sicherungen schützt der empfohlene verschlüsselte Container Datenbank
+und Dokumente gemeinsam. Unterstützte Ziele, Passphrasenübergabe,
+Wiederherstellung und der kompatibel erhaltene unverschlüsselte Bestand sind
+unter [Verschlüsselte Backups](docs/encrypted-backups.md) dokumentiert.
 
-## GitHub-Planung einrichten
+## Optionale GitHub-Planung
+
+GitHub-Issues, Milestones und Projects sind Hilfsmittel, aber keine
+Voraussetzung für eine Änderung. Der verbindliche Ablauf besteht aus
+zweckbezogenem Branch, Conventional Commit, Push, Pull Request und erfolgreicher
+CI. Planungsobjekte werden nur bei ausdrücklichem Bedarf angelegt; eine
+Browser-Aktion ist dafür nicht vorgeschrieben.
 
 Die Labels, Roadmap-Milestones und das persönliche GitHub-Project werden mit
-dem folgenden Skript eingerichtet:
+dem folgenden optionalen Skript eingerichtet:
 
 ```bash
 bash scripts/setup-github-planning.sh
@@ -530,6 +617,12 @@ gh auth refresh -s project
 Die Einrichtung wird im eigenen, bereits bei GitHub angemeldeten Terminal
 ausgeführt. Für persönliche Projects muss die Anmeldung den `project`-Scope
 besitzen; das Skript legt keine Zugangsdaten im Repository ab.
+
+Reguläre Abhängigkeitsupdates laufen ebenfalls zuerst über `develop`.
+Gruppierung, Major-Update-Grenze, die abweichende GitHub-Behandlung
+automatischer Sicherheitsupdates und der noch offene reale Dependabot-Nachweis
+sind unter [Abhängigkeitsupdates über `develop`](docs/dependency-updates.md)
+dokumentiert.
 
 Es ist wiederholbar: Bereits vorhandene Labels, Milestones, Project-Felder und
 Ansichten werden nicht doppelt angelegt. Das Project enthält die Ansichten

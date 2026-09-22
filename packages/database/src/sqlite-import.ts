@@ -48,6 +48,10 @@ type ReadClient = Pick<
   | "fitnessSession"
   | "fitnessSet"
   | "bodyWeightEntry"
+  | "shoppingList"
+  | "shoppingCategory"
+  | "shoppingItem"
+  | "shoppingCategoryRule"
   | "aiInteraction"
   | "auditEvent"
 >;
@@ -133,6 +137,18 @@ const readDataset = async (database: ReadClient) => ({
   }),
   fitnessSets: await database.fitnessSet.findMany({ orderBy: { id: "asc" } }),
   bodyWeightEntries: await database.bodyWeightEntry.findMany({
+    orderBy: { id: "asc" },
+  }),
+  shoppingLists: await database.shoppingList.findMany({
+    orderBy: { id: "asc" },
+  }),
+  shoppingCategories: await database.shoppingCategory.findMany({
+    orderBy: { id: "asc" },
+  }),
+  shoppingItems: await database.shoppingItem.findMany({
+    orderBy: { id: "asc" },
+  }),
+  shoppingCategoryRules: await database.shoppingCategoryRule.findMany({
     orderBy: { id: "asc" },
   }),
   aiInteractions: await database.aiInteraction.findMany({
@@ -314,6 +330,22 @@ const insertDataset = async (
     if (dataset.bodyWeightEntries.length)
       await transaction.bodyWeightEntry.createMany({
         data: dataset.bodyWeightEntries,
+      });
+    if (dataset.shoppingCategories.length)
+      await transaction.shoppingCategory.createMany({
+        data: dataset.shoppingCategories,
+      });
+    if (dataset.shoppingLists.length)
+      await transaction.shoppingList.createMany({
+        data: dataset.shoppingLists,
+      });
+    if (dataset.shoppingCategoryRules.length)
+      await transaction.shoppingCategoryRule.createMany({
+        data: dataset.shoppingCategoryRules,
+      });
+    if (dataset.shoppingItems.length)
+      await transaction.shoppingItem.createMany({
+        data: dataset.shoppingItems,
       });
     if (dataset.aiInteractions.length)
       await transaction.aiInteraction.createMany({

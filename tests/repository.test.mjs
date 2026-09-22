@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -12,6 +12,30 @@ const repositoryRoot = path.resolve(
 const readRepositoryFile = (relativePath) =>
   readFile(path.join(repositoryRoot, relativePath), "utf8");
 
+const listYamlFiles = async (directory) => {
+  let entries;
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+
+  const nestedFiles = await Promise.all(
+    entries.map((entry) => {
+      const entryPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        return listYamlFiles(entryPath);
+      }
+      return /\.ya?ml$/i.test(entry.name) ? [entryPath] : [];
+    }),
+  );
+
+  return nestedFiles.flat();
+};
+
 test("enthält die verpflichtenden Repository-Artefakte", async () => {
   const requiredPaths = [
     ".env.example",
@@ -22,7 +46,10 @@ test("enthält die verpflichtenden Repository-Artefakte", async () => {
     "README.md",
     "compose.yaml",
     "docs/architecture.md",
+    "docs/ci-actions.md",
+    "docs/dependency-updates.md",
     "docs/foundation-verification.md",
+    "docs/release-0.9.md",
     "docs/roadmap-06-local-demo.md",
     "docs/roadmap.md",
   ];
@@ -46,8 +73,38 @@ test("schützt lokale Secrets und Anwendungsdaten vor Git", async () => {
   assert.match(gitignore, /^data\/\*$/m);
   assert.match(gitignore, /^!data\/\.gitkeep$/m);
   assert.match(gitignore, /^backups\/$/m);
+  assert.match(gitignore, /^\*\.lifeos-backup$/m);
   assert.doesNotMatch(gitignore, /packages\/database\/prisma\/migrations\//);
   assert.match(gitignore, /packages\/database\/src\/generated\//);
+});
+
+test("prüft lokale deutsche Sprache read-only im macOS-App-Kontext", async () => {
+  const packageJson = JSON.parse(await readRepositoryFile("package.json"));
+  const probeSource = await readRepositoryFile(
+    "scripts/speech-probe/CapabilityProbe.swift",
+  );
+  const probeInfo = await readRepositoryFile("scripts/speech-probe/Info.plist");
+  const probeScript = await readRepositoryFile(
+    "scripts/verify-local-german-speech.sh",
+  );
+
+  assert.equal(
+    packageJson.scripts["grocery:verify:local-speech"],
+    "bash scripts/verify-local-german-speech.sh",
+  );
+  assert.match(probeSource, /SpeechTranscriber\.supportedLocale/);
+  assert.match(probeSource, /SpeechTranscriber\.installedLocales/);
+  assert.match(probeSource, /supportsOnDeviceRecognition/);
+  assert.match(probeSource, /gateStatus/);
+  assert.doesNotMatch(probeSource, /requestAuthorization/);
+  assert.doesNotMatch(probeSource, /downloadAndInstall/);
+  assert.doesNotMatch(probeSource, /AssetInventory\.reserve\s*\(/);
+  assert.doesNotMatch(probeSource, /recognitionTask/);
+  assert.doesNotMatch(probeSource, /AVAudioEngine/);
+  assert.match(probeInfo, /NSSpeechRecognitionUsageDescription/);
+  assert.doesNotMatch(probeInfo, /NSMicrophoneUsageDescription/);
+  assert.match(probeScript, /open -W -n -g/);
+  assert.match(probeScript, /mktemp -d/);
 });
 
 test("führt CI für develop und main mit den verbindlichen Prüfungen aus", async () => {
@@ -75,6 +132,84 @@ test("führt CI für develop und main mit den verbindlichen Prüfungen aus", asy
   assert.match(workflow, /if: always\(\)/);
 });
 
+test("pinnt externe GitHub Actions auf unveränderliche Commits", async () => {
+  const yamlFiles = [
+    ...(await listYamlFiles(path.join(repositoryRoot, ".github/workflows"))),
+    ...(await listYamlFiles(path.join(repositoryRoot, ".github/actions"))),
+  ];
+  const dependabot = await readRepositoryFile(".github/dependabot.yml");
+  let externalActionCount = 0;
+
+  for (const yamlFile of yamlFiles) {
+    const lines = (await readFile(yamlFile, "utf8")).split("\n");
+    for (const [index, line] of lines.entries()) {
+      if (!/^\s*(?:-\s*)?uses:\s+/.test(line)) {
+        continue;
+      }
+
+      const value = line.replace(/^\s*(?:-\s*)?uses:\s+/, "");
+      const [rawReference, versionComment = ""] = value.split(/\s+#\s+/, 2);
+      const reference = rawReference.trim().replace(/^(["'])(.*)\1$/, "$2");
+      if (reference.startsWith("./")) {
+        continue;
+      }
+
+      externalActionCount += 1;
+      const location = `${path.relative(repositoryRoot, yamlFile)}:${index + 1}`;
+      if (reference.startsWith("docker://")) {
+        assert.match(
+          reference,
+          /^docker:\/\/[^@\s]+@sha256:[0-9a-f]{64}$/,
+          `${location} muss ein unveränderliches Container-Image verwenden`,
+        );
+      } else {
+        assert.match(
+          reference,
+          /^[^@\s]+@[0-9a-f]{40}$/,
+          `${location} muss einen vollständigen Commit-SHA verwenden`,
+        );
+      }
+      assert.match(
+        versionComment.trim(),
+        /^v\d+\.\d+\.\d+(?:\s|$)/,
+        `${location} muss die lesbare Releaseversion kommentieren`,
+      );
+    }
+  }
+
+  assert.ok(externalActionCount > 0, "mindestens eine externe Action erwartet");
+  assert.match(dependabot, /package-ecosystem: github-actions/);
+  assert.match(
+    dependabot,
+    /package-ecosystem: github-actions[\s\S]*?target-branch: develop/,
+  );
+});
+
+test("führt Dependabot-Versionsupdates kontrolliert über develop", async () => {
+  const dependabot = await readRepositoryFile(".github/dependabot.yml");
+  const workflow = await readRepositoryFile(".github/workflows/ci.yml");
+  const contributing = await readRepositoryFile("CONTRIBUTING.md");
+
+  assert.equal((dependabot.match(/target-branch: develop/g) ?? []).length, 2);
+  assert.equal(
+    (dependabot.match(/open-pull-requests-limit: 5/g) ?? []).length,
+    2,
+  );
+  assert.equal((dependabot.match(/interval: monthly/g) ?? []).length, 2);
+  assert.match(dependabot, /prisma-minor-and-patch:/);
+  assert.match(dependabot, /web-development-minor-and-patch:/);
+  assert.match(dependabot, /actions-minor-and-patch:/);
+  assert.doesNotMatch(dependabot, /^\s+- major$/m);
+  assert.match(
+    workflow,
+    /pull_request:\s*\n\s*branches: \["main", "develop"\]/,
+  );
+  assert.match(workflow, /name: Repository checks/);
+  assert.match(workflow, /name: Local macOS release/);
+  assert.match(contributing, /Sicherheitsupdate-PRs.*Default-Branch `main`/s);
+  assert.match(contributing, /eigener Branch aus dem aktuellen `develop`/);
+});
+
 test("verwendet eine konsistente Release-Version und portable DMG-Prüfsummen", async () => {
   const packageJson = JSON.parse(
     await readFile(path.join(repositoryRoot, "package.json"), "utf8"),
@@ -100,8 +235,68 @@ test("verwendet eine konsistente Release-Version und portable DMG-Prüfsummen", 
   assert.doesNotMatch(buildScript, /Anton Life OS_0\.1\.0/);
   assert.match(verifyScript, /shasum -a 256 -c/);
   assert.match(verifyScript, /verpflichtende DMG-Prüfsumme/);
+  assert.match(verifyScript, /CFBundleShortVersionString/);
+  assert.match(verifyScript, /lipo -archs/);
+  assert.match(verifyScript, /FORBIDDEN_BUNDLE_FILE/);
+  assert.match(verifyScript, /'\*\.sqlite'/);
   assert.match(metadataScript, /tauri\.conf\.json/);
   assert.match(metadataScript, /Cargo\.lock/);
+});
+
+test("trennt öffentlichen Apple-Releasepfad und physischen Download-Nachweis", async () => {
+  const packageJson = JSON.parse(
+    await readFile(path.join(repositoryRoot, "package.json"), "utf8"),
+  );
+  const notarizeScript = await readRepositoryFile(
+    "scripts/notarize-mac-release.sh",
+  );
+  const publicVerifyScript = await readRepositoryFile(
+    "scripts/verify-public-mac-release.sh",
+  );
+
+  assert.equal(
+    packageJson.scripts["release:build:public"],
+    "bash scripts/notarize-mac-release.sh",
+  );
+  assert.match(
+    packageJson.scripts["release:verify:downloaded"],
+    /LIFEOS_REQUIRE_QUARANTINE=1/,
+  );
+  assert.match(notarizeScript, /APPLE_SIGNING_IDENTITY/);
+  assert.match(notarizeScript, /APPLE_NOTARY_KEYCHAIN_PROFILE/);
+  assert.match(notarizeScript, /notarytool submit/);
+  assert.match(notarizeScript, /stapler staple/);
+  assert.ok(
+    notarizeScript.indexOf("stapler staple") <
+      notarizeScript.indexOf("shasum -a 256"),
+  );
+  assert.doesNotMatch(notarizeScript, /--apple-id|--password|--team-id/);
+  assert.match(publicVerifyScript, /com\.apple\.quarantine/);
+  assert.match(publicVerifyScript, /stapler validate/);
+  assert.match(publicVerifyScript, /spctl --assess --type open/);
+  assert.match(publicVerifyScript, /spctl --assess --type execute/);
+  assert.match(publicVerifyScript, /Authority=Developer ID Application:/);
+  assert.match(publicVerifyScript, /lipo -archs/);
+});
+
+test("stellt eine synthetische CalDAV-LAN-Vorprüfung ohne Apple-Erfolgsaussage bereit", async () => {
+  const packageJson = JSON.parse(
+    await readFile(path.join(repositoryRoot, "package.json"), "utf8"),
+  );
+  const lanScript = await readRepositoryFile("scripts/verify-caldav-lan.mjs");
+
+  assert.match(packageJson.scripts["caldav:verify:lan"], /verify-caldav-lan/);
+  assert.match(lanScript, /API_HOST: "0\.0\.0\.0"/);
+  assert.match(lanScript, /private IPv4-Adresse/);
+  assert.match(lanScript, /\.well-known\/caldav/);
+  assert.match(lanScript, /"if-none-match": "\*"/);
+  assert.match(lanScript, /"if-match": firstEtag/);
+  assert.match(lanScript, /DTSTART;VALUE=DATE/);
+  assert.match(lanScript, /RRULE:FREQ=WEEKLY;COUNT=2/);
+  assert.match(
+    lanScript,
+    /physischer Apple-Kalender-Test ist damit nicht ersetzt/,
+  );
 });
 
 test("führt die vollständige synthetische Stabilitätsdemo über reale Grenzen aus", async () => {
@@ -185,6 +380,14 @@ test("stellt Secret-Scan und isolierte Backup-/Restore-Prüfung bereit", async (
   assert.equal(
     packageJson.scripts["documents:restore"],
     "node --import tsx scripts/document-data.ts restore",
+  );
+  assert.equal(
+    packageJson.scripts["db:sqlite:backup:encrypted"],
+    "node --import tsx scripts/sqlite-data.ts backup-encrypted",
+  );
+  assert.equal(
+    packageJson.scripts["db:sqlite:restore:encrypted"],
+    "node --import tsx scripts/sqlite-data.ts restore-encrypted",
   );
   assert.match(recoveryScript, /lifeos_verify_/);
   assert.match(recoveryScript, /lifeos_restore_/);

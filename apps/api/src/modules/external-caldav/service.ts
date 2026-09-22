@@ -221,6 +221,13 @@ export class ExternalCalDavService {
         );
       }
     });
+    const remoteHrefs = new Set(converted.map(({ event }) => event.href));
+    if (remoteHrefs.size !== converted.length)
+      throw new ApiError(
+        400,
+        "VALIDATION_ERROR",
+        "Der externe Kalender enthält dieselbe Ressourcenadresse mehrfach und wurde nicht importiert.",
+      );
     const preview = await this.ics.preview(
       userId,
       localCalendarId,
@@ -278,19 +285,27 @@ export class ExternalCalDavService {
       );
     this.pendingImports.delete(externalImportId);
     await this.enabledConnection(userId, connectionId);
-    const committed = await this.ics.commit(
-      userId,
-      pending.localCalendarId,
-      pending.icsPreviewId,
-    );
-    await this.repository.recordImport(
-      userId,
-      connectionId,
-      pending.externalCalendarId,
-      pending.localCalendarId,
-      pending.mappings,
-    );
-    return { ...committed, mappedEvents: pending.mappings.length };
+    try {
+      const committed = await this.ics.commit(
+        userId,
+        pending.localCalendarId,
+        pending.icsPreviewId,
+        (transaction) =>
+          this.repository.recordImportInTransaction(
+            transaction,
+            userId,
+            connectionId,
+            pending.externalCalendarId,
+            pending.localCalendarId,
+            pending.mappings,
+          ),
+      );
+      return { ...committed, mappedEvents: pending.mappings.length };
+    } catch (error) {
+      if (error instanceof ExternalCalDavNotFoundError)
+        this.rethrowRepository(error);
+      throw error;
+    }
   }
 
   async revoke(userId: string, id: string) {

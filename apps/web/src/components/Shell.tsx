@@ -12,6 +12,7 @@ import {
   KnowledgeIcon,
   FinanceIcon,
   FitnessIcon,
+  ShoppingIcon,
 } from "./Icons";
 import { PwaInstallButton } from "./PwaInstallButton";
 
@@ -24,6 +25,7 @@ export type View =
   | "projects"
   | "finance"
   | "fitness"
+  | "shopping"
   | "integrations"
   | "knowledge"
   | "planning";
@@ -119,6 +121,14 @@ export const Shell = ({
         >
           <FitnessIcon />
           <span>Fitness</span>
+        </button>
+        <button
+          className={view === "shopping" ? "nav-item active" : "nav-item"}
+          onClick={() => onViewChange("shopping")}
+          aria-current={view === "shopping" ? "page" : undefined}
+        >
+          <ShoppingIcon />
+          <span>Einkauf</span>
         </button>
         <button
           className={view === "integrations" ? "nav-item active" : "nav-item"}
@@ -250,6 +260,14 @@ export const Shell = ({
       >
         <FitnessIcon />
         <span>Fitness</span>
+      </button>
+      <button
+        className={view === "shopping" ? "active" : ""}
+        onClick={() => onViewChange("shopping")}
+        aria-current={view === "shopping" ? "page" : undefined}
+      >
+        <ShoppingIcon />
+        <span>Einkauf</span>
       </button>
       <button
         className={view === "integrations" ? "active" : ""}
