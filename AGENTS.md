@@ -450,6 +450,10 @@ Branch-Strategie:
 - `develop` ist der Integrationsbranch.
 - Neue Arbeiten beginnen auf einem zweckbezogenen Branch aus `develop`, zum
   Beispiel `feat/calendar`, `fix/caldav-sync` oder `chore/repository`.
+- Vor einem neuen Worktree werden die Remote-Refs und die bestehende
+  Worktree-Inventur geprüft. Ein abweichender lokaler `develop` wird erst nach
+  Zuordnung und Sicherung seiner zusätzlichen Commits angeglichen;
+  unversionierte Dateien werden nicht pauschal gelöscht.
 - Änderungen werden zuerst in `develop` integriert und erst danach über einen
   weiteren Pull Request von `develop` nach `main` gebracht.
 - Direkte Pushes auf `main` und `develop` sind zu vermeiden; GitHub-
@@ -720,3 +724,6 @@ gemeldet.
 - **2026-09-15:** `Repository checks` und `Local macOS release` in den aktiven
   Rulesets für `main` und `develop` als strikte Pflichtchecks festgelegt; alle
   bisherigen Schutzregeln und die leere Bypass-Liste bleiben unverändert.
+- **2026-09-15:** Verwaiste Worktree-Metadaten nach Branch-Zuordnung bereinigt,
+  historische Commits über Archivbranches erhalten und den lokalen `develop`
+  ohne Löschen unversionierter Dateien an `origin/develop` angeglichen.
