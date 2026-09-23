@@ -22,6 +22,18 @@ Die maßgebliche Produktreferenz ist `LifeOS Leitfaden.docx`. Bei
 Anforderungswidersprüchen zuerst den konkreten Nutzerwunsch klären und die
 Entscheidung anschließend in diesem Dokument oder im Leitfaden dokumentieren.
 
+**Beschlossene Zieländerung vom 23.09.2026, noch nicht implementiert:**
+Der Nutzer hat die vollständige Entfernung des Finanzbereichs, Integrationen
+unter Einstellungen sowie die kohärente Verbindung von Aufgaben, Kalender und
+Studium mit lokalen Studienmaterialien und Apple-Kalender auf Mac/iPhone
+einschließlich Zeitänderungen beauftragt. Der verbindliche Paketplan steht in
+`docs/coherence-implementation-plan.md`, die Übergabe in
+`docs/coherence-progress.md`. Diese Entscheidung ersetzt die bisherigen
+Finanz-Produktziele. Die geplante verwaltete Aufgaben-CalDAV-Verbindung ist eine
+ausdrücklich begrenzte Erweiterung der bisherigen freien Aufgaben-Termin-Bezüge;
+diese behalten ihre bisherigen Regeln. Bestehende Schutz-, Backup- und
+Migrationsregeln gelten bis und nach der jeweiligen Umsetzung weiter.
+
 ## 2. Aktueller Projektstatus
 
 Der Projektstand wird nicht vorausgesetzt. Beim erstmaligen Arbeiten ist zu
@@ -565,6 +577,11 @@ neuere, ausdrücklich begründete Entscheidung; unklare Widersprüche werden
 gemeldet.
 
 ## 10. Änderungsprotokoll
+
+- **2026-09-23:** Nutzerentscheidung zum Kohärenzumbau mit vollständiger
+  Finanzentfernung und bidirektionaler Aufgabenplanung über den eigenen
+  CalDAV-Server als geplantes Ziel dokumentiert; Paket 0 enthält ausschließlich
+  Spezifikation und Übergabe, keine bereits implementierte Architekturänderung.
 
 - **2026-07-18:** Initiale Projektregeln erstellt. Festgehalten wurden
   Local-First-Betrieb, React-Weboberfläche mit PWA, modularer Monolith,

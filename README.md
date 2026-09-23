@@ -3,6 +3,18 @@
 Persönliche, lokal startbare Plattform für Studium, Arbeit, Projekte, Aufgaben,
 Kalender, Finanzen, Fitness und Wissen.
 
+## Geplanter Kohärenzumbau
+
+Die Nutzerentscheidung vom 23.09.2026 sieht die vollständige Entfernung von
+Finanzen, Integrationen unter Einstellungen und eng verbundene Aufgaben-,
+Kalender- und Studienansichten vor. Studienmaterialien sollen lokal durchsuchbar
+werden; Apple Kalender auf Mac und iPhone soll Aufgabenplanung einschließlich
+Verschieben unterstützen. Dies ist ein geplanter Ausbau, kein aktueller
+Funktionsnachweis. Umfang, Abnahme und Startauftrag stehen im
+[Umsetzungsplan](docs/coherence-implementation-plan.md), der nächste Schritt in
+der [Fortschrittsdatei](docs/coherence-progress.md). Die folgenden Angaben
+beschreiben weiterhin den bereits vorhandenen Produktstand.
+
 Der operative Stand 0.1 bis 0.5 ist fachlich umgesetzt; 0.6 ist für den lokalen
 ARM64-Betrieb umgesetzt und nachgewiesen. Der begrenzte read-only-Ausbau der
 optionalen Integrationen aus 0.8 ist ebenfalls umgesetzt. Roadmap 0.9 ist als
