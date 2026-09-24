@@ -104,19 +104,23 @@ export const IntegrationsWorkspace = ({
     }
   };
 
-  if (!overview && pending)
-    return (
-      <main className="page-content integrations-workspace">
-        <p role="status">Integrationsstatus wird lokal geladen …</p>
-      </main>
-    );
-
   return (
-    <main className="page-content integrations-workspace">
+    <main className="page-content settings-workspace integrations-workspace">
       <header className="page-heading">
         <div>
+          <span className="eyebrow">Lokal und persönlich</span>
+          <h1>Einstellungen</h1>
+          <p>
+            Hier verwaltest du systemweite Funktionen und ihre lokalen
+            Sicherheitsgrenzen.
+          </p>
+        </div>
+      </header>
+
+      <div className="settings-section-heading">
+        <div>
           <span className="eyebrow">Optional und read-only</span>
-          <h1>Integrationen</h1>
+          <h2>Integrationen</h2>
           <p>
             Externe Netzzugriffe bleiben standardmäßig aus. CalDAV importiert
             nur nach Aktivierung, Vorschau und erneuter Bestätigung.
@@ -129,7 +133,11 @@ export const IntegrationsWorkspace = ({
         >
           Status aktualisieren
         </button>
-      </header>
+      </div>
+
+      {!overview && pending ? (
+        <p role="status">Integrationsstatus wird lokal geladen …</p>
+      ) : null}
 
       {error ? (
         <p className="conflict-banner" role="alert">

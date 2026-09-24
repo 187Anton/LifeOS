@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import {
   CalendarIcon,
@@ -13,6 +13,7 @@ import {
   FinanceIcon,
   FitnessIcon,
   ShoppingIcon,
+  SettingsIcon,
 } from "./Icons";
 import { PwaInstallButton } from "./PwaInstallButton";
 
@@ -26,7 +27,7 @@ export type View =
   | "finance"
   | "fitness"
   | "shopping"
-  | "integrations"
+  | "settings"
   | "knowledge"
   | "planning";
 
@@ -37,6 +38,28 @@ interface ShellProps {
   onViewChange: (view: View) => void;
   onLogout: () => void;
 }
+
+const MainContent = ({
+  children,
+  view,
+}: Pick<ShellProps, "children" | "view">) => {
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    contentRef.current?.focus();
+  }, [view]);
+
+  return (
+    <div
+      id="main-content"
+      ref={contentRef}
+      tabIndex={-1}
+      aria-label="Aktueller Bereich"
+    >
+      {children}
+    </div>
+  );
+};
 
 export const Shell = ({
   children,
@@ -131,14 +154,6 @@ export const Shell = ({
           <span>Einkauf</span>
         </button>
         <button
-          className={view === "integrations" ? "nav-item active" : "nav-item"}
-          onClick={() => onViewChange("integrations")}
-          aria-current={view === "integrations" ? "page" : undefined}
-        >
-          <CalendarIcon />
-          <span>Integrationen</span>
-        </button>
-        <button
           className={view === "knowledge" ? "nav-item active" : "nav-item"}
           onClick={() => onViewChange("knowledge")}
           aria-current={view === "knowledge" ? "page" : undefined}
@@ -153,6 +168,14 @@ export const Shell = ({
         >
           <PlanIcon />
           <span>Planung</span>
+        </button>
+        <button
+          className={view === "settings" ? "nav-item active" : "nav-item"}
+          onClick={() => onViewChange("settings")}
+          aria-current={view === "settings" ? "page" : undefined}
+        >
+          <SettingsIcon />
+          <span>Einstellungen</span>
         </button>
       </nav>
 
@@ -193,7 +216,7 @@ export const Shell = ({
         </button>
       </header>
       <PwaInstallButton />
-      {children}
+      <MainContent view={view}>{children}</MainContent>
     </div>
 
     <nav aria-label="Mobile Hauptnavigation" className="mobile-navigation">
@@ -270,14 +293,6 @@ export const Shell = ({
         <span>Einkauf</span>
       </button>
       <button
-        className={view === "integrations" ? "active" : ""}
-        onClick={() => onViewChange("integrations")}
-        aria-current={view === "integrations" ? "page" : undefined}
-      >
-        <CalendarIcon />
-        <span>Integrationen</span>
-      </button>
-      <button
         className={view === "knowledge" ? "active" : ""}
         onClick={() => onViewChange("knowledge")}
         aria-current={view === "knowledge" ? "page" : undefined}
@@ -292,6 +307,14 @@ export const Shell = ({
       >
         <PlanIcon />
         <span>Planung</span>
+      </button>
+      <button
+        className={view === "settings" ? "active" : ""}
+        onClick={() => onViewChange("settings")}
+        aria-current={view === "settings" ? "page" : undefined}
+      >
+        <SettingsIcon />
+        <span>Einstellungen</span>
       </button>
     </nav>
   </div>
