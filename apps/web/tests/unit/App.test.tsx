@@ -159,6 +159,21 @@ const installApi = ({
           201,
         );
       if (path === "/api/v1/profile") return json(profile);
+      if (path === "/api/v1/integrations/caldav" && method === "GET")
+        return json({
+          available: false,
+          networkDefault: "disabled",
+          mode: "read_only_import",
+          connections: [],
+        });
+      if (path === "/api/v1/integrations/github" && method === "GET")
+        return json({
+          available: false,
+          networkDefault: "disabled",
+          mode: "read_only",
+          apiHost: "api.github.com",
+          connections: [],
+        });
       if (path.startsWith("/api/v1/study") && method === "GET")
         return json(studyState);
       if (path.startsWith("/api/v1/work") && method === "GET")
@@ -773,7 +788,7 @@ describe("LifeOS-Weboberfläche", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("öffnet über Dashboard-Schnellaktionen die vorhandenen Erstellformulare", async () => {
+  it("öffnet die drei schnellen Neuanlagen für Aufgaben, Termine und Studium", async () => {
     installApi();
     const user = userEvent.setup();
     render(<App />);
@@ -792,6 +807,38 @@ describe("LifeOS-Weboberfläche", () => {
     expect(
       await screen.findByRole("region", { name: "Zeit bewusst einplanen" }),
     ).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Schließen" }));
+    await user.click(screen.getAllByRole("button", { name: "Studium" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Abschnitt anlegen" }));
+    expect(
+      screen.getByRole("heading", { name: "Studienabschnitt anlegen" }),
+    ).toBeVisible();
+  });
+
+  it("öffnet Integrationen per Tastatur unter Einstellungen und setzt den Fokus", async () => {
+    installApi();
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    expect(
+      screen.queryByRole("button", { name: "Integrationen" }),
+    ).not.toBeInTheDocument();
+
+    const settingsButton = screen.getAllByRole("button", {
+      name: "Einstellungen",
+    })[0]!;
+    settingsButton.focus();
+    await user.keyboard("{Enter}");
+
+    expect(
+      await screen.findByRole("heading", { name: "Einstellungen" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Integrationen" }),
+    ).toBeVisible();
+    expect(screen.getByLabelText("Aktueller Bereich")).toHaveFocus();
   });
 
   it("legt einen Studienabschnitt und ein Modul nachvollziehbar an", async () => {

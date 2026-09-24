@@ -109,6 +109,34 @@
   max-width: 1120px;
 }
 
+.settings-workspace .page-heading {
+  margin-bottom: 2rem;
+}
+
+.settings-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-section-heading h2,
+.settings-section-heading p {
+  margin-bottom: 0;
+}
+
+.settings-section-heading p {
+  color: var(--muted);
+}
+
+#main-content:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+
 .integration-form,
 .import-controls {
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -2992,6 +3020,11 @@ input[readonly] {
   .page-heading {
     align-items: flex-start;
     margin-bottom: 1.7rem;
+  }
+  .settings-section-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 1rem;
   }
   .page-heading h1 {
     font-size: 2.4rem;

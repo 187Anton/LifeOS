@@ -1114,7 +1114,7 @@ export const App = () => {
         />
       ) : view === "shopping" ? (
         <ShoppingWorkspace />
-      ) : view === "integrations" ? (
+      ) : view === "settings" ? (
         <IntegrationsWorkspace calendars={calendars} />
       ) : view === "knowledge" ? (
         <KnowledgeWorkspace

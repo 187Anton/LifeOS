@@ -7,10 +7,12 @@ Kalender, Finanzen, Fitness und Wissen.
 
 Die Nutzerentscheidung vom 23.09.2026 sieht die vollständige Entfernung von
 Finanzen, Integrationen unter Einstellungen und eng verbundene Aufgaben-,
-Kalender- und Studienansichten vor. Studienmaterialien sollen lokal durchsuchbar
-werden; Apple Kalender auf Mac und iPhone soll Aufgabenplanung einschließlich
-Verschieben unterstützen. Dies ist ein geplanter Ausbau, kein aktueller
-Funktionsnachweis. Umfang, Abnahme und Startauftrag stehen im
+Kalender- und Studienansichten vor. Paket 0 mit dem verbindlichen Plan und Paket
+1 mit der Einordnung der vorhandenen Integrationen unter Einstellungen sind
+umgesetzt. Die Pakete 2 bis 11 bleiben geplant und sind kein aktueller
+Funktionsnachweis. Studienmaterialien sollen lokal durchsuchbar werden; Apple
+Kalender auf Mac und iPhone soll Aufgabenplanung einschließlich Verschieben
+unterstützen. Umfang, Abnahme und Startauftrag stehen im
 [Umsetzungsplan](docs/coherence-implementation-plan.md), der nächste Schritt in
 der [Fortschrittsdatei](docs/coherence-progress.md). Die folgenden Angaben
 beschreiben weiterhin den bereits vorhandenen Produktstand.
@@ -423,7 +425,7 @@ stabile UID referenzieren; der Termin samt ETag und Sync-Token bleibt
 unverändert. Es gibt keine ungefragte externe Übertragung. Details stehen im
 [Fitnessvertrag](docs/api/fitness.md).
 
-Der Bereich **Integrationen** kann einen externen CalDAV-Dienst als
+Unter **Einstellungen → Integrationen** kann ein externer CalDAV-Dienst als
 standardmäßig deaktivierte read-only-Quelle anbinden. Zugangsdaten erreichen
 nur die lokale API und liegen dort AES-256-GCM-verschlüsselt; ohne den
 separaten lokalen `INTEGRATION_SECRET_KEY` bleibt die Funktion vollständig
@@ -436,7 +438,8 @@ bidirektionale Synchronisation und keine Schreibaktion zum externen Dienst.
 Details und offene Grenzen stehen im
 [externen CalDAV-Vertrag](docs/api/external-caldav.md).
 
-Im selben Bereich kann optional eine ausschließlich lesende GitHub-Verbindung
+Im selben Einstellungsabschnitt kann optional eine ausschließlich lesende
+GitHub-Verbindung
 eingerichtet werden. Sie bleibt ohne `INTEGRATION_SECRET_KEY` und bis zur
 bewussten Aktivierung netzwerkfrei. Das Token wird nur verschlüsselt im
 Backend gespeichert und nie wieder ausgegeben. Danach lassen sich

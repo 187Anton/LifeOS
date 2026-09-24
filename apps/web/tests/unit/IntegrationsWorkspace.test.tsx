@@ -68,6 +68,9 @@ describe("optionale Integrationen", () => {
     expect(
       await screen.findByRole("heading", { name: "Integrationen" }),
     ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Einstellungen" }),
+    ).toBeVisible();
     expect(screen.getByText("Deaktiviert")).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Verbindung testen" }),

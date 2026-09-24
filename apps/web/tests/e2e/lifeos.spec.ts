@@ -1846,10 +1846,13 @@ test("aktiviert externe CalDAV-Importe nur kontrolliert und read-only", async ({
 }) => {
   await page.goto("/");
   await page
-    .getByRole("button", { name: "Integrationen", exact: true })
+    .getByRole("button", { name: "Einstellungen", exact: true })
     .filter({ visible: true })
     .click();
 
+  await expect(
+    page.getByRole("heading", { name: "Einstellungen", exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Integrationen", exact: true }),
   ).toBeVisible();
@@ -1903,7 +1906,7 @@ test("liest GitHub-Metadaten nur nach Aktivierung und ohne Browserpersistenz", a
 }) => {
   await page.goto("/");
   await page
-    .getByRole("button", { name: "Integrationen", exact: true })
+    .getByRole("button", { name: "Einstellungen", exact: true })
     .filter({ visible: true })
     .click();
   const github = page.locator(".github-integration-panel");
