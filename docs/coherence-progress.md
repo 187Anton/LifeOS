@@ -6,14 +6,16 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 ## Aktuelles Paket
 
 - Paket: **1 – Einstellungen und Integrationseinbettung**.
-- Status: Implementiert und lokal geprüft; PR, Pflicht-CI und Integration sind
-  vor Abschluss live zu ergänzen.
+- Status: Implementiert, lokal geprüft und als PR eröffnet; Pflicht-CI und
+  Integration sind vor Abschluss live zu prüfen.
 - Basis: `origin/develop` bei `4b57b78`; Paket 0 wurde über
   [PR #120](https://github.com/187Anton/LifeOS/pull/120) nach erfolgreichen
   Pflichtchecks am 24.09.2026 per Squash integriert.
 - Branch: `feat/coherence-settings-integrations`.
 - Worktree: `/private/tmp/lifeos-coherence-settings-integrations`.
-- Commit/PR: Werden nach Commit und Push in dieser Übergabe ergänzt.
+- Inhaltlicher Commit: `f996bbb` (`feat(settings): embed integrations in settings`).
+  PR:
+  [#121](https://github.com/187Anton/LifeOS/pull/121) nach `develop`.
 - Produktänderungen: Der eigenständige Hauptnavigationspunkt Integrationen ist
   entfallen. Die vorhandenen CalDAV- und GitHub-Verbindungen liegen unter
   Einstellungen → Integrationen; Sicherheits- und Bestätigungsgrenzen bleiben
@@ -28,25 +30,26 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   visuell geprüft.
 - CI-/Merge-Nachweis: Für Paket 1 noch offen; lokale Prüfungen ersetzen weder
   `Repository checks` noch `Local macOS release`.
-- Nächster Schritt: Paket 1 committen, pushen, PR nach `develop` eröffnen,
-  Pflichtchecks abwarten und den Merge live verifizieren. Paket 2 nicht starten.
+- Nächster Schritt: Für PR #121 die Pflichtchecks abwarten, bei erfolgreichem
+  Abschluss regelkonform squash-mergen und den Merge sowie `origin/develop`
+  live verifizieren. Paket 2 nicht starten.
 
 ## Paketfolge
 
-| Paket                         | Status                                        |
-| ----------------------------- | --------------------------------------------- |
-| 0 Plan und Übergabe           | Integriert über PR #120                       |
-| 1 Einstellungen/Integrationen | Lokal umgesetzt; PR/CI/Integration noch offen |
-| 2 Finanzfunktionen entfernen  | Nicht begonnen                                |
-| 3 Finanzdatenmigration        | Nicht begonnen                                |
-| 4 Aufgaben–Studienmodul       | Nicht begonnen                                |
-| 5 Kalender/Planung            | Nicht begonnen                                |
-| 6 Modul-Arbeitsbereich        | Nicht begonnen                                |
-| 7 PDF-Suche                   | Nicht begonnen                                |
-| 8 Office-Suche                | Nicht begonnen                                |
-| 9 Aufgaben–CalDAV             | Nicht begonnen                                |
-| 10 Mac/iPhone-Anbindung       | Nicht begonnen                                |
-| 11 Gesamtabnahme/App-Update   | Nicht begonnen                                |
+| Paket                         | Status                                      |
+| ----------------------------- | ------------------------------------------- |
+| 0 Plan und Übergabe           | Integriert über PR #120                     |
+| 1 Einstellungen/Integrationen | PR #121 offen; Pflicht-CI/Integration offen |
+| 2 Finanzfunktionen entfernen  | Nicht begonnen                              |
+| 3 Finanzdatenmigration        | Nicht begonnen                              |
+| 4 Aufgaben–Studienmodul       | Nicht begonnen                              |
+| 5 Kalender/Planung            | Nicht begonnen                              |
+| 6 Modul-Arbeitsbereich        | Nicht begonnen                              |
+| 7 PDF-Suche                   | Nicht begonnen                              |
+| 8 Office-Suche                | Nicht begonnen                              |
+| 9 Aufgaben–CalDAV             | Nicht begonnen                              |
+| 10 Mac/iPhone-Anbindung       | Nicht begonnen                              |
+| 11 Gesamtabnahme/App-Update   | Nicht begonnen                              |
 
 ## Fortsetzen
 
