@@ -54,7 +54,6 @@ import { WorkWorkspace } from "./components/WorkWorkspace";
 import { PlanningWorkspace } from "./components/PlanningWorkspace";
 import { ProjectWorkspace } from "./components/ProjectWorkspace";
 import { KnowledgeWorkspace } from "./components/KnowledgeWorkspace";
-import { FinanceWorkspace } from "./components/FinanceWorkspace";
 import { FitnessWorkspace } from "./components/FitnessWorkspace";
 import { IntegrationsWorkspace } from "./components/IntegrationsWorkspace";
 import { ShoppingWorkspace } from "./components/ShoppingWorkspace";
@@ -1103,8 +1102,6 @@ export const App = () => {
             )
           }
         />
-      ) : view === "finance" ? (
-        <FinanceWorkspace currencyCode={profile.settings.currencyCode} />
       ) : view === "fitness" ? (
         <FitnessWorkspace
           calendars={calendars}

@@ -12,7 +12,12 @@ import type {
 import { useState, type FormEvent } from "react";
 
 import { dateTimeInputToIso, toDateTimeInput } from "../date";
-import { taskAreaLabels, taskPriorityLabels, taskStatusLabels } from "../task";
+import {
+  selectableTaskAreas,
+  taskAreaLabels,
+  taskPriorityLabels,
+  taskStatusLabels,
+} from "../task";
 import { ArchiveIcon, TrashIcon } from "./Icons";
 import { TaskEventLinkPanel } from "./TaskEventLinkPanel";
 
@@ -53,14 +58,15 @@ const statusValues: TaskStatus[] = [
   "cancelled",
 ];
 const priorityValues: TaskPriority[] = ["low", "medium", "high", "critical"];
-const areaValues: TaskArea[] = [
-  "study",
-  "work",
-  "projects",
-  "finance",
-  "fitness",
-  "personal",
-];
+/**
+ * Auswählbare Bereiche. Ein bereits gesetzter Altbestand wie `area=finance`
+ * bleibt sichtbar, damit keine bestehende Aufgabe beim Bearbeiten ihren
+ * Bereich verliert; Paket 3 überführt diese Werte datenerhaltend.
+ */
+const areaOptions = (current: TaskArea): TaskArea[] =>
+  selectableTaskAreas.includes(current)
+    ? selectableTaskAreas
+    : [current, ...selectableTaskAreas];
 const transitions: Record<TaskStatus, TaskStatus[]> = {
   open: ["open", "in_progress", "blocked", "done", "cancelled"],
   in_progress: ["in_progress", "open", "blocked", "done", "cancelled"],
@@ -285,7 +291,7 @@ export const TaskForm = ({
             value={draft.area}
             onChange={(input) => update("area", input.target.value as TaskArea)}
           >
-            {areaValues.map((area) => (
+            {areaOptions(draft.area).map((area) => (
               <option key={area} value={area}>
                 {taskAreaLabels[area]}
               </option>

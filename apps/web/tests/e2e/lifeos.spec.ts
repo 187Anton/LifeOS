@@ -121,50 +121,6 @@ const installApi = async (page: Page) => {
     }
   >();
   const availability: Array<Record<string, unknown>> = [];
-  const financeCategories: Array<Record<string, unknown>> = [
-    {
-      id: "finance-category-1",
-      ownerId: profile.id,
-      name: "Synthetische Lebensmittel",
-      kind: "expense",
-      archivedAt: null,
-      createdAt: "2032-01-01T00:00:00.000Z",
-      updatedAt: "2032-01-01T00:00:00.000Z",
-    },
-  ];
-  const financeTransactions: Array<Record<string, unknown>> = [
-    {
-      id: "finance-transaction-1",
-      ownerId: profile.id,
-      categoryId: "finance-category-1",
-      kind: "expense",
-      bookingDate: today,
-      amountMinor: 12_345,
-      currencyCode: "EUR",
-      note: "Nur synthetisch",
-      recurrenceFrequency: null,
-      recurrenceInterval: null,
-      recurrenceEndDate: null,
-      archivedAt: null,
-      createdAt: "2032-01-01T00:00:00.000Z",
-      updatedAt: "2032-01-01T00:00:00.000Z",
-    },
-  ];
-  const financeBudgets: Array<Record<string, unknown>> = [
-    {
-      id: "finance-budget-1",
-      ownerId: profile.id,
-      categoryId: "finance-category-1",
-      period: "month",
-      periodStart: `${today.slice(0, 7)}-01`,
-      amountMinor: 20_000,
-      currencyCode: "EUR",
-      warningThresholdPercent: 50,
-      archivedAt: null,
-      createdAt: "2032-01-01T00:00:00.000Z",
-      updatedAt: "2032-01-01T00:00:00.000Z",
-    },
-  ];
   const fitnessExercises: Array<Record<string, unknown>> = [];
   const shoppingCategories = [
     {
@@ -1334,77 +1290,6 @@ const installApi = async (page: Page) => {
       await route.fulfill({ status: 204, body: "" });
       return;
     }
-    if (path === "/api/v1/finance" && method === "GET") {
-      const activeTransactions = financeTransactions.filter(
-        (value) => !value.archivedAt,
-      );
-      const incomeMinor = activeTransactions
-        .filter((value) => value.kind === "income")
-        .reduce((sum, value) => sum + Number(value.amountMinor), 0);
-      const expenseMinor = activeTransactions
-        .filter((value) => value.kind === "expense")
-        .reduce((sum, value) => sum + Number(value.amountMinor), 0);
-      const spentMinor = activeTransactions
-        .filter((value) => value.categoryId === "finance-category-1")
-        .reduce((sum, value) => sum + Number(value.amountMinor), 0);
-      await route.fulfill({
-        json: {
-          range: {
-            from: `${today.slice(0, 4)}-01-01`,
-            to: `${today.slice(0, 4)}-12-31`,
-          },
-          categories: financeCategories,
-          transactions: activeTransactions,
-          budgets: financeBudgets,
-          analytics: {
-            incomeMinor,
-            expenseMinor,
-            balanceMinor: incomeMinor - expenseMinor,
-            savingsRateBasisPoints:
-              incomeMinor > 0
-                ? Math.round(
-                    ((incomeMinor - expenseMinor) * 10_000) / incomeMinor,
-                  )
-                : null,
-            months: [
-              {
-                month: today.slice(0, 7),
-                incomeMinor,
-                expenseMinor,
-                balanceMinor: incomeMinor - expenseMinor,
-              },
-            ],
-            budgetWarnings: [
-              {
-                budgetId: "finance-budget-1",
-                spentMinor,
-                limitMinor: 20_000,
-                utilizationBasisPoints: Math.round(
-                  (spentMinor * 10_000) / 20_000,
-                ),
-                thresholdReached: spentMinor >= 10_000,
-                exceeded: spentMinor > 20_000,
-              },
-            ],
-          },
-        },
-      });
-      return;
-    }
-    if (path === "/api/v1/finance/transactions" && method === "POST") {
-      const payload = request.postDataJSON() as Record<string, unknown>;
-      const created = {
-        ...payload,
-        id: `finance-transaction-${financeTransactions.length + 1}`,
-        ownerId: profile.id,
-        archivedAt: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      financeTransactions.push(created);
-      await route.fulfill({ status: 201, json: created });
-      return;
-    }
     if (path === "/api/v1/fitness" && method === "GET") {
       await route.fulfill({
         json: {
@@ -1587,48 +1472,42 @@ test.beforeEach(async ({ page }) => {
   await installApi(page);
 });
 
-test("verwaltet Finanzen lokal, ganzzahlig und ohne Browserpersistenz", async ({
+test("bietet auf Desktop und Smartphone keine Finanznavigation und bleibt per Tastatur bedienbar", async ({
   page,
-}) => {
+}, testInfo) => {
   await page.goto("/");
-  await page
-    .getByRole("button", { name: "Finanzen", exact: true })
-    .filter({ visible: true })
-    .click();
+  await expect(
+    page.getByRole("heading", { name: /Guten Tag, Anton/ }),
+  ).toBeVisible();
 
+  await expect(
+    page.getByRole("button", { name: "Finanzen", exact: true }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Finanzen", exact: true }),
-  ).toBeVisible();
-  const metrics = page.getByRole("region", { name: "Finanzkennzahlen" });
-  await expect(metrics.getByText("123,45 €", { exact: true })).toBeVisible();
-  await expect(page.getByText("61,73 % genutzt")).toBeVisible();
+  ).toHaveCount(0);
 
-  const transactionForm = page
-    .getByRole("heading", { name: "Buchung anlegen" })
-    .locator("..");
-  await transactionForm.getByLabel("Art").selectOption("expense");
-  await transactionForm
-    .getByLabel("Kategorie")
-    .selectOption("finance-category-1");
-  await transactionForm.getByLabel("Buchungsdatum").fill(today);
-  await transactionForm.getByLabel("Betrag in EUR").fill("10.01");
-  await transactionForm
-    .getByRole("button", { name: "Buchung anlegen" })
-    .click();
-
-  await expect(page.getByRole("status")).toContainText("angelegt");
-  const transactionList = page
-    .getByRole("heading", { name: "Buchungen im Zeitraum" })
-    .locator("..");
+  const navigation = page.getByRole("navigation", {
+    name:
+      testInfo.project.name === "mobile-chrome"
+        ? "Mobile Hauptnavigation"
+        : "Hauptnavigation",
+  });
+  await expect(navigation).toBeVisible();
   await expect(
-    transactionList.getByText("−10,01 €", { exact: true }),
+    navigation.getByRole("button", { name: "Finanzen", exact: true }),
+  ).toHaveCount(0);
+
+  const tasksButton = navigation.getByRole("button", {
+    name: "Aufgaben",
+    exact: true,
+  });
+  await tasksButton.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("heading", { name: "Aufgaben", exact: true }),
   ).toBeVisible();
-  expect(
-    await page.evaluate(() => ({
-      local: Object.keys(localStorage),
-      session: Object.keys(sessionStorage),
-    })),
-  ).toEqual({ local: [], session: [] });
+  await expect(page.locator("#main-content")).toBeFocused();
 });
 
 test("verwaltet Fitness lokal und zeigt medizinische Grenzen", async ({

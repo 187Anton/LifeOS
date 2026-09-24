@@ -181,6 +181,15 @@ Reihenfolge 0 → 11. Ein Paket darf vor Start in kleinere benannte Teilpakete
 geteilt werden; Kriterien und Abhängigkeiten vorher hier festhalten. Pro Auftrag
 nur ein Paket beziehungsweise bereits definiertes Teilpaket durchführen.
 
+Paket 2 wird sequenziell geliefert: **2a** entfernt die Finanznavigation,
+Finanzansicht und Finanzoptionen in der Weboberfläche samt betroffenen UI-Tests;
+API und Datenbank bleiben dabei unverändert. **2b** entfernt die aktiven
+Finanz-API-Routen und ausschließlich finanzbezogene Backend-Logik samt
+API-Tests und dokumentiert die Stilllegung des bisherigen `/api/v1/finance`-
+Vertrags. **2c** bereinigt aktive Frontend-/Vertragsverbraucher, Tests und
+Produktdokumentation und nimmt das gesamte Paket 2 ab. Kein Teilpaket gilt
+allein als abgeschlossenes Paket 2; DB-Reste bleiben bis Paket 3 erhalten.
+
 | Paket | Umfang und Einstieg                                                           | Erforderliche Abnahme zusätzlich zur Pflicht-CI                                                                                                                   |
 | ----- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0     | Dieser Plan, Fortschritt, Startanleitung; README-/AGENTS-Verweis              | Inhalt konsistent, Format/Links/Diff geprüft; PR nach develop                                                                                                     |

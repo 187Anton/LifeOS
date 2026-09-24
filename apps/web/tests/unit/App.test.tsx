@@ -1,3 +1,4 @@
+import type { TaskArea } from "@lifeos/contracts";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -60,7 +61,7 @@ const task = {
   scheduledStartTimezone: "Europe/Berlin",
   estimatedDurationMinutes: 60,
   tags: ["organisation"],
-  area: "projects" as const,
+  area: "projects" as TaskArea,
   projectId: null,
   parentTaskId: null,
   completedAt: null,
@@ -839,6 +840,89 @@ describe("LifeOS-Weboberfläche", () => {
       screen.getByRole("heading", { name: "Integrationen" }),
     ).toBeVisible();
     expect(screen.getByLabelText("Aktueller Bereich")).toHaveFocus();
+  });
+
+  it("bietet keine Finanznavigation, keine Finanzansicht und keine Finanzoption", async () => {
+    installApi();
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    expect(screen.queryAllByRole("button", { name: "Finanzen" })).toHaveLength(
+      0,
+    );
+    expect(
+      screen.queryByRole("heading", { name: "Finanzen" }),
+    ).not.toBeInTheDocument();
+
+    const desktopNavigation = screen.getByRole("navigation", {
+      name: "Hauptnavigation",
+    });
+    const mobileNavigation = screen.getByRole("navigation", {
+      name: "Mobile Hauptnavigation",
+    });
+    expect(
+      within(desktopNavigation).queryByRole("button", { name: "Finanzen" }),
+    ).toBeNull();
+    expect(
+      within(mobileNavigation).queryByRole("button", { name: "Finanzen" }),
+    ).toBeNull();
+
+    await user.click(screen.getAllByRole("button", { name: "Aufgaben" })[0]!);
+    await screen.findByRole("heading", { name: "Aufgaben" });
+
+    const areaFilter = screen.getByLabelText("Bereich");
+    expect(
+      within(areaFilter).queryByRole("option", { name: "Finanzen" }),
+    ).toBeNull();
+    expect(within(areaFilter).getAllByRole("option")).toHaveLength(6);
+
+    await user.click(screen.getByRole("button", { name: /Neue Aufgabe/ }));
+    const createEditor = screen.getByRole("region", {
+      name: "Was möchtest du erledigen?",
+    });
+    const createAreaSelect = within(createEditor).getByLabelText("Bereich");
+    expect(
+      within(createAreaSelect).queryByRole("option", { name: "Finanzen" }),
+    ).toBeNull();
+    expect(within(createAreaSelect).getAllByRole("option")).toHaveLength(5);
+  });
+
+  it("zeigt vorhandene Aufgaben mit Bereich Finanzen weiterhin an, ohne den Bereich anzubieten", async () => {
+    const legacyTask: typeof task = {
+      ...task,
+      id: "aufgabe-finanz-altbestand",
+      title: "Altbestand Finanzbereich",
+      area: "finance",
+    };
+    installApi({ tasks: [task, legacyTask] });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Aufgaben" })[0]!);
+    await screen.findByRole("heading", { name: "Aufgaben" });
+
+    const card = screen
+      .getByText("Altbestand Finanzbereich")
+      .closest("article");
+    expect(card).not.toBeNull();
+    expect(within(card!).getByText("Finanzen")).toBeVisible();
+
+    await user.click(
+      within(card!).getByRole("button", {
+        name: "Altbestand Finanzbereich bearbeiten",
+      }),
+    );
+    const editor = screen.getByRole("region", {
+      name: "Altbestand Finanzbereich",
+    });
+    const areaSelect = within(editor).getByLabelText("Bereich");
+    expect((areaSelect as HTMLSelectElement).value).toBe("finance");
+    expect(
+      within(areaSelect).queryByRole("option", { name: "Finanzen" }),
+    ).not.toBeNull();
+    await user.click(within(editor).getByRole("button", { name: "Schließen" }));
   });
 
   it("legt einen Studienabschnitt und ein Modul nachvollziehbar an", async () => {

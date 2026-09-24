@@ -15,6 +15,7 @@ import {
   compareTasks,
   formatTaskDueDate,
   formatTaskStart,
+  selectableTaskAreas,
   taskAreaLabels,
   taskIsOverdue,
   taskPriorityLabels,
@@ -217,9 +218,9 @@ export const TaskWorkspace = ({
             }
           >
             <option value="all">Alle Bereiche</option>
-            {Object.entries(taskAreaLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
+            {selectableTaskAreas.map((areaValue) => (
+              <option key={areaValue} value={areaValue}>
+                {taskAreaLabels[areaValue]}
               </option>
             ))}
           </select>
