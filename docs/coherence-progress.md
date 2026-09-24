@@ -31,7 +31,7 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 - Erledigt in 2a: Finanznavigation/-ansicht/-icon samt UI-Fixtures entfernt;
   neue Finanzbereichsauswahl ausgeblendet, vorhandene `Task.area=finance`-Werte
   bis Paket 3 weiter lesbar und im Editor unverändert. Unit- und E2E-Tests
-  angepasst; alles noch ungecommittet.
+  angepasst; Commit `59dce65` (`refactor(web): remove finance surface`).
 - Tatsächliche Tests: `git diff --check`, Web-Lint, Web-Typecheck, Web-Build,
   `npm run format:check`, gezielte App-Unit-Tests (20/20), vollständige
   Playwright-E2E (34/34, Desktop und Mobil) bestanden. Vollständige Web-Unit-
@@ -40,12 +40,19 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   Mit `NODE_OPTIONS=--no-experimental-webstorage` beim Web-Unit-Test bestanden
   alle 50/50. Der dokumentierte Node-22-Pfad wurde
   hierbei nicht separat geprüft.
-- Offene Fehler/Abnahme: 2a-Diff abschließend prüfen und committen; API und
-  aktive Verträge bleiben bis 2b/2c unverändert. Finanzschema und Altdaten
-  bleiben bis Paket 3. Keine Produktionsmigration, kein PR.
-- Exakter nächster Schritt: 2a-Diff/Status vollständig abnehmen, dann
-  Conventional Commit im Paketbranch; anschließend 2b mit separater begrenzter
-  Übergabe und frisch geprüftem Kontingent beginnen. Paket 2 ist unvollständig.
+- Offene Fehler/Abnahme: 2a-Diff und Tests durch Koordinator geprüft;
+  API und aktive Verträge bleiben bis 2b/2c unverändert. Finanzschema und
+  Altdaten bleiben bis Paket 3. Keine Produktionsmigration, kein PR.
+- Pause: Das angezeigte Codex-Wochenkontingent beträgt 25 % Rest; für das
+  größere Backend-Teilpaket 2b bleibt nur eine schmale Reserve. Keine neue
+  Delegation gestartet, kein automatischer Kontingent-Reset.
+- Exakter nächster Schritt: vor Wiederaufnahme laufende Delegationen und
+  Schreiber, Worktree-Status, `origin/develop` und Codex-Kontingent neu prüfen.
+  Ab 25 % Rest und ohne weitere Blocker 2b (Finanz-API-Routen und ausschließlich
+  finanzbezogene Backend-Logik samt Tests/Stilllegungsvertrag) in kleine
+  Delegationen auf demselben Paketbranch aufteilen; Fortschritt jeweils vor
+  Codeänderung und nach jedem Teilschritt aktualisieren. Unter 25 % mit
+  größerem Teilauftrag pausieren. Paket 2 ist unvollständig.
 
 ## Verifizierter Vorgängerstand
 
@@ -78,20 +85,20 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Paketfolge
 
-| Paket                         | Status                                            |
-| ----------------------------- | ------------------------------------------------- |
-| 0 Plan und Übergabe           | Integriert über PR #120                           |
-| 1 Einstellungen/Integrationen | Integriert über PR #121                           |
-| 2 Finanzfunktionen entfernen  | 2a implementiert, noch ungecommittet; 2b/2c offen |
-| 3 Finanzdatenmigration        | Nicht begonnen                                    |
-| 4 Aufgaben–Studienmodul       | Nicht begonnen                                    |
-| 5 Kalender/Planung            | Nicht begonnen                                    |
-| 6 Modul-Arbeitsbereich        | Nicht begonnen                                    |
-| 7 PDF-Suche                   | Nicht begonnen                                    |
-| 8 Office-Suche                | Nicht begonnen                                    |
-| 9 Aufgaben–CalDAV             | Nicht begonnen                                    |
-| 10 Mac/iPhone-Anbindung       | Nicht begonnen                                    |
-| 11 Gesamtabnahme/App-Update   | Nicht begonnen                                    |
+| Paket                         | Status                    |
+| ----------------------------- | ------------------------- |
+| 0 Plan und Übergabe           | Integriert über PR #120   |
+| 1 Einstellungen/Integrationen | Integriert über PR #121   |
+| 2 Finanzfunktionen entfernen  | 2a committet; 2b/2c offen |
+| 3 Finanzdatenmigration        | Nicht begonnen            |
+| 4 Aufgaben–Studienmodul       | Nicht begonnen            |
+| 5 Kalender/Planung            | Nicht begonnen            |
+| 6 Modul-Arbeitsbereich        | Nicht begonnen            |
+| 7 PDF-Suche                   | Nicht begonnen            |
+| 8 Office-Suche                | Nicht begonnen            |
+| 9 Aufgaben–CalDAV             | Nicht begonnen            |
+| 10 Mac/iPhone-Anbindung       | Nicht begonnen            |
+| 11 Gesamtabnahme/App-Update   | Nicht begonnen            |
 
 ## Fortsetzen
 
