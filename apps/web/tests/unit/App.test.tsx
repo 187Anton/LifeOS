@@ -11,7 +11,6 @@ const profile = {
   settings: {
     timezone: "Europe/Berlin",
     locale: "de-DE" as const,
-    currencyCode: "EUR",
     weekStartsOn: 1,
     defaultCalendarView: "week" as const,
     showWeekends: true,

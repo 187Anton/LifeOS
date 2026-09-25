@@ -37,9 +37,6 @@ aktuell folgende Abläufe ab:
   ausdrücklich freigegebene Inhalte,
 - lokale KI-Quellenaufbereitung mit sichtbaren Textstellen und Warnungen bei
   dauerhaft deaktiviertem Anbieter und ohne externe Übertragung,
-- lokale Finanzverwaltung mit Kategorien, Buchungen, vorbereiteten
-  Wiederholungen, Monats-/Jahresbudgets, Filtern, Monatsvergleich, Sparquote,
-  Warnungen und eigenem JSON-Export,
 - lokale Fitnessverwaltung mit Trainingsplänen, Übungen, Zielwerten, Einheiten,
   Sätzen, Gewichtseinträgen, Verlauf und persönlichen Bestleistungen ohne
   Gesundheitsbewertung,
@@ -53,6 +50,10 @@ aktuell folgende Abläufe ab:
   Repository-Auswahl sowie flüchtigen Issues, Pull Requests, Commits, Releases
   und CI-Status ohne Schreibaktion,
 - verständliche Lade-, Leer-, Erfolgs- und Fehlerzustände.
+
+Die frühere Finanznavigation, Finanzansicht und Finanzbereichsauswahl für neue
+Aufgaben wurden in Paket 2 entfernt. Vorhandene Aufgaben mit dem alten Bereich
+bleiben bis zur datenerhaltenden Migration in Paket 3 lesbar.
 
 ## Lokal starten
 

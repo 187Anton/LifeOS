@@ -58,19 +58,26 @@ test("persistiert Hash, Sitzung, Einstellungen und Audit ohne Klartext", async (
   const updated = await new ProfileService(repository).updateSettings(user.id, {
     timezone: "UTC",
     locale: "en-US",
-    currencyCode: "USD",
     weekStartsOn: 0,
     defaultCalendarView: "month",
     showWeekends: false,
   });
   assert.equal(updated.settings.timezone, "UTC");
   assert.equal(updated.settings.defaultCalendarView, "month");
+  assert.ok(!("currencyCode" in updated.settings));
+  const storedSettings = await database.userSettings.findUniqueOrThrow({
+    where: { userId: user.id },
+  });
+  assert.equal(
+    storedSettings.currencyCode,
+    "EUR",
+    "das gespeicherte Bestandsfeld bleibt bis Paket 3 unverändert erhalten",
+  );
   const audit = await database.auditEvent.findFirstOrThrow({
     where: { userId: user.id, action: "settings.updated" },
   });
   assert.deepEqual(audit.metadata, {
     changedFields: [
-      "currencyCode",
       "defaultCalendarView",
       "locale",
       "showWeekends",
@@ -78,7 +85,7 @@ test("persistiert Hash, Sitzung, Einstellungen und Audit ohne Klartext", async (
       "weekStartsOn",
     ],
   });
-  assert.doesNotMatch(JSON.stringify(audit.metadata), /UTC|USD|en-US/);
+  assert.doesNotMatch(JSON.stringify(audit.metadata), /UTC|EUR|en-US/);
 
   const futureToken = createSessionToken();
   const futureCreatedAt = new Date("2035-01-02T09:00:00.000Z");

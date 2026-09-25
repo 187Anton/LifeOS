@@ -36,8 +36,9 @@ mehr registriert; der Server erzeugt den Router nicht mehr und das Modul
 Beschreibung bleibt als historischer Vertragsstand und für Paket 3 erhalten.
 Die Finanzmodelle und vorhandene Finanzdaten in PostgreSQL und SQLite wurden
 nicht verändert; Schema-, Seed- und Migrationsreste folgen in Paket 3. Der
-Frontend-Client und die aktiven Vertragsverbraucher in `@lifeos/contracts`
-werden in Paket 2c bereinigt.
+Frontend-Client, die aktiven Finanzvertragstypen in `@lifeos/contracts` und die
+finanzexklusive Profileinstellung wurden in Paket 2c bereinigt; das gespeicherte
+Währungsfeld bleibt bis Paket 3 erhalten.
 
 Der folgende Stand beschreibt den bis 2b/1 aktiven Vertrag:
 

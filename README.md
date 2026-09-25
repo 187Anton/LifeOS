@@ -1,7 +1,7 @@
 # Anton Life OS
 
 Persönliche, lokal startbare Plattform für Studium, Arbeit, Projekte, Aufgaben,
-Kalender, Finanzen, Fitness und Wissen.
+Kalender, Fitness und Wissen.
 
 ## Geplanter Kohärenzumbau
 
@@ -9,8 +9,11 @@ Die Nutzerentscheidung vom 23.09.2026 sieht die vollständige Entfernung von
 Finanzen, Integrationen unter Einstellungen und eng verbundene Aufgaben-,
 Kalender- und Studienansichten vor. Paket 0 mit dem verbindlichen Plan und Paket
 1 mit der Einordnung der vorhandenen Integrationen unter Einstellungen sind
-umgesetzt. Die Pakete 2 bis 11 bleiben geplant und sind kein aktueller
-Funktionsnachweis. Studienmaterialien sollen lokal durchsuchbar werden; Apple
+umgesetzt. Paket 2 entfernt die aktive Finanzoberfläche, Finanz-API und deren
+aktive Verträge; die Schema- und Bestandsbereinigung folgt erst in Paket 3.
+Paket 2 ist bis zur Pflicht-CI und Integration noch nicht abgeschlossen. Die
+Pakete 3 bis 11 bleiben geplant und sind kein aktueller Funktionsnachweis.
+Studienmaterialien sollen lokal durchsuchbar werden; Apple
 Kalender auf Mac und iPhone soll Aufgabenplanung einschließlich Verschieben
 unterstützen. Umfang, Abnahme und Startauftrag stehen im
 [Umsetzungsplan](docs/coherence-implementation-plan.md), der nächste Schritt in
@@ -23,7 +26,8 @@ optionalen Integrationen aus 0.8 ist ebenfalls umgesetzt. Roadmap 0.9 ist als
 lokale ARM64-Releasekandidatin `0.9.0` mit einem gesicherten Signatur-,
 Notarisierungs-, Download- und LAN-Prüfpfad vorbereitet. Das umfasst
 Fundament, Organisation, Studium und Arbeit, Projekte und Wissen sowie
-Finanzen, Fitness und bewusst begrenzte Integrationen. Das lokale Artefakt ist
+Fitness und bewusst begrenzte Integrationen. Historische Release-Nachweise
+enthalten noch die frühere Finanzfunktion. Das lokale Artefakt ist
 noch kein öffentlich freigegebenes Release.
 
 Die operative Roadmap fasst mehrere ursprünglich getrennte Punkte aus dem
@@ -403,17 +407,14 @@ noch keine Fachdaten. Fragen, Antworten und Ausschnitte werden weder
 protokolliert noch im Klartext persistiert. Details stehen im
 [KI-Vertrag](docs/api/ai.md).
 
-Der Bereich **Finanzen** verwaltet Einnahmen, Ausgaben, Kategorien sowie
-Monats- und Jahresbudgets vollständig lokal. Geldbeträge werden als ganze
-kleinste Währungseinheiten gespeichert; Zeitraum- und Kategoriefilter,
-Monatsvergleich, Sparquote und Budgetwarnungen verändern keine Quelldaten. Ein
-versionierter JSON-Export enthält ausschließlich die Daten des angemeldeten
-Profils. Wiederholungen werden vorbereitet, aber nicht automatisch gebucht.
-Es gibt keine Bankanbindung, Steuer- oder Rechtsbewertung, KI-Freigabe oder
-externe Übertragung. Ein generischer CSV-Import bleibt mangels verbindlichem
-Spalten-, Währungs- und Konfliktformat bewusst zurückgestellt; die im Leitfaden
-alternativ vorgesehene manuelle Eingabe ist vorhanden. Details stehen im
-[Finanzvertrag](docs/api/finance.md).
+**Finanzen sind kein aktiver Produktbereich mehr.** Es gibt keine Navigation,
+Finanzansicht oder registrierte Finanz-API-Route. Die bisherigen
+`/api/v1/finance`-Pfade antworten mit `404 NOT_FOUND`; eine Finanzbuchung lässt
+sich darüber nicht mehr anlegen. Bestehende Datensätze und historische
+Migrationen bleiben bis zur gesicherten Datenmigration in Paket 3 erhalten.
+Der [historische Finanzvertrag](docs/api/finance.md) dokumentiert die
+Stilllegung und den vorherigen Stand; ein bloßes App-Downgrade ist kein
+Wiederherstellungsverfahren.
 
 Der Bereich **Fitness** verwaltet Trainingspläne, Übungen, Einheiten, Sätze und
 Gewichtseinträge vollständig lokal. Gewichte, Wiederholungen, Dauer und Distanz
@@ -456,7 +457,7 @@ bewusst offen. Die installierte Mac-App erhält weiterhin keinen
 Integrationsschlüssel; eine spätere Aktivierung erfordert einen separat
 geprüften Schlüsselbundpfad.
 
-Der vollständige synthetische Abschlusslauf für Finanzen, Fitness, ICS,
+Der historische synthetische Abschlusslauf für Finanzen, Fitness, ICS,
 optionale Integrationen, PostgreSQL, SQLite, Recovery, Browser und Mac-Sidecar
 ist im [lokalen Roadmap-0.5-Nachweis](docs/roadmap-05-local-demo.md)
 dokumentiert. Dort sind auch Update-/Backup-Schritte und ausdrücklich offene

@@ -22,7 +22,6 @@ const isSupportedTimeZone = (value: string): boolean => {
   }
 };
 
-const supportedCurrencies = new Set(Intl.supportedValuesOf("currency"));
 const settingsSchema = z
   .strictObject({
     timezone: z
@@ -33,11 +32,6 @@ const settingsSchema = z
       .refine(isSupportedTimeZone)
       .optional(),
     locale: z.enum(["de-DE", "en-US"]).optional(),
-    currencyCode: z
-      .string()
-      .regex(/^[A-Z]{3}$/)
-      .refine((value) => supportedCurrencies.has(value))
-      .optional(),
     weekStartsOn: z.number().int().min(0).max(6).optional(),
     defaultCalendarView: z.enum(["day", "week", "month"]).optional(),
     showWeekends: z.boolean().optional(),

@@ -7,7 +7,8 @@ Arbeitsbereichs gelten zusätzlich und haben Vorrang.
 ## 1. Projektziel
 
 Das Anton Life OS ist eine persönliche, lokal startbare Plattform für Studium,
-Arbeit, Projekte, Aufgaben, Kalender, Finanzen, Fitness und Wissen.
+Arbeit, Projekte, Aufgaben, Kalender, Fitness und Wissen. Finanzfunktionen
+gehören nur noch zum historischen Datenbestand bis zur Paket-3-Migration.
 
 Die Anwendung soll:
 
@@ -22,7 +23,7 @@ Die maßgebliche Produktreferenz ist `LifeOS Leitfaden.docx`. Bei
 Anforderungswidersprüchen zuerst den konkreten Nutzerwunsch klären und die
 Entscheidung anschließend in diesem Dokument oder im Leitfaden dokumentieren.
 
-**Beschlossene Zieländerung vom 23.09.2026, noch nicht implementiert:**
+**Beschlossene Zieländerung vom 23.09.2026, paketweise in Umsetzung:**
 Der Nutzer hat die vollständige Entfernung des Finanzbereichs, Integrationen
 unter Einstellungen sowie die kohärente Verbindung von Aufgaben, Kalender und
 Studium mit lokalen Studienmaterialien und Apple-Kalender auf Mac/iPhone
@@ -70,7 +71,6 @@ Vorgesehene Fachmodule:
 - Studium
 - Arbeit
 - Projekte
-- Finanzen
 - Fitness
 - Wissen und Dokumente
 - KI
@@ -582,6 +582,11 @@ gemeldet.
   Finanzentfernung und bidirektionaler Aufgabenplanung über den eigenen
   CalDAV-Server als geplantes Ziel dokumentiert; Paket 0 enthält ausschließlich
   Spezifikation und Übergabe, keine bereits implementierte Architekturänderung.
+- **2026-09-25:** Paket 2 entfernt die aktive Finanzoberfläche, Finanzrouten
+  und die dazugehörigen aktiven Verträge; die historischen Modelle und
+  Bestandsdaten bleiben bis zur gesicherten Paket-3-Migration erhalten. Der
+  Sidecar-Nachweis prüft alte Finanzpfade vor und nach Neustart negativ.
+  Dokumentations- und CI-Abnahme von Paket 2 bleiben getrennt nachzuweisen.
 
 - **2026-07-18:** Initiale Projektregeln erstellt. Festgehalten wurden
   Local-First-Betrieb, React-Weboberfläche mit PWA, modularer Monolith,

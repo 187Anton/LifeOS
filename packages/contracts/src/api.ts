@@ -51,7 +51,6 @@ export type CalendarView = "day" | "week" | "month";
 export interface UserSettingsResponse {
   timezone: string;
   locale: SupportedLocale;
-  currencyCode: string;
   weekStartsOn: number;
   defaultCalendarView: CalendarView;
   showWeekends: boolean;

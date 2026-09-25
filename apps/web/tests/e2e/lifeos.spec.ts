@@ -6,7 +6,6 @@ const profile = {
   settings: {
     timezone: "Europe/Berlin",
     locale: "de-DE",
-    currencyCode: "EUR",
     weekStartsOn: 1,
     defaultCalendarView: "week",
     showWeekends: true,

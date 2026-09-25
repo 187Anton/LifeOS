@@ -45,7 +45,6 @@ const mapProfile = (record: {
   settings: {
     timezone: string;
     locale: string;
-    currencyCode: string;
     weekStartsOn: number;
     defaultCalendarView: string;
     showWeekends: boolean;
@@ -61,7 +60,6 @@ const mapProfile = (record: {
     settings: {
       timezone: record.settings.timezone,
       locale: record.settings.locale as SupportedLocale,
-      currencyCode: record.settings.currencyCode,
       weekStartsOn: record.settings.weekStartsOn,
       defaultCalendarView: record.settings.defaultCalendarView as CalendarView,
       showWeekends: record.settings.showWeekends,

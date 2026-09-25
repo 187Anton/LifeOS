@@ -1,15 +1,15 @@
 # Kohärenzumbau: Fortschritt und nächste Übergabe
 
-Stand: 24.09.2026. Diese Datei ist eine Übergabe, kein Ersatz für Live-Prüfungen.
+Stand: 25.09.2026. Diese Datei ist eine Übergabe, kein Ersatz für Live-Prüfungen.
 Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Aktuelles Paket
 
-- Paket: **2 – Finanzfunktionen entfernen**, Teilauftrag **2c/1 – aktive
-  Finanzverträge und Web-Client bereinigen**; in Arbeit, weder PR noch
-  Paketabnahme. 2a, 2b/1 und 2b/2 sind committet, 2c/1 ist lokal umgesetzt,
-  geprüft und als `0788ef8` committet; Produktdokumentation und Paketabnahme
-  sowie Paket 3 bleiben offen.
+- Paket: **2 – Finanzfunktionen entfernen**, Teilauftrag **2c/2 – finanzexklusive
+  Profileinstellung entfernen** lokal umgesetzt und geprüft. Die
+  Integrationsabnahme von Paket 2 steht noch aus: Commit, PR,
+  Pflicht-CI und Merge fehlen. 2a, 2b/1, 2b/2 und 2c/1 sind committet;
+  Produktdokumentation und 2c/2 sind ungecommittet. Paket 3 ist nicht begonnen.
 - Branch: `feat/coherence-finance-removal`.
 - Basis: `22d5ba6b9fdd005baf973a192c7fb082deac621b` (`origin/develop`).
 - Worktree: `/private/tmp/lifeos-coherence-finance-removal`.
@@ -199,13 +199,99 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   von `@lifeos/api`; `npm run format:check` bestanden; `git diff --check` ohne
   Befund. Abwesenheitsbeleg für das Produktions-CSS: die gebaute
   `apps/web/dist/assets/*.css` enthält keinen der entfernten Selektoren.
-- Exakter nächster Schritt: Koordinator prüft den 2c/1-Diff und die Tests selbst;
-  danach die noch offene Produktdokumentation (README/Leitfaden-Hinweise zu
-  Finanzen) klären und Paket 2 gesammelt abnehmen. Paket 3 (Schema, Seeds,
-  TaskArea) erst danach. Paket 2 bleibt offen; kein Push/PR/Merge.
-  Delegationsbezug 2c/1: `coherence-p2c1-deepseek-20260925`; Commit `0788ef8`
-  (`refactor(web): retire finance client, contracts and css`). Nachgetragen in
-  einem reinen Dokumentationscommit direkt danach.
+- Delegationsbezug 2c/1: `coherence-p2c1-deepseek-20260925`,
+  `deleg_c900960b` / `sa-0-60001ed6`; Commits `0788ef8` und `2525021`.
+- Koordinatorprüfung und Produktdokumentation: 2c/1-Diff und Scope geprüft;
+  Web-Unit 50/50, Playwright Desktop/Mobil 34/34, Repository-Tests 19/19,
+  Lint, vollständiger Typecheck und Build (mit synthetischer `DATABASE_URL`),
+  Formatprüfung bestanden. Ein erster Typecheck ohne `DATABASE_URL` brach
+  erwartbar bereits bei Prisma-Generate ab, ohne Datenbankänderung.
+  README, API-/Web-README und AGENTS.md sind aktualisiert. Der Leitfaden
+  markiert Finanzabschnitte als historischen Ausgangsstand, entfernt den
+  Finanznavigationspunkt und nennt Paket 3; mit `python-docx` geschrieben und
+  neu geöffnet/geprüft, nicht visuell gerendert. Alles noch ungecommittet.
+- Offener Produktrest: `UserSettingsResponse.currencyCode` und der
+  `/api/v1/profile/settings`-Schreibpfad sind ausschließlich für Finanzen
+  benötigt worden; das Datenbankfeld bleibt bis Paket 3 bestehen. Daher
+  Teilauftrag 2c/2 vor der Gesamtabnahme ergänzen.
+- Delegationsbezug 2c/2: `coherence-p2c2-deepseek-20260925`; die Hermes-ID trägt
+  der Koordinator im Handoff nach, sie ist im Workerlauf nicht abrufbar.
+- Vorprüfung 2c/2 (Stand 25.09.2026, vor der ersten Codeänderung): Worktree
+  `/private/tmp/lifeos-coherence-finance-removal`, Branch
+  `feat/coherence-finance-removal`, HEAD `2525021`
+  (`docs(coherence): record 2c/1 commit hash`); ungecommittet unverändert genau
+  die sieben Dokumentationsdateien aus 2c/1. Es wurde nichts zurückgesetzt oder
+  überschrieben. Bewusst unverändert blieben alle `currencyCode`-Vorkommen
+  außerhalb des Paketscopes: beide Prisma-Schemata, Seeds, alte Migrationen,
+  `packages/database/tests/*`, `scripts/verify-database-recovery.sh`, die
+  generierten Prisma-Clients sowie die alten Query-Parameter in
+  `scripts/verify-mac-desktop-sidecar.mjs`.
+- Ergebnis 2c/2: `UserSettingsResponse` in `packages/contracts/src/api.ts`
+  enthält kein `currencyCode` mehr; damit ist auch `UpdateSettingsRequest` ohne
+  Währung. In `apps/api/src/modules/profile/router.ts` sind Feld und
+  Währungsvalidierung aus dem strikten Einstellungs-Schema entfernt, sodass ein
+  weiterhin gesendeter Währungscode bewusst `400 VALIDATION_ERROR` erhält statt
+  stillschweigend ignoriert zu werden. In
+  `apps/api/src/modules/profile/repository.ts` bildet `mapProfile` keine Währung
+  mehr ab; Feld und Bestandsdaten von `UserSettings.currencyCode` bleiben
+  unberührt.
+- Tests 2c/2: `apps/api/tests/profile.test.ts` prüft die währungsfreie
+  Profilantwort über die Schlüsselmenge, das währungsfreie gültige Update und
+  die Ablehnung eines alten Währungsschreibversuchs mit `400`, `VALIDATION_ERROR`
+  und unverändertem Audit-Zähler.
+  `apps/api/tests/profile-database.integration.test.ts` aktualisiert ohne
+  Währung, prüft im Audit `changedFields` ohne `currencyCode` und belegt, dass
+  die gespeicherte Spalte weiterhin `EUR` enthält. Angepasst wurden außerdem
+  `apps/web/tests/unit/App.test.tsx`, `apps/web/tests/e2e/lifeos.spec.ts` und
+  `scripts/verify-sqlite-api-runtime.ts`. Datenbank-, Seed-, Transfer-,
+  Backup- und Migrationstests mit gespeicherter Währung blieben unverändert.
+- Dokumentation 2c/2: `apps/api/README.md` nennt keinen gültigen ISO-
+  Währungscode mehr als unterstützte Einstellung, sondern das bewusste `400` und
+  den unveränderten Bestandswert. Der Leitfaden ersetzt in 5.12 Einstellungen
+  „Zeitzone, Sprache, Währung und Wochenbeginn“ durch „Zeitzone, Sprache und
+  Wochenbeginn“ und ergänzt dort einen Umsetzungsstand 25.09.2026. Historische
+  Finanzabschnitte (5.5, Speicherregeln, Tabellen) und die Planungsfrage zu
+  Finanzkategorien und Währungen unter „Offene Entscheidungen“ bleiben als
+  historischer Nachweis ausdrücklich stehen.
+- Tatsächliche Prüfungen 2c/2 (Node 22.21.1 unter
+  `/opt/homebrew/opt/node@22/bin`): gezielter Profil-API-Test 3/3;
+  `npm run test:sqlite:api` 100/100; `npm run verify:sqlite:api-runtime` mit
+  Meldung „SQLite-API-Neustartprüfung erfolgreich“; Web-Unit 50/50 in zehn
+  Dateien; Playwright Desktop und Smartphone 34/34; `npm run format:check`,
+  `npm run lint`, vollständiger `npm run typecheck` und `npm run build` mit der
+  synthetischen `DATABASE_URL` `postgresql://unused:***@127.0.0.1:5432/unused`;
+  `npm run test:repo` 19/19; `npm run security:secrets` ohne Treffer;
+  `npm run desktop:verify:sidecar` mit acht weiterhin stillgelegten
+  Finanzpfaden (`404 NOT_FOUND`) und zwei Starts des gebündelten Sidecars;
+  `git diff --check` ohne Befund.
+- Leitfaden-Nachweis: Die Datei wurde erneut mit `python-docx` geöffnet und
+  geprüft, `docx_validate.py` meldet `{"ok": true, "issues": []}`, und Microsoft
+  Word hat den aktualisierten Leitfaden als 25-seitiges PDF gerendert (Artefakt:
+  `/Users/anton/.hermes/cache/scratch/p2c2-guide-render/LifeOS Leitfaden.pdf`),
+  die Seitenzahl bleibt also bei 25. Eine echte visuelle Sichtprüfung aller 25
+  Seiten war in diesem Workerlauf nicht möglich: der Lauf hat kein
+  Bildanalyse-Werkzeug, kein LibreOffice und keinen Seiten-Rasterizer
+  (`pdftoppm`, `pypdfium2` fehlen, Offline-Installation abgelehnt), und
+  Subagenten sind durch den Auftrag ausgeschlossen. Die visuelle Abnahme bleibt
+  deshalb offener Koordinatorpunkt; textlich wurden Einstellungs-, Finanz-,
+  Umsetzungs- und Änderungsstandspassagen einzeln geprüft.
+- Offene Risiken: Alte Clients mit `currencyCode` erhalten jetzt bewusst `400`.
+  Das Bestandsfeld, `TaskArea=finance`, historische Finanzabschnitte und die
+  alten Finanzmodelle bleiben bis Paket 3 erhalten und sind kein 2c/2-Fehler.
+  Paket 2 ist lokal geprüft, aber weder committet noch in der Pflicht-CI oder
+  gemergt.
+- Zusätzliche Abnahmeprüfung: In einem eigens gestarteten, flüchtigen
+  PostgreSQL-17-Container (getrennt von der laufenden Entwicklungsdatenbank)
+  wurden alle 20 vorhandenen Migrationen angewendet und
+  `apps/api/tests/profile-database.integration.test.ts` erfolgreich ausgeführt
+  (1/1). Der Container wurde danach gestoppt. Der historische Finanzvertrag
+  beschreibt nun auch die bereits abgeschlossene Bereinigung in 2c.
+  `git diff --check` und `npm run format:check` bestanden. Dieser lokale
+  Nachweis ersetzt nicht die Pflicht-CI des PR.
+- Exakter nächster Schritt: Dokumentation und Code committen, PR nach
+  `develop` erstellen und beide Pflichtchecks für dessen Head abwarten.
+  Paket 3 (Schema, Seeds, TaskArea) erst danach; kein Push, PR oder Merge ist
+  bereits erfolgt.
 
 ## Verifizierter Vorgängerstand
 
@@ -238,20 +324,20 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Paketfolge
 
-| Paket                         | Status                                   |
-| ----------------------------- | ---------------------------------------- |
-| 0 Plan und Übergabe           | Integriert über PR #120                  |
-| 1 Einstellungen/Integrationen | Integriert über PR #121                  |
-| 2 Finanzfunktionen entfernen  | 2a/2b/2c-Client committet; Abnahme offen |
-| 3 Finanzdatenmigration        | Nicht begonnen                           |
-| 4 Aufgaben–Studienmodul       | Nicht begonnen                           |
-| 5 Kalender/Planung            | Nicht begonnen                           |
-| 6 Modul-Arbeitsbereich        | Nicht begonnen                           |
-| 7 PDF-Suche                   | Nicht begonnen                           |
-| 8 Office-Suche                | Nicht begonnen                           |
-| 9 Aufgaben–CalDAV             | Nicht begonnen                           |
-| 10 Mac/iPhone-Anbindung       | Nicht begonnen                           |
-| 11 Gesamtabnahme/App-Update   | Nicht begonnen                           |
+| Paket                         | Status                               |
+| ----------------------------- | ------------------------------------ |
+| 0 Plan und Übergabe           | Integriert über PR #120              |
+| 1 Einstellungen/Integrationen | Integriert über PR #121              |
+| 2 Finanzfunktionen entfernen  | Lokal geprüft (2a–2c/2); PR/CI offen |
+| 3 Finanzdatenmigration        | Nicht begonnen                       |
+| 4 Aufgaben–Studienmodul       | Nicht begonnen                       |
+| 5 Kalender/Planung            | Nicht begonnen                       |
+| 6 Modul-Arbeitsbereich        | Nicht begonnen                       |
+| 7 PDF-Suche                   | Nicht begonnen                       |
+| 8 Office-Suche                | Nicht begonnen                       |
+| 9 Aufgaben–CalDAV             | Nicht begonnen                       |
+| 10 Mac/iPhone-Anbindung       | Nicht begonnen                       |
+| 11 Gesamtabnahme/App-Update   | Nicht begonnen                       |
 
 ## Fortsetzen
 
