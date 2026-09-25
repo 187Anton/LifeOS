@@ -1,5 +1,5 @@
 import type { TaskArea } from "@lifeos/contracts";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -62,6 +62,7 @@ const task = {
   tags: ["organisation"],
   area: "projects" as TaskArea,
   projectId: null,
+  studyModuleId: null as string | null,
   parentTaskId: null,
   completedAt: null,
   archivedAt: null,
@@ -87,6 +88,7 @@ const installApi = ({
   events = [event],
   tasks = [task],
   links = [],
+  studyModules = [],
   deleteEventConflict = false,
   dashboardError = false,
   setupRequired = false,
@@ -94,6 +96,7 @@ const installApi = ({
   calendars?: (typeof calendar)[];
   events?: (typeof event)[];
   tasks?: (typeof task)[];
+  studyModules?: Array<Record<string, unknown>>;
   links?: Array<{
     id: string;
     task: { id: string; title: string | null; available: boolean };
@@ -114,7 +117,7 @@ const installApi = ({
   const linkState = links.map((item) => structuredClone(item));
   const studyState = {
     programs: [] as Record<string, unknown>[],
-    modules: [] as Record<string, unknown>[],
+    modules: studyModules.map((module) => ({ ...module })),
     entries: [] as Record<string, unknown>[],
   };
   const workState = {
@@ -1157,6 +1160,230 @@ describe("LifeOS-Weboberfläche", () => {
       screen.getByRole("button", { name: "Änderungen speichern" }),
     );
     expect(await screen.findByText("Unterlagen archivieren")).toBeVisible();
+  });
+
+  it("verwaltet den optionalen Studienmodulbezug im gemeinsamen Aufgabeneditor", async () => {
+    installApi({
+      tasks: [
+        { ...task, id: "aufgabe-ohne-modul", studyModuleId: null },
+        {
+          ...task,
+          id: "aufgabe-mit-modul",
+          title: "Alte Modulaufgabe",
+          studyModuleId: "modul-archiviert",
+        },
+      ],
+      studyModules: [
+        {
+          id: "modul-aktiv",
+          ownerId: "nutzer-1",
+          programId: null,
+          title: "Synthetisches Aktivmodul",
+          code: "AKT-1",
+          status: "active",
+          credits: null,
+          grade: null,
+          notes: null,
+          documentReferences: [],
+          searchEnabled: false,
+          archivedAt: null,
+          createdAt: "2026-08-09T10:00:00.000Z",
+          updatedAt: "2026-08-09T10:00:00.000Z",
+        },
+        {
+          id: "modul-archiviert",
+          ownerId: "nutzer-1",
+          programId: null,
+          title: "Synthetisches Altmodul",
+          code: "ALT-1",
+          status: "completed",
+          credits: null,
+          grade: null,
+          notes: null,
+          documentReferences: [],
+          searchEnabled: false,
+          archivedAt: "2032-03-01T00:00:00.000Z",
+          createdAt: "2026-08-09T10:00:00.000Z",
+          updatedAt: "2026-08-09T10:00:00.000Z",
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Aufgaben" })[0]!);
+    expect(await screen.findByText("Roadmap prüfen")).toBeVisible();
+    // Der archivierte Altbezug bleibt sichtbar gekennzeichnet.
+    const legacyCardBefore = screen
+      .getByText("Alte Modulaufgabe")
+      .closest("article");
+    expect(legacyCardBefore).not.toBeNull();
+    expect(
+      within(legacyCardBefore!).getByText(
+        "Archiviert · Synthetisches Altmodul",
+      ),
+    ).toBeVisible();
+
+    // Der Modulfilter kennt „Ohne Modul“ und archivierte Altbezüge.
+    await user.selectOptions(screen.getByLabelText("Studienmodul"), "none");
+    expect(screen.getByText("Roadmap prüfen")).toBeVisible();
+    expect(screen.queryByText("Alte Modulaufgabe")).toBeNull();
+    await user.selectOptions(
+      screen.getByLabelText("Studienmodul"),
+      "modul-archiviert",
+    );
+    expect(screen.getByText("Alte Modulaufgabe")).toBeVisible();
+    expect(screen.queryByText("Roadmap prüfen")).toBeNull();
+    await user.click(
+      screen.getByRole("button", { name: "Filter zurücksetzen" }),
+    );
+
+    // Gemeinsamer Editor: nur aktive Module sind neu wählbar.
+    await user.click(screen.getByRole("button", { name: /Neue Aufgabe/ }));
+    const createEditor = screen.getByRole("region", {
+      name: "Was möchtest du erledigen?",
+    });
+    const moduleOptions = within(createEditor).getByLabelText("Studienmodul");
+    expect(
+      within(moduleOptions).queryByRole("option", {
+        name: /Archiviert · Synthetisches Altmodul/,
+      }),
+    ).toBeNull();
+    await user.type(
+      within(createEditor).getByLabelText("Titel"),
+      "Modulaufgabe vorbereiten",
+    );
+    await user.selectOptions(
+      within(createEditor).getByLabelText("Studienmodul"),
+      "modul-aktiv",
+    );
+    await user.click(screen.getByRole("button", { name: "Aufgabe anlegen" }));
+    expect(await screen.findByText("Modulaufgabe vorbereiten")).toBeVisible();
+    const newCard = screen
+      .getByText("Modulaufgabe vorbereiten")
+      .closest("article");
+    expect(newCard).not.toBeNull();
+    expect(
+      within(newCard!).getByText("Synthetisches Aktivmodul"),
+    ).toBeVisible();
+
+    // Der archivierte Altbezug bleibt bei einer fachfremden Änderung erhalten.
+    const legacyCard = screen.getByText("Alte Modulaufgabe").closest("article");
+    expect(legacyCard).not.toBeNull();
+    await user.click(
+      within(legacyCard!).getByRole("button", {
+        name: "Alte Modulaufgabe bearbeiten",
+      }),
+    );
+    const legacyEditor = screen.getByRole("region", {
+      name: "Alte Modulaufgabe",
+    });
+    expect(within(legacyEditor).getByLabelText("Studienmodul")).toHaveValue(
+      "modul-archiviert",
+    );
+    expect(
+      within(legacyEditor).getByText(/Dieses Modul ist archiviert/),
+    ).toBeVisible();
+    await user.selectOptions(
+      within(legacyEditor).getByLabelText("Priorität"),
+      "low",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Änderungen speichern" }),
+    );
+    await waitFor(() => {
+      const card = screen.getByText("Alte Modulaufgabe").closest("article");
+      expect(card).not.toBeNull();
+      expect(
+        within(card!).getByText("Archiviert · Synthetisches Altmodul"),
+      ).toBeVisible();
+    });
+
+    // Der Bezug ist ausdrücklich entfernbar.
+    const legacyCardAgain = screen
+      .getByText("Alte Modulaufgabe")
+      .closest("article");
+    await user.click(
+      within(legacyCardAgain!).getByRole("button", {
+        name: "Alte Modulaufgabe bearbeiten",
+      }),
+    );
+    await user.selectOptions(
+      within(
+        screen.getByRole("region", { name: "Alte Modulaufgabe" }),
+      ).getByLabelText("Studienmodul"),
+      "",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Änderungen speichern" }),
+    );
+    await waitFor(() => {
+      const card = screen.getByText("Alte Modulaufgabe").closest("article");
+      expect(card).not.toBeNull();
+      expect(
+        within(card!).queryByText("Archiviert · Synthetisches Altmodul"),
+      ).toBeNull();
+    });
+  });
+
+  it("öffnet den gemeinsamen Aufgabeneditor aus einem Studienmodul vorbelegt", async () => {
+    installApi();
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Studium" })[0]!);
+    await user.click(
+      await screen.findByRole("button", { name: "Abschnitt anlegen" }),
+    );
+    await user.type(
+      screen.getByLabelText("Studiengang oder Ausbildungsbereich"),
+      "Synthetischer Studienabschnitt",
+    );
+    await user.type(
+      screen.getByLabelText("Hochschule oder Bildungseinrichtung"),
+      "Lokale Testhochschule",
+    );
+    await user.type(
+      screen.getByLabelText("Semester oder Studienabschnitt"),
+      "Wintersemester 2032",
+    );
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Modul hinzufügen" }),
+    );
+    await user.type(
+      screen.getByLabelText("Modul oder Kurs"),
+      "Synthetisches Modul",
+    );
+    await user.click(screen.getByRole("button", { name: "Speichern" }));
+    const moduleCard = (await screen.findByText("Synthetisches Modul")).closest(
+      "article",
+    );
+    expect(moduleCard).not.toBeNull();
+
+    // Derselbe Editor öffnet mit vorausgewähltem Modul und Bereich Studium.
+    await user.click(
+      within(moduleCard!).getByRole("button", { name: /Aufgabe anlegen/ }),
+    );
+    const editor = await screen.findByRole("region", {
+      name: "Was möchtest du erledigen?",
+    });
+    expect(within(editor).getByLabelText("Bereich")).toHaveValue("study");
+    expect(within(editor).getByLabelText("Studienmodul")).toHaveValue(
+      "modul-1",
+    );
+    await user.type(
+      within(editor).getByLabelText("Titel"),
+      "Modulaufgabe aus dem Studium",
+    );
+    await user.click(screen.getByRole("button", { name: "Aufgabe anlegen" }));
+    const createdCard = (
+      await screen.findByText("Modulaufgabe aus dem Studium")
+    ).closest("article");
+    expect(createdCard).not.toBeNull();
+    expect(within(createdCard!).getByText("Synthetisches Modul")).toBeVisible();
   });
 
   it("zeigt für eine leere Aufgabenliste eine klare nächste Aktion", async () => {

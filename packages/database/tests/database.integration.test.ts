@@ -391,6 +391,146 @@ test("erzwingt Besitz und eindeutige Zeitformen im Studienmodell", async (t) => 
   );
 });
 
+test("erzwingt den optionalen besitzgebundenen Studienmodulbezug der Aufgabe", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalIds = [
+    `task-module-database-owner-${suffix}`,
+    `task-module-database-other-${suffix}`,
+  ];
+  t.after(async () => {
+    await database.user.deleteMany({
+      where: { externalId: { in: externalIds } },
+    });
+    await database.$disconnect();
+  });
+  const [owner, other] = await Promise.all(
+    externalIds.map((externalId) =>
+      database.user.create({
+        data: {
+          externalId,
+          displayName: "Synthetische Modulperson",
+          settings: { create: {} },
+        },
+      }),
+    ),
+  );
+  assert.ok(owner && other);
+  const program = await database.studyProgram.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetischer Studienabschnitt",
+      institution: "Lokale Testhochschule",
+      periodLabel: "Wintersemester 2032",
+    },
+  });
+  const module = await database.studyModule.create({
+    data: {
+      userId: owner.id,
+      programId: program.id,
+      title: "Synthetisches Pflichtmodul",
+      code: "PFL-1",
+    },
+  });
+  const foreignProgram = await database.studyProgram.create({
+    data: {
+      userId: other.id,
+      title: "Fremder Studienabschnitt",
+      institution: "Fremde Hochschule",
+      periodLabel: "Sommersemester 2033",
+    },
+  });
+  const foreignModule = await database.studyModule.create({
+    data: {
+      userId: other.id,
+      programId: foreignProgram.id,
+      title: "Fremdes Modul",
+    },
+  });
+  const project = await database.project.create({
+    data: { userId: owner.id, title: "Synthetisches Projekt" },
+  });
+
+  // Ohne Zuordnung bleibt der Bezug leer.
+  const plain = await database.task.create({
+    data: { userId: owner.id, title: "Synthetische Aufgabe ohne Modul" },
+  });
+  assert.equal(plain.studyModuleId, null);
+
+  // Projekt und Modul dürfen gleichzeitig bestehen.
+  const both = await database.task.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetische Aufgabe mit Projekt und Modul",
+      projectId: project.id,
+      studyModuleId: module.id,
+    },
+  });
+  assert.equal(both.projectId, project.id);
+  assert.equal(both.studyModuleId, module.id);
+
+  // Ein Studieneintrag bleibt von einem späteren Modulwechsel unberührt.
+  const entry = await database.studyEntry.create({
+    data: {
+      userId: owner.id,
+      moduleId: module.id,
+      kind: "submission",
+      title: "Synthetische Abgabe",
+      dueDate: new Date("2032-02-10T00:00:00.000Z"),
+      taskId: both.id,
+    },
+  });
+  await database.task.update({
+    where: { id: both.id },
+    data: { studyModuleId: null },
+  });
+  const unchangedEntry = await database.studyEntry.findUniqueOrThrow({
+    where: { id: entry.id },
+  });
+  assert.equal(unchangedEntry.taskId, both.id);
+  assert.equal(unchangedEntry.moduleId, module.id);
+  assert.equal(
+    (await database.task.findUniqueOrThrow({ where: { id: both.id } }))
+      .projectId,
+    project.id,
+  );
+
+  // Ein archiviertes Modul bleibt wählbar und blockiert den Bestand nicht.
+  await database.studyModule.update({
+    where: { id: module.id },
+    data: {
+      status: "completed",
+      archivedAt: new Date("2032-03-01T00:00:00.000Z"),
+    },
+  });
+  const archivedLink = await database.task.update({
+    where: { id: both.id },
+    data: { studyModuleId: module.id },
+  });
+  assert.equal(archivedLink.studyModuleId, module.id);
+
+  // Fremder Besitz wird über den zusammengesetzten Schlüssel abgewiesen.
+  await assert.rejects(() =>
+    database.task.create({
+      data: {
+        userId: owner.id,
+        title: "Aufgabe mit fremdem Modul",
+        studyModuleId: foreignModule.id,
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.task.update({
+      where: { id: plain.id },
+      data: { studyModuleId: foreignModule.id },
+    }),
+  );
+  // Ein referenziertes Modul wird nicht stillschweigend gelöscht.
+  await assert.rejects(() =>
+    database.studyModule.delete({ where: { id: module.id } }),
+  );
+});
+
 test("erzwingt Besitz und gültige Zeiträume im Arbeitsmodell", async (t) => {
   const database = createDatabaseClient();
   const suffix = randomUUID();

@@ -2244,6 +2244,11 @@ input[readonly] {
   color: #8d3e28;
   background: var(--accent-soft);
 }
+/* Kennzeichnung eines optionalen Studienmodulbezugs am Aufgabeneintrag. */
+.task-badges .module-badge {
+  color: #2f4a63;
+  background: #e2e9f1;
+}
 .task-meta {
   margin-top: 0.75rem;
   color: var(--muted);

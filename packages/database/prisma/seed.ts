@@ -23,6 +23,8 @@ const SYNTHETIC_PROJECT_MILESTONE_ID = "00000000-0000-4000-8000-000000000009";
 const SYNTHETIC_PROJECT_EVENT_LINK_ID = "00000000-0000-4000-8000-000000000010";
 const SYNTHETIC_NOTE_ID = "00000000-0000-4000-8000-000000000011";
 const SYNTHETIC_AI_INTERACTION_ID = "00000000-0000-4000-8000-000000000012";
+const SYNTHETIC_STUDY_PROGRAM_ID = "00000000-0000-4000-8000-000000000013";
+const SYNTHETIC_STUDY_MODULE_ID = "00000000-0000-4000-8000-000000000014";
 const SYNTHETIC_FITNESS_PLAN_ID = "00000000-0000-4000-8000-000000000017";
 const SYNTHETIC_FITNESS_EXERCISE_ID = "00000000-0000-4000-8000-000000000018";
 const SYNTHETIC_FITNESS_PLAN_EXERCISE_ID =
@@ -133,6 +135,35 @@ const seed = async () => {
       },
     });
 
+    const program = await database.studyProgram.upsert({
+      where: { id: SYNTHETIC_STUDY_PROGRAM_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_STUDY_PROGRAM_ID,
+        userId: user.id,
+        title: "Synthetischer Studienabschnitt",
+        institution: "Synthetische Testhochschule",
+        periodLabel: "Wintersemester 2030",
+        status: "active",
+      },
+    });
+
+    const module = await database.studyModule.upsert({
+      where: { id: SYNTHETIC_STUDY_MODULE_ID },
+      update: {},
+      create: {
+        id: SYNTHETIC_STUDY_MODULE_ID,
+        userId: user.id,
+        programId: program.id,
+        code: "SYN-2030",
+        title: "Synthetisches Studienmodul",
+        status: "active",
+        notes: "Lokaler Beispieldatensatz ohne persönliche Daten.",
+        documentReferences: ["documents/studium/synthetisch.txt"],
+        searchEnabled: true,
+      },
+    });
+
     const task = await database.task.upsert({
       where: { id: SYNTHETIC_TASK_ID },
       update: {},
@@ -149,6 +180,7 @@ const seed = async () => {
         tags: ["organisation", "synthetisch"],
         area: "projects",
         projectId: project.id,
+        studyModuleId: module.id,
       },
     });
 

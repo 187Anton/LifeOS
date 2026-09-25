@@ -275,6 +275,36 @@ try {
     201,
     "Meilenstein",
   );
+  // Paket 4: Der Studienabschnitt und das Modul entstehen vor der Aufgabe,
+  // damit derselbe Modulbezug über den Neustart hinweg geprüft werden kann.
+  const program = await expectJson(
+    await fetch(`${first.baseUrl}/api/v1/study/programs`, {
+      method: "POST",
+      headers: jsonHeaders,
+      body: JSON.stringify({
+        title: "Synthetischer Studienabschnitt",
+        institution: "Lokale Testhochschule",
+        periodLabel: "Wintersemester 2034",
+        status: "active",
+      }),
+    }),
+    201,
+    "Studienabschnitt",
+  );
+  const module = await expectJson(
+    await fetch(`${first.baseUrl}/api/v1/study/modules`, {
+      method: "POST",
+      headers: jsonHeaders,
+      body: JSON.stringify({
+        programId: program.id,
+        title: "Synthetisches Modul",
+        code: "SYN-SIDECAR",
+        status: "active",
+      }),
+    }),
+    201,
+    "Studienmodul",
+  );
   const task = await expectJson(
     await fetch(`${first.baseUrl}/api/v1/tasks`, {
       method: "POST",
@@ -286,11 +316,15 @@ try {
         dueDate: "2034-09-30",
         area: "projects",
         projectId: project.id,
+        studyModuleId: module.id,
       }),
     }),
     201,
     "Aufgabenanlage",
   );
+  // Paket 4: Projekt- und Studienmodulbezug bestehen gleichzeitig.
+  assert.equal(task.projectId, project.id);
+  assert.equal(task.studyModuleId, module.id);
   const editedTask = await expectJson(
     await fetch(`${first.baseUrl}/api/v1/tasks/${task.id}`, {
       method: "PATCH",
@@ -554,6 +588,8 @@ try {
     goalId: goal.id,
     milestoneId: milestone.id,
     taskId: task.id,
+    studyProgramId: program.id,
+    studyModuleId: module.id,
     noteId: note.id,
     documentId: document.id,
     fitnessSessionId: fitnessSession.id,
@@ -584,6 +620,7 @@ try {
     "20260820220000_github_integration",
     "20260921190000_grocery_lists",
     "20260925120000_remove_finance_module",
+    "20260925121600_task_study_module",
   ]);
   assert.equal(
     database
@@ -648,13 +685,31 @@ try {
   );
   assert.equal(restoredEvent.status, 200);
   assert.deepEqual(await restoredEvent.json(), createdEvent);
-  assert.equal(
-    (
-      await fetch(`${second.baseUrl}/api/v1/tasks/${demoRecords.taskId}`, {
-        headers: { cookie: secondCookie },
-      })
-    ).status,
+  const restartedTask = await expectJson(
+    await fetch(`${second.baseUrl}/api/v1/tasks/${demoRecords.taskId}`, {
+      headers: { cookie: secondCookie },
+    }),
     200,
+    "Aufgabe nach Neustart",
+  );
+  // Paket 4: Der Studienmodulbezug übersteht den Sidecar-Neustart unverändert.
+  assert.equal(
+    restartedTask.studyModuleId,
+    demoRecords.studyModuleId,
+    "Der Studienmodulbezug der Aufgabe bleibt nach dem Neustart erhalten",
+  );
+  assert.equal(restartedTask.projectId, demoRecords.projectId);
+  const restartedStudy = await expectJson(
+    await fetch(`${second.baseUrl}/api/v1/study`, {
+      headers: { cookie: secondCookie },
+    }),
+    200,
+    "Studium nach Neustart",
+  );
+  assert.ok(
+    restartedStudy.modules.some(
+      (entry) => entry.id === demoRecords.studyModuleId,
+    ),
   );
   assert.equal(
     (
@@ -725,6 +780,10 @@ try {
       .prepare('SELECT COUNT(*) AS count FROM "FitnessSession"')
       .get().count,
   };
+  // Paket 4: Auch unmittelbar in der App-Datenbank bleibt der Modulbezug erhalten.
+  const taskStudyModuleAfterRestart = restartedDatabase
+    .prepare('SELECT "studyModuleId" FROM "Task" WHERE "id" = ?')
+    .get(demoRecords.taskId).studyModuleId;
   restartedDatabase.close();
   assert.equal(
     countsAfterRestart.financeTables,
@@ -733,6 +792,7 @@ try {
   );
   assert.deepEqual(identityAfterRestart, identityBeforeRestart);
   assert.deepEqual(countsAfterRestart, countsBeforeRestart);
+  assert.equal(taskStudyModuleAfterRestart, demoRecords.studyModuleId);
 
   // Paket 3: Der gebündelte Sidecar darf die destruktive SQLite-Migration nur
   // nach einem erfolgreich erstellten und geprüften vollständigen Backup
@@ -770,7 +830,8 @@ try {
     .filter(
       (entry) =>
         entry.isDirectory() &&
-        entry.name !== "20260925120000_remove_finance_module",
+        entry.name !== "20260925120000_remove_finance_module" &&
+        entry.name !== "20260925121600_task_study_module",
     )
     .map((entry) => entry.name)
     .sort();

@@ -73,6 +73,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
     "20260820220000_github_integration",
     "20260921190000_grocery_lists",
     "20260925120000_remove_finance_module",
+    "20260925121600_task_study_module",
   ]);
 
   const database = createSqliteDatabaseClient(databaseUrl);
@@ -81,7 +82,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const migrationRows = await database.$queryRawUnsafe<
     Array<{ name: string; checksum: string }>
   >('SELECT "name", "checksum" FROM "_lifeos_migrations"');
-  assert.equal(migrationRows.length, 12);
+  assert.equal(migrationRows.length, 13);
   assert.equal(migrationRows[0]?.name, "20260809190000_sqlite_foundation");
   assert.match(migrationRows[0]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[1]?.name, "20260809203000_product_modules");
@@ -106,6 +107,8 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   assert.match(migrationRows[10]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[11]?.name, "20260925120000_remove_finance_module");
   assert.match(migrationRows[11]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[12]?.name, "20260925121600_task_study_module");
+  assert.match(migrationRows[12]?.checksum ?? "", /^[0-9a-f]{64}$/);
 
   const foreignKeys = await database.$queryRawUnsafe<
     Array<{ foreign_keys: bigint }>
@@ -440,6 +443,7 @@ test("führt Finanzobjekte, gespeicherte Währung und den Finanzbereich in SQLit
       "Task_id_userId_key",
       "Task_parentTaskId_idx",
       "Task_projectId_idx",
+      "Task_studyModuleId_idx",
       "Task_userId_area_dueDate_idx",
       "Task_userId_deletedAt_archivedAt_idx",
       "Task_userId_priority_dueDate_idx",
@@ -679,5 +683,135 @@ test("speichert Notizversionen und Dokumentmetadaten mit Besitzergrenzen", async
         modifiedAt: new Date(),
       },
     }),
+  );
+});
+
+test("speichert höchstens einen besitzgebundenen Studienmodulbezug je Aufgabe", async (t) => {
+  const databaseUrl = await createIsolatedDatabase(t);
+  await migrateSqliteDatabase(databaseUrl);
+  await seedSqliteDatabase(databaseUrl);
+  const fixture = await readSqliteSeedFixture();
+  const database = createSqliteDatabaseClient(databaseUrl);
+  t.after(async () => database.$disconnect());
+
+  const program = await database.studyProgram.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+  });
+  const module = await database.studyModule.findFirstOrThrow({
+    where: { userId: fixture.user.id, programId: program.id },
+  });
+  const project = await database.project.findFirstOrThrow({
+    where: { userId: fixture.user.id },
+  });
+
+  // Bestehende Aufgaben bleiben unverändert; ohne Zuordnung bleibt der Wert NULL.
+  const seededTasks = await database.task.findMany({
+    where: { userId: fixture.user.id, deletedAt: null },
+  });
+  assert.equal(seededTasks.length, 1);
+  const seededWithModule = seededTasks[0]!;
+  assert.equal(seededWithModule.studyModuleId, module.id);
+  assert.equal(seededWithModule.projectId, project.id);
+  const seededSnapshot = { ...seededWithModule };
+
+  const withoutModule = await database.task.create({
+    data: {
+      userId: fixture.user.id,
+      title: "Synthetische Aufgabe ohne Modulbezug",
+      area: "work",
+    },
+  });
+  assert.equal(withoutModule.studyModuleId, null);
+  const renamedWithoutModule = await database.task.update({
+    where: { id: withoutModule.id },
+    data: { title: "Umbenannte Aufgabe ohne Modulbezug" },
+  });
+  assert.equal(renamedWithoutModule.studyModuleId, null);
+
+  // Ein Projektbezug darf zusätzlich bestehen.
+  const both = await database.task.create({
+    data: {
+      userId: fixture.user.id,
+      title: "Synthetische Aufgabe mit Projekt und Modul",
+      projectId: project.id,
+      studyModuleId: module.id,
+    },
+  });
+  assert.equal(both.projectId, project.id);
+  assert.equal(both.studyModuleId, module.id);
+
+  // Die Zuordnung ist ausdrücklich entfernbar und lässt den Projektbezug stehen.
+  const removed = await database.task.update({
+    where: { id: both.id },
+    data: { studyModuleId: null },
+  });
+  assert.equal(removed.studyModuleId, null);
+  assert.equal(removed.projectId, project.id);
+
+  // Ein archiviertes Modul blockiert vorhandene Bezüge nicht.
+  await database.studyModule.update({
+    where: { id: module.id },
+    data: {
+      status: "completed",
+      archivedAt: new Date("2030-05-01T00:00:00.000Z"),
+    },
+  });
+  const relinked = await database.task.update({
+    where: { id: both.id },
+    data: { studyModuleId: module.id },
+  });
+  assert.equal(relinked.studyModuleId, module.id);
+  // Die vorhandene Aufgabe bleibt durch die Zuordnung vollständig unverändert.
+  assert.deepEqual(
+    await database.task.findUniqueOrThrow({
+      where: { id: seededWithModule.id },
+    }),
+    seededSnapshot,
+  );
+
+  // Die Besitzergrenze wird über den zusammengesetzten Schlüssel erzwungen.
+  const other = await database.user.create({
+    data: {
+      externalId: "sqlite-task-module-other",
+      displayName: "Andere synthetische Modulperson",
+    },
+  });
+  const foreignProgram = await database.studyProgram.create({
+    data: {
+      userId: other.id,
+      title: "Fremder Studienabschnitt",
+      institution: "Fremde Hochschule",
+      periodLabel: "Sommersemester 2032",
+      status: "active",
+    },
+  });
+  const foreignModule = await database.studyModule.create({
+    data: {
+      userId: other.id,
+      programId: foreignProgram.id,
+      title: "Fremdes Modul",
+      status: "active",
+    },
+  });
+  await assert.rejects(() =>
+    database.task.create({
+      data: {
+        userId: fixture.user.id,
+        title: "Aufgabe mit fremdem Modul",
+        studyModuleId: foreignModule.id,
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.task.create({
+      data: {
+        userId: other.id,
+        title: "Aufgabe mit verwechseltem Besitzer",
+        studyModuleId: module.id,
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    database.studyModule.delete({ where: { id: module.id } }),
   );
 });

@@ -86,6 +86,7 @@ const initialTask = {
   tags: ["organisation"],
   area: "projects",
   projectId: null,
+  studyModuleId: null,
   parentTaskId: null,
   completedAt: null,
   archivedAt: null,
@@ -93,13 +94,27 @@ const initialTask = {
   updatedAt: "2026-07-22T08:00:00.000Z",
 };
 
-const installApi = async (page: Page) => {
+const installApi = async (
+  page: Page,
+  {
+    studyPrograms = [],
+    studyModules = [],
+    additionalTasks = [],
+  }: {
+    studyPrograms?: Array<Record<string, unknown>>;
+    studyModules?: Array<Record<string, unknown>>;
+    additionalTasks?: Array<Record<string, unknown>>;
+  } = {},
+) => {
   const events: Array<Record<string, unknown>> = [{ ...initialEvent }];
-  const tasks: Array<Record<string, unknown>> = [{ ...initialTask }];
+  const tasks: Array<Record<string, unknown>> = [
+    { ...initialTask },
+    ...additionalTasks.map((entry) => ({ ...entry })),
+  ];
   const links: Array<Record<string, unknown>> = [];
   const study = {
-    programs: [] as Array<Record<string, unknown>>,
-    modules: [] as Array<Record<string, unknown>>,
+    programs: studyPrograms.map((entry) => ({ ...entry })),
+    modules: studyModules.map((entry) => ({ ...entry })),
     entries: [] as Array<Record<string, unknown>>,
   };
   const work = {
@@ -2137,6 +2152,216 @@ test("erstellt, filtert, bearbeitet und verwaltet Aufgaben ohne Browserpersisten
   await expect(
     page.locator(".task-card").filter({ hasText: "Unterlagen archivieren" }),
   ).toHaveCount(0);
+
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
+});
+
+test("verwaltet den optionalen Studienmodulbezug auf Desktop und Smartphone", async ({
+  page,
+}) => {
+  const archivedModuleId = "module-alt";
+  // Der E2E-Mock vergibt Modul- und Projekt-IDs fortlaufend; ein archiviertes
+  // Modul ist bereits vorhanden.
+  const activeModuleId = "module-2";
+  const projectId = "project-1";
+  await installApi(page, {
+    studyPrograms: [
+      {
+        id: "studium-1",
+        ownerId: "nutzer-1",
+        title: "Synthetischer Studienabschnitt",
+        institution: "Lokale Testhochschule",
+        periodLabel: "Wintersemester 2032",
+        status: "active",
+        notes: null,
+        archivedAt: null,
+        createdAt: "2026-08-09T10:00:00.000Z",
+        updatedAt: "2026-08-09T10:00:00.000Z",
+      },
+    ],
+    studyModules: [
+      {
+        id: archivedModuleId,
+        ownerId: "nutzer-1",
+        programId: "studium-1",
+        title: "Synthetisches Altmodul",
+        code: null,
+        credits: null,
+        grade: null,
+        status: "completed",
+        notes: null,
+        documentReferences: [],
+        searchEnabled: false,
+        archivedAt: "2032-03-01T00:00:00.000Z",
+        createdAt: "2026-08-09T10:00:00.000Z",
+        updatedAt: "2026-08-09T10:00:00.000Z",
+      },
+    ],
+    additionalTasks: [
+      {
+        ...initialTask,
+        id: "aufgabe-alt",
+        title: "Alte Modulaufgabe",
+        studyModuleId: archivedModuleId,
+      },
+    ],
+  });
+
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: /Guten Tag, Anton/ }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Aufgaben", exact: true })
+    .filter({ visible: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Aufgaben", exact: true }),
+  ).toBeVisible();
+
+  const filters = page.getByRole("region", { name: "Aufgaben filtern" });
+  const legacyCard = page.locator(".task-card").filter({
+    hasText: "Alte Modulaufgabe",
+  });
+  const plainCard = page.locator(".task-card").filter({
+    hasText: "Roadmap prüfen",
+  });
+
+  // Der archivierte Altbezug bleibt sichtbar gekennzeichnet.
+  await expect(legacyCard).toBeVisible();
+  await expect(
+    legacyCard.getByText("Archiviert · Synthetisches Altmodul"),
+  ).toBeVisible();
+
+  // Der Modulfilter kennt „Ohne Modul“ und archivierte Altbezüge.
+  await filters.getByLabel("Studienmodul").selectOption("none");
+  await expect(plainCard).toBeVisible();
+  await expect(legacyCard).toHaveCount(0);
+  await filters.getByLabel("Studienmodul").selectOption(archivedModuleId);
+  await expect(legacyCard).toBeVisible();
+  await expect(plainCard).toHaveCount(0);
+  await filters.getByRole("button", { name: "Filter zurücksetzen" }).click();
+  await expect(plainCard).toBeVisible();
+
+  // Der archivierte Altbezug überlebt eine fachfremde Änderung.
+  await legacyCard
+    .getByRole("button", { name: "Alte Modulaufgabe bearbeiten" })
+    .click();
+  const editor = page.locator(".task-editor");
+  await expect(editor.getByLabel("Studienmodul")).toHaveValue(archivedModuleId);
+  await expect(editor.getByText(/Dieses Modul ist archiviert/)).toBeVisible();
+  // Das archivierte Modul wird nicht erneut als Neuzuordnung angeboten.
+  await expect(
+    editor.getByRole("option", {
+      name: "Archiviert · Synthetisches Altmodul",
+    }),
+  ).toHaveCount(1);
+  await editor.getByLabel("Priorität").selectOption("low");
+  await editor.getByRole("button", { name: "Änderungen speichern" }).click();
+  await expect(
+    legacyCard.getByText("Archiviert · Synthetisches Altmodul"),
+  ).toBeVisible();
+
+  // Anlage aus einem Modul heraus öffnet denselben Editor vorbelegt.
+  await page
+    .getByRole("button", { name: "Studium" })
+    .filter({ visible: true })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Lernen nachvollziehbar planen" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Synthetischer Studienabschnitt").first(),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Modul hinzufügen" }).click();
+  await page.getByLabel("Modul oder Kurs").fill("Synthetisches Aktivmodul");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  const activeModuleCard = page.locator(".study-card").filter({
+    hasText: "Synthetisches Aktivmodul",
+  });
+  await expect(activeModuleCard).toBeVisible();
+  await activeModuleCard
+    .getByRole("button", { name: "Aufgabe anlegen" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", { name: "Aufgaben", exact: true }),
+  ).toBeVisible();
+  await expect(editor.getByLabel("Bereich")).toHaveValue("study");
+  await expect(editor.getByLabel("Studienmodul")).toHaveValue(activeModuleId);
+  await editor.getByLabel("Titel").fill("Modulaufgabe vorbereiten");
+  await editor.getByRole("button", { name: "Aufgabe anlegen" }).click();
+  const moduleCard = page.locator(".task-card").filter({
+    hasText: "Modulaufgabe vorbereiten",
+  });
+  await expect(moduleCard).toBeVisible();
+  await expect(moduleCard.getByText("Synthetisches Aktivmodul")).toBeVisible();
+
+  // Projekt und Modul bestehen gleichzeitig.
+  await page
+    .getByRole("button", { name: "Projekte" })
+    .filter({ visible: true })
+    .click();
+  await page.getByRole("button", { name: "Projekt", exact: true }).click();
+  await page.getByLabel("Bezeichnung").fill("Synthetisches Modulprojekt");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(
+    page.getByText("Synthetisches Modulprojekt").first(),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Aufgaben", exact: true })
+    .filter({ visible: true })
+    .click();
+  await moduleCard
+    .getByRole("button", { name: "Modulaufgabe vorbereiten bearbeiten" })
+    .click();
+  await editor
+    .getByLabel("Projekt")
+    .selectOption({ label: "Synthetisches Modulprojekt" });
+  await expect(editor.getByLabel("Studienmodul")).toHaveValue(activeModuleId);
+  await editor.getByRole("button", { name: "Änderungen speichern" }).click();
+  await moduleCard
+    .getByRole("button", { name: "Modulaufgabe vorbereiten bearbeiten" })
+    .click();
+  await expect(editor.getByLabel("Projekt")).toHaveValue(projectId);
+  await expect(editor.getByLabel("Studienmodul")).toHaveValue(activeModuleId);
+
+  // Der Bezug bleibt nach dem Neuladen erhalten und ist ausdrücklich entfernbar.
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Aufgaben", exact: true })
+    .filter({ visible: true })
+    .click();
+  const reloadedCard = page.locator(".task-card").filter({
+    hasText: "Modulaufgabe vorbereiten",
+  });
+  await expect(
+    reloadedCard.getByText("Synthetisches Aktivmodul"),
+  ).toBeVisible();
+  await reloadedCard
+    .getByRole("button", { name: "Modulaufgabe vorbereiten bearbeiten" })
+    .click();
+  await editor.getByLabel("Studienmodul").selectOption({ label: "Kein Modul" });
+  await editor.getByRole("button", { name: "Änderungen speichern" }).click();
+  await expect(
+    page
+      .locator(".task-card")
+      .filter({ hasText: "Modulaufgabe vorbereiten" })
+      .getByText("Synthetisches Aktivmodul"),
+  ).toHaveCount(0);
+  await page
+    .locator(".task-card")
+    .filter({ hasText: "Modulaufgabe vorbereiten" })
+    .getByRole("button", { name: "Modulaufgabe vorbereiten bearbeiten" })
+    .click();
+  await expect(editor.getByLabel("Projekt")).toHaveValue(projectId);
+  await expect(editor.getByLabel("Studienmodul")).toHaveValue("");
 
   expect(
     await page.evaluate(() => ({

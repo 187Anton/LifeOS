@@ -270,9 +270,27 @@ damit ein veralteter Client keinen neueren Stand überschreibt.
 Aufgaben werden nach lokaler Anmeldung unter `/api/v1/tasks` verwaltet. Das
 Aufgabenmodell unterstützt Status, Priorität, Fälligkeit als reines Datum,
 optionale geplante Startzeit mit IANA-Zeitzone, ganzzahlige Dauerminuten, Tags,
-Bereich, Projekt- und Elternbezug sowie Archivierung und Soft-Delete. Die
-responsive Aufgabenoberfläche unterstützt Erstellen, Bearbeiten, Statuswechsel,
-Archivierung, bestätigtes Löschen sowie kombinierbare Suche und Filter.
+Bereich, Projekt-, Studienmodul- und Elternbezug sowie Archivierung und
+Soft-Delete. Die responsive Aufgabenoberfläche unterstützt Erstellen,
+Bearbeiten, Statuswechsel, Archivierung, bestätigtes Löschen sowie kombinierbare
+Suche und Filter einschließlich „Ohne Modul“.
+
+Eine Aufgabe kann optional auf höchstens ein eigenes Studienmodul verweisen;
+Projekt- und Studienmodulbezug dürfen gleichzeitig bestehen. Die Zuordnung wird
+über `studyModuleId` in `POST /api/v1/tasks` und `PATCH /api/v1/tasks/:id`
+gesetzt und mit `null` ausdrücklich entfernt. Für neue Zuordnungen akzeptiert
+die API ausschließlich vorhandene, nicht archivierte Module desselben Besitzers;
+fremde, archivierte oder unbekannte Module werden mit `400 VALIDATION_ERROR`
+abgelehnt. Ein bereits archivierter Bezug bleibt bei fachfremden Änderungen
+erhalten, bleibt sichtbar gekennzeichnet und darf entfernt werden. Der
+Aufgabenfilter `GET /api/v1/tasks?studyModuleId=<uuid|none>` filtert
+serverseitig und besitzgebunden auf ein Modul beziehungsweise auf Aufgaben ohne
+Modulbezug. Der gemeinsame Aufgabeneditor bietet die aktive Modul- und
+Projektauswahl; aus einem aktiven Modul der Studienansicht öffnet „Aufgabe
+anlegen“ denselben Editor mit vorausgewähltem Modul und sichtbar vorausgewähltem
+Bereich „Studium“. Bestehende `StudyEntry.taskId`-Verknüpfungen werden dabei
+weder umgeschrieben noch als Modulzuordnung interpretiert; Termine, Fristen und
+Status ändern sich nicht automatisch.
 
 Studienabschnitte, Module, Prüfungen, Abgaben, Lehrveranstaltungen und
 Lernzeiten werden nach lokaler Anmeldung unter `/api/v1/study` verwaltet. Die

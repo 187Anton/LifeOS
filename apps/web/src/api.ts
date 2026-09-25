@@ -86,6 +86,7 @@ import type {
   ShoppingParsePreviewResponse,
   UpdateShoppingItemRequest,
 } from "@lifeos/contracts";
+import { TASK_STUDY_MODULE_FILTER_NONE } from "@lifeos/contracts";
 
 const API_BASE = "/api/v1";
 
@@ -258,10 +259,17 @@ export const api = {
     });
   },
 
-  listTasks(includeArchived = true) {
-    return request<TaskResponse[]>(
-      `/tasks?includeArchived=${includeArchived ? "true" : "false"}`,
-    );
+  listTasks(includeArchived = true, studyModuleId?: string | null) {
+    const query = new URLSearchParams({
+      includeArchived: includeArchived ? "true" : "false",
+    });
+    if (studyModuleId !== undefined) {
+      query.set(
+        "studyModuleId",
+        studyModuleId ?? TASK_STUDY_MODULE_FILTER_NONE,
+      );
+    }
+    return request<TaskResponse[]>(`/tasks?${query.toString()}`);
   },
 
   createTask(payload: CreateTaskRequest) {

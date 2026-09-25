@@ -174,17 +174,54 @@ const main = async () => {
       reminderMinutes: number[];
     };
 
+    // Paket 4: Der optionale Studienmodulbezug muss einen Neustart überstehen.
+    const programResponse = await fetch(
+      `${first.baseUrl}/api/v1/study/programs`,
+      {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          title: "Synthetischer SQLite-Studienabschnitt",
+          institution: "Lokale Testhochschule",
+          periodLabel: "Sommersemester 2032",
+        }),
+      },
+    );
+    assert.equal(programResponse.status, 201);
+    const program = (await programResponse.json()) as { id: string };
+
+    const moduleResponse = await fetch(
+      `${first.baseUrl}/api/v1/study/modules`,
+      {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          programId: program.id,
+          title: "Synthetisches SQLite-Modul",
+          code: "SQL-1",
+        }),
+      },
+    );
+    assert.equal(moduleResponse.status, 201);
+    const module = (await moduleResponse.json()) as { id: string };
+
     const createdResponse = await fetch(`${first.baseUrl}/api/v1/tasks`, {
       method: "POST",
       headers: jsonHeaders,
-      body: JSON.stringify({ title: taskTitle, dueDate: "2032-08-09" }),
+      body: JSON.stringify({
+        title: taskTitle,
+        dueDate: "2032-08-09",
+        studyModuleId: module.id,
+      }),
     });
     assert.equal(createdResponse.status, 201);
     const created = (await createdResponse.json()) as {
       id: string;
       dueDate: string;
+      studyModuleId: string | null;
     };
     assert.equal(created.dueDate, "2032-08-09");
+    assert.equal(created.studyModuleId, module.id);
 
     await stopServer(running);
     running = undefined;
@@ -256,15 +293,38 @@ const main = async () => {
       id: string;
       title: string;
       dueDate: string;
+      studyModuleId: string | null;
     }>;
     assert.ok(
       tasks.some(
         (task) =>
           task.id === created.id &&
           task.title === taskTitle &&
-          task.dueDate === "2032-08-09",
+          task.dueDate === "2032-08-09" &&
+          task.studyModuleId === module.id,
       ),
     );
+
+    const filteredResponse = await fetch(
+      `${second.baseUrl}/api/v1/tasks?studyModuleId=${module.id}`,
+      { headers: { cookie: secondCookie } },
+    );
+    assert.equal(filteredResponse.status, 200);
+    const filtered = (await filteredResponse.json()) as Array<{ id: string }>;
+    assert.deepEqual(
+      filtered.map((task) => task.id),
+      [created.id],
+    );
+
+    const withoutModuleResponse = await fetch(
+      `${second.baseUrl}/api/v1/tasks?studyModuleId=none`,
+      { headers: { cookie: secondCookie } },
+    );
+    assert.equal(withoutModuleResponse.status, 200);
+    const withoutModule = (await withoutModuleResponse.json()) as Array<{
+      id: string;
+    }>;
+    assert.equal(withoutModule.length, 0);
 
     await stopServer(running);
     running = undefined;
@@ -281,6 +341,16 @@ const main = async () => {
     assert.equal(persistedEvent.etag, createdEvent.etag);
     assert.equal(persistedEvent.sequence, createdEvent.sequence);
     assert.equal(persistedEvent.syncVersion, persistedCalendar.syncToken);
+    // Paket 4: Der Modulbezug steht unverändert in der SQLite-Datei.
+    const persistedTask = await verificationDatabase.task.findFirstOrThrow({
+      where: { id: created.id },
+    });
+    assert.equal(persistedTask.studyModuleId, module.id);
+    const persistedModule =
+      await verificationDatabase.studyModule.findFirstOrThrow({
+        where: { id: module.id },
+      });
+    assert.equal(persistedModule.programId, program.id);
     await verificationDatabase.$disconnect();
     console.info("SQLite-API-Neustartprüfung erfolgreich.");
   } finally {

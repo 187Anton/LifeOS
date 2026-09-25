@@ -82,6 +82,8 @@ interface Props {
     value: UpdateStudyModuleRequest,
   ) => Promise<void>;
   onUpdateEntry: (id: string, value: UpdateStudyEntryRequest) => Promise<void>;
+  /** Öffnet den gemeinsamen Aufgabeneditor mit vorausgewähltem Modul. */
+  onCreateTaskForModule: (moduleId: string) => void;
 }
 
 export const StudyWorkspace = ({
@@ -98,6 +100,7 @@ export const StudyWorkspace = ({
   onUpdateProgram,
   onUpdateModule,
   onUpdateEntry,
+  onCreateTaskForModule,
 }: Props) => {
   const [form, setForm] = useState<"program" | "module" | "entry" | null>(null);
   const programs =
@@ -253,6 +256,13 @@ export const StudyWorkspace = ({
                     {module.searchEnabled
                       ? "Suchfreigabe aufheben"
                       : "Für lokale Suche freigeben"}
+                  </button>
+                  <button
+                    className="text-button"
+                    disabled={saving}
+                    onClick={() => onCreateTaskForModule(module.id)}
+                  >
+                    <PlusIcon /> Aufgabe anlegen
                   </button>
                 </StudyCard>
               ))

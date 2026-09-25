@@ -10,6 +10,11 @@ export interface TaskListFilters {
   status?: TaskStatus;
   priority?: TaskPriority;
   area?: TaskArea;
+  /**
+   * UUID eines eigenen Moduls oder `null` für Aufgaben ohne Modulbezug
+   * (`none` in der Abfrage). Ohne Angabe wird nicht nach Modul gefiltert.
+   */
+  studyModuleId?: string | null;
   includeArchived: boolean;
 }
 
@@ -25,6 +30,7 @@ export interface TaskValues {
   tags: string[];
   area: TaskArea;
   projectId: string | null;
+  studyModuleId: string | null;
   parentTaskId: string | null;
   completedAt: Date | null;
 }
@@ -49,6 +55,12 @@ export class TaskNotFoundError extends Error {}
 export class ProjectNotFoundError extends Error {}
 export class ParentTaskNotFoundError extends Error {}
 export class TaskHierarchyConflictError extends Error {}
+/**
+ * Das gewählte Studienmodul ist fremd, archiviert oder nicht vorhanden. Ein
+ * bereits gesetzter, inzwischen archivierter Bezug wird dadurch nicht
+ * ungültig; er darf unverändert bleiben oder ausdrücklich entfernt werden.
+ */
+export class StudyModuleNotFoundError extends Error {}
 
 type TaskRecord = {
   id: string;
@@ -64,6 +76,7 @@ type TaskRecord = {
   tags: string[];
   area: TaskArea;
   projectId: string | null;
+  studyModuleId: string | null;
   parentTaskId: string | null;
   completedAt: Date | null;
   archivedAt: Date | null;
@@ -85,6 +98,7 @@ export const mapTask = (task: TaskRecord): TaskResponse => ({
   tags: task.tags,
   area: task.area,
   projectId: task.projectId,
+  studyModuleId: task.studyModuleId,
   parentTaskId: task.parentTaskId,
   completedAt: task.completedAt?.toISOString() ?? null,
   archivedAt: task.archivedAt?.toISOString() ?? null,
@@ -92,7 +106,10 @@ export const mapTask = (task: TaskRecord): TaskResponse => ({
   updatedAt: task.updatedAt.toISOString(),
 });
 
-type TaskTransaction = Pick<DatabaseClient, "task" | "project" | "auditEvent">;
+type TaskTransaction = Pick<
+  DatabaseClient,
+  "task" | "project" | "studyModule" | "auditEvent"
+>;
 
 export class PrismaTaskRepository implements TaskRepository {
   constructor(private readonly database: DatabaseClient) {}
@@ -109,6 +126,9 @@ export class PrismaTaskRepository implements TaskRepository {
         ...(filters.status ? { status: filters.status } : {}),
         ...(filters.priority ? { priority: filters.priority } : {}),
         ...(filters.area ? { area: filters.area } : {}),
+        ...(Object.hasOwn(filters, "studyModuleId")
+          ? { studyModuleId: filters.studyModuleId ?? null }
+          : {}),
       },
       orderBy: [
         { dueDate: { sort: "asc", nulls: "last" } },
@@ -136,6 +156,7 @@ export class PrismaTaskRepository implements TaskRepository {
         values.parentTaskId,
       );
       await this.validateProject(transaction, userId, values.projectId);
+      await this.validateStudyModule(transaction, userId, values.studyModuleId);
       const task = await transaction.task.create({
         data: { ...values, userId },
       });
@@ -174,6 +195,18 @@ export class PrismaTaskRepository implements TaskRepository {
           transaction,
           userId,
           changes.projectId ?? null,
+        );
+      }
+      if (
+        Object.hasOwn(changes, "studyModuleId") &&
+        (changes.studyModuleId ?? null) !== current.studyModuleId
+      ) {
+        // Ein unveränderter Bezug bleibt auch bei archiviertem Modul gültig;
+        // nur eine echte Neuzuordnung wird geprüft.
+        await this.validateStudyModule(
+          transaction,
+          userId,
+          changes.studyModuleId ?? null,
         );
       }
       const task = await transaction.task.update({
@@ -247,5 +280,24 @@ export class PrismaTaskRepository implements TaskRepository {
       select: { id: true },
     });
     if (!project) throw new ProjectNotFoundError();
+  }
+
+  /**
+   * Neue Zuordnungen dürfen ausschließlich auf ein vorhandenes, nicht
+   * archiviertes Modul desselben Besitzers zeigen. Die Besitzergrenze wird
+   * zusätzlich durch den zusammengesetzten Fremdschlüssel in der Datenbank
+   * abgesichert.
+   */
+  private async validateStudyModule(
+    transaction: TaskTransaction,
+    userId: string,
+    studyModuleId: string | null,
+  ): Promise<void> {
+    if (!studyModuleId) return;
+    const module = await transaction.studyModule.findFirst({
+      where: { id: studyModuleId, userId, archivedAt: null },
+      select: { id: true },
+    });
+    if (!module) throw new StudyModuleNotFoundError();
   }
 }
