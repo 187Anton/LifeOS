@@ -45,7 +45,6 @@ class InMemoryProfileRepository
     settings: {
       timezone: "Europe/Berlin",
       locale: "de-DE",
-      currencyCode: "EUR",
       weekStartsOn: 1,
       defaultCalendarView: "week",
       showWeekends: true,
@@ -234,9 +233,18 @@ test("schützt Profil und Einstellungen mit widerrufbarer lokaler Sitzung", asyn
     headers: { cookie },
   });
   assert.equal(profile.status, 200);
-  assert.equal(
-    ((await profile.json()) as ProfileResponse).settings.timezone,
-    "Europe/Berlin",
+  const profileBody = (await profile.json()) as ProfileResponse;
+  assert.equal(profileBody.settings.timezone, "Europe/Berlin");
+  assert.deepEqual(
+    Object.keys(profileBody.settings).sort(),
+    [
+      "defaultCalendarView",
+      "locale",
+      "showWeekends",
+      "timezone",
+      "weekStartsOn",
+    ],
+    "die Profilantwort enthält keine Währungseinstellung mehr",
   );
 
   const invalidUpdate = await fetch(`${baseUrl}/api/v1/settings`, {
@@ -246,13 +254,29 @@ test("schützt Profil und Einstellungen mit widerrufbarer lokaler Sitzung", asyn
   });
   assert.equal(invalidUpdate.status, 400);
 
+  const retiredCurrencyUpdate = await fetch(`${baseUrl}/api/v1/settings`, {
+    method: "PATCH",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ currencyCode: "USD" }),
+  });
+  assert.equal(retiredCurrencyUpdate.status, 400);
+  assert.equal(
+    ((await retiredCurrencyUpdate.json()) as { error: { code: string } }).error
+      .code,
+    "VALIDATION_ERROR",
+  );
+  assert.equal(
+    repository.auditCount,
+    0,
+    "eine abgewiesene Währungseinstellung darf nichts schreiben",
+  );
+
   const validUpdate = await fetch(`${baseUrl}/api/v1/settings`, {
     method: "PATCH",
     headers: { cookie, "content-type": "application/json" },
     body: JSON.stringify({
       timezone: "UTC",
       locale: "en-US",
-      currencyCode: "USD",
       weekStartsOn: 0,
       defaultCalendarView: "month",
       showWeekends: false,
@@ -262,6 +286,7 @@ test("schützt Profil und Einstellungen mit widerrufbarer lokaler Sitzung", asyn
   const updated = (await validUpdate.json()) as ProfileResponse;
   assert.equal(updated.settings.defaultCalendarView, "month");
   assert.equal(updated.settings.showWeekends, false);
+  assert.ok(!("currencyCode" in updated.settings));
   assert.equal(repository.auditCount, 1);
 
   const logout = await fetch(`${baseUrl}/api/v1/session`, {

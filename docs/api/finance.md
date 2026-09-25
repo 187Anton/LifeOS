@@ -27,6 +27,21 @@ zwischen `DATE` und `YYYY-MM-DD` abgebildet.
 
 ## Lokale API
 
+**Stilllegung (Paket 2b/1, 25.09.2026):** Der Finanzbereich ist aus dem aktiven
+Produkt entfernt. Die unten beschriebenen Routen sind im Express-Server nicht
+mehr registriert; der Server erzeugt den Router nicht mehr und das Modul
+`apps/api/src/modules/finance/` existiert nicht mehr. Aufrufe unter
+`/api/v1/finance...` enden deshalb mit `404` im versionierten Fehlerformat
+(`error.code: "NOT_FOUND"`); eine Schreibroute gibt es nicht mehr. Diese
+Beschreibung bleibt als historischer Vertragsstand und für Paket 3 erhalten.
+Die Finanzmodelle und vorhandene Finanzdaten in PostgreSQL und SQLite wurden
+nicht verändert; Schema-, Seed- und Migrationsreste folgen in Paket 3. Der
+Frontend-Client, die aktiven Finanzvertragstypen in `@lifeos/contracts` und die
+finanzexklusive Profileinstellung wurden in Paket 2c bereinigt; das gespeicherte
+Währungsfeld bleibt bis Paket 3 erhalten.
+
+Der folgende Stand beschreibt den bis 2b/1 aktiven Vertrag:
+
 Alle Routen liegen unter `/api/v1`, benötigen eine gültige lokale Sitzung und
 prüfen den Besitzer serverseitig:
 

@@ -61,9 +61,6 @@ import {
   DisabledAiProviderAdapter,
   SourceGroundedAiService,
 } from "./modules/ai/service.js";
-import { PrismaFinanceRepository } from "./modules/finance/repository.js";
-import { createFinanceRouter } from "./modules/finance/router.js";
-import { FinanceService } from "./modules/finance/service.js";
 import { PrismaFitnessRepository } from "./modules/fitness/repository.js";
 import { createFitnessRouter } from "./modules/fitness/router.js";
 import { FitnessService } from "./modules/fitness/service.js";
@@ -103,7 +100,6 @@ const main = async (): Promise<void> => {
   const work = new WorkService(new PrismaWorkRepository(database));
   const planning = new PlanningService(new PrismaPlanningRepository(database));
   const projects = new ProjectService(new PrismaProjectRepository(database));
-  const finance = new FinanceService(new PrismaFinanceRepository(database));
   const fitness = new FitnessService(new PrismaFitnessRepository(database));
   const shopping = new ShoppingService(new PrismaShoppingRepository(database));
   const ics = new IcsImportService(calendars);
@@ -185,7 +181,6 @@ const main = async (): Promise<void> => {
       createWorkRouter({ authentication, work }),
       createPlanningRouter({ authentication, planning }),
       createProjectRouter({ authentication, projects }),
-      createFinanceRouter({ authentication, finance }),
       createFitnessRouter({ authentication, fitness }),
       createShoppingRouter({ authentication, shopping }),
       createIcsRouter({ authentication, ics }),

@@ -206,7 +206,6 @@ const main = async () => {
     assert.deepEqual(profile.settings, {
       timezone: "UTC",
       locale: "de-DE",
-      currencyCode: "EUR",
       weekStartsOn: 1,
       defaultCalendarView: "month",
       showWeekends: false,

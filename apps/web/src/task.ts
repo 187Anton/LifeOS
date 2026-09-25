@@ -29,6 +29,20 @@ export const taskAreaLabels: Record<TaskArea, string> = {
   personal: "Persönlich",
 };
 
+/**
+ * Bereiche, die in der Oberfläche neu gewählt werden können. `finance` bleibt
+ * vorerst nur in der Beschriftung erhalten, damit vorhandene Aufgaben mit
+ * `area=finance` bis zur datenerhaltenden Überführung in Paket 3 korrekt
+ * angezeigt werden und beim Bearbeiten keinen Wert verlieren.
+ */
+export const selectableTaskAreas: TaskArea[] = [
+  "study",
+  "work",
+  "projects",
+  "fitness",
+  "personal",
+];
+
 export const todayInTimezone = (timezone: string): string => {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,

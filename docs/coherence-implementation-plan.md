@@ -181,6 +181,28 @@ Reihenfolge 0 → 11. Ein Paket darf vor Start in kleinere benannte Teilpakete
 geteilt werden; Kriterien und Abhängigkeiten vorher hier festhalten. Pro Auftrag
 nur ein Paket beziehungsweise bereits definiertes Teilpaket durchführen.
 
+Paket 2 wird sequenziell geliefert: **2a** entfernt die Finanznavigation,
+Finanzansicht und Finanzoptionen in der Weboberfläche samt betroffenen UI-Tests;
+API und Datenbank bleiben dabei unverändert. **2b** entfernt die aktiven
+Finanz-API-Routen und ausschließlich finanzbezogene Backend-Logik samt
+API-Tests und dokumentiert die Stilllegung des bisherigen `/api/v1/finance`-
+Vertrags. **2c** bereinigt aktive Frontend-/Vertragsverbraucher, Tests und
+Produktdokumentation und nimmt das gesamte Paket 2 ab. Innerhalb von 2c
+bereinigt **2c/1** Finanztypen, Web-Client und verwaistes CSS; **2c/2**
+entfernt die ausschließlich für Finanzen benötigte Währungseinstellung aus
+aktiven Profilverträgen und API-Eingaben, ohne das Bestandsfeld vor Paket 3
+zu migrieren. Kein Teilpaket gilt allein als abgeschlossenes Paket 2; DB-Reste
+bleiben bis Paket 3 erhalten.
+
+Stand 25.09.2026: 2a, 2b/1, 2b/2 und 2c/1 sind im Branch
+`feat/coherence-finance-removal` committet; 2c/2 und die Produktdokumentation
+sind lokal umgesetzt und mit den in
+[coherence-progress.md](coherence-progress.md) einzeln aufgeführten lokalen
+Prüfungen belegt. Ein Währungsschreiben an `PATCH /api/v1/settings` wird bewusst
+mit `400` abgewiesen, `UserSettings.currencyCode` bleibt bis Paket 3
+unangetastet. Paket 2 ist damit lokal geprüft, aber noch nicht über PR
+und Pflicht-CI abgenommen; Paket 3 ist nicht begonnen.
+
 | Paket | Umfang und Einstieg                                                           | Erforderliche Abnahme zusätzlich zur Pflicht-CI                                                                                                                   |
 | ----- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0     | Dieser Plan, Fortschritt, Startanleitung; README-/AGENTS-Verweis              | Inhalt konsistent, Format/Links/Diff geprüft; PR nach develop                                                                                                     |

@@ -261,10 +261,13 @@ curl -c /tmp/lifeos-cookie \
 curl -b /tmp/lifeos-cookie http://127.0.0.1:3000/api/v1/profile
 ```
 
-Unterstützte Einstellungen sind IANA-Zeitzone, `de-DE` oder `en-US`, gültiger
-ISO-Währungscode, Wochenbeginn von 0 bis 6, Standardansicht `day`, `week` oder
-`month` und die Wochenendanzeige. Teilupdates schreiben nur geänderte Felder;
-das Audit speichert deren Namen, nicht die persönlichen Werte.
+Unterstützte Einstellungen sind IANA-Zeitzone, `de-DE` oder `en-US`, Wochenbeginn
+von 0 bis 6, Standardansicht `day`, `week` oder `month` und die Wochenendanzeige.
+Teilupdates schreiben nur geänderte Felder; das Audit speichert deren Namen,
+nicht die persönlichen Werte. Ein weiterhin gesendeter Währungscode wird vom
+strikten Schema mit HTTP 400 abgewiesen und nicht stillschweigend ignoriert;
+das gespeicherte Bestandsfeld bleibt bis zur Datenmigration in Paket 3
+unberührt.
 
 ## Kalendervertrag
 
@@ -448,10 +451,10 @@ Berechtigungen. Der technische Nachweis steht im
   deaktiviert; externe Verarbeitung und automatische Fachänderungen finden
   nicht statt. Der Vertrag ist in [`docs/api/ai.md`](../../docs/api/ai.md)
   beschrieben.
-- `modules/finance/` verwaltet eigene Kategorien, ganzzahlige Buchungen und
-  Budgets, berechnet Monatsvergleich, Sparquote und Warnungen rein lokal und
-  stellt einen versionierten eigenen Export bereit. Grenzen und Vertrag stehen
-  in [`docs/api/finance.md`](../../docs/api/finance.md).
+- Die früheren Finanzrouten und `modules/finance/` sind nicht mehr aktiv.
+  `/api/v1/finance` antwortet mit `404 NOT_FOUND`; der
+  [historische Vertrag](../../docs/api/finance.md) hält die Stilllegung fest.
+  Die Finanzschema-Reste bleiben bis zur Datenmigration in Paket 3 erhalten.
 - `modules/caldav/` übersetzt den gemeinsamen Kalenderkern in WebDAV-XML und
   RFC-5545-iCalendar; Zugang, Parser und Transport bleiben von der REST-API
   getrennt.

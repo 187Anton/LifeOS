@@ -10,7 +10,6 @@ import {
   PlanIcon,
   ProjectIcon,
   KnowledgeIcon,
-  FinanceIcon,
   FitnessIcon,
   ShoppingIcon,
   SettingsIcon,
@@ -24,7 +23,6 @@ export type View =
   | "study"
   | "work"
   | "projects"
-  | "finance"
   | "fitness"
   | "shopping"
   | "settings"
@@ -128,14 +126,6 @@ export const Shell = ({
         >
           <CalendarIcon />
           <span>Kalender</span>
-        </button>
-        <button
-          className={view === "finance" ? "nav-item active" : "nav-item"}
-          onClick={() => onViewChange("finance")}
-          aria-current={view === "finance" ? "page" : undefined}
-        >
-          <FinanceIcon />
-          <span>Finanzen</span>
         </button>
         <button
           className={view === "fitness" ? "nav-item active" : "nav-item"}
@@ -267,14 +257,6 @@ export const Shell = ({
       >
         <CalendarIcon />
         <span>Kalender</span>
-      </button>
-      <button
-        className={view === "finance" ? "active" : ""}
-        onClick={() => onViewChange("finance")}
-        aria-current={view === "finance" ? "page" : undefined}
-      >
-        <FinanceIcon />
-        <span>Finanzen</span>
       </button>
       <button
         className={view === "fitness" ? "active" : ""}
