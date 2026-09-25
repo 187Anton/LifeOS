@@ -381,6 +381,8 @@ const installApi = ({
     modules: studyModules.map((module) => ({ ...module })),
     entries: studyEntries.map((entry) => ({ ...entry })),
   };
+  /** Tatsächlich gesendete Schreibkörper der Studieneinträge. */
+  const studyEntryUpdates: Array<Record<string, unknown>> = [];
   const workState = {
     contexts: [] as Record<string, unknown>[],
     projects: [] as Record<string, unknown>[],
@@ -505,6 +507,7 @@ const installApi = ({
             404,
           );
         const payload = requestBody(init);
+        studyEntryUpdates.push(payload);
         Object.assign(entry, payload, {
           archivedAt:
             payload.archived === undefined
@@ -1096,6 +1099,8 @@ const installApi = ({
     holdEvents,
     /** Gibt eine zurückgehaltene Ereignisantwort dieses Kalenders frei. */
     releaseEvents,
+    /** Gesendete Schreibkörper der Studieneinträge in Reihenfolge. */
+    studyEntryUpdates,
   };
 };
 
@@ -2567,6 +2572,58 @@ describe("LifeOS-Weboberfläche", () => {
     expect(
       within(reloadedDocument!).getByLabelText("Für lokale Suche freigeben"),
     ).toBeChecked();
+  });
+
+  it("bewahrt beim Bearbeiten eines Studieneintrags die gespeicherte Zeitzone und den Zeitpunkt", async () => {
+    /**
+     * Zeitgebundener Eintrag in einer anderen Zeitzone als der Profilzeitzone.
+     * `startsAt`/`endsAt` sind feste Zeitpunkte; die sichtbare Wandzeit ergibt
+     * sich aus der gespeicherten Eintragszeitzone (America/New_York, UTC−4).
+     */
+    const timedEntry = {
+      ...studyEntry,
+      dueDate: null,
+      startsAt: "2033-04-11T06:30:00.000Z",
+      endsAt: "2033-04-11T08:00:00.000Z",
+      timezone: "America/New_York",
+    };
+    const { studyEntryUpdates } = installApi({
+      studyPrograms: [studyProgram],
+      studyModules: [studyModule],
+      studyEntries: [timedEntry],
+      profileTimezone: "Europe/Berlin",
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await openModuleDetail(user);
+
+    await user.click(
+      screen.getByRole("button", { name: "Eintrag bearbeiten" }),
+    );
+    const entryForm = screen
+      .getByRole("heading", { name: "Studieneintrag bearbeiten" })
+      .closest("form");
+    expect(entryForm).not.toBeNull();
+
+    /* Angezeigt wird die Wandzeit der gespeicherten Eintragszeitzone. */
+    expect(within(entryForm!).getByLabelText("Beginn")).toHaveValue(
+      "2033-04-11T02:30",
+    );
+    expect(within(entryForm!).getByLabelText("Ende")).toHaveValue(
+      "2033-04-11T04:00",
+    );
+
+    /* Speichern ohne Zeitänderung erhält Zeitpunkt und Zeitzone. */
+    await user.click(
+      within(entryForm!).getByRole("button", { name: "Speichern" }),
+    );
+    await waitFor(() => expect(studyEntryUpdates).toHaveLength(1));
+    const payload = studyEntryUpdates[0]!;
+    expect(payload.startsAt).toBe("2033-04-11T06:30:00.000Z");
+    expect(payload.endsAt).toBe("2033-04-11T08:00:00.000Z");
+    expect(payload.timezone).toBe("America/New_York");
+    expect(payload.dueDate).toBeNull();
   });
 
   it("öffnet Suchtreffer für Modul, Eintrag, Notiz, Dokument und Projekt konkret", async () => {

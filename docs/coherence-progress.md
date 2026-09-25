@@ -6,11 +6,18 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 ## Aktuelles Paket
 
 - Paket: **6 – Moduldetailseite und gemeinsame Dokument-/Notizbedienung** lokal
-  umgesetzt und geprüft. Stand dieser Runde: **121/121** API-, **76/76**
-  Web-Unit- und **48/48** E2E-Tests (24 Tests, je 24 in beiden
-  Browserprojekten), dazu `typecheck`, `lint`, `format:check`, `build`,
-  `repo:check` und `security:secrets` bestanden. Der Commit dieser Runde
-  entsteht nach dem Push; seine Pflicht-CI ist im PR separat zu prüfen.
+  umgesetzt, geprüft und um eine Korrekturrunde nachgezogen (Zeitzone beim
+  Bearbeiten von Studieneinträgen, Produktdokumentation, Pflicht-CI). Stand
+  dieser Runde: **77/77** Web-Unit-Tests in 11 Dateien (76 vorher, inklusive des
+  neuen Zeitzonen-Regressionstests), **48/48** E2E-Tests in beiden
+  Browserprojekten, **19/19** Repository-Tests, dazu `typecheck`, `lint`,
+  `format:check`, `build`, `repo:check` und `security:secrets` bestanden. Die
+  API-Suite wurde in dieser Runde nicht erneut ausgeführt, weil keine API-Datei
+  geändert wurde; ihr letzter gemessener Stand bleibt 121/121. Der Head dieser
+  Runde entsteht nach dem Push; seine Pflicht-CI ist über
+  [PR #126](https://github.com/187Anton/LifeOS/pull/126) live zu lesen und dort
+  separat zu prüfen. Vor dieser Runde war PR #126 gegen `develop` eröffnet
+  (`MERGEABLE`, `CLEAN`) und nicht gemergt.
 - Vorgänger: **Paket 5** ist über
   [PR #125](https://github.com/187Anton/LifeOS/pull/125) nach `develop`
   integriert. Live bestätigt sind der Merge-Commit `f37524d`
@@ -38,11 +45,14 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 - Nicht geändert: Prisma-Schema, Migrationen, CalDAV-Server, Apple-Integration,
   KI-Funktionen, Finanzmodule, zweiter Dokumentenspeicher, Dateiextraktion, OCR
   und Vektorsuche; es entstand keine neue API-Ressource. `README.md` und
-  `LifeOS Leitfaden.docx` blieben unverändert, weil Paket 6 keine neue
-  Einrichtung oder Bedienung außerhalb der Weboberfläche einführt.
-- Offene Blocker: keine. Ein neuer Schreibpfad oder eine Datenmodelländerung war
-  nicht nötig; die Paket-6-Regeln bauen ausschließlich auf vorhandenen
-  Antworten und vorhandenen Besitzfiltern auf.
+  `LifeOS Leitfaden.docx` blieben zunächst unverändert und sind in der
+  Korrekturrunde knapp für die Moduldetailansicht sowie die Bearbeitung
+  verknüpfter Notizen und Dokumentmetadaten ergänzt worden.
+- Offene Blocker: keiner in der Fachlogik. Ein neuer Schreibpfad oder eine
+  Datenmodelländerung war nicht nötig; die Paket-6-Regeln bauen ausschließlich
+  auf vorhandenen Antworten und vorhandenen Besitzfiltern auf. Offen ist die
+  live zu lesende Pflicht-CI des Heads dieser Korrekturrunde; ein Merge ist
+  nicht beauftragt und wurde nicht ausgeführt.
 
 ## Paket 6 – lokale Nachweise
 
@@ -155,6 +165,89 @@ das prüft der E2E-Test am Ende jedes Ablaufs.
 - Paket 7 und Paket 8 bleiben für Dateiextraktion, Fundstellen und Suche in
   Dateiinhalten zuständig; Paket 9 für eine verwaltete
   Aufgaben-CalDAV-Abbildung.
+
+## Paket 6 – Korrektur der Befunde (Zeitzone, Produktdokumentation, Pflicht-CI)
+
+Stand: 25.09.2026, gemessen im Worktree
+`/private/tmp/lifeos-coherence-module-detail` auf Branch
+`feat/coherence-module-detail` (Basis `f37524d`) gegen den Stand `23a44d7`.
+Diese Runde hat der koordinierende Agent selbst umgesetzt und geprüft (keine
+Delegation, kein zweiter Schreiber).
+
+- **Befund 1 – Zeitzone beim Bearbeiten von Studieneinträgen.** Der bestehende
+  Eintrag wurde in `EntryForm` (`StudyWorkspace.tsx`) zwar in seiner
+  gespeicherten Zeitzone angezeigt (`toDateTimeInput(…, record.timezone ??
+timezone)`), beim Speichern aber mit der Profilzeitzone interpretiert und mit
+  `timezone: <Profilzeitzone>` geschrieben. Bei abweichender Eintragszeitzone
+  verschob ein Speichern ohne Zeitänderung damit den Zeitpunkt und überschrieb
+  die gespeicherte Zeitzone. Korrektur: eine einzige Größe
+  `scheduleTimezone = record?.timezone ?? timezone` gilt für Anzeige,
+  Beschriftung („Darstellung in …“) und Schreiben; bestehende Einträge behalten
+  Zeitzone und Zeitpunkt, neue Einträge und Altwert ohne Zeitzone verwenden
+  weiterhin die Profilzeitzone. Der Wechsel zwischen Ganztagsfrist und Zeitblock
+  bleibt unverändert (`dueDate` gegen `startsAt`/`endsAt`/`timezone`).
+- **Regressionstest (rot vor der Korrektur, grün danach).** Neuer App-Test
+  „bewahrt beim Bearbeiten eines Studieneintrags die gespeicherte Zeitzone und
+  den Zeitpunkt“: zeitgebundener Eintrag mit `America/New_York` gegen
+  Profilzeitzone `Europe/Berlin`, geprüft werden die angezeigten Wandzeitwerte
+  (`2033-04-11T02:30`/`T04:00`) und der tatsächlich gesendete Schreibkörper
+  (`startsAt 2033-04-11T06:30:00.000Z`, `endsAt …08:00:00.000Z`, `timezone
+America/New_York`, `dueDate null`) nach einem Speichern ohne Zeitänderung.
+  Gegen den unveränderten Stand `23a44d7` schlägt genau dieser Test fehl
+  (`expected '2033-04-11T00:30:00.000Z' to be '2033-04-11T06:30:00.000Z'`), mit
+  der Korrektur ist er grün. Dafür zeichnet der API-Mock der Testdatei die
+  gesendeten Studieneintrag-Schreibkörper auf (`studyEntryUpdates`).
+- **Befund 2 – Produktdokumentation.** `README.md` nennt den Umsetzungsstand der
+  Pakete 0 bis 5 (PR #122 bis #125) und Paket 6 als lokal umgesetzten,
+  noch nicht integrierten Stand; ergänzt sind ein Absatz zur
+  Moduldetailansicht (Abgrenzung von der unveränderten Studienübersicht,
+  Herkunft der verknüpften Objekte aus vorhandenen Besitzfiltern, freie
+  Dokumentverweise als unverbindliche Angaben, Bearbeitung ausschließlich über
+  die vorhandenen Facheditoren, Erhalt der gespeicherten Zeitzone) sowie im
+  Wissensabschnitt ein Satz zur Bearbeitung von Notizen und Dokumentmetadaten
+  aus der Moduldetailansicht ohne Dateiersatz. `LifeOS Leitfaden.docx` erhielt in
+  5.2 Studium und 5.10 Wissen je einen Absatz „Umsetzungsstand 25.09.2026
+  (Paket 6, lokal umgesetzt und geprüft)“ in derselben Aufzählungsformatierung
+  wie die Nachbarpunkte.
+- **Leitfaden-Nachweis.** Geschrieben mit `python-docx`
+  (`/Users/anton/.hermes/cache/scratch/p6-update-guide.py`), Sicherung des
+  Vorzustands unter `/Users/anton/.hermes/cache/scratch/p6-leitfaden-vor-edit.docx`;
+  `docx_validate.py` meldet `{"ok": true, "issues": []}`. Microsoft Word hat den
+  Leitfaden als 26-seitiges PDF gerendert
+  (`/Users/anton/.hermes/cache/scratch/p6-guide-render/LifeOS Leitfaden.pdf`).
+  Geprüft wurde programmatisch: der neue Studium-Absatz steht am Ende von
+  5.2 Studium (Seite 6, vor der Überschrift 5.3 Arbeit), der neue Wissens-Absatz
+  am Ende von 5.10 Wissen (Seite 12, nach dem letzten Aufzählungspunkt und vor
+  5.11 KI-Assistent), die Aufzählungszeichen sind erhalten, und kein Zeichen
+  liegt außerhalb der Seitenfläche (612 × 792 pt, 0 von 44 602 Zeichen außerhalb).
+- **Grenze der Prüfung (offen).** Eine echte visuelle Sichtprüfung der
+  geänderten Seiten war in diesem Lauf nicht möglich: es stand kein
+  Bildanalyse-Werkzeug zur Verfügung. Die Prüfbilder
+  `/Users/anton/.hermes/cache/scratch/p6-guide-render/seite-06.png` und
+  `…/seite-12.png` sind erzeugt und können von Hand angesehen werden; die
+  visuelle Abnahme dieser zwei Seiten bleibt damit offener Koordinatorpunkt.
+- **Gemessene Nachweise dieser Runde:** Web-Unit `npx vitest run` in `apps/web`
+  **77/77** in 11 Dateien (vorher 76, inklusive des neuen Regressionstests),
+  Playwright `npx playwright test` in `apps/web` **48/48** in `desktop-chrome`
+  und `mobile-chrome`, `npm run test:repo` **19/19**. Qualität:
+  `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run build`,
+  `npm run repo:check` und `npm run security:secrets` bestanden;
+  `git diff --check` ohne Befund.
+- **Nicht ausgeführt und deshalb hier nicht als Ergebnis behauptet:** die
+  API-Suite (in dieser Runde wurde keine API-Datei geändert; letzter Stand
+  121/121), `npm run test:sqlite:api`, die Recovery-/Sidecar-Nachweise und der
+  ARM64-DMG-/Notarisierungspfad.
+- **Nicht geändert:** Prisma-Schema, Migrationen, CalDAV-/Apple-Pfade, freie
+  `TaskEventLink`-Beziehungen, Finanzmodule, zweiter Dokumentenspeicher,
+  Dateiextraktion, OCR und Vektorsuche. Es entstand keine neue API-Ressource;
+  Paket 7 und spätere Pakete wurden nicht begonnen.
+- **Befund 3 – Pflicht-CI.** Der Head dieser Korrekturrunde entsteht erst mit
+  dem Push nach
+  [PR #126](https://github.com/187Anton/LifeOS/pull/126) (Basis `develop`).
+  `Repository checks` und `Local macOS release` sind für genau diesen Head live
+  über `gh pr checks` zu lesen; in dieser Datei wird kein CI-Ergebnis für einen
+  Commit behauptet, dessen Läufe zum Schreibzeitpunkt noch nicht abgeschlossen
+  sind. Ein Merge wurde nicht ausgeführt und ist nicht beauftragt.
 
 ## Paket 5 – lokale Nachweise
 
@@ -845,20 +938,20 @@ gespeicherte Währung und kein `TaskArea=finance` mehr voraus. Die alten
 
 ## Paketfolge
 
-| Paket                         | Status                               |
-| ----------------------------- | ------------------------------------ |
-| 0 Plan und Übergabe           | Integriert über PR #120              |
-| 1 Einstellungen/Integrationen | Integriert über PR #121              |
-| 2 Finanzfunktionen entfernen  | Integriert über PR #122              |
-| 3 Finanzdatenmigration        | Integriert über PR #123 (`56404d7`)  |
-| 4 Aufgaben–Studienmodul       | Integriert über PR #124 (`a8a2847`)  |
-| 5 Kalender/Planung            | Integriert über PR #125 (`f37524d`)  |
-| 6 Modul-Arbeitsbereich        | Lokal geprüft (Paket 6); PR/CI offen |
-| 7 PDF-Suche                   | Nicht begonnen                       |
-| 8 Office-Suche                | Nicht begonnen                       |
-| 9 Aufgaben–CalDAV             | Nicht begonnen                       |
-| 10 Mac/iPhone-Anbindung       | Nicht begonnen                       |
-| 11 Gesamtabnahme/App-Update   | Nicht begonnen                       |
+| Paket                         | Status                                            |
+| ----------------------------- | ------------------------------------------------- |
+| 0 Plan und Übergabe           | Integriert über PR #120                           |
+| 1 Einstellungen/Integrationen | Integriert über PR #121                           |
+| 2 Finanzfunktionen entfernen  | Integriert über PR #122                           |
+| 3 Finanzdatenmigration        | Integriert über PR #123 (`56404d7`)               |
+| 4 Aufgaben–Studienmodul       | Integriert über PR #124 (`a8a2847`)               |
+| 5 Kalender/Planung            | Integriert über PR #125 (`f37524d`)               |
+| 6 Modul-Arbeitsbereich        | Lokal geprüft, um Befunde korrigiert; PR/CI offen |
+| 7 PDF-Suche                   | Nicht begonnen                                    |
+| 8 Office-Suche                | Nicht begonnen                                    |
+| 9 Aufgaben–CalDAV             | Nicht begonnen                                    |
+| 10 Mac/iPhone-Anbindung       | Nicht begonnen                                    |
+| 11 Gesamtabnahme/App-Update   | Nicht begonnen                                    |
 
 ## Fortsetzen
 

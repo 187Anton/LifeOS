@@ -946,6 +946,14 @@ const EntryForm = ({
     if (next === "exam" || next === "submission") setAllDay(true);
     else setAllDay(false);
   };
+  /**
+   * Zeitgebundene Angaben werden in genau einer Zeitzone gelesen und
+   * geschrieben. Bei einem bestehenden Eintrag ist das seine gespeicherte
+   * Zeitzone: die angezeigten Wandzeitwerte und der gespeicherte Zeitpunkt
+   * bleiben dadurch ohne Zeitänderung identisch. Nur neue Einträge verwenden
+   * die Profilzeitzone; ein Altwert ohne gespeicherte Zeitzone ebenfalls.
+   */
+  const scheduleTimezone = record?.timezone ?? timezone;
   return (
     <FormShell
       title={record ? "Studieneintrag bearbeiten" : "Studieneintrag anlegen"}
@@ -971,9 +979,15 @@ const EntryForm = ({
               }
             : {
                 dueDate: null,
-                startsAt: dateTimeInputToIso(field(data, "startsAt"), timezone),
-                endsAt: dateTimeInputToIso(field(data, "endsAt"), timezone),
-                timezone,
+                startsAt: dateTimeInputToIso(
+                  field(data, "startsAt"),
+                  scheduleTimezone,
+                ),
+                endsAt: dateTimeInputToIso(
+                  field(data, "endsAt"),
+                  scheduleTimezone,
+                ),
+                timezone: scheduleTimezone,
               };
           void onUpdate({
             moduleId,
@@ -1108,10 +1122,7 @@ const EntryForm = ({
               required
               defaultValue={
                 record?.startsAt
-                  ? toDateTimeInput(
-                      record.startsAt,
-                      record.timezone ?? timezone,
-                    )
+                  ? toDateTimeInput(record.startsAt, scheduleTimezone)
                   : ""
               }
             />
@@ -1124,12 +1135,12 @@ const EntryForm = ({
               required
               defaultValue={
                 record?.endsAt
-                  ? toDateTimeInput(record.endsAt, record.timezone ?? timezone)
+                  ? toDateTimeInput(record.endsAt, scheduleTimezone)
                   : ""
               }
             />
           </label>
-          <p className="field-hint">Darstellung in {timezone}</p>
+          <p className="field-hint">Darstellung in {scheduleTimezone}</p>
         </>
       )}
       <label className="wide">
