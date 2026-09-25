@@ -53,6 +53,12 @@ interface TaskWorkspaceProps {
   success: string | null;
   createRequested: boolean;
   onCreateRequestHandled: () => void;
+  /**
+   * Aus einer anderen Ansicht angeforderte Aufgabe. Der gemeinsame Editor
+   * öffnet genau diese Aufgabe; die Ansicht selbst bleibt unverändert.
+   */
+  editRequestId: string | null;
+  onEditRequestHandled: () => void;
   onReload: () => void;
   onSave: (
     task: TaskResponse | null,
@@ -79,6 +85,8 @@ export const TaskWorkspace = ({
   success,
   createRequested,
   onCreateRequestHandled,
+  editRequestId,
+  onEditRequestHandled,
   onReload,
   onSave,
   onUpdate,
@@ -103,6 +111,18 @@ export const TaskWorkspace = ({
   useEffect(() => {
     if (createRequested) onCreateRequestHandled();
   }, [createRequested, onCreateRequestHandled]);
+
+  /**
+   * Eine aus Kalender- oder Planungsansicht angeforderte Aufgabe öffnet den
+   * gemeinsamen Editor ohne eigenen Effekt. Die Anforderung übernimmt den
+   * Editor, bis er geschlossen oder gespeichert wurde; sie erzeugt weder einen
+   * zweiten Schreibpfad noch eine eigene Datenkopie.
+   */
+  const requestedTask = editRequestId
+    ? tasks.find((candidate) => candidate.id === editRequestId)
+    : undefined;
+  const openTask = editorTask === undefined ? requestedTask : editorTask;
+  const openPreset = editorTask === undefined && requestedTask ? null : preset;
 
   const moduleTitles = useMemo(
     () =>
@@ -186,10 +206,18 @@ export const TaskWorkspace = ({
     setShowArchived(false);
   };
 
-  const save = async (payload: CreateTaskRequest | UpdateTaskRequest) => {
-    await onSave(editorTask ?? null, payload);
+  /** Schließt den gemeinsamen Editor und beendet eine angeforderte Bearbeitung. */
+  const closeEditor = () => {
     setPreset(null);
     setEditorTask(undefined);
+    onEditRequestHandled();
+  };
+
+  const save = async (payload: CreateTaskRequest | UpdateTaskRequest) => {
+    await onSave(openTask ?? null, payload);
+    setPreset(null);
+    setEditorTask(undefined);
+    onEditRequestHandled();
   };
 
   const quickToggle = async (task: TaskResponse) => {
@@ -334,7 +362,7 @@ export const TaskWorkspace = ({
 
       <div
         className={
-          editorTask !== undefined ? "task-layout editor-open" : "task-layout"
+          openTask !== undefined ? "task-layout editor-open" : "task-layout"
         }
       >
         <section
@@ -464,28 +492,26 @@ export const TaskWorkspace = ({
           )}
         </section>
 
-        {editorTask !== undefined ? (
+        {openTask !== undefined ? (
           <TaskForm
-            key={editorTask?.updatedAt ?? "new-task"}
-            task={editorTask}
+            key={openTask?.updatedAt ?? "new-task"}
+            task={openTask}
             tasks={tasks}
             events={events}
             links={links}
             modules={modules}
             projects={projects}
-            defaults={preset}
+            defaults={openPreset}
             selectedCalendarId={selectedCalendarId}
             timezone={timezone}
             pending={saving}
-            onCancel={() => setEditorTask(undefined)}
+            onCancel={() => closeEditor()}
             onSubmit={save}
             onArchive={(archived) =>
-              editorTask
-                ? onUpdate(editorTask.id, { archived })
-                : Promise.resolve()
+              openTask ? onUpdate(openTask.id, { archived }) : Promise.resolve()
             }
             onDelete={() =>
-              editorTask ? onDelete(editorTask.id) : Promise.resolve()
+              openTask ? onDelete(openTask.id) : Promise.resolve()
             }
             onLink={onLink}
             onUnlink={onUnlink}

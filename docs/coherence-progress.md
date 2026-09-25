@@ -5,48 +5,179 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Aktuelles Paket
 
-- Paket: **4 – Optionaler Studienmodulbezug, Verträge/API und gemeinsamer
-  Aufgabeneditor** lokal umgesetzt und geprüft. Die Integrationsabnahme steht
-  noch aus: Commit, PR, Pflicht-CI und Merge fehlen.
-- Vorgänger: **Paket 3** ist über
-  [PR #123](https://github.com/187Anton/LifeOS/pull/123) nach `develop`
-  integriert; bestätigt sind der Merge-Commit `56404d7` als Spitze von
-  `origin/develop` und die Basis dieses Pakets. Der frühere Worktree
-  `/private/tmp/lifeos-coherence-finance-schema` und der Hauptcheckout wurden
-  nicht verändert.
-- Branch: `feat/coherence-task-study-module`.
-- Basis: `56404d7` (`origin/develop`, PR #123).
-- Worktree: `/Users/anton/Projekte/LifeOS/.worktrees/study-module`; der
-  Hauptcheckout `/Users/anton/Projekte/LifeOS` blieb unverändert.
-- Umsetzung: allein in diesem Worker; keine Subagenten, keine zweite
-  Schreibinstanz.
+- Paket: **5 – Gemeinsame Kalender- und Planungsansichten** lokal umgesetzt,
+  um die vier Abnahmebefunde korrigiert und erneut geprüft (116/116 API-,
+  67/67 Web-Unit-, 42/42 E2E-Tests). Die Integrationsabnahme steht noch aus:
+  Commit, PR, Pflicht-CI und Merge fehlen.
+- Vorgänger: **Paket 4** ist über
+  [PR #124](https://github.com/187Anton/LifeOS/pull/124) nach `develop`
+  integriert; bestätigt ist der Merge-Commit `a8a2847` als Spitze von
+  `origin/develop` und damit die Basis dieses Pakets.
+- Branch: `feat/coherence-calendar-planning-views`.
+- Basis: `a8a2847` (`origin/develop`, PR #124).
+- Worktree: `/private/tmp/lifeos-coherence-planning-views`; der Hauptcheckout
+  `/Users/anton/Projekte/LifeOS` blieb unverändert.
+- Umsetzung: die ursprüngliche Paket-5-Umsetzung lief allein in diesem Worker;
+  die spätere Korrektur der vier Abnahmebefunde wurde als klar begrenzter
+  Auftrag über die lokale Hermes-Delegation an einen DeepSeek-Worker übergeben
+  (Planung, Prüfung und Abnahme durch den koordinierenden Agenten, immer genau
+  ein Worker nacheinander, keine zweite Schreibinstanz).
 - Persönliche Daten: Antons Entwicklungsdatenbank blieb unberührt. Der lokale
-  Compose-Container dieses Worktrees band PostgreSQL an `127.0.0.1:5433` mit
-  eigenem, leerem Volume; Migrationen, Seeds, Datenbank-, API- und
-  Recovery-Nachweise liefen ausschließlich gegen synthetische Datenbanken
-  (`lifeos`, `lifeos_restore_*`). Die installierte App und der Hauptcheckout
-  wurden nicht angefasst.
-- Geänderter Umfang: `Task.studyModuleId` als optionales, besitzgebundenes Feld
-  mit zusammengesetztem Fremdschlüssel `(studyModuleId, userId)` und
-  Rückrelation in beiden Prisma-Schemata, neue versionierte Migrationen
-  `20260925121551_task_study_module` (PostgreSQL) und
-  `20260925121600_task_study_module` (SQLite, kontrollierte Tabellenneuanlage
-  mit `foreign-keys-off` und `requires-backup`), Seeds beider Provider,
-  PostgreSQL-zu-SQLite-Import (Studienprogramme und -module vor Aufgaben),
-  SQLite-Kompatibilitätsgrenze, Aufgabenverträge (`TaskResponse`,
-  `CreateTaskRequest`, `UpdateTaskRequest`, `TaskListQuery`,
-  `TASK_STUDY_MODULE_FILTER_NONE`), Aufgaben-API inklusive Modulfilter und
-  Besitzprüfung, gemeinsamer `TaskForm`, `TaskWorkspace`, `StudyWorkspace`,
-  `App.tsx`, `api.ts`, zugehörige Styles sowie die betroffenen Migrations-,
-  Import-, Backup-/Restore-, API-, Unit- und E2E-Nachweise.
-- Nicht geändert: `LifeOS Leitfaden.docx`. Eine inhaltliche Ergänzung wäre
-  vorgesehen, die im Plan geforderte vollständige Rendering- und
-  Seiten-Sichtprüfung ist in dieser Sitzung jedoch ohne Bildprüfwerkzeug nicht
-  nachweisbar; der Leitfaden bleibt deshalb bewusst unverändert und die
-  Sichtprüfung offen.
+  Compose-Container dieses Worktrees band PostgreSQL an `127.0.0.1` mit eigener,
+  leerer Datenbank `lifeos_planning_views`; Migrationen und Tests liefen
+  ausschließlich gegen synthetische Werte. Die installierte App wurde nicht
+  angefasst.
+- Geänderter Umfang: gemeinsamer Projektionsvertrag in
+  `packages/contracts/src/api.ts`, Planning-Service, neue gemeinsame
+  Web-Projektion `apps/web/src/calendar-projection.ts`, `CalendarWorkspace.tsx`,
+  `PlanningWorkspace.tsx`, `TaskWorkspace.tsx`, `App.tsx`, zugehörige Styles
+  sowie die betroffenen API-, Web-Unit- und E2E-Nachweise.
+- Nicht geändert: Datenbankschema, Migrationen, CalDAV-Server, Apple-Integration,
+  freie `TaskEventLink`-Beziehungen und die Finanzmodule. Eine verwaltete
+  Task-Kalender-Relation bleibt Paket 9. `LifeOS Leitfaden.docx` und `README.md`
+  blieben unverändert, weil Paket 5 keine neue Bedienung oder Einrichtung
+  einführt.
 - Offen bis zur Abnahme: Commit, Push, PR nach `develop`, Pflicht-CI und Merge.
-- Keine Delegation: Umsetzung und Nachweise liefen ausschließlich in diesem
-  Worker; es wurden keine Subagenten gestartet.
+- Delegation: Der koordinierende Agent hat die Umsetzung der vier Befunde an
+  einen deepseek-Worker übergeben und dessen Ergebnis unabhängig geprüft
+  (Diff, Paketgrenzen, eigene Testläufe). Die Modellwahl wurde in der
+  Delegationssitzung verifiziert; es gab keinen stillen Wechsel auf ein anderes
+  Modell.
+
+## Paket 5 – lokale Nachweise
+
+> Die Zahlen in diesem Abschnitt sind der Stand **vor** der Korrektur der vier
+> Abnahmebefunde (108/108 API, 60/60 Web-Unit, 38/38 E2E). Der aktuelle Stand
+> steht im Abschnitt „Korrektur der vier Abnahmebefunde“ weiter unten.
+
+- Projektion und Trennung: `npm test --workspace @lifeos/api` 108/108, darunter
+  die neuen Fälle „unterscheidet Frist, geplanten Zeitblock und
+  Startmarkierung“, „rechnet Fristen nicht als belegte Arbeitszeit“,
+  „unterdrückt verknüpfte Studieneinträge“, „projiziert keine fremden
+  Datensätze desselben Repository-Aufrufs“ und „hält Startmarkierung und
+  Zeitblock über die Zeitumstellung korrekt“. Fristen erscheinen als
+  Ganztagsobjekte, Aufgaben mit Start und Dauer als geplante Zeitblöcke,
+  Aufgaben mit Start ohne Dauer als Startmarkierung ohne Feld `endsAt`; nur
+  geplante Blöcke mit geprüfter Dauer fließen in Kapazität und
+  Überschneidungsprüfung ein.
+- API-Integration: `apps/api/tests/planning.integration.test.ts` (Teil des
+  Laufs oben) prüft zusätzlich Besitzergrenzen (`ownerId`, fremde Aufgabe),
+  Duplikatunterdrückung (verknüpfter `StudyEntry` liefert kein eigenes Element,
+  sein führendes Kalenderereignis bleibt sichtbar) sowie Startmarkierung,
+  Frist und Zeitblock nebeneinander.
+- Web-Unit: `npx vitest run` in `apps/web` 60/60 (vorher 52/52), darunter der
+  neue `apps/web/tests/unit/calendar-projection.test.ts` mit Tag, Woche, Monat
+  und Agenda, Serien mit stabiler UID und unverändertem ETag, ganztägigen
+  Terminen, Frist/Zeitblock-Trennung derselben Aufgabe, unterdrückten
+  verknüpften Studienzeiten, ausgeblendeten erledigten/archivierten Quellen
+  sowie Startmarkierungen über die Zeitumstellung ohne erfundenes Ende.
+- Web-Unit Bearbeitung: `App.test.tsx` lädt die Projektionen nach der
+  Bearbeitung einer Aufgabenfrist aus der Kalenderansicht neu — nachgewiesen
+  über gestiegene Aufrufzahlen für Aufgaben, Kalenderereignisse, Studium,
+  Dashboard und Planung und die anschließend zwei getrennt beschrifteten
+  Projektionen („Frist“ und „Geplanter Zeitblock“).
+- Desktop und Mobil: `npx playwright test` in `apps/web` 38/38 in den Projekten
+  `desktop-chrome` und `mobile-chrome`, darunter der neue Ablauf „trennt Frist,
+  Zeitblock und Startmarkierung, unterdrückt verknüpfte Studienzeiten und
+  bearbeitet Aufgaben aus der Ansicht“ (Frist und Startmarkierung getrennt
+  beschriftet, Startmarkierung ohne Ende, Monatsansicht mit denselben
+  Kennzeichnungen, Öffnen des bestehenden Aufgabeneditors aus der Ansicht,
+  anschließend zwei Projektionen derselben Aufgabe) sowie die angepasste
+  Studienprüfung, die die Frist nun in der gemeinsamen Kalenderprojektion
+  erwartet. Derselbe Ablauf deckt zusätzlich die Bearbeitung eines festen
+  Termins aus der Planungsansicht ab: Der Eintrag öffnet den bestehenden
+  Termin-Editor im Kalender, das Speichern aktualisiert die Projektionen, und
+  die parallele Projektion der Aufgabe bleibt unverändert sichtbar.
+- Qualität: `npm run typecheck`, `npm run lint`, `npm run format:check`,
+  `npm run build`, `npm run repo:check` und `npm run security:secrets`
+  bestanden.
+- Bewusste Grenze ohne eigene Datenquelle: Die Weboberfläche liest die
+  gemeinsame Projektion unverändert aus dem Kalenderkern; Serienvorkommen
+  bleiben flüchtig, bearbeitet wird stets das führende Ereignis mit stabiler UID
+  und aktuellem ETag. Für Kalenderereignisse und Aufgaben verwendet die
+  Projektion nur öffentliche Kennungen (`uid`, Aufgaben-ID) und gibt keine
+  internen IDs heraus.
+
+## Paket 5 – Korrektur der vier Abnahmebefunde
+
+Stand: 25.09.2026, gemessen im Worktree
+`/private/tmp/lifeos-coherence-planning-views` auf Branch
+`feat/coherence-calendar-planning-views` (Basis `a8a2847`). Alle Zahlen stammen
+aus tatsächlich ausgeführten Läufen nach Abschluss aller Änderungen.
+
+- **Befund 1 – Zeitzonen.** Kalender- und Planungsansicht verwenden für
+  Aufgaben und Studieneinträge jetzt dieselben Tagesgrenzen, nämlich die
+  Profilzeitzone (`profile.settings.timezone`). Kalenderereignisse werden
+  weiterhin im Kalenderraster geführt, in ihrer gespeicherten Zeitzone
+  beschriftet und nicht neu interpretiert; die Planungs-API gibt dafür
+  `event.timezone` statt der Profilzeitzone aus. Nachweise: API-Fall „ordnet
+  Ereignisse nach gespeicherter Ereignis- und Blöcke nach Profilzeitzone zu“,
+  Web-Unit-Fall „ordnet Aufgaben und Studium nach Profilzeitzone und rasiert
+  Termine im Kalender“ mit Kalenderzeitzone `America/New_York` gegen
+  Profilzeitzone `Europe/Berlin`.
+- **Befund 2 – Zeitblöcke über Mitternacht.** Zeitgebundene Blöcke werden in
+  beiden Ansichten bei echter Zeitüberlappung aufgenommen; der Anzeigetag ist
+  `max(eigener Starttag in Profilzeitzone, Zeitraumstart)`, es entsteht genau
+  ein Eintrag pro Block und Zeitraum. Fortsetzungen sind sichtbar
+  gekennzeichnet („Fortsetzung vom Vortag“, „Fortsetzung am Folgetag“) und
+  zählen die Dauer nur einmal, weil Kapazität einen geplanten Block
+  ausschließlich an seinem eigenen Starttag berücksichtigt. Nachweise:
+  API-Fälle „zeigt einen Mitternachtsblock genau einmal mit Anzeigetag in der
+  Profilzeitzone“, „zählt einen Mitternachtsblock nicht doppelt gegen die
+  Verfügbarkeit“ und „führt einen Mitternachtsblock über die Wochengrenze in
+  beiden Wochen“; Web-Unit-Fälle „zeigt einen Mitternachtsblock genau einmal am
+  Anzeigetag mit Fortsetzung“ und „führt einen Block über die Wochengrenze in
+  beiden Wochen fort“; E2E-Fall „zeigt einen über Mitternacht laufenden
+  Zeitblock genau einmal mit Fortsetzungskennzeichnung“ in Tages- und
+  Wochenansicht.
+- **Befund 3 – erledigte Studieneinträge.** Die Kalenderansicht blendet
+  `completed`, `cancelled` und archivierte Studieneinträge wieder aus, aktive
+  bleiben sichtbar (`paused` bleibt sichtbar, entsprechend dem Altverhalten
+  `![completed, cancelled]`). Nachweise: Web-Unit-Fall „blendet erledigte,
+  abgebrochene und archivierte Studieneinträge aus, aktive bleiben“ mit vier
+  getrennten Fällen und E2E-Fall „zeigt im Kalender nur aktive Studieneinträge
+  und blendet erledigte, abgebrochene und archivierte aus“. Der API-Statusfilter
+  bleibt bewusst unverändert (`status !== "cancelled"`); ein API-Test hält diese
+  gewollte Abweichung fest.
+- **Befund 4 – führender Kalendertermin.** Ein verknüpfter Studieneintrag wird
+  nur noch unterdrückt, wenn sein führender Termin in der tatsächlich
+  gelieferten Projektion vorkommt. Dafür gibt `StudyEntryResponse` die stabile
+  öffentliche `calendarEventUid` read-only aus (die interne `calendarEventId`
+  bleibt intern), und die Planungs-API sowie die Web-Projektion prüfen gegen die
+  UIDs der tatsächlich projizierten Ereignisse. Liegt der Termin in einem anderen
+  Kalender, außerhalb des Zeitraums oder ist er gelöscht, bleibt der Eintrag
+  sichtbar. Aus der Planungsansicht öffnet ein fester Termin den bestehenden
+  Termin-Editor über `{calendarId, uid}` inklusive Kalenderwechsel; die UID wird
+  nie als kalenderübergreifend eindeutiger Schlüssel verwendet. Es entstand kein
+  neuer Schreibpfad und keine verwaltete Aufgaben-Kalender-Beziehung. Nachweise:
+  API-Fälle „zeigt den Studieneintrag, wenn der führende Termin nicht geliefert
+  wird“ und „unterdrückt verknüpfte Studieneinträge nur gegen die gelieferte
+  Projektion“, Integrationsfall „projiziert Mitternachtsblock und führenden
+  Termin aus der realen Datenbank“, Web-Unit-Fälle „unterdrückt einen
+  verknüpften Studieneintrag nur bei tatsächlich gezeigtem führendem Termin“ und
+  „wählt für einen festen Termin aus der Planung den Kalender des Eintrags und
+  öffnet den bestehenden Editor“ sowie „zeigt einen verknüpften Studieneintrag
+  mit führendem Termin in einem anderen Kalender“.
+- Zusätzlich behoben: ein reproduzierbarer E2E-Flake in
+  `apps/web/tests/e2e/lifeos.spec.ts` (Test „zeigt die lokale Übersicht und
+  speichert Termine ohne Browserpersistenz“). Ursache war die Reihenfolge im
+  Test, nicht die Fachlogik: Nach dem Speichern bleibt der Termin-Editor offen,
+  bis die Projektionen neu geladen sind; die frühere Prüfung traf deshalb Karte
+  und Editorüberschrift gleichzeitig. Der Test wartet jetzt deterministisch auf
+  das Schließen des Editors und prüft die Karte eindeutig über ihren Container.
+- Gemessene Nachweise auf dem Endstand: `npm test --workspace @lifeos/api`
+  **116/116** (vorher 108), Web-Unit `npx vitest run` in `apps/web` **67/67** in
+  11 Dateien (vorher 60), Playwright `npx playwright test` in `apps/web`
+  **42/42** in `desktop-chrome` und `mobile-chrome` (vorher 38), vier volle
+  Läufe hintereinander ohne Fehlschlag. Qualität: `npm run typecheck`,
+  `npm run lint`, `npm run format:check`, `npm run build`, `npm run repo:check`
+  und `npm run security:secrets` bestanden.
+- Nicht ausgeführt: `npm run test:repo`, `npm run test:sqlite:api` und die
+  Recovery-/Sidecar-Nachweise; sie sind für diese Korrektur nicht einschlägig,
+  weil kein Schema, keine Migration und kein Providerverhalten geändert wurde.
+- Nicht geändert: Datenbankschema, Migrationen, CalDAV-/Apple-Pfade, freie
+  `TaskEventLink`-Beziehungen, Finanzmodule, Modulseiten und Dokumentsuche. Die
+  verwaltete Task-Kalender-Relation bleibt Paket 9.
 
 ## Paket 4 – lokale Nachweise
 

@@ -2,6 +2,7 @@ import type {
   CalendarEventResponse,
   CalendarResponse,
   CreateTaskEventLinkRequest,
+  PlanningItemResponse,
   StudyEntryResponse,
   TaskEventLinkResponse,
   TaskResponse,
@@ -10,14 +11,19 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { EventPayload } from "../api";
 import {
+  areaLabels,
+  buildCalendarProjection,
+  continuationLabels,
+  formatProjectionTime,
+  kindLabels,
+  type CalendarProjectionEntry,
+} from "../calendar-projection";
+import {
   daysInRange,
-  formatOccurrenceTime,
   formatPeriodTitle,
   moveAnchor,
-  occurrencesInRange,
   rangeForView,
   todayInTimezone,
-  type CalendarOccurrence,
   type CalendarView,
 } from "../calendar-view";
 import { CalendarIcon, ClockIcon, EditIcon, PlusIcon } from "./Icons";
@@ -31,6 +37,14 @@ interface CalendarWorkspaceProps {
   studyEntries: StudyEntryResponse[];
   tasks: TaskResponse[];
   links: TaskEventLinkResponse[];
+  /** Besitzerkennung der geladenen, ausschließlich eigenen Daten. */
+  ownerId: string;
+  /**
+   * Profilzeitzone für Tagesgrenzen von Aufgaben und Studieneinträgen. Die
+   * Prop `timezone` bleibt die Kalender-/Rasterzeitzone der ausgewählten
+   * Kalenderquelle.
+   */
+  profileTimezone: string;
   initialView: CalendarView;
   loading: boolean;
   saving: boolean;
@@ -39,8 +53,30 @@ interface CalendarWorkspaceProps {
   success: string | null;
   createRequested: boolean;
   onCreateRequestHandled: () => void;
+  /**
+   * Angefordertes Kalenderereignis aus einer anderen Ansicht. Die Anforderung
+   * trägt die calendarId des führenden Termins; App.tsx wählt zuerst diesen
+   * Kalender aus und lädt dessen Ereignisse. Erst ein zur Anforderung passender
+   * Kalender öffnet den bestehenden Termin-Editor über die stabile UID und den
+   * aktuellen ETag.
+   */
+  editEventRequest: { calendarId: string; uid: string } | null;
+  /**
+   * Kalender der aktuell geladenen Ereignisse. Eine Anforderung gilt erst als
+   * auflösbar, wenn ihr `calendarId` genau diesem Kalender entspricht; sonst
+   * bleibt sie unangetastet und erzeugt keinen falschen Hinweis.
+   */
+  eventsCalendarId: string | null;
+  onEditEventRequestHandled: () => void;
+  /**
+   * Eigene Bearbeitungsklicks dieser Ansicht. Sie fordern die Bearbeitung als
+   * `{ calendarId, uid }`-Objekt an – die reine UID ist nicht
+   * kalenderübergreifend eindeutig.
+   */
+  onRequestEditEvent: (request: { calendarId: string; uid: string }) => void;
   onCalendarChange: (calendarId: string) => void;
   onReload: () => void;
+  onOpenTask: (taskId: string) => void;
   onSave: (
     event: CalendarEventResponse | null,
     payload: EventPayload,
@@ -65,90 +101,140 @@ const dateLabel = (date: string, long = false): string =>
     timeZone: "UTC",
   }).format(new Date(`${date}T12:00:00.000Z`));
 
-const timestampDate = (value: string, timezone: string): string => {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date(value));
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((item) => item.type === type)?.value ?? "";
-  return `${part("year")}-${part("month")}-${part("day")}`;
-};
+const sourceLabel = (item: PlanningItemResponse): string =>
+  item.objectType === "study_entry"
+    ? "Studium"
+    : item.objectType === "task"
+      ? "Aufgabe"
+      : areaLabels[item.area];
 
-const OccurrenceCard = ({
-  occurrence,
+const isAllDayItem = (item: PlanningItemResponse): boolean =>
+  item.startsAt === null && item.endsAt === null;
+
+/**
+ * Titelzusatz der Monatsansicht für Blöcke, die den Anzeigetag
+ * überschreiten. Ein Block wird dadurch weder doppelt gezählt noch doppelt
+ * gelistet, sondern nur verständlich gekennzeichnet.
+ */
+const continuationSuffix = (entry: CalendarProjectionEntry): string =>
+  [
+    entry.continuesBefore ? continuationLabels.before : "",
+    entry.continuesAfter ? continuationLabels.after : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+/**
+ * Ein Eintrag der gemeinsamen Projektion. Kalenderereignisse öffnen den
+ * bestehenden Termin-Editor, Aufgabenfristen, Zeitblöcke und Startmarkierungen
+ * den bestehenden Aufgabeneditor; die Projektion selbst schreibt nie.
+ */
+const ProjectionCard = ({
+  entry,
   compact = false,
-  onEdit,
+  onEditEvent,
+  onOpenTask,
 }: {
-  occurrence: CalendarOccurrence;
+  entry: CalendarProjectionEntry;
   compact?: boolean;
-  onEdit: (event: CalendarEventResponse) => void;
-}) => (
-  <article className={compact ? "event-card compact-event" : "event-card"}>
-    <span className="event-accent" aria-hidden="true" />
-    {!compact ? (
-      <div className="event-when">
-        <strong>{dateLabel(occurrence.dateKey, true)}</strong>
-        <span>{formatOccurrenceTime(occurrence)}</span>
-      </div>
-    ) : (
-      <span className="compact-event-time">
-        {formatOccurrenceTime(occurrence)}
-      </span>
-    )}
-    <div className="event-copy">
-      <h3>{occurrence.event.title}</h3>
-      {!compact ? (
-        <p>
-          {occurrence.event.location ||
-            occurrence.event.description ||
-            "Keine weiteren Angaben"}
-        </p>
-      ) : null}
-      <div className="event-tags">
-        {occurrence.recurring ? <span>Serie</span> : null}
-        {occurrence.event.isAllDay ? <span>Ganztägig</span> : null}
-        {!compact && occurrence.event.reminderMinutes.length > 0 ? (
-          <span>Erinnerung</span>
-        ) : null}
-        {!compact ? <span>{occurrence.event.timezone}</span> : null}
-      </div>
-    </div>
-    <button
-      className="icon-button"
-      onClick={() => onEdit(occurrence.event)}
-      aria-label={`${occurrence.event.title} bearbeiten`}
+  onEditEvent: (event: CalendarEventResponse) => void;
+  onOpenTask: (taskId: string) => void;
+}) => {
+  const { item, event } = entry;
+  const openEditor = () => {
+    if (item.editable === "calendar_event" && event) onEditEvent(event);
+    else if (item.editable === "task") onOpenTask(item.sourceId);
+  };
+  return (
+    <article
+      className={[
+        compact ? "event-card compact-event" : "event-card",
+        "projection-card",
+        `projection-${item.kind}`,
+        item.overdue ? "overdue" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
-      <EditIcon />
-    </button>
-  </article>
-);
+      <span className="event-accent" aria-hidden="true" />
+      {!compact ? (
+        <div className="event-when">
+          <strong>{dateLabel(entry.dateKey, true)}</strong>
+          <span>{formatProjectionTime(item, item.timezone)}</span>
+        </div>
+      ) : (
+        <span className="compact-event-time">
+          {formatProjectionTime(item, item.timezone)}
+        </span>
+      )}
+      <div className="event-copy">
+        <h3>{item.title}</h3>
+        {!compact ? (
+          <p>
+            {event?.location || event?.description || "Keine weiteren Angaben"}
+          </p>
+        ) : null}
+        <div className="event-tags">
+          <span className={`projection-kind ${item.kind}`}>
+            {kindLabels[item.kind]}
+          </span>
+          <span>{sourceLabel(item)}</span>
+          {entry.recurring ? <span>Serie</span> : null}
+          {entry.continuesBefore ? (
+            <span className="projection-continuation">
+              {continuationLabels.before}
+            </span>
+          ) : null}
+          {entry.continuesAfter ? (
+            <span className="projection-continuation">
+              {continuationLabels.after}
+            </span>
+          ) : null}
+          {item.overdue ? <span>überfällig</span> : null}
+          {!compact && event && event.reminderMinutes.length > 0 ? (
+            <span>Erinnerung</span>
+          ) : null}
+          {!compact ? <span>{item.timezone}</span> : null}
+        </div>
+      </div>
+      {item.editable ? (
+        <button
+          className="icon-button"
+          onClick={openEditor}
+          aria-label={`${item.title} bearbeiten`}
+        >
+          <EditIcon />
+        </button>
+      ) : null}
+    </article>
+  );
+};
 
 const PeriodView = ({
   view,
   range,
-  occurrences,
-  onEdit,
+  entries,
+  onEditEvent,
+  onOpenTask,
 }: {
   view: CalendarView;
   range: ReturnType<typeof rangeForView>;
-  occurrences: CalendarOccurrence[];
-  onEdit: (event: CalendarEventResponse) => void;
+  entries: CalendarProjectionEntry[];
+  onEditEvent: (event: CalendarEventResponse) => void;
+  onOpenTask: (taskId: string) => void;
 }) => {
   const days =
     view === "day"
       ? [range.start]
       : daysInRange(range).filter((date) =>
-          occurrences.some((occurrence) => occurrence.dateKey === date),
+          entries.some((entry) => entry.dateKey === date),
         );
 
-  if (occurrences.length === 0) {
+  if (entries.length === 0) {
     return (
       <div className="state-card empty-state compact-empty">
         <ClockIcon />
-        <h3>Keine Termine in diesem Zeitraum</h3>
+        <h3>Keine Einträge in diesem Zeitraum</h3>
         <p>Wechsle den Zeitraum oder lege einen neuen Termin an.</p>
       </div>
     );
@@ -161,19 +247,20 @@ const PeriodView = ({
           <header>
             <h3>{dateLabel(date, true)}</h3>
             <span>
-              {
-                occurrences.filter((occurrence) => occurrence.dateKey === date)
-                  .length
-              }{" "}
-              Termine
+              {entries.filter((entry) => entry.dateKey === date).length}{" "}
+              Einträge
             </span>
           </header>
           <ol className="event-list">
-            {occurrences
-              .filter((occurrence) => occurrence.dateKey === date)
-              .map((occurrence) => (
-                <li key={occurrence.key}>
-                  <OccurrenceCard occurrence={occurrence} onEdit={onEdit} />
+            {entries
+              .filter((entry) => entry.dateKey === date)
+              .map((entry) => (
+                <li key={entry.key}>
+                  <ProjectionCard
+                    entry={entry}
+                    onEditEvent={onEditEvent}
+                    onOpenTask={onOpenTask}
+                  />
                 </li>
               ))}
           </ol>
@@ -185,12 +272,14 @@ const PeriodView = ({
 
 const MonthView = ({
   range,
-  occurrences,
-  onEdit,
+  entries,
+  onEditEvent,
+  onOpenTask,
 }: {
   range: ReturnType<typeof rangeForView>;
-  occurrences: CalendarOccurrence[];
-  onEdit: (event: CalendarEventResponse) => void;
+  entries: CalendarProjectionEntry[];
+  onEditEvent: (event: CalendarEventResponse) => void;
+  onOpenTask: (taskId: string) => void;
 }) => {
   const days = daysInRange(range);
   const firstColumn =
@@ -205,9 +294,7 @@ const MonthView = ({
       </div>
       <div className="month-grid">
         {days.map((date, index) => {
-          const dayOccurrences = occurrences.filter(
-            (occurrence) => occurrence.dateKey === date,
-          );
+          const dayEntries = entries.filter((entry) => entry.dateKey === date);
           return (
             <section
               className={
@@ -220,22 +307,51 @@ const MonthView = ({
             >
               <time dateTime={date}>{Number(date.slice(-2))}</time>
               <div className="month-events">
-                {dayOccurrences.map((occurrence) => (
-                  <button
-                    type="button"
-                    key={occurrence.key}
-                    className={
-                      occurrence.event.isAllDay
-                        ? "month-event all-day"
-                        : "month-event"
-                    }
-                    onClick={() => onEdit(occurrence.event)}
-                    title={`${formatOccurrenceTime(occurrence)} · ${occurrence.event.title}`}
-                  >
-                    <span>{formatOccurrenceTime(occurrence)}</span>
-                    {occurrence.event.title}
-                  </button>
-                ))}
+                {dayEntries.map((entry) => {
+                  const suffix = continuationSuffix(entry);
+                  const title = `${formatProjectionTime(entry.item, entry.item.timezone)} · ${kindLabels[entry.item.kind]} · ${entry.item.title}${suffix ? ` · ${suffix}` : ""}`;
+                  const className = [
+                    "month-event",
+                    `projection-${entry.item.kind}`,
+                    isAllDayItem(entry.item) ? "all-day" : "",
+                    entry.item.overdue ? "overdue" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ");
+                  const content = (
+                    <>
+                      <span>
+                        {formatProjectionTime(entry.item, entry.item.timezone)}
+                      </span>
+                      {entry.item.title}
+                      {suffix ? (
+                        <small className="month-event-continuation">
+                          {" "}
+                          · {suffix}
+                        </small>
+                      ) : null}
+                    </>
+                  );
+                  return entry.item.editable ? (
+                    <button
+                      type="button"
+                      key={entry.key}
+                      className={className}
+                      onClick={() => {
+                        if (entry.item.editable === "task")
+                          onOpenTask(entry.item.sourceId);
+                        else if (entry.event) onEditEvent(entry.event);
+                      }}
+                      title={title}
+                    >
+                      {content}
+                    </button>
+                  ) : (
+                    <span key={entry.key} className={className} title={title}>
+                      {content}
+                    </span>
+                  );
+                })}
               </div>
             </section>
           );
@@ -248,10 +364,13 @@ const MonthView = ({
 export const CalendarWorkspace = ({
   calendars,
   selectedCalendarId,
+  eventsCalendarId,
   events,
   studyEntries,
   tasks,
   links,
+  ownerId,
+  profileTimezone,
   initialView,
   loading,
   saving,
@@ -260,8 +379,12 @@ export const CalendarWorkspace = ({
   success,
   createRequested,
   onCreateRequestHandled,
+  editEventRequest,
+  onEditEventRequestHandled,
+  onRequestEditEvent,
   onCalendarChange,
   onReload,
+  onOpenTask,
   onSave,
   onDelete,
   onLink,
@@ -273,6 +396,32 @@ export const CalendarWorkspace = ({
   useEffect(() => {
     if (createRequested) onCreateRequestHandled();
   }, [createRequested, onCreateRequestHandled]);
+  /**
+   * Ein aus Planung oder Aufgabenansicht angeforderter Termin übernimmt den
+   * bestehenden Editor ohne eigenen Effekt. Die Anforderung wird erst beim
+   * Schließen oder Speichern beendet und erzeugt keinen zweiten Schreibpfad.
+   *
+   * Auflösbar ist sie ausschließlich im Kalender der geladenen Ereignisse:
+   * Wechselt App.tsx den Kalender erst noch, bleibt die Anforderung unverändert,
+   * ohne Meldung und ohne Löschung bestehen. Die UID allein ist nicht
+   * kalenderübergreifend eindeutig und wird nie so verwendet.
+   */
+  const requestResolvable =
+    editEventRequest !== null &&
+    editEventRequest.calendarId === eventsCalendarId;
+  const requestedEvent =
+    requestResolvable && editEventRequest
+      ? events.find((event) => event.uid === editEventRequest.uid)
+      : undefined;
+  const openEvent = editorEvent === undefined ? requestedEvent : editorEvent;
+  /**
+   * Erst wenn die Anforderung auflösbar ist und der Termin auch danach
+   * unauffindbar bleibt, wurde er zwischenzeitlich gelöscht.
+   */
+  const editRequestWarning =
+    requestResolvable && !loading && !requestedEvent
+      ? "Der angeforderte Termin wurde im ausgewählten Kalender nicht gefunden. Er wurde möglicherweise gelöscht."
+      : null;
   const selectedCalendar = calendars.find(
     (calendar) => calendar.id === selectedCalendarId,
   );
@@ -280,42 +429,64 @@ export const CalendarWorkspace = ({
   const [view, setView] = useState<CalendarView>(initialView);
   const [anchor, setAnchor] = useState(() => todayInTimezone(timezone));
   const range = useMemo(() => rangeForView(view, anchor), [view, anchor]);
-  const occurrences = useMemo(
-    () => occurrencesInRange(events, range, timezone),
-    [events, range, timezone],
-  );
-  const visibleStudyEntries = useMemo(
+  /**
+   * Eine gemeinsame Projektion für Tag, Woche, Monat und Agenda: Termine,
+   * Aufgabenfristen, geplante Zeitblöcke, Startmarkierungen und Studienzeiten
+   * stammen aus derselben Quelle. Serien bleiben flüchtige Vorkommen des
+   * gemeinsamen Kalenderkerns mit stabiler UID und aktuellem ETag.
+   */
+  const projection = useMemo(
     () =>
-      studyEntries
-        .filter(
-          (entry) =>
-            !entry.archivedAt &&
-            !["completed", "cancelled"].includes(entry.status),
-        )
-        .map((entry) => ({
-          entry,
-          date:
-            entry.dueDate ??
-            (entry.startsAt ? timestampDate(entry.startsAt, timezone) : null),
-        }))
-        .filter((value): value is { entry: StudyEntryResponse; date: string } =>
-          Boolean(
-            value.date && value.date >= range.start && value.date < range.end,
-          ),
-        )
-        .sort((left, right) => left.date.localeCompare(right.date)),
-    [range.end, range.start, studyEntries, timezone],
+      buildCalendarProjection({
+        events,
+        tasks,
+        studyEntries,
+        range,
+        timezone,
+        profileTimezone,
+        calendarId: selectedCalendarId ?? null,
+        ownerId,
+      }),
+    [
+      events,
+      ownerId,
+      profileTimezone,
+      range,
+      selectedCalendarId,
+      studyEntries,
+      tasks,
+      timezone,
+    ],
   );
 
-  const save = async (payload: EventPayload) => {
-    await onSave(editorEvent ?? null, payload);
+  /**
+   * Eigene Bearbeitungsklicks der Karten- und Monatsansicht fordern die
+   * Bearbeitung immer als `{ calendarId, uid }`-Objekt an; die reine UID wird
+   * nie als kalenderübergreifend eindeutiger Schlüssel verwendet. Der lokale
+   * Neu-Anlage-Zustand wird dabei geschlossen, damit der angeforderte Termin
+   * den bestehenden Editor übernimmt.
+   */
+  const requestEventEdit = (event: CalendarEventResponse) => {
+    if (!selectedCalendarId) return;
     setEditorEvent(undefined);
+    onRequestEditEvent({ calendarId: selectedCalendarId, uid: event.uid });
+  };
+
+  /** Schließt den gemeinsamen Termin-Editor und beendet eine Anforderung. */
+  const closeEditor = () => {
+    setEditorEvent(undefined);
+    onEditEventRequestHandled();
+  };
+
+  const save = async (payload: EventPayload) => {
+    await onSave(openEvent ?? null, payload);
+    closeEditor();
   };
 
   const deleteEvent = async () => {
-    if (!editorEvent) return;
-    await onDelete(editorEvent);
-    setEditorEvent(undefined);
+    if (!openEvent) return;
+    await onDelete(openEvent);
+    closeEditor();
   };
 
   return (
@@ -324,7 +495,10 @@ export const CalendarWorkspace = ({
         <div>
           <p className="eyebrow">DEINE ZEIT</p>
           <h1>Kalender</h1>
-          <p>Plane Termine lokal. Änderungen erscheinen auch über CalDAV.</p>
+          <p>
+            Termine, Aufgabenfristen und geplante Zeitblöcke aus einer
+            gemeinsamen Projektion. Änderungen erscheinen auch über CalDAV.
+          </p>
         </div>
         <button
           className="primary-button"
@@ -362,6 +536,11 @@ export const CalendarWorkspace = ({
       {warning ? (
         <p role="alert" className="conflict-banner">
           {warning}
+        </p>
+      ) : null}
+      {editRequestWarning ? (
+        <p role="alert" className="conflict-banner">
+          {editRequestWarning}
         </p>
       ) : null}
 
@@ -431,7 +610,7 @@ export const CalendarWorkspace = ({
               <p>{selectedCalendar?.name ?? "Kein Kalender ausgewählt"}</p>
             </div>
             {!loading && !error ? (
-              <span>{occurrences.length} sichtbar</span>
+              <span>{projection.length} sichtbar</span>
             ) : null}
           </div>
 
@@ -457,7 +636,7 @@ export const CalendarWorkspace = ({
                 an.
               </p>
             </div>
-          ) : events.length === 0 ? (
+          ) : projection.length === 0 ? (
             <div className="state-card empty-state">
               <ClockIcon />
               <h3>Dieser Kalender ist noch frei</h3>
@@ -474,71 +653,31 @@ export const CalendarWorkspace = ({
           ) : view === "month" ? (
             <MonthView
               range={range}
-              occurrences={occurrences}
-              onEdit={setEditorEvent}
+              entries={projection}
+              onEditEvent={requestEventEdit}
+              onOpenTask={onOpenTask}
             />
           ) : (
             <PeriodView
               view={view}
               range={range}
-              occurrences={occurrences}
-              onEdit={setEditorEvent}
+              entries={projection}
+              onEditEvent={requestEventEdit}
+              onOpenTask={onOpenTask}
             />
           )}
-
-          <section
-            className="study-deadlines"
-            aria-labelledby="study-deadlines-title"
-          >
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">STUDIUM · NUR ANZEIGE</p>
-                <h2 id="study-deadlines-title">
-                  Prüfungen, Abgaben und Lernzeiten
-                </h2>
-              </div>
-              <span>{visibleStudyEntries.length} sichtbar</span>
-            </div>
-            {visibleStudyEntries.length ? (
-              <div className="study-deadline-list">
-                {visibleStudyEntries.map(({ entry, date }) => (
-                  <article className="study-deadline-card" key={entry.id}>
-                    <strong>{dateLabel(date, true)}</strong>
-                    <span>{entry.title}</span>
-                    <small>
-                      {entry.kind === "exam"
-                        ? "Prüfung"
-                        : entry.kind === "submission"
-                          ? "Abgabe"
-                          : entry.kind === "lecture"
-                            ? "Lehrveranstaltung"
-                            : "Lernzeit"}
-                      {entry.startsAt
-                        ? ` · ${new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: entry.timezone ?? timezone }).format(new Date(entry.startsAt))}`
-                        : " · ganztägig"}
-                    </small>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <p className="muted-copy">
-                Keine Studienfristen in diesem Zeitraum. Kalenderdaten werden
-                nicht automatisch verändert.
-              </p>
-            )}
-          </section>
         </section>
 
-        {editorEvent !== undefined ? (
+        {openEvent !== undefined ? (
           <EventForm
-            key={editorEvent?.etag ?? "new-event"}
-            event={editorEvent}
+            key={openEvent?.etag ?? "new-event"}
+            event={openEvent}
             calendarId={selectedCalendarId}
             tasks={tasks}
             events={events}
             links={links}
             pending={saving}
-            onCancel={() => setEditorEvent(undefined)}
+            onCancel={() => closeEditor()}
             onSubmit={save}
             onDelete={deleteEvent}
             onLink={onLink}

@@ -35,6 +35,12 @@ const repository = (created: EntryValues[]): StudyRepository => ({
       dueDate: values.dueDate?.toISOString().slice(0, 10) ?? null,
       startsAt: values.startsAt?.toISOString() ?? null,
       endsAt: values.endsAt?.toISOString() ?? null,
+      /**
+       * Der echte Repositoriumspfad liefert die stabile UID des führenden
+       * Termins. Ohne Terminbezug bleibt sie `null`; die Fälle prüfen sie
+       * nicht, der Stub muss aber den Vertrag erfüllen.
+       */
+      calendarEventUid: null,
       archivedAt: null,
       createdAt: "2032-01-01T00:00:00.000Z",
       updatedAt: "2032-01-01T00:00:00.000Z",

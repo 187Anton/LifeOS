@@ -1,11 +1,17 @@
 import type {
   CreateAvailabilityWindowRequest,
   PlanningArea,
-  PlanningItemKind,
   PlanningItemResponse,
   PlanningResponse,
 } from "@lifeos/contracts";
 import { useMemo, useState, type FormEvent } from "react";
+import {
+  areaLabels,
+  continuationLabels,
+  formatProjectionTime,
+  kindLabels,
+  projectionContinuation,
+} from "../calendar-projection";
 import {
   eachPlanningDate,
   shiftPlanningRange,
@@ -15,20 +21,6 @@ import {
 } from "../planning";
 import { ClockIcon, PlanIcon, PlusIcon, TrashIcon } from "./Icons";
 
-const areaLabels: Record<PlanningArea, string> = {
-  calendar: "Kalender",
-  study: "Studium",
-  work: "Arbeit",
-  tasks: "Aufgaben",
-  availability: "Verfügbarkeit",
-};
-const kindLabels: Record<PlanningItemKind, string> = {
-  fixed_event: "Fester Termin",
-  deadline: "Frist",
-  planned_task: "Geplante Aufgabe",
-  actual_time: "Tatsächliche Zeit",
-  availability: "Persönliche Verfügbarkeit",
-};
 const weekdayLabels = [
   "Sonntag",
   "Montag",
@@ -55,17 +47,6 @@ const formatDate = (date: string) =>
     month: "2-digit",
     timeZone: "UTC",
   }).format(new Date(`${date}T12:00:00.000Z`));
-const formatTime = (item: PlanningItemResponse, timezone: string) => {
-  if (!item.startsAt) return item.date;
-  const formatter = new Intl.DateTimeFormat("de-DE", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: timezone,
-  });
-  return item.endsAt
-    ? `${formatter.format(new Date(item.startsAt))}–${formatter.format(new Date(item.endsAt))}`
-    : formatter.format(new Date(item.startsAt));
-};
 
 interface Props {
   planning: PlanningResponse | null;
@@ -78,6 +59,14 @@ interface Props {
   success: string | null;
   onReload: () => void;
   onRangeChange: (range: DateRange) => void;
+  /**
+   * Öffnet das führende Kalenderereignis im bestehenden Termin-Editor. Die
+   * Planungsansicht selbst kennt keinen Schreibpfad. Sie übergibt Kalender und
+   * stabile UID, weil die UID allein nicht kalenderübergreifend eindeutig ist.
+   */
+  onOpenEvent: (request: { calendarId: string; uid: string }) => void;
+  /** Öffnet die Aufgabe einer Frist, eines Zeitblocks oder einer Startmarkierung. */
+  onOpenTask: (taskId: string) => void;
   onCreateAvailability: (
     value: CreateAvailabilityWindowRequest,
   ) => Promise<void>;
@@ -95,6 +84,8 @@ export const PlanningWorkspace = ({
   success,
   onReload,
   onRangeChange,
+  onOpenEvent,
+  onOpenTask,
   onCreateAvailability,
   onDeleteAvailability,
 }: Props) => {
@@ -133,8 +124,10 @@ export const PlanningWorkspace = ({
           <p className="eyebrow">Gemeinsame Zeitplanung</p>
           <h1>Woche und Agenda aus deinen Quelldaten</h1>
           <p>
-            Feste Termine, Fristen, geplante Aufgaben, tatsächliche Zeit und
-            Verfügbarkeit bleiben klar getrennt. Konflikte werden nur erklärt.
+            Feste Termine, Fristen, geplante Zeitblöcke, Startmarkierungen,
+            tatsächliche Zeit und Verfügbarkeit bleiben klar getrennt.
+            Startmarkierungen ohne Dauer zeigen bewusst kein Ende. Konflikte
+            werden nur erklärt.
           </p>
         </div>
         <button
@@ -260,6 +253,8 @@ export const PlanningWorkspace = ({
               date={date}
               timezone={timezone}
               items={visibleItems.filter((item) => item.date === date)}
+              onOpenEvent={onOpenEvent}
+              onOpenTask={onOpenTask}
             />
           ))}
         </section>
@@ -273,6 +268,8 @@ export const PlanningWorkspace = ({
                 date={date}
                 timezone={timezone}
                 items={items}
+                onOpenEvent={onOpenEvent}
+                onOpenTask={onOpenTask}
                 agenda
               />
             ) : null;
@@ -359,11 +356,15 @@ const PlanningDay = ({
   items,
   timezone,
   agenda = false,
+  onOpenEvent,
+  onOpenTask,
 }: {
   date: string;
   items: PlanningItemResponse[];
   timezone: string;
   agenda?: boolean;
+  onOpenEvent: (request: { calendarId: string; uid: string }) => void;
+  onOpenTask: (taskId: string) => void;
 }) => (
   <article className={agenda ? "planning-day agenda-day" : "planning-day"}>
     <header>
@@ -372,26 +373,90 @@ const PlanningDay = ({
     </header>
     <div className="planning-day-items">
       {items.length ? (
-        items.map((item) => (
-          <div
-            key={item.id}
-            className={`planning-item ${item.area} ${item.kind} ${item.overdue ? "overdue" : ""}`}
-          >
-            <span className="planning-item-time">
-              {formatTime(item, timezone)}
-            </span>
-            <div>
-              <strong>{item.title}</strong>
-              <small>
-                {areaLabels[item.area]} · {kindLabels[item.kind]}
-                {item.durationMinutes !== null
-                  ? ` · ${formatMinutes(item.durationMinutes)}`
-                  : ""}
-                {item.overdue ? " · überfällig" : ""}
-              </small>
+        items.map((item) => {
+          const detail = [
+            areaLabels[item.area],
+            kindLabels[item.kind],
+            item.durationMinutes !== null
+              ? formatMinutes(item.durationMinutes)
+              : "",
+            item.overdue ? "überfällig" : "",
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          /**
+           * Dieselbe Fortsetzungskennzeichnung wie in der Kalenderansicht:
+           * abgeleitet aus den gelieferten Zeitpunkten und der Profilzeitzone.
+           */
+          const continuation = projectionContinuation(item, timezone);
+          const content = (
+            <>
+              <span className="planning-item-time">
+                {formatProjectionTime(item, item.timezone)}
+              </span>
+              <div>
+                <strong>{item.title}</strong>
+                <small>{detail}</small>
+                {continuation.continuesBefore || continuation.continuesAfter ? (
+                  <span className="planning-item-continuation">
+                    {continuation.continuesBefore ? (
+                      <span className="projection-continuation">
+                        {continuationLabels.before}
+                      </span>
+                    ) : null}
+                    {continuation.continuesAfter ? (
+                      <span className="projection-continuation">
+                        {continuationLabels.after}
+                      </span>
+                    ) : null}
+                  </span>
+                ) : null}
+              </div>
+            </>
+          );
+          const className = `planning-item ${item.area} ${item.kind} ${item.overdue ? "overdue" : ""}`;
+          /**
+           * Bearbeitet wird ausschließlich über die bestehenden Editoren:
+           * Termine über den Termin-Editor, Aufgaben über den Aufgabeneditor.
+           * Einträge ohne Bearbeitbarkeit bleiben reine Anzeige. Ein Termin
+           * wird nur angeboten, wenn Kalender und stabile UID bekannt sind.
+           */
+          if (
+            item.editable === "calendar_event" &&
+            item.uid &&
+            item.calendarId
+          ) {
+            const request = { calendarId: item.calendarId, uid: item.uid };
+            return (
+              <button
+                type="button"
+                key={item.id}
+                className={className}
+                aria-label={`${item.title} im Kalender bearbeiten`}
+                onClick={() => onOpenEvent(request)}
+              >
+                {content}
+              </button>
+            );
+          }
+          if (item.editable === "task")
+            return (
+              <button
+                type="button"
+                key={item.id}
+                className={className}
+                aria-label={`${item.title} bearbeiten`}
+                onClick={() => onOpenTask(item.sourceId)}
+              >
+                {content}
+              </button>
+            );
+          return (
+            <div key={item.id} className={className}>
+              {content}
             </div>
-          </div>
-        ))
+          );
+        })
       ) : (
         <p className="muted-copy">Keine Einträge</p>
       )}

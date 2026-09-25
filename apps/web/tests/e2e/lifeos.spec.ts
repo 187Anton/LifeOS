@@ -45,6 +45,22 @@ const berlinDateTimeInput = (value: Date): string => {
     parts.find((item) => item.type === type)?.value ?? "";
   return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
 };
+/**
+ * Wandelt eine Berliner Wanduhrzeit in den zugehörigen Zeitpunkt um. Beide
+ * möglichen Verschiebungen werden geprüft; nur die passende ergibt die gesuchte
+ * Ortszeit. Dadurch bleibt der Test unabhängig von der Zeitzone des
+ * Testrechners und von Sommer-/Winterzeit.
+ */
+const berlinInstant = (date: string, time: string): string => {
+  for (const offsetHours of [1, 2]) {
+    const candidate = new Date(`${date}T${time}:00.000Z`);
+    candidate.setUTCHours(candidate.getUTCHours() - offsetHours);
+    if (berlinDateTimeInput(candidate) === `${date}T${time}`) {
+      return candidate.toISOString();
+    }
+  }
+  throw new Error(`Keine gültige Berliner Ortszeit für ${date} ${time}.`);
+};
 const today = berlinDate(new Date());
 const eventStartsAt = new Date(`${today}T09:00:00.000Z`).toISOString();
 const eventEndsAt = new Date(
@@ -100,13 +116,20 @@ const installApi = async (
     studyPrograms = [],
     studyModules = [],
     additionalTasks = [],
+    additionalEvents = [],
+    additionalStudyEntries = [],
   }: {
     studyPrograms?: Array<Record<string, unknown>>;
     studyModules?: Array<Record<string, unknown>>;
     additionalTasks?: Array<Record<string, unknown>>;
+    additionalEvents?: Array<Record<string, unknown>>;
+    additionalStudyEntries?: Array<Record<string, unknown>>;
   } = {},
 ) => {
-  const events: Array<Record<string, unknown>> = [{ ...initialEvent }];
+  const events: Array<Record<string, unknown>> = [
+    { ...initialEvent },
+    ...additionalEvents.map((entry) => ({ ...entry })),
+  ];
   const tasks: Array<Record<string, unknown>> = [
     { ...initialTask },
     ...additionalTasks.map((entry) => ({ ...entry })),
@@ -115,7 +138,9 @@ const installApi = async (
   const study = {
     programs: studyPrograms.map((entry) => ({ ...entry })),
     modules: studyModules.map((entry) => ({ ...entry })),
-    entries: [] as Array<Record<string, unknown>>,
+    entries: [
+      ...additionalStudyEntries.map((entry) => ({ ...entry })),
+    ] as Array<Record<string, unknown>>,
   };
   const work = {
     contexts: [] as Array<Record<string, unknown>>,
@@ -452,16 +477,89 @@ const installApi = async (
       const to = url.searchParams.get("to") ?? from;
       const inRange = (date: string) => date >= from && date <= to;
       const items: Array<Record<string, unknown>> = [];
+      /** UIDs der in dieser Projektion tatsächlich gelieferten Termine. */
+      const displayedEventUids = new Set<string>();
+      for (const value of tasks) {
+        const status = stringValue(value.status);
+        if (status === "done" || status === "cancelled") continue;
+        const dueDate = value.dueDate ? stringValue(value.dueDate) : null;
+        if (dueDate && inRange(dueDate)) {
+          items.push({
+            id: `task:${stringValue(value.id)}:deadline`,
+            sourceId: value.id,
+            uid: null,
+            area: "tasks",
+            kind: "deadline",
+            objectType: "task",
+            ownerId: profile.id,
+            status,
+            title: value.title,
+            date: dueDate,
+            startsAt: null,
+            endsAt: null,
+            timezone: profile.settings.timezone,
+            durationMinutes: null,
+            priority: value.priority ?? "medium",
+            overdue: false,
+            editable: "task",
+            sourceUpdatedAt: value.updatedAt,
+          });
+        }
+        const startsAt = value.scheduledStartAt
+          ? stringValue(value.scheduledStartAt)
+          : null;
+        if (!startsAt) continue;
+        const date = berlinDate(new Date(startsAt));
+        if (!inRange(date)) continue;
+        const durationMinutes = value.estimatedDurationMinutes
+          ? Number(value.estimatedDurationMinutes)
+          : null;
+        items.push({
+          id: `task:${stringValue(value.id)}:${durationMinutes ? "planned" : "start"}`,
+          sourceId: value.id,
+          uid: null,
+          area: "tasks",
+          kind: durationMinutes ? "planned_task" : "start_marker",
+          objectType: "task",
+          ownerId: profile.id,
+          status,
+          title: value.title,
+          date,
+          startsAt,
+          endsAt: durationMinutes
+            ? new Date(
+                new Date(startsAt).getTime() + durationMinutes * 60_000,
+              ).toISOString()
+            : null,
+          timezone: value.scheduledStartTimezone ?? profile.settings.timezone,
+          durationMinutes,
+          priority: value.priority ?? "medium",
+          overdue: false,
+          editable: "task",
+          sourceUpdatedAt: value.updatedAt,
+        });
+      }
       for (const value of events) {
         const date = value.isAllDay
           ? stringValue(value.startDate)
           : berlinDate(new Date(stringValue(value.startsAt)));
         if (!inRange(date)) continue;
+        /*
+         * Nur tatsächlich gelieferte Termine dürfen einen verknüpften
+         * Studieneintrag unterdrücken; die UID wird nie kalenderübergreifend
+         * als eindeutig angenommen.
+         */
+        displayedEventUids.add(stringValue(value.uid));
         items.push({
           id: `calendar:${stringValue(value.uid)}`,
           sourceId: value.uid,
+          uid: value.uid,
+          calendarId: calendar.id,
           area: "calendar",
           kind: "fixed_event",
+          objectType: "calendar_event",
+          ownerId: profile.id,
+          status: "confirmed",
           title: value.title,
           date,
           startsAt: value.startsAt,
@@ -475,10 +573,22 @@ const installApi = async (
               : null,
           priority: "medium",
           overdue: false,
+          editable: "calendar_event",
           sourceUpdatedAt: value.updatedAt,
         });
       }
       for (const value of study.entries) {
+        /*
+         * Paket 5: Ein verknüpfter Studieneintrag wird nur unterdrückt, wenn
+         * sein führender Termin in der gezeigten Projektion tatsächlich
+         * vorkommt. Ein Termin in einem anderen Kalender oder außerhalb des
+         * Zeitraums lässt den Studieneintrag sichtbar.
+         */
+        if (
+          value.calendarEventUid &&
+          displayedEventUids.has(stringValue(value.calendarEventUid))
+        )
+          continue;
         const date = value.dueDate
           ? stringValue(value.dueDate)
           : berlinDate(new Date(stringValue(value.startsAt)));
@@ -486,12 +596,16 @@ const installApi = async (
         items.push({
           id: `study:${stringValue(value.id)}`,
           sourceId: value.id,
+          uid: null,
           area: "study",
           kind: value.dueDate
             ? "deadline"
             : value.kind === "learning"
               ? "planned_task"
               : "fixed_event",
+          objectType: "study_entry",
+          ownerId: profile.id,
+          status: stringValue(value.status) || "planned",
           title: value.title,
           date,
           startsAt: value.startsAt ?? null,
@@ -505,6 +619,7 @@ const installApi = async (
               : null,
           priority: value.kind === "exam" ? "high" : "medium",
           overdue: false,
+          editable: null,
           sourceUpdatedAt: value.updatedAt,
         });
       }
@@ -524,6 +639,7 @@ const installApi = async (
           durationMinutes: null,
           priority: "high",
           overdue: false,
+          editable: null,
           sourceUpdatedAt: value.updatedAt,
         });
       }
@@ -543,6 +659,7 @@ const installApi = async (
           durationMinutes: value.durationMinutes,
           priority: "medium",
           overdue: false,
+          editable: null,
           sourceUpdatedAt: value.updatedAt,
         });
       }
@@ -573,6 +690,7 @@ const installApi = async (
             durationMinutes: endMinute - startMinute,
             priority: "low",
             overdue: false,
+            editable: null,
             sourceUpdatedAt: value.updatedAt,
           });
         }
@@ -780,6 +898,7 @@ const installApi = async (
         grade: null,
         taskId: null,
         calendarEventId: null,
+        calendarEventUid: null,
         archivedAt: null,
         createdAt: "2032-01-01T00:00:00.000Z",
         updatedAt: "2032-01-01T00:00:00.000Z",
@@ -1667,7 +1786,16 @@ test("zeigt die lokale Übersicht und speichert Termine ohne Browserpersistenz",
     .click();
   await page.getByLabel("Titel").fill("Fokusblock aktualisiert");
   await page.getByRole("button", { name: "Änderungen speichern" }).click();
-  await expect(page.getByText("Fokusblock aktualisiert")).toBeVisible();
+  /*
+   * Der Termin-Editor bleibt absichtlich so lange offen, bis die Projektionen
+   * neu geladen sind, und zeigt in seiner Überschrift den bereits eingetippten
+   * Titel. Deshalb zuerst deterministisch auf das Schließen warten und danach
+   * die Karte eindeutig prüfen.
+   */
+  await expect(page.locator(".event-editor")).toBeHidden();
+  await expect(
+    page.locator(".event-card").filter({ hasText: "Fokusblock aktualisiert" }),
+  ).toBeVisible();
   await expect(page.getByRole("status")).toContainText("aktualisiert");
 
   await page
@@ -1866,10 +1994,327 @@ test("plant einen Studienabschnitt mit Modul und Prüfung", async ({ page }) => 
   ).toBeVisible();
   await expect(page.getByText("Synthetische Prüfung")).toBeVisible();
   await page.getByRole("button", { name: "Kalender" }).first().click();
+  /*
+   * Paket 5: Die Studienfrist erscheint in der gemeinsamen Kalenderprojektion
+   * und ist dort ausdrücklich als Frist gekennzeichnet.
+   */
+  const studyDeadline = page
+    .locator(".projection-card")
+    .filter({ hasText: "Synthetische Prüfung" });
+  await expect(studyDeadline.first()).toBeVisible();
+  await expect(studyDeadline.first().getByText("Frist")).toBeVisible();
+  await expect(studyDeadline.first().getByText("Studium")).toBeVisible();
+});
+
+test("trennt Frist, Zeitblock und Startmarkierung, unterdrückt verknüpfte Studienzeiten und bearbeitet Aufgaben aus der Ansicht", async ({
+  page,
+}) => {
+  const linkedUid = "vorlesung-verknuepft";
+  const startInstant = `${today}T06:30:00.000Z`;
+  const startTime = berlinDateTimeInput(new Date(startInstant)).slice(11);
+  await installApi(page, {
+    additionalEvents: [
+      {
+        ...initialEvent,
+        uid: linkedUid,
+        title: "Verknüpfte Vorlesung",
+        startsAt: `${today}T08:00:00.000Z`,
+        endsAt: `${today}T10:00:00.000Z`,
+        reminderMinutes: [],
+      },
+    ],
+    additionalStudyEntries: [
+      {
+        id: "study-entry-linked",
+        ownerId: profile.id,
+        moduleId: null,
+        kind: "lecture",
+        title: "Verknüpfte Vorlesung",
+        status: "planned",
+        dueDate: null,
+        startsAt: `${today}T08:00:00.000Z`,
+        endsAt: `${today}T10:00:00.000Z`,
+        timezone: "Europe/Berlin",
+        credits: null,
+        grade: null,
+        notes: null,
+        taskId: null,
+        calendarEventId: "ereignis-verknuepft",
+        /*
+         * Paket 5: Die Unterdrückung prüft die stabile UID des führenden
+         * Termins gegen die tatsächlich gelieferte Projektion. Ohne diese
+         * Angabe bliebe der Eintrag sichtbar und würde doppelt erscheinen.
+         */
+        calendarEventUid: linkedUid,
+        archivedAt: null,
+        createdAt: "2026-07-22T08:00:00.000Z",
+        updatedAt: "2026-07-22T08:00:00.000Z",
+      },
+    ],
+    additionalTasks: [
+      {
+        ...initialTask,
+        id: "aufgabe-frist",
+        title: "Abgabe und Block",
+        dueDate: today,
+        scheduledStartAt: null,
+        scheduledStartTimezone: null,
+        estimatedDurationMinutes: null,
+      },
+      {
+        ...initialTask,
+        id: "aufgabe-start",
+        title: "Prüfungsvorbereitung",
+        dueDate: null,
+        scheduledStartAt: startInstant,
+        scheduledStartTimezone: "Europe/Berlin",
+        estimatedDurationMinutes: null,
+      },
+    ],
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Kalender" }).first().click();
+
+  /*
+   * Paket 5: Ein verknüpfter Studieneintrag erscheint genau einmal, nämlich
+   * über sein führendes Kalenderereignis.
+   */
   await expect(
-    page.getByRole("heading", { name: "Prüfungen, Abgaben und Lernzeiten" }),
+    page.locator(".projection-card", { hasText: "Verknüpfte Vorlesung" }),
+  ).toHaveCount(1);
+  await expect(
+    page
+      .locator(".projection-card", { hasText: "Verknüpfte Vorlesung" })
+      .getByText("Studium"),
+  ).toHaveCount(0);
+
+  const deadlineCard = page
+    .locator(".projection-card", { hasText: "Abgabe und Block" })
+    .first();
+  await expect(deadlineCard.getByText("Frist")).toBeVisible();
+  await expect(deadlineCard.getByText("Ganztägig")).toBeVisible();
+
+  const startCard = page
+    .locator(".projection-card", { hasText: "Prüfungsvorbereitung" })
+    .first();
+  await expect(startCard.getByText("Start ohne Dauer")).toBeVisible();
+  await expect(startCard.getByText(startTime, { exact: true })).toBeVisible();
+  // Eine Startmarkierung bekommt kein erfundenes Ende.
+  await expect(startCard).not.toContainText("–");
+
+  await page.getByRole("button", { name: "Monat", exact: true }).click();
+  await expect(page.locator(".month-event.projection-deadline")).toHaveCount(1);
+  await expect(
+    page.locator(".month-event.projection-start_marker"),
+  ).toHaveCount(1);
+  await page.getByRole("button", { name: "Woche", exact: true }).click();
+
+  // Bearbeitung aus der Ansicht öffnet den vorhandenen Aufgabeneditor.
+  await deadlineCard
+    .getByRole("button", { name: "Abgabe und Block bearbeiten" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Aufgaben", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Synthetische Prüfung")).toBeVisible();
+  await page.getByLabel("Geplanter Beginn").fill(`${today}T14:00`);
+  await page.getByLabel("Geschätzte Dauer (Minuten)").fill("90");
+  await page.getByRole("button", { name: "Änderungen speichern" }).click();
+  await expect(page.getByText("Die Aufgabe wurde aktualisiert.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Kalender" }).first().click();
+  const projections = page.locator(".projection-card", {
+    hasText: "Abgabe und Block",
+  });
+  // Die Frist bleibt eine zweite, ausdrücklich beschriftete Projektion.
+  await expect(projections).toHaveCount(2);
+  await expect(
+    projections.filter({ hasText: "Geplanter Zeitblock" }),
+  ).toHaveCount(1);
+  await expect(projections.filter({ hasText: "14:00–15:30" })).toHaveCount(1);
+  await expect(
+    page.locator(".projection-card", { hasText: "Prüfungsvorbereitung" }),
+  ).toHaveCount(1);
+
+  // Bearbeitung eines Kalenderereignisses aus der Planungsansicht.
+  await page.getByRole("button", { name: "Planung" }).first().click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Woche und Agenda aus deinen Quelldaten",
+    }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Ruhiger Fokusblock im Kalender bearbeiten" })
+    .click();
+  await expect(page.getByRole("heading", { name: "Kalender" })).toBeVisible();
+  await expect(page.getByLabel("Titel")).toHaveValue("Ruhiger Fokusblock");
+  await page.getByLabel("Titel").fill("Umbenannter Fokusblock");
+  await page.getByRole("button", { name: "Änderungen speichern" }).click();
+  await expect(page.getByText("Der Termin wurde aktualisiert.")).toBeVisible();
+  // Alle Projektionen zeigen danach den aktualisierten Termin.
+  await expect(
+    page.locator(".projection-card", { hasText: "Umbenannter Fokusblock" }),
+  ).toHaveCount(1);
+  await expect(
+    page.locator(".projection-card", { hasText: "Prüfungsvorbereitung" }),
+  ).toHaveCount(1);
+});
+
+test("zeigt einen über Mitternacht laufenden Zeitblock genau einmal mit Fortsetzungskennzeichnung", async ({
+  page,
+}) => {
+  const title = "Synthetischer Nachtblock";
+  /*
+   * Geplanter Block von 23:00 bis 01:00 des Folgetags in der Profilzeitzone
+   * Europe/Berlin. Der Zeitpunkt wird aus der lokalen Wanduhrzeit abgeleitet und
+   * ist damit unabhängig von der Zeitzone des Testrechners.
+   */
+  const startInstant = berlinInstant(today, "23:00");
+  await installApi(page, {
+    additionalTasks: [
+      {
+        ...initialTask,
+        id: "aufgabe-nachtblock",
+        title,
+        dueDate: null,
+        scheduledStartAt: startInstant,
+        scheduledStartTimezone: "Europe/Berlin",
+        estimatedDurationMinutes: 120,
+      },
+    ],
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Kalender" }).first().click();
+
+  /*
+   * Wochenansicht: Der Block erscheint an seinem Starttag genau einmal und wird
+   * als Fortsetzung am Folgetag gekennzeichnet, statt ein zweites Mal zu
+   * erscheinen.
+   */
+  const weekCards = page.locator(".projection-card", { hasText: title });
+  await expect(weekCards).toHaveCount(1);
+  await expect(
+    weekCards.getByText("23:00–01:00", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    weekCards.getByText("Fortsetzung am Folgetag", { exact: true }),
+  ).toBeVisible();
+
+  /*
+   * Tagesansicht des Starttags: derselbe eine Block, weiterhin als Fortsetzung
+   * am Folgetag gekennzeichnet und kein zweiter Eintrag im Starttag-Zeitraum.
+   */
+  await page.getByRole("button", { name: "Tag", exact: true }).click();
+  const startDayCards = page.locator(".projection-card", { hasText: title });
+  await expect(startDayCards).toHaveCount(1);
+  await expect(
+    startDayCards.getByText("Fortsetzung am Folgetag", { exact: true }),
+  ).toBeVisible();
+
+  /*
+   * Tagesansicht des Folgetags: Der Block wird dort erneut genau einmal
+   * geführt, jetzt als Fortsetzung vom Vortag und ohne Kennzeichnung nach vorn.
+   */
+  await page.getByRole("button", { name: "Nächster Zeitraum" }).click();
+  const nextDayCards = page.locator(".projection-card", { hasText: title });
+  await expect(nextDayCards).toHaveCount(1);
+  await expect(
+    nextDayCards.getByText("Fortsetzung vom Vortag", { exact: true }),
+  ).toBeVisible();
+  expect(
+    await nextDayCards
+      .getByText("Fortsetzung am Folgetag", { exact: true })
+      .count(),
+  ).toBe(0);
+});
+
+test("zeigt im Kalender nur aktive Studieneinträge und blendet erledigte, abgebrochene und archivierte aus", async ({
+  page,
+}) => {
+  const syntheticStudyEntry = (
+    id: string,
+    title: string,
+    status: string,
+    archivedAt: string | null,
+  ) => ({
+    id,
+    ownerId: profile.id,
+    moduleId: null,
+    kind: "exam",
+    title,
+    status,
+    dueDate: today,
+    startsAt: null,
+    endsAt: null,
+    timezone: "Europe/Berlin",
+    credits: null,
+    grade: null,
+    notes: null,
+    taskId: null,
+    calendarEventId: null,
+    calendarEventUid: null,
+    archivedAt,
+    createdAt: "2026-07-22T08:00:00.000Z",
+    updatedAt: "2026-07-22T08:00:00.000Z",
+  });
+  await installApi(page, {
+    additionalStudyEntries: [
+      syntheticStudyEntry(
+        "study-entry-aktiv",
+        "Aktive Studienfrist",
+        "planned",
+        null,
+      ),
+      syntheticStudyEntry(
+        "study-entry-erledigt",
+        "Erledigte Studienfrist",
+        "completed",
+        null,
+      ),
+      syntheticStudyEntry(
+        "study-entry-abgebrochen",
+        "Abgebrochene Studienfrist",
+        "cancelled",
+        null,
+      ),
+      syntheticStudyEntry(
+        "study-entry-archiviert",
+        "Archivierte Studienfrist",
+        "planned",
+        "2026-07-22T08:00:00.000Z",
+      ),
+    ],
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Kalender" }).first().click();
+
+  /*
+   * Nur der aktive Eintrag ist in der gemeinsamen Kalenderprojektion sichtbar.
+   * Die Sichtbarkeit wird positiv über die gerenderte Karte geprüft.
+   */
+  const activeCard = page.locator(".projection-card", {
+    hasText: "Aktive Studienfrist",
+  });
+  await expect(activeCard).toHaveCount(1);
+  await expect(activeCard.getByText("Frist", { exact: true })).toBeVisible();
+  await expect(activeCard.getByText("Studium", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".projection-card", { hasText: "Studienfrist" }),
+  ).toHaveCount(1);
+
+  /*
+   * Das Fehlen wird über eine Zählung von 0 geprüft und nicht über eine rein
+   * negative Sichtbarkeitsannahme auf einem einzelnen Element.
+   */
+  for (const hiddenTitle of [
+    "Erledigte Studienfrist",
+    "Abgebrochene Studienfrist",
+    "Archivierte Studienfrist",
+  ]) {
+    expect(await page.getByText(hiddenTitle).count()).toBe(0);
+  }
 });
 
 test("bleibt auf Desktop und Smartphone ohne horizontalen Überlauf bedienbar", async ({
@@ -2550,7 +2995,7 @@ test("zeigt eine kombinierte Studien- und Arbeitswoche mit erklärten Warnungen"
   await expect(
     page.getByRole("region", { name: "Gemeinsame Agenda" }),
   ).toBeVisible();
-  await page.getByLabel("Arbeit").uncheck();
+  await page.getByLabel("Arbeit", { exact: true }).uncheck();
   await expect(page.getByText("Geplanter Praxisblock")).toHaveCount(0);
   await expect(page.getByText("Synthetische Prüfung")).toBeVisible();
   expect(

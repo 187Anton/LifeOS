@@ -713,6 +713,24 @@ p {
   color: var(--muted);
   font-size: 0.74rem;
 }
+/*
+ * Fortsetzungskennzeichnung der gemeinsamen Projektion: dieselben Chips wie in
+ * der Kalenderansicht, in der Tagesliste klein und klar abgesetzt.
+ */
+.planning-item-continuation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
+.planning-item-continuation .projection-continuation {
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  color: var(--forest-soft);
+  background: #e8eee9;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
 .agenda-day .planning-item {
   grid-template-columns: minmax(100px, 0.25fr) 1fr;
   align-items: center;
@@ -789,29 +807,46 @@ p {
   font-size: 0.82rem;
 }
 
-.study-deadlines {
-  margin-top: 1.25rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--line);
+/*
+ * Gemeinsame Kalender- und Planungsprojektion: Frist, Zeitblock und
+ * Startmarkierung bleiben auch farblich unterscheidbar.
+ */
+.projection-kind.deadline {
+  color: #8a4b1f;
+  background: #f7ece1;
 }
-.study-deadline-list {
-  display: grid;
-  gap: 0.65rem;
+.projection-kind.planned_task {
+  color: #1f5f4d;
+  background: #e3f0ea;
 }
-.study-deadline-card {
-  display: grid;
-  grid-template-columns: minmax(145px, 0.7fr) minmax(180px, 1.4fr) minmax(
-      120px,
-      0.7fr
-    );
-  gap: 0.75rem;
-  padding: 0.8rem;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fff;
+.projection-kind.start_marker {
+  color: #494a86;
+  background: #ecebf7;
 }
-.study-deadline-card small {
-  color: var(--muted);
+.projection-card.projection-start_marker .event-accent {
+  background: repeating-linear-gradient(
+    180deg,
+    var(--accent) 0 6px,
+    transparent 6px 11px
+  );
+}
+.projection-card.projection-deadline .event-accent {
+  background: #c2793c;
+}
+.projection-card.projection-planned_task .event-accent {
+  background: #3f8f74;
+}
+button.planning-item {
+  width: 100%;
+  border: 0;
+  border-left: 4px solid var(--forest-soft);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.month-event.projection-start_marker {
+  border-left-style: dashed;
 }
 
 @media (max-width: 720px) {
@@ -840,10 +875,6 @@ p {
   }
   .study-form-grid .wide {
     grid-column: auto;
-  }
-  .study-deadline-card {
-    grid-template-columns: 1fr;
-    gap: 0.25rem;
   }
   .study-history-list li {
     flex-direction: column;

@@ -1,5 +1,11 @@
 import type { TaskArea } from "@lifeos/contracts";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -25,10 +31,27 @@ const calendar = {
   syncToken: 1,
 };
 
+/** Zweiter Kalender: der Planungseintrag zeigt bewusst in diesen. */
+const secondCalendar = {
+  id: "kalender-2",
+  name: "Arbeit",
+  timezone: "Europe/Berlin",
+  isPrimary: false,
+  syncToken: 1,
+};
+
 const eventStartsAt = new Date().toISOString();
 const eventEndsAt = new Date(
   new Date(eventStartsAt).valueOf() + 60 * 60 * 1000,
 ).toISOString();
+
+/** Heutiger Kalendertag in der Profilzeitzone. */
+const todayKey = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Berlin",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+}).format(new Date());
 
 const event = {
   uid: "termin-1",
@@ -46,6 +69,8 @@ const event = {
   etag: '"etag-1"',
   sequence: 0,
   updatedAt: "2026-07-22T08:00:00.000Z",
+  /** Kalender des Ereignisses; der Ereignis-Mock filtert danach. */
+  calendarId: "kalender-1",
 };
 
 const task = {
@@ -89,6 +114,8 @@ const installApi = ({
   tasks = [task],
   links = [],
   studyModules = [],
+  studyEntries = [],
+  planningItems,
   deleteEventConflict = false,
   dashboardError = false,
   setupRequired = false,
@@ -97,6 +124,9 @@ const installApi = ({
   events?: (typeof event)[];
   tasks?: (typeof task)[];
   studyModules?: Array<Record<string, unknown>>;
+  studyEntries?: Array<Record<string, unknown>>;
+  /** Ersetzt die Standardeinträge der Planungsantwort vollständig. */
+  planningItems?: Array<Record<string, unknown>>;
   links?: Array<{
     id: string;
     task: { id: string; title: string | null; available: boolean };
@@ -118,7 +148,7 @@ const installApi = ({
   const studyState = {
     programs: [] as Record<string, unknown>[],
     modules: studyModules.map((module) => ({ ...module })),
-    entries: [] as Record<string, unknown>[],
+    entries: studyEntries.map((entry) => ({ ...entry })),
   };
   const workState = {
     contexts: [] as Record<string, unknown>[],
@@ -194,10 +224,12 @@ const installApi = ({
             from: date,
             to: url.searchParams.get("to") ?? date,
           },
-          items: [
+          items: planningItems ?? [
             {
               id: "calendar:1",
               sourceId: "event-1",
+              uid: "termin-plan-a",
+              calendarId: calendar.id,
               area: "calendar",
               kind: "fixed_event",
               title: "Gemeinsamer Termin A",
@@ -213,6 +245,8 @@ const installApi = ({
             {
               id: "calendar:2",
               sourceId: "event-2",
+              uid: "termin-plan-b",
+              calendarId: calendar.id,
               area: "calendar",
               kind: "fixed_event",
               title: "Gemeinsamer Termin B",
@@ -578,16 +612,23 @@ const installApi = ({
         if (index >= 0) linkState.splice(index, 1);
         return new Response(null, { status: 204 });
       }
-      if (path.endsWith("/events") && method === "GET") {
-        return json(eventState);
+      const eventsMatch = path.match(/^\/api\/v1\/calendars\/([^/]+)\/events$/);
+      if (eventsMatch && method === "GET") {
+        /* Der Ereignis-Mock filtert je Kalender, damit ein fremder Termin
+         * nicht versehentlich im ausgewählten Kalender erscheint. */
+        const calendarId = eventsMatch[1] ?? calendar.id;
+        return json(
+          eventState.filter((item) => item.calendarId === calendarId),
+        );
       }
-      if (path.endsWith("/events") && method === "POST") {
+      if (eventsMatch && method === "POST") {
         const payload = requestBody(init);
         const created = {
           ...event,
           ...payload,
           uid: `termin-${eventState.length + 1}`,
           etag: `"etag-${eventState.length + 1}"`,
+          calendarId: eventsMatch[1] ?? calendar.id,
         };
         eventState.push(created);
         return json(created, 201);
@@ -1494,6 +1535,89 @@ describe("LifeOS-Weboberfläche", () => {
     expect(await screen.findByText(/09:00–12:00 · Fokuszeit/)).toBeVisible();
   });
 
+  it("bearbeitet eine Aufgabenfrist aus dem Kalender und lädt alle Projektionen neu", async () => {
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Berlin",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const { fetchMock } = installApi({
+      tasks: [
+        {
+          ...task,
+          id: "aufgabe-frist",
+          title: "Frist aus dem Kalender",
+          dueDate: today,
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Kalender" })[0]!);
+
+    expect(await screen.findByText("Frist aus dem Kalender")).toBeVisible();
+    expect(screen.queryByText("Start ohne Dauer")).not.toBeInTheDocument();
+    const relevantCalls = (prefix: string) =>
+      fetchMock.mock.calls.filter(
+        ([path]) => typeof path === "string" && path.startsWith(prefix),
+      ).length;
+    const before = {
+      tasks: relevantCalls("/api/v1/tasks?includeArchived=true"),
+      events: relevantCalls("/api/v1/calendars/kalender-1/events"),
+      study: relevantCalls("/api/v1/study"),
+      dashboard: relevantCalls("/api/v1/dashboard"),
+      planning: relevantCalls("/api/v1/planning?"),
+    };
+
+    await user.click(
+      screen.getByRole("button", { name: "Frist aus dem Kalender bearbeiten" }),
+    );
+
+    await screen.findByRole("button", { name: "Änderungen speichern" });
+    expect(screen.getByLabelText("Fällig am")).toHaveValue(today);
+    fireEvent.change(screen.getByLabelText("Geplanter Beginn"), {
+      target: { value: `${today}T10:00` },
+    });
+    fireEvent.change(screen.getByLabelText("Geschätzte Dauer (Minuten)"), {
+      target: { value: "60" },
+    });
+    await user.click(
+      screen.getByRole("button", { name: "Änderungen speichern" }),
+    );
+
+    const patch = fetchMock.mock.calls.find(
+      ([path, init]) =>
+        path === "/api/v1/tasks/aufgabe-frist" && init?.method === "PATCH",
+    );
+    expect(patch).toBeDefined();
+    expect(requestBody(patch?.[1])).toMatchObject({
+      dueDate: today,
+      estimatedDurationMinutes: 60,
+    });
+
+    await waitFor(() =>
+      expect(
+        relevantCalls("/api/v1/tasks?includeArchived=true"),
+      ).toBeGreaterThan(before.tasks),
+    );
+    expect(
+      relevantCalls("/api/v1/calendars/kalender-1/events"),
+    ).toBeGreaterThan(before.events);
+    expect(relevantCalls("/api/v1/study")).toBeGreaterThan(before.study);
+    expect(relevantCalls("/api/v1/dashboard")).toBeGreaterThan(
+      before.dashboard,
+    );
+    expect(relevantCalls("/api/v1/planning?")).toBeGreaterThan(before.planning);
+
+    await user.click(screen.getAllByRole("button", { name: "Kalender" })[0]!);
+    expect(await screen.findByText("Geplanter Zeitblock")).toBeVisible();
+    expect(screen.getByText("Frist")).toBeVisible();
+    expect(screen.getByText("10:00–11:00")).toBeVisible();
+  });
+
   it("zeigt bei nicht erreichbarer API die Anmeldung mit Fehlerhinweis", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
 
@@ -1505,5 +1629,123 @@ describe("LifeOS-Weboberfläche", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Die lokale API ist nicht erreichbar",
     );
+  });
+
+  it("wählt für einen festen Termin aus der Planung den Kalender des Eintrags und öffnet den bestehenden Editor", async () => {
+    const secondEvent = {
+      ...event,
+      uid: "termin-2",
+      title: "Termin im zweiten Kalender",
+      calendarId: "kalender-2",
+    };
+    const { fetchMock } = installApi({
+      calendars: [calendar, secondCalendar],
+      events: [event, secondEvent],
+      planningItems: [
+        {
+          id: "calendar:termin-2",
+          sourceId: "termin-2",
+          uid: "termin-2",
+          calendarId: "kalender-2",
+          area: "calendar",
+          kind: "fixed_event",
+          objectType: "calendar_event",
+          ownerId: "nutzer-1",
+          status: "confirmed",
+          title: "Termin im zweiten Kalender",
+          date: todayKey,
+          startsAt: eventStartsAt,
+          endsAt: eventEndsAt,
+          timezone: "Europe/Berlin",
+          durationMinutes: 60,
+          priority: "medium",
+          overdue: false,
+          editable: "calendar_event",
+          sourceUpdatedAt: event.updatedAt,
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Planung" })[0]!);
+
+    const planItem = await screen.findByRole("button", {
+      name: "Termin im zweiten Kalender im Kalender bearbeiten",
+    });
+    await user.click(planItem);
+
+    /*
+     * Der Zielkalender wird ausgewählt, seine Ereignisse geladen und der
+     * bestehende Termin-Editor geöffnet: genau ein Editor, kein zweiter
+     * Schreibpfad und kein falscher Kalender.
+     */
+    const editor = await screen.findByRole("region", {
+      name: "Termin im zweiten Kalender",
+    });
+    expect(editor).toBeVisible();
+    expect(
+      screen.getAllByRole("region", { name: "Termin im zweiten Kalender" }),
+    ).toHaveLength(1);
+    expect(screen.getByLabelText("Kalender")).toHaveValue("kalender-2");
+    expect(
+      fetchMock.mock.calls.some(
+        ([path]) => path === "/api/v1/calendars/kalender-2/events",
+      ),
+    ).toBe(true);
+  });
+
+  it("zeigt einen verknüpften Studieneintrag mit führendem Termin in einem anderen Kalender", async () => {
+    const foreignEvent = {
+      ...event,
+      uid: "termin-fremd",
+      title: "Termin im anderen Kalender",
+      calendarId: "kalender-2",
+    };
+    installApi({
+      calendars: [calendar, secondCalendar],
+      events: [event, foreignEvent],
+      studyEntries: [
+        {
+          id: "eintrag-fremd-verknuepft",
+          ownerId: "nutzer-1",
+          moduleId: "modul-1",
+          kind: "lecture",
+          title: "Verknüpfte Studienzeit",
+          status: "planned",
+          dueDate: null,
+          startsAt: eventStartsAt,
+          endsAt: eventEndsAt,
+          timezone: "Europe/Berlin",
+          credits: null,
+          grade: null,
+          notes: null,
+          taskId: null,
+          calendarEventId: "ereignis-fremd",
+          calendarEventUid: "termin-fremd",
+          archivedAt: null,
+          createdAt: "2032-03-01T10:00:00.000Z",
+          updatedAt: "2032-03-01T10:00:00.000Z",
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Kalender" })[0]!);
+    await screen.findByRole("heading", { name: "Kalender" });
+
+    /*
+     * Der ausgewählte Kalender liefert den führenden Termin nicht (er liegt in
+     * kalender-2), deshalb bleibt die eigene Studiumsprojektion sichtbar und
+     * ist ausdrücklich als Studium gekennzeichnet.
+     */
+    const studyText = await screen.findByText("Verknüpfte Studienzeit");
+    expect(studyText).toBeVisible();
+    const studyCard = studyText.closest("article");
+    expect(studyCard).not.toBeNull();
+    expect(within(studyCard!).getByText("Studium")).toBeVisible();
   });
 });
