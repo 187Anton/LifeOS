@@ -5,9 +5,11 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Aktuelles Paket
 
-- Paket: **2 – Finanzfunktionen entfernen**, Teilauftrag **2b/1 – Finanz-API aus
-  `server.ts` entfernen**; in Arbeit, weder PR noch Paketabnahme. 2a ist
-  committet, 2b/2 und 2c sowie Paket 3 bleiben offen.
+- Paket: **2 – Finanzfunktionen entfernen**, Teilauftrag **2b/2 – Sidecar-
+  Nachweis ohne aktive Finanzroute**; in Arbeit, weder PR noch Paketabnahme.
+  2a und 2b/1 sind committet; 2b/2 ist lokal umgesetzt und synthetisch geprüft,
+  der Paketcommit dieses Schritts entsteht direkt nach dieser Notiz. 2c sowie
+  Paket 3 bleiben offen.
 - Branch: `feat/coherence-finance-removal`.
 - Basis: `22d5ba6b9fdd005baf973a192c7fb082deac621b` (`origin/develop`).
 - Worktree: `/private/tmp/lifeos-coherence-finance-removal`.
@@ -87,15 +89,68 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   22.21.1 neu (vorher ABI-Konflikt mit Node 26) und führte anschließend
   `npm run test:sqlite:api` aus: 100/100 Tests bestanden, ausschließlich
   temporäre synthetische SQLite-Datei. `npm run format:check` bestand.
-  Offen: Commit und Folgearbeiten 2b/2 und 2c.
+  2b/1 ist als `4ec7c46` (`refactor(api): retire finance routes`) committet.
+  Folgearbeiten 2b/2 und 2c sind offen.
 - Gesperrt/nicht ausgeführt: PostgreSQL-Integrationstests gegen die laufende
   lokale Entwicklungsdatenbank (`lifeos-db-1`, seit 2 Wochen aktiv), um keine
   Finanzaltdaten oder fremden Bestand anzufassen; die Pflicht-CI führt sie in
   ihrer eigenen Wegwerfdatenbank aus.
-- Exakter nächster Schritt: 2b/1-Diff und Tests abschließend prüfen und
-  committen. Danach den Mac-Sidecar-Nachweis ohne Finanzrouten aktualisieren,
-  ausschließlich synthetisch testen und erst dann Vertrags-/Client-Reste in
-  2c bereinigen. Paket 2 bleibt offen, kein Push/PR/Merge bis Paketabnahme.
+- Geplanter Schritt 2b/2: ausschließlich
+  `scripts/verify-mac-desktop-sidecar.mjs` und diese Fortschrittsdatei
+  bearbeiten. Im Sidecar-Nachweis aktive Finanz-API-Aktionen durch negative
+  404-Prüfung ersetzen; bestehende fachfremde Persistenz-/Neustartprüfungen
+  erhalten. Historische SQLite-Finanzmigration und Datenbankmodell noch nicht
+  entfernen (Paket 3). Vorherigen echten Testausgang nicht behaupten.
+- Vorprüfung 2b/2 (Stand 25.09.2026, vor der Codeänderung): tatsächliches cwd
+  `/private/tmp/lifeos-coherence-finance-removal`, Branch
+  `feat/coherence-finance-removal`, HEAD `4ec7c46`, ungecommittet weiterhin nur
+  die Koordinatoränderung an dieser Datei; Basis `22d5ba6` unverändert.
+  `apps/desktop/src-tauri/resources` und `.../binaries` fehlten im isolierten
+  Worktree; der synthetische Lauf erzeugt sie lokal über `desktop:prepare`
+  (kein Hauptcheckout, keine installierte App wird ersetzt). Node 22.21.1
+  (`/opt/homebrew/opt/node@22/bin`) und die für Node 22 gebaute lokale
+  `better-sqlite3`-Binärdatei bleiben die Grundlage.
+- Ergebnis 2b/2 (echter synthetischer Lauf bestanden, Stand 25.09.2026): In
+  `scripts/verify-mac-desktop-sidecar.mjs` sind die aktiven Finanzanlage- und
+  Finanzleseprüfungen entfernt. Eine neue gemeinsame negative Hilfsfunktion
+  `expectRetiredFinanceRoutes` prüft acht alte Finanzpfade (GET `/finance`, GET
+  `/finance/export`, POST/PATCH `categories`, `transactions`, `budgets`) vor
+  und nach dem Sidecar-Neustart auf `404` mit `error.code: "NOT_FOUND"` und
+  JSON-Inhalt. Die synthetische SQLite-Zählung `FinanceTransaction` bleibt
+  erhalten und wird zusätzlich ausdrücklich als `0` geprüft (vor und nach dem
+  Neustart); die historische Migration `20260820190000_finance_module` bleibt
+  erwartet, weil erst Paket 3 das Schema bereinigt. Alle fachfremden Prüfungen
+  (Setup/Anmeldung, Kalender/CalDAV, ICS, Projekte, Aufgaben, Notizen,
+  Dokumente, Suche, KI, Fitness, Integrationen, Rechte, Neustartidentitäten)
+  sind unverändert.
+- Tatsächliche Tests 2b/2: `npm run desktop:verify:sidecar` mit Node 22.21.1
+  (`PATH=/opt/homebrew/opt/node@22/bin:$PATH`) bestand vollständig mit Exit 0.
+  `desktop:prepare` baute Web und API neu, holte die geprüfte
+  Node-22.23.2-Laufzeit (Prüfsumme stimmte), und der gebündelte Sidecar startete
+  zweimal über den dynamischen Loopback-Port; die Schlussmeldung bestätigte den
+  Lauf ohne aktive Finanzroute. Protokoll:
+  `/Users/anton/.hermes/cache/scratch/p2b2-sidecar-verify.log`.
+- Mutationskontrolle zur Wirksamkeit der Negativprüfung: eine Kopie des Scripts
+  mit erwartetem `200` statt `404` schlug beim ersten alten Finanzpfad mit
+  `actual: 404` fehl, die Assertion wird also wirklich ausgeführt; Protokoll
+  `/Users/anton/.hermes/cache/scratch/p2b2-sidecar-mutant.log`. Zusatzbeleg: im
+  vorbereiteten Bündel `apps/desktop/src-tauri/resources/server/server.js`
+  existiert kein `/api/v1/finance`-Routenpfad (0 Treffer), während
+  Fitnessrouten vorhanden sind; verbleibende `finance`-Treffer sind
+  ausschließlich Prisma-Modell- und Enum-Namen des bis Paket 3 erhaltenen
+  Schemas.
+- Geänderte Dateien in 2b/2: nur `scripts/verify-mac-desktop-sidecar.mjs` und
+  diese Fortschrittsdatei; keine produktive Migration, kein Schema- oder
+  Schutzregelungseingriff, keine Altdaten berührt (ausschließlich temporäre
+  synthetische SQLite-Datei im System-Temp).
+- Delegationsbezug 2b/2: `coherence-p2b2-deepseek-20260925`; exakte Hermes-ID
+  in `/Users/anton/.hermes/coherence-handoff/paket-2.txt` ergänzen.
+- Exakter nächster Schritt: Paketcommit dieses Schritts prüfen (Hash steht noch
+  nicht in dieser Notiz, weil der Commit direkt danach entsteht), dann
+  Vertrags-/Client-Reste in 2c bereinigen (Frontend-Client,
+  `@lifeos/contracts`, Produktdokumentation) und Paket 2 abnehmen; Paket 3
+  (Schema, Seeds, TaskArea) erst danach. Paket 2 bleibt offen; kein
+  Push/PR/Merge bis Paketabnahme.
 
 ## Verifizierter Vorgängerstand
 
@@ -128,20 +183,20 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Paketfolge
 
-| Paket                         | Status                    |
-| ----------------------------- | ------------------------- |
-| 0 Plan und Übergabe           | Integriert über PR #120   |
-| 1 Einstellungen/Integrationen | Integriert über PR #121   |
-| 2 Finanzfunktionen entfernen  | 2a committet; 2b/2c offen |
-| 3 Finanzdatenmigration        | Nicht begonnen            |
-| 4 Aufgaben–Studienmodul       | Nicht begonnen            |
-| 5 Kalender/Planung            | Nicht begonnen            |
-| 6 Modul-Arbeitsbereich        | Nicht begonnen            |
-| 7 PDF-Suche                   | Nicht begonnen            |
-| 8 Office-Suche                | Nicht begonnen            |
-| 9 Aufgaben–CalDAV             | Nicht begonnen            |
-| 10 Mac/iPhone-Anbindung       | Nicht begonnen            |
-| 11 Gesamtabnahme/App-Update   | Nicht begonnen            |
+| Paket                         | Status                                     |
+| ----------------------------- | ------------------------------------------ |
+| 0 Plan und Übergabe           | Integriert über PR #120                    |
+| 1 Einstellungen/Integrationen | Integriert über PR #121                    |
+| 2 Finanzfunktionen entfernen  | 2a committet; 2b/2 lokal geprüft; 2c offen |
+| 3 Finanzdatenmigration        | Nicht begonnen                             |
+| 4 Aufgaben–Studienmodul       | Nicht begonnen                             |
+| 5 Kalender/Planung            | Nicht begonnen                             |
+| 6 Modul-Arbeitsbereich        | Nicht begonnen                             |
+| 7 PDF-Suche                   | Nicht begonnen                             |
+| 8 Office-Suche                | Nicht begonnen                             |
+| 9 Aufgaben–CalDAV             | Nicht begonnen                             |
+| 10 Mac/iPhone-Anbindung       | Nicht begonnen                             |
+| 11 Gesamtabnahme/App-Update   | Nicht begonnen                             |
 
 ## Fortsetzen
 

@@ -113,6 +113,48 @@ const expectJson = async (response, expectedStatus, label) => {
   return payload;
 };
 
+// Paket 2b/2: Der Finanzbereich ist aus dem aktiven Produkt entfernt (2b/1).
+// Der gebündelte Sidecar darf die früheren Finanzrouten nicht mehr bedienen und
+// muss sie weiterhin im versionierten Fehlerformat mit 404/NOT_FOUND ablehnen.
+const retiredFinanceRequests = [
+  {
+    method: "GET",
+    route: "/finance?from=2034-09-01&to=2034-09-30&currencyCode=EUR",
+  },
+  {
+    method: "GET",
+    route: "/finance/export?from=2034-09-01&to=2034-09-30&currencyCode=EUR",
+  },
+  { method: "POST", route: "/finance/categories" },
+  { method: "PATCH", route: "/finance/categories/synthetisch" },
+  { method: "POST", route: "/finance/transactions" },
+  { method: "PATCH", route: "/finance/transactions/synthetisch" },
+  { method: "POST", route: "/finance/budgets" },
+  { method: "PATCH", route: "/finance/budgets/synthetisch" },
+];
+
+const expectRetiredFinanceRoutes = async (baseUrl, cookie, label) => {
+  for (const request of retiredFinanceRequests) {
+    const response = await fetch(`${baseUrl}/api/v1${request.route}`, {
+      method: request.method,
+      headers: { cookie, "content-type": "application/json" },
+      ...(request.method === "GET"
+        ? { body: undefined }
+        : {
+            body: JSON.stringify({
+              name: "synthetische-kategorie",
+              amountMinor: 100,
+            }),
+          }),
+    });
+    const scope = `${label} ${request.method} ${request.route}`;
+    const payload = await response.json();
+    assert.equal(response.status, 404, scope);
+    assert.equal(payload.error?.code, "NOT_FOUND", scope);
+    assert.match(response.headers.get("content-type") ?? "", /json/, scope);
+  }
+};
+
 const directory = await mkdtemp(path.join(os.tmpdir(), "lifeos-sidecar-"));
 const databasePath = path.join(directory, "data/lifeos.sqlite");
 let running;
@@ -361,46 +403,14 @@ try {
   assert.equal(aiQuery.answer, null);
   assert.equal(aiQuery.metadata.externalTransferOccurred, false);
 
-  const financeCategory = await expectJson(
-    await fetch(`${first.baseUrl}/api/v1/finance/categories`, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: JSON.stringify({ name: "Synthetische Demo", kind: "expense" }),
-    }),
-    201,
-    "Finanzkategorie",
-  );
-  const financeTransaction = await expectJson(
-    await fetch(`${first.baseUrl}/api/v1/finance/transactions`, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: JSON.stringify({
-        categoryId: financeCategory.id,
-        kind: "expense",
-        bookingDate: "2034-09-04",
-        amountMinor: 4250,
-        currencyCode: "EUR",
-        note: "Nur synthetisch",
-      }),
-    }),
-    201,
-    "Finanzbuchung",
-  );
-  const financeBudget = await expectJson(
-    await fetch(`${first.baseUrl}/api/v1/finance/budgets`, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: JSON.stringify({
-        categoryId: financeCategory.id,
-        period: "month",
-        periodStart: "2034-09-01",
-        amountMinor: 10000,
-        currencyCode: "EUR",
-        warningThresholdPercent: 80,
-      }),
-    }),
-    201,
-    "Budget",
+  // Paket 2b/2: Statt synthetischer Finanzkategorie, -buchung und -budget wird
+  // der stillgelegte Finanzbereich negativ geprüft. Der Lauf legt dadurch keine
+  // Finanzdaten an; die historischen Tabellen und die Migration bleiben bis
+  // Paket 3 bestehen.
+  await expectRetiredFinanceRoutes(
+    first.baseUrl,
+    cookie,
+    "Stillgelegte Finanzroute",
   );
 
   const postFitness = async (route, body, label) =>
@@ -536,8 +546,6 @@ try {
     taskId: task.id,
     noteId: note.id,
     documentId: document.id,
-    financeTransactionId: financeTransaction.id,
-    financeBudgetId: financeBudget.id,
     fitnessSessionId: fitnessSession.id,
   };
 
@@ -547,6 +555,8 @@ try {
   const database = new BetterSqlite3(databasePath, { readonly: true });
   assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
   assert.equal(database.pragma("journal_mode", { simple: true }), "wal");
+  // Die historische Finanzmigration bleibt bis Paket 3 erwartet; 2b/2 entfernt
+  // bewusst keinen Schemarest und keine Altdaten.
   const applied = database
     .prepare('SELECT "name" FROM "_lifeos_migrations" ORDER BY "name"')
     .all()
@@ -585,6 +595,11 @@ try {
       .prepare('SELECT COUNT(*) AS count FROM "FitnessSession"')
       .get().count,
   };
+  assert.equal(
+    countsBeforeRestart.financeTransactions,
+    0,
+    "Ohne aktive Finanzroute darf der synthetische Sidecar-Lauf keine Finanzbuchung anlegen",
+  );
   const databaseBytes = await readFile(databasePath);
   assert.equal(databaseBytes.includes(Buffer.from(localPassword)), false);
   assert.equal(databaseBytes.includes(Buffer.from(calDavPassword)), false);
@@ -636,23 +651,12 @@ try {
     ).status,
     200,
   );
-  const restartedFinance = await expectJson(
-    await fetch(
-      `${second.baseUrl}/api/v1/finance?from=2034-09-01&to=2034-09-30&currencyCode=EUR`,
-      { headers: { cookie: secondCookie } },
-    ),
-    200,
-    "Finanzen nach Neustart",
-  );
-  assert.ok(
-    restartedFinance.transactions.some(
-      (transaction) => transaction.id === demoRecords.financeTransactionId,
-    ),
-  );
-  assert.ok(
-    restartedFinance.budgets.some(
-      (budget) => budget.id === demoRecords.financeBudgetId,
-    ),
+  // Paket 2b/2: Auch nach dem Neustart bleibt die Finanzroute stillgelegt und
+  // wird negativ geprüft, statt sie als Lesepfad zu verwenden.
+  await expectRetiredFinanceRoutes(
+    second.baseUrl,
+    secondCookie,
+    "Stillgelegte Finanzroute nach Neustart",
   );
   const restartedFitness = await expectJson(
     await fetch(`${second.baseUrl}/api/v1/fitness`, {
@@ -698,11 +702,16 @@ try {
       .get().count,
   };
   restartedDatabase.close();
+  assert.equal(
+    countsAfterRestart.financeTransactions,
+    0,
+    "Nach dem Neustart darf keine Finanzbuchung entstanden sein",
+  );
   assert.deepEqual(identityAfterRestart, identityBeforeRestart);
   assert.deepEqual(countsAfterRestart, countsBeforeRestart);
 
   console.info(
-    `Gebündelter Sidecar mit Node ${manifest.nodeVersion} prüfte die synthetische 0.6-Produktdemo, startete zweimal ohne Homebrew-Pfad und erhielt Fach- sowie Kalenderidentitäten.`,
+    `Gebündelter Sidecar mit Node ${manifest.nodeVersion} prüfte die synthetische 0.6-Produktdemo ohne aktive Finanzroute (acht alte Finanzpfade: 404 NOT_FOUND), startete zweimal ohne Homebrew-Pfad und erhielt Fach- sowie Kalenderidentitäten.`,
   );
 } finally {
   if (running && running.exitCode === null) running.kill("SIGTERM");
