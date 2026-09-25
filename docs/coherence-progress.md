@@ -7,9 +7,9 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 - Paket: **2 – Finanzfunktionen entfernen**, Teilauftrag **2c/1 – aktive
   Finanzverträge und Web-Client bereinigen**; in Arbeit, weder PR noch
-  Paketabnahme. 2a, 2b/1 und 2b/2 sind committet, 2c/1 ist lokal umgesetzt und
-  geprüft (Paketcommit dieses Schritts entsteht direkt nach dieser Notiz);
-  Produktdokumentation und Paketabnahme sowie Paket 3 bleiben offen.
+  Paketabnahme. 2a, 2b/1 und 2b/2 sind committet, 2c/1 ist lokal umgesetzt,
+  geprüft und als `0788ef8` committet; Produktdokumentation und Paketabnahme
+  sowie Paket 3 bleiben offen.
 - Branch: `feat/coherence-finance-removal`.
 - Basis: `22d5ba6b9fdd005baf973a192c7fb082deac621b` (`origin/develop`).
 - Worktree: `/private/tmp/lifeos-coherence-finance-removal`.
@@ -203,8 +203,9 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   danach die noch offene Produktdokumentation (README/Leitfaden-Hinweise zu
   Finanzen) klären und Paket 2 gesammelt abnehmen. Paket 3 (Schema, Seeds,
   TaskArea) erst danach. Paket 2 bleibt offen; kein Push/PR/Merge.
-  Delegationsbezug 2c/1: `coherence-p2c1-deepseek-20260925`; der Commit-Hash
-  dieses Schritts entsteht nach dieser Notiz und wird vom Koordinator eingetragen.
+  Delegationsbezug 2c/1: `coherence-p2c1-deepseek-20260925`; Commit `0788ef8`
+  (`refactor(web): retire finance client, contracts and css`). Nachgetragen in
+  einem reinen Dokumentationscommit direkt danach.
 
 ## Verifizierter Vorgängerstand
 
