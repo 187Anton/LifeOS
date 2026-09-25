@@ -5,62 +5,156 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Aktuelles Paket
 
-- Paket: **5 – Gemeinsame Kalender- und Planungsansichten** lokal umgesetzt und
-  in drei Korrekturrunden nachgezogen. Stand nach der dritten Korrekturrunde
-  (Kalenderwechsel und veraltete Ereignisantworten): 71/71 Web-Unit- und
-  42/42 E2E-Tests in dieser Runde erneut gemessen; die API-Suite blieb bei
-  118/118 aus der zweiten Runde, weil in dieser Runde keine API-Datei geändert
-  wurde und sie deshalb nicht erneut ausgeführt wurde. Der letzte geprüfte
-  Commit ist `60d6697` auf dem getrackten Branch
-  `feat/coherence-calendar-planning-views`; für genau diesen Commit ist die
-  Pflicht-CI live abgefragt und **grün** (`Repository checks` 5m10s und
-  `Local macOS release` 10m50s, Lauf `36161389947`, `gh pr checks 125`).
-  [PR #125](https://github.com/187Anton/LifeOS/pull/125) ist gegen `develop`
-  eröffnet (`MERGEABLE`, `CLEAN`) und nicht gemergt. Der Commit dieser dritten
-  Runde entsteht nach dem Push; seine CI ist im PR separat zu prüfen.
-- Vorgänger: **Paket 4** ist über
-  [PR #124](https://github.com/187Anton/LifeOS/pull/124) nach `develop`
-  integriert; bestätigt ist der Merge-Commit `a8a2847` als Spitze von
-  `origin/develop` und damit die Basis dieses Pakets.
-- Branch: `feat/coherence-calendar-planning-views`.
-- Basis: `a8a2847` (`origin/develop`, PR #124).
-- Worktree: `/private/tmp/lifeos-coherence-planning-views`; der Hauptcheckout
+- Paket: **6 – Moduldetailseite und gemeinsame Dokument-/Notizbedienung** lokal
+  umgesetzt und geprüft. Stand dieser Runde: **121/121** API-, **76/76**
+  Web-Unit- und **48/48** E2E-Tests (24 Tests, je 24 in beiden
+  Browserprojekten), dazu `typecheck`, `lint`, `format:check`, `build`,
+  `repo:check` und `security:secrets` bestanden. Der Commit dieser Runde
+  entsteht nach dem Push; seine Pflicht-CI ist im PR separat zu prüfen.
+- Vorgänger: **Paket 5** ist über
+  [PR #125](https://github.com/187Anton/LifeOS/pull/125) nach `develop`
+  integriert. Live bestätigt sind der Merge-Commit `f37524d`
+  (`fix(calendar): share calendar and planning projection rules`) als Spitze von
+  `origin/develop`, `git merge-base --is-ancestor f37524d origin/develop` sowie
+  beide Pflichtchecks `Repository checks` und `Local macOS release` als `pass`
+  über `gh pr checks 125`. Die Paket-5-Details dieser Datei bleiben als
+  Nachweisabschnitte weiter unten erhalten.
+- Branch: `feat/coherence-module-detail`.
+- Basis: `f37524d` (`origin/develop`, PR #125).
+- Worktree: `/private/tmp/lifeos-coherence-module-detail`; der Hauptcheckout
   `/Users/anton/Projekte/LifeOS` blieb unverändert.
-- Umsetzung: die ursprüngliche Paket-5-Umsetzung und die erste Korrekturrunde
-  liefen mit genau einem DeepSeek-Worker nacheinander (Planung, Prüfung und
-  Abnahme durch den koordinierenden Agenten, keine zweite Schreibinstanz). Die
-  zweite und die dritte Korrekturrunde hat der koordinierende Agent selbst
-  umgesetzt und geprüft (keine Delegation).
+- Umsetzung: genau ein Worker für Umsetzung, Prüfung und Nachweise; keine
+  Subagenten, keine zweite Schreibinstanz und kein paralleler Agent.
 - Persönliche Daten: Antons Entwicklungsdatenbank blieb unberührt. Der lokale
-  Compose-Container dieses Worktrees band PostgreSQL an `127.0.0.1` mit eigener,
-  leerer Datenbank `lifeos_planning_views`; Migrationen und Tests liefen
-  ausschließlich gegen synthetische Werte. Die installierte App wurde nicht
-  angefasst.
-- Geänderter Umfang: gemeinsamer Projektionsvertrag in
-  `packages/contracts/src/api.ts`, Planning-Service, neue gemeinsame
-  Web-Projektion `apps/web/src/calendar-projection.ts`, `CalendarWorkspace.tsx`,
-  `PlanningWorkspace.tsx`, `TaskWorkspace.tsx`, `App.tsx`, zugehörige Styles
-  sowie die betroffenen API-, Web-Unit- und E2E-Nachweise.
-- Nicht geändert: Datenbankschema, Migrationen, CalDAV-Server, Apple-Integration,
-  freie `TaskEventLink`-Beziehungen und die Finanzmodule. Eine verwaltete
-  Task-Kalender-Relation bleibt Paket 9. `LifeOS Leitfaden.docx` und `README.md`
-  blieben unverändert, weil Paket 5 keine neue Bedienung oder Einrichtung
-  einführt.
-- Git-Stand: Der gemessene Stand ist als `60d6697`
-  (`fix(calendar): align calendar and planning projection rules`) auf
-  `origin/feat/coherence-calendar-planning-views` gepusht; der Branch ist
-  hochgeladen und getrackt, `origin/develop` blieb bei `a8a2847`. PR #125 gegen
-  `develop` ist eröffnet (nicht gemergt); die Pflicht-CI für `60d6697` ist live
-  als grün bestätigt (Lauf `36161389947`, beide Jobs `pass`).
-- Delegation: In der ersten Korrekturrunde hat der koordinierende Agent die
-  Umsetzung der vier Befunde an einen deepseek-Worker übergeben und dessen
-  Ergebnis unabhängig geprüft (Diff, Paketgrenzen, eigene Testläufe). Die
-  Modellwahl wurde in der Delegationssitzung verifiziert; es gab keinen stillen
-  Wechsel auf ein anderes Modell. Die zweite Korrekturrunde (Statusfilter,
-  öffentliche Identität, Zeitraum und Zeitzone, Übergabe) und die dritte
-  Korrekturrunde (Kalenderwechsel und veraltete Ereignisantworten) hat der
-  koordinierende Agent selbst umgesetzt und geprüft; beide liefen ohne
-  Delegation, weil der jeweilige Auftrag keine Rollenteilung vorgab.
+  Compose-Container dieses Worktrees band PostgreSQL an `127.0.0.1` auf einem
+  eigenen Port mit eigener, nur synthetisch befüllter Datenbank; Migrationen und
+  Tests liefen ausschließlich gegen synthetische Werte. Die installierte App
+  wurde nicht angefasst.
+- Geänderter Umfang: neue, abgegrenzte Moduldetail-Komponente
+  `apps/web/src/components/StudyModuleDetail.tsx`, `StudyWorkspace.tsx`,
+  `KnowledgeWorkspace.tsx`, `App.tsx`, zugehörige Styles in
+  `apps/web/src/styles.css` sowie die betroffenen API-, Web-Unit- und
+  E2E-Nachweise.
+- Nicht geändert: Prisma-Schema, Migrationen, CalDAV-Server, Apple-Integration,
+  KI-Funktionen, Finanzmodule, zweiter Dokumentenspeicher, Dateiextraktion, OCR
+  und Vektorsuche; es entstand keine neue API-Ressource. `README.md` und
+  `LifeOS Leitfaden.docx` blieben unverändert, weil Paket 6 keine neue
+  Einrichtung oder Bedienung außerhalb der Weboberfläche einführt.
+- Offene Blocker: keine. Ein neuer Schreibpfad oder eine Datenmodelländerung war
+  nicht nötig; die Paket-6-Regeln bauen ausschließlich auf vorhandenen
+  Antworten und vorhandenen Besitzfiltern auf.
+
+## Paket 6 – lokale Nachweise
+
+### Ausgangsprüfung
+
+Vor der Umsetzung wurde live geprüft, dass der Vorgänger integriert und
+abgenommen ist: Spitze von `origin/develop` ist `f37524d`, dieser Commit ist
+Ancestor von `origin/develop`, und für PR #125 melden beide Pflichtchecks
+`pass`. Der Hauptcheckout war sauber; es gab keine fremden lokalen Änderungen zu
+übernehmen.
+
+### Moduldetailansicht
+
+`StudyModuleDetail.tsx` ist eine eigene, besitzgebundene Detailansicht. Sie
+zeigt Titel, Kürzel, Studienabschnitt samt Zeitraum, Status, Leistungspunkte,
+Note, Notizen, Suchfreigabe und Archivzustand sowie die Dokumentverweise des
+Moduls. Die Studienübersicht bleibt unverändert bestehen; jede Modulkarte der
+Übersicht öffnet die Detailansicht über „Moduldetails öffnen“, und
+„Zur Übersicht“ führt zurück. Der aktive Studienabschnitt wird aus der
+geladenen Studienübersicht aufgelöst, nicht erfunden.
+
+Die zugehörigen Objekte werden aus den vorhandenen Besitzfiltern zusammengestellt:
+
+- **Aufgaben** über `Task.studyModuleId`, aktive und archivierte, aus der
+  bestehenden Aufgabenliste (die Ansicht lädt bereits `includeArchived=true`).
+  Aufgaben ohne Modulbezug erscheinen nicht in der Modulansicht.
+- **Studieneinträge** über `StudyEntry.moduleId`, aktive und archivierte, aus
+  der bestehenden Studienübersicht.
+- **Notizen** und **Dokumente** ausschließlich über ihre echte Modulbeziehung
+  (`studyModule.id`) aus der Wissensübersicht. Die freien
+  `studyModule.documentReferences` werden getrennt als unverbindliche Angaben
+  angezeigt und nie als Datei-ID interpretiert; umgekehrt erscheint eine
+  verknüpfte Datei nie als Dokumentverweis.
+- Kalenderbezüge eines Studieneintrags (`calendarEventId`, `calendarEventUid`,
+  `calendarEventCalendarId`) werden read-only angezeigt und nicht mit freien
+  `TaskEventLink`-Beziehungen verwechselt. Es entsteht keine neue Verknüpfung.
+
+### Bearbeitung über die bestehenden Facheditoren
+
+- **Modul und Studieneintrag** über die vorhandenen Studienformulare. Dafür
+  wurden `ModuleForm` und `EntryForm` in `StudyWorkspace.tsx` von einem
+  gemeinsamen `onSave`-Union-Typ auf getrennte, typreine `onCreate`/`onUpdate`
+  Signaturen umgestellt; bestehende Datensätze werden über die geprüfte
+  `record.id` adressiert. Die Formulare werden über die neue `formPanel`-Prop in
+  die Detailansicht gegeben, es gibt keinen zweiten Formularsatz.
+- **Aufgaben** über den gemeinsamen `TaskForm`/`TaskWorkspace`: „Aufgabe öffnen“
+  öffnet den vorhandenen Editor, „Aufgabe anlegen“ legt mit vorbelegtem
+  Modulbezug an. Es entsteht kein zweiter Aufgabenschreibpfad.
+- **Notizen** und **Dokument-Metadaten** über `KnowledgeWorkspace`. Der neue
+  `DocumentEditor` bearbeitet ausschließlich vorhandene Metadaten- und
+  Verknüpfungsfelder (Dateiname bleibt read-only, Suchfreigabe, Projekt- und
+  Studiummodulbezug) und ersetzt keine Datei und legt keine neue an.
+- Archivierte oder inzwischen nicht mehr auflösbare Verknüpfungsziele bleiben
+  in den Auswahlfeldern sichtbar und gekennzeichnet, statt stillschweigend auf
+  einen anderen Wert zu springen.
+
+### Suchnavigation
+
+Jeder Treffer öffnet das konkrete Objekt: `study_module` die Detailansicht
+dieses Moduls, `study_entry` das Modul mit markiertem und fokussiertem Eintrag
+(`StudyEntryResponse`/`StudyModuleResponse`-Quelle: `source.id` ist die
+Modul-ID, `id` die Eintrags-ID), `note` die konkrete Notiz und `document` das
+konkrete Dokument. Ziele, die archiviert, gelöscht oder nicht mehr auffindbar
+sind, erzeugen einen klaren Fehlerzustand und öffnen ausdrücklich kein anderes
+Objekt; die jeweilige Übersicht bleibt bedienbar. Bestehende Zielarten
+(Projekt, Ziel, Meilenstein, Arbeitsprojekt) behalten ihren bisherigen Weg.
+
+### Nachladen und Zustände
+
+Nach einer bestätigten Änderung werden die betroffenen Projektionen neu geladen
+(Aufgabenänderungen laden Aufgaben, Studium, Dashboard und Planung; Studienänderungen
+laden Studium und Planung; Wissensänderungen laden Wissen). Auswahlzustände
+werden nicht blind beibehalten: eine Auswahl, die in den neuen Daten nicht mehr
+existiert, wird verworfen, statt ein anderes Objekt zu zeigen. Die
+Modulauswahl bleibt bewusst erhalten, damit die Rückkehr aus dem Aufgaben- oder
+Wissenseditor wieder auf demselben Modul landet. Persönliche Daten gelangen
+nicht in URL, `localStorage`, `sessionStorage` oder den Service-Worker-Cache;
+das prüft der E2E-Test am Ende jedes Ablaufs.
+
+### Nachweise dieser Runde
+
+- `npm run test --workspace @lifeos/api`: **121/121** (118 vorher; drei neue
+  Integrationsfälle für Moduldetail/Zeitformwechsel/Archivzustände,
+  Besitzgrenzen, Suchfreigabe und Archivzustände von Dokumenten sowie die
+  öffentliche Identität jedes Suchziels).
+- `npm run test --workspace @lifeos/web`: **76/76** Web-Unit (71 vorher, fünf
+  neue) und **48/48** E2E in beiden Browserprojekten (42 vorher, drei neue Tests
+  je Projekt).
+- Die neuen E2E-Tests decken den vollständigen Ablauf Modul öffnen →
+  verknüpfte Objekte anzeigen → Modul, Eintrag, Aufgabe, Notiz und Dokument
+  über die bestehenden Editoren bearbeiten → Aktualisierung prüfen, leere
+  Modulbereiche, archivierte Bezüge, einen sichtbaren API-Fehler sowie
+  verschwundene Suchziele ab.
+- `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run build`,
+  `npm run repo:check` und `npm run security:secrets`: bestanden.
+
+### Offene Risiken und bewusst unveränderte Punkte
+
+- Ein Studieneintrag eines **archivierten Moduls** lässt sich nicht ändern: die
+  vorhandene Referenzprüfung lehnt archivierte Module ab, die API antwortet mit
+  einem Validierungsfehler und die Ansicht zeigt ihn sichtbar an. Keine
+  Datenänderung geht verloren; eine Lockerung wäre eine Repository-Änderung
+  außerhalb des Paket-6-Scopes und wurde deshalb nur als Test festgehalten.
+- Archivierte Module sind – wie bisher – nicht aus der Studienübersicht
+  auswählbar und erscheinen nicht in der lokalen Suche. Die Detailansicht
+  kennzeichnet einen Archivzustand, der während der geöffneten Ansicht entsteht.
+- Die Detailansicht verwendet weiterhin die vorhandenen Übersichtsantworten;
+  eine dedizierte Moduldetail-Ressource war nicht nötig und wurde nicht
+  eingeführt.
+- Paket 7 und Paket 8 bleiben für Dateiextraktion, Fundstellen und Suche in
+  Dateiinhalten zuständig; Paket 9 für eine verwaltete
+  Aufgaben-CalDAV-Abbildung.
 
 ## Paket 5 – lokale Nachweise
 
@@ -756,10 +850,10 @@ gespeicherte Währung und kein `TaskArea=finance` mehr voraus. Die alten
 | 0 Plan und Übergabe           | Integriert über PR #120              |
 | 1 Einstellungen/Integrationen | Integriert über PR #121              |
 | 2 Finanzfunktionen entfernen  | Integriert über PR #122              |
-| 3 Finanzdatenmigration        | Lokal geprüft (Paket 3); PR/CI offen |
-| 4 Aufgaben–Studienmodul       | Nicht begonnen                       |
-| 5 Kalender/Planung            | Nicht begonnen                       |
-| 6 Modul-Arbeitsbereich        | Nicht begonnen                       |
+| 3 Finanzdatenmigration        | Integriert über PR #123 (`56404d7`)  |
+| 4 Aufgaben–Studienmodul       | Integriert über PR #124 (`a8a2847`)  |
+| 5 Kalender/Planung            | Integriert über PR #125 (`f37524d`)  |
+| 6 Modul-Arbeitsbereich        | Lokal geprüft (Paket 6); PR/CI offen |
 | 7 PDF-Suche                   | Nicht begonnen                       |
 | 8 Office-Suche                | Nicht begonnen                       |
 | 9 Aufgaben–CalDAV             | Nicht begonnen                       |

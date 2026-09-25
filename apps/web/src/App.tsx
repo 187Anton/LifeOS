@@ -96,6 +96,17 @@ export const App = () => {
     null,
   );
   const [noteDetail, setNoteDetail] = useState<NoteDetailResponse | null>(null);
+  /**
+   * Gewähltes Studienmodul der Detailansicht sowie ein aus der Suche
+   * hervorgehobener Studieneintrag. Beide sind reiner Ansichtszustand im
+   * Speicher und werden nie in URL oder Browser-Storage abgelegt.
+   */
+  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  /** Geöffnetes Dokument der Wissensansicht; es wird dort nur in seinen Metadaten bearbeitet. */
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
+    null,
+  );
   const [search, setSearch] = useState<SearchResponse | null>(null);
   const [aiResponse, setAiResponse] = useState<AiQueryResponse | null>(null);
   const [planningRange, setPlanningRange] = useState<DateRange>(() =>
@@ -243,7 +254,23 @@ export const App = () => {
     setStudyLoading(true);
     setStudyError(null);
     try {
-      setStudy(await api.getStudy(true));
+      const loaded = await api.getStudy(true);
+      setStudy(loaded);
+      /**
+       * Nach jeder bestätigten Änderung zeigt die Auswahl weiterhin auf das
+       * aktualisierte Objekt. Nur ein wirklich nicht mehr vorhandenes Ziel wird
+       * zurückgesetzt, damit kein veraltetes Detail stehen bleibt.
+       */
+      setSelectedModuleId((current) =>
+        current && loaded.modules.some((module) => module.id === current)
+          ? current
+          : null,
+      );
+      setSelectedEntryId((current) =>
+        current && loaded.entries.some((entry) => entry.id === current)
+          ? current
+          : null,
+      );
     } catch (error) {
       if (error instanceof ApiClientError && error.status === 401)
         setSession("anonymous");
@@ -325,6 +352,13 @@ export const App = () => {
         overview.notes.find((entry) => entry.id === preferredNoteId) ??
         overview.notes[0];
       setNoteDetail(selected ? await api.getNote(selected.id) : null);
+      /* Eine gültige Dokumentauswahl zeigt weiter auf das aktualisierte Objekt. */
+      setSelectedDocumentId((current) =>
+        current &&
+        overview.documents.some((document) => document.id === current)
+          ? current
+          : null,
+      );
     } catch (error) {
       if (error instanceof ApiClientError && error.status === 401)
         setSession("anonymous");
@@ -361,6 +395,139 @@ export const App = () => {
     }
   }, []);
 
+  /**
+   * Öffnet ein konkretes Studienmodul und optional den markierten
+   * Studieneintrag. Vorher werden die Studiendaten neu geladen, damit kein
+   * veraltetes Detail erscheint. Ein archiviertes oder nicht mehr vorhandenes
+   * Ziel öffnet ausdrücklich kein anderes Modul, sondern einen Fehlerzustand.
+   */
+  const openStudyTarget = useCallback(
+    async (moduleId: string, entryId: string | null) => {
+      setView("study");
+      setStudyError(null);
+      setStudyLoading(true);
+      try {
+        const overview = await api.getStudy(true);
+        setStudy(overview);
+        const module =
+          overview.modules.find((candidate) => candidate.id === moduleId) ??
+          null;
+        if (!module || module.archivedAt) {
+          setSelectedModuleId(null);
+          setSelectedEntryId(null);
+          setStudyError(
+            "Das gesuchte Studienmodul ist nicht mehr verfügbar. Es wurde kein anderes Modul geöffnet.",
+          );
+          return;
+        }
+        if (entryId) {
+          const entry =
+            overview.entries.find(
+              (candidate) =>
+                candidate.id === entryId && candidate.moduleId === moduleId,
+            ) ?? null;
+          if (!entry || entry.archivedAt) {
+            setSelectedModuleId(null);
+            setSelectedEntryId(null);
+            setStudyError(
+              "Der gesuchte Studieneintrag ist nicht mehr verfügbar. Es wurde kein anderes Modul geöffnet.",
+            );
+            return;
+          }
+        }
+        setSelectedModuleId(moduleId);
+        setSelectedEntryId(entryId);
+      } catch (error) {
+        setSelectedModuleId(null);
+        setSelectedEntryId(null);
+        if (error instanceof ApiClientError && error.status === 401)
+          setSession("anonymous");
+        else setStudyError(errorMessage(error));
+      } finally {
+        setStudyLoading(false);
+      }
+    },
+    [],
+  );
+
+  /**
+   * Öffnet eine konkrete Notiz. Eine archivierte oder nicht mehr vorhandene
+   * Notiz öffnet kein anderes Objekt, sondern einen klaren Fehlerzustand.
+   */
+  const openNoteTarget = useCallback(async (noteId: string) => {
+    setView("knowledge");
+    setKnowledgeError(null);
+    setKnowledgeLoading(true);
+    try {
+      const loaded = await api.getNote(noteId);
+      if (loaded.archivedAt) {
+        setNoteDetail(null);
+        setSelectedDocumentId(null);
+        setKnowledgeError(
+          "Die gesuchte Notiz ist archiviert und wird nicht geöffnet. Es wurde keine andere Notiz geöffnet.",
+        );
+        return;
+      }
+      setNoteDetail(loaded);
+      setSelectedDocumentId(null);
+    } catch (error) {
+      setNoteDetail(null);
+      setSelectedDocumentId(null);
+      if (error instanceof ApiClientError && error.status === 401)
+        setSession("anonymous");
+      else setKnowledgeError(errorMessage(error));
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  }, []);
+
+  /**
+   * Öffnet ein konkretes Dokument aus der vorhandenen Übersicht. Es entsteht
+   * kein zweiter Ablagepfad; bearbeitet werden ausschließlich die vorhandenen
+   * Metadaten- und Verknüpfungsfelder.
+   */
+  const openDocumentTarget = useCallback(async (documentId: string) => {
+    setView("knowledge");
+    setKnowledgeError(null);
+    setKnowledgeLoading(true);
+    try {
+      const overview = await api.getKnowledge(true);
+      setKnowledge(overview);
+      const document =
+        overview.documents.find((candidate) => candidate.id === documentId) ??
+        null;
+      if (!document || document.archivedAt) {
+        setSelectedDocumentId(null);
+        setNoteDetail(null);
+        setKnowledgeError(
+          "Das gesuchte Dokument ist nicht mehr verfügbar. Es wurde kein anderes Dokument geöffnet.",
+        );
+        return;
+      }
+      setNoteDetail(null);
+      setSelectedDocumentId(documentId);
+    } catch (error) {
+      setSelectedDocumentId(null);
+      setNoteDetail(null);
+      if (error instanceof ApiClientError && error.status === 401)
+        setSession("anonymous");
+      else setKnowledgeError(errorMessage(error));
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  }, []);
+
+  /** Wechselt die Modulauswahl der Studienansicht ohne Suchhervorhebung. */
+  const selectStudyModule = useCallback((moduleId: string) => {
+    setSelectedModuleId(moduleId);
+    setSelectedEntryId(null);
+  }, []);
+
+  const clearStudyModuleSelection = useCallback(() => {
+    setSelectedModuleId(null);
+    setSelectedEntryId(null);
+  }, []);
+
   const openSearchResult = useCallback(
     (result: SearchResultResponse) => {
       if (
@@ -371,20 +538,20 @@ export const App = () => {
         setView("projects");
         void loadProject(result.source.id);
       } else if (result.contentType === "note") {
-        setView("knowledge");
-        void loadNote(result.source.id);
-      } else if (
-        result.contentType === "study_module" ||
-        result.contentType === "study_entry"
-      ) {
-        setView("study");
+        void openNoteTarget(result.source.id);
+      } else if (result.contentType === "document") {
+        void openDocumentTarget(result.source.id);
+      } else if (result.contentType === "study_module") {
+        void openStudyTarget(result.source.id, null);
+      } else if (result.contentType === "study_entry") {
+        void openStudyTarget(result.source.id, result.id);
       } else if (result.contentType === "work_project") {
         setView("work");
       } else {
         setView("knowledge");
       }
     },
-    [loadNote, loadProject],
+    [loadProject, openDocumentTarget, openNoteTarget, openStudyTarget],
   );
 
   const prepareAiSources = useCallback(async (query: string) => {
@@ -540,6 +707,9 @@ export const App = () => {
     setProjectDetail(null);
     setKnowledge(null);
     setNoteDetail(null);
+    setSelectedModuleId(null);
+    setSelectedEntryId(null);
+    setSelectedDocumentId(null);
     setSearch(null);
     setSearchError(null);
     setAiResponse(null);
@@ -996,7 +1166,19 @@ export const App = () => {
           saving={saving}
           error={studyError}
           success={studySuccess}
+          selectedModuleId={selectedModuleId}
+          selectedEntryId={selectedEntryId}
+          tasks={tasks}
+          notes={knowledge?.notes ?? []}
+          documents={knowledge?.documents ?? []}
           onReload={() => void loadStudy()}
+          onSelectModule={selectStudyModule}
+          onClearModuleSelection={clearStudyModuleSelection}
+          onOpenTask={openTaskEditor}
+          onOpenNote={(noteId: string) => void openNoteTarget(noteId)}
+          onOpenDocument={(documentId: string) =>
+            void openDocumentTarget(documentId)
+          }
           onCreateProgram={(value: CreateStudyProgramRequest) =>
             changeStudy(
               () => api.createStudyProgram(value),
@@ -1251,6 +1433,9 @@ export const App = () => {
           onReload={() => void loadKnowledge(noteDetail?.id)}
           onSearch={runSearch}
           onOpenSearchResult={openSearchResult}
+          selectedDocumentId={selectedDocumentId}
+          onSelectDocument={(id) => setSelectedDocumentId(id)}
+          onCloseDocument={() => setSelectedDocumentId(null)}
           onPrepareAiSources={prepareAiSources}
           onConfirmAiSuggestion={confirmAiSuggestion}
           onSelectNote={(id) => void loadNote(id)}

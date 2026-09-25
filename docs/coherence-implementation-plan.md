@@ -320,6 +320,48 @@ Paket-5-Branch, PR #125 ist gegen `develop` eröffnet, die Pflicht-CI dort ist
 grün und der Merge wurde nicht ausgeführt. Details stehen in
 [coherence-progress.md](coherence-progress.md).
 
+Paket 6 ist auf `f37524d` (`origin/develop`, PR #125) lokal umgesetzt und
+geprüft. Der Ablauf ist sequenziell: **6/1** Live-Prüfung des Vorgängers
+(Spitze von `origin/develop` ist `f37524d`, Ancestry bestätigt, beide
+Pflichtchecks für PR #125 `pass`, sauberer Hauptcheckout), **6/2** neue,
+abgegrenzte Moduldetail-Komponente
+`apps/web/src/components/StudyModuleDetail.tsx`, die von einer Modulkarte der
+bestehenden Studienübersicht aus Titel, Kürzel, Studienabschnitt samt Zeitraum,
+Status, Leistungspunkte, Note, Notizen, Suchfreigabe, Archivzustand und
+Dokumentverweise nachvollziehbar anzeigt, während die getrennte
+Studienübersicht unverändert erhalten bleibt, **6/3** Zusammenstellung der
+zugehörigen Objekte ausschließlich aus vorhandenen Besitzfiltern – aktive und
+archivierte Aufgaben über `Task.studyModuleId`, aktive und archivierte
+Studieneinträge über `StudyEntry.moduleId`, Notizen und Dokumente über ihre
+echte Modulbeziehung; die freien `studyModule.documentReferences` werden
+getrennt als unverbindliche Angaben dargestellt und nie als Datei-ID
+interpretiert, **6/4** Bearbeitung ausschließlich über die vorhandenen
+Facheditoren: Modul und Studieneintrag über die wiederverwendeten
+Studienformulare (die über die neue `formPanel`-Prop in die Detailansicht
+gegeben werden; `ModuleForm` und `EntryForm` wurden dafür von einem
+`onSave`-Union-Typ auf getrennte `onCreate`/`onUpdate`-Signaturen umgestellt),
+Aufgaben über den gemeinsamen `TaskForm`/`TaskWorkspace` und Notizen sowie
+Dokument-Metadaten über `KnowledgeWorkspace` mit einem neuen `DocumentEditor`,
+der ausschließlich vorhandene Metadaten- und Verknüpfungsfelder bearbeitet und
+keine Datei ersetzt, **6/5** vervollständigte Suchnavigation, bei der
+`study_module` das konkrete Modul, `study_entry` das Modul mit markiertem
+Eintrag (`source.id` ist die Modul-ID, `id` die Eintrags-ID), `note` die
+konkrete Notiz und `document` das konkrete Dokument öffnet, während archivierte,
+gelöschte oder nicht mehr auffindbare Ziele einen klaren Fehlerzustand statt
+eines fremden Objekts erzeugen, **6/6** konsistentes Nachladen der betroffenen
+Projektionen nach jeder bestätigten Änderung mit sicherem Umgang mit
+Auswahlzuständen (eine nicht mehr vorhandene Auswahl wird verworfen, die
+Modulauswahl bleibt für die Rückkehr aus dem Aufgaben- oder Wissenseditor
+erhalten) sowie **6/7** Unit-, API- und E2E-Nachweise einschließlich leerer
+Modulbereiche, archivierter Bezüge, sichtbarer API-Fehler und verschwundener
+Suchziele. Es entstanden keine Schemaänderung, keine Migration, keine neue
+API-Ressource, kein zweiter Dokumentenspeicher und keine Dateiextraktion;
+Paket 7 und Paket 8 bleiben dafür zuständig. Gemessener Endstand: 121/121
+API-, 76/76 Web-Unit- und 48/48 E2E-Tests (24 Tests in beiden
+Browserprojekten), dazu `typecheck`, `lint`, `format:check`, `build`,
+`repo:check` und `security:secrets` bestanden. Details stehen in
+[coherence-progress.md](coherence-progress.md).
+
 | Paket | Umfang und Einstieg                                                           | Erforderliche Abnahme zusätzlich zur Pflicht-CI                                                                                                                                                     |
 | ----- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0     | Dieser Plan, Fortschritt, Startanleitung; README-/AGENTS-Verweis              | Inhalt konsistent, Format/Links/Diff geprüft; PR nach develop                                                                                                                                       |
@@ -463,3 +505,19 @@ des gespeicherten Zwischenstands fort; starte kein weiteres Paket.“
   `60d6697`, grün mit der Korrektur). Keine Schemaänderung, keine Migration,
   keine CalDAV-/Apple-Änderung, keine Änderung freier
   `TaskEventLink`-Beziehungen und kein neuer Schreibpfad.
+- 25.09.2026: Paket 6 nach lokalem Nachweis dokumentiert. Festgehalten sind die
+  eigene besitzgebundene Moduldetailansicht bei unverändert bestehender
+  Studienübersicht, die Zusammenstellung der zugehörigen Aufgaben,
+  Studieneinträge, Notizen und Dokumente ausschließlich aus vorhandenen
+  Besitzfiltern mit sichtbarer Trennung zwischen freien Dokumentverweisen und
+  echten Dateiverknüpfungen, die Bearbeitung ausschließlich über die
+  vorhandenen Facheditoren (Studienformulare, gemeinsamer
+  Aufgaben-Editor, Wissensansicht mit einem neuen reinen Metadaten-Editor für
+  Dokumente), die Suchnavigation auf das jeweils konkrete Objekt einschließlich
+  des markierten Studieneintrags, klare Fehlerzustände für archivierte,
+  gelöschte oder verschwundene Suchziele sowie das konsistente Nachladen der
+  betroffenen Projektionen mit sicherem Umgang mit Auswahlzuständen. Paket 5 ist
+  zuvor live als Spitze `f37524d` von `origin/develop` (PR #125, beide
+  Pflichtchecks `pass`) bestätigt worden. Keine Schemaänderung, keine Migration,
+  keine neue API-Ressource, kein zweiter Dokumentenspeicher, keine
+  Dateiextraktion, keine KI-Funktion und kein neuer Schreibpfad.

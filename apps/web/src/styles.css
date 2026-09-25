@@ -3119,3 +3119,114 @@ input[readonly] {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Moduldetail, verknüpfte Objekte und Dokument-Metadaten (Paket 6). */
+.study-module-detail h1:focus {
+  outline: none;
+}
+.fact-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  margin: 1rem 0 0;
+  padding: 0;
+}
+.fact-list > div {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+.fact-list > div.wide {
+  grid-column: 1 / -1;
+}
+.fact-list dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.fact-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.module-relations > header {
+  align-items: flex-start;
+}
+.module-relations > header .muted-copy {
+  max-width: 56ch;
+}
+.relation-list,
+.reference-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.relation-card .record-actions {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.relation-card small {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--muted);
+}
+.relation-card h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.relation-card.archived {
+  background: var(--paper);
+}
+.relation-card.search-target {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.reference-list li {
+  padding: 0.6rem 0.75rem;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  overflow-wrap: anywhere;
+}
+.module-references {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+.document-card.active {
+  border-color: var(--forest-soft);
+  background: var(--sage);
+}
+.document-editor {
+  margin-top: 1.5rem;
+}
+.document-editor:focus-within,
+.document-editor:focus {
+  outline: 2px solid var(--forest-soft);
+  outline-offset: 3px;
+}
+.document-editor header {
+  align-items: flex-start;
+}
+
+@media (max-width: 720px) {
+  .fact-list {
+    grid-template-columns: 1fr;
+  }
+  .relation-card,
+  .relation-card .record-actions {
+    width: 100%;
+  }
+  .relation-card .record-actions {
+    justify-content: flex-start;
+  }
+}

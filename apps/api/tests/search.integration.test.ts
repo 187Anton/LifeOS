@@ -299,3 +299,205 @@ test("sucht auf PostgreSQL und SQLite nur in eigenen aktiven Freigaben", async (
     400,
   );
 });
+
+test("liefert für jedes Suchziel die öffentliche Identität zum Öffnen", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalId = `search-target-owner-${suffix}`;
+  const otherExternalId = `search-target-other-${suffix}`;
+  const password = `synthetisches-zielpasswort-${suffix}`;
+  const owner = await database.user.create({
+    data: {
+      externalId,
+      displayName: "Synthetische Zielperson",
+      settings: { create: {} },
+      credential: { create: { passwordHash: await hashPassword(password) } },
+    },
+  });
+  const other = await database.user.create({
+    data: {
+      externalId: otherExternalId,
+      displayName: "Andere Zielperson",
+      settings: { create: {} },
+    },
+  });
+  const program = await database.studyProgram.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetischer Navigationsstudiengang",
+      institution: "Lokale Hochschule",
+      periodLabel: "Navigationssemester",
+    },
+  });
+  const module = await database.studyModule.create({
+    data: {
+      userId: owner.id,
+      programId: program.id,
+      title: "Navigation Quantenmodul",
+      code: "NAV-201",
+      notes: "Synopsis zur Navigation",
+      searchEnabled: true,
+      entries: {
+        create: [
+          {
+            kind: "exam",
+            title: "Navigation Quantenprüfung",
+            dueDate: new Date("2033-06-01T00:00:00.000Z"),
+          },
+          {
+            kind: "submission",
+            title: "Navigation archivierte Abgabe",
+            dueDate: new Date("2033-06-02T00:00:00.000Z"),
+            archivedAt: new Date("2033-06-03T00:00:00.000Z"),
+          },
+        ],
+      },
+    },
+  });
+  const moduleEntry = await database.studyEntry.findFirstOrThrow({
+    where: { moduleId: module.id, kind: "exam" },
+  });
+  /* Ein Modul ohne Suchfreigabe und ein fremdes Modul dürfen nie Ziel sein. */
+  await database.studyModule.create({
+    data: {
+      userId: owner.id,
+      programId: program.id,
+      title: "Navigation Quantenmodul ohne Freigabe",
+      searchEnabled: false,
+    },
+  });
+  const foreignProgram = await database.studyProgram.create({
+    data: {
+      userId: other.id,
+      title: "Fremder Navigationsstudiengang",
+      institution: "Fremde Hochschule",
+      periodLabel: "Fremdsemester",
+    },
+  });
+  await database.studyModule.create({
+    data: {
+      userId: other.id,
+      programId: foreignProgram.id,
+      title: "Navigation fremdes Quantenmodul",
+      searchEnabled: true,
+    },
+  });
+  const note = await database.note.create({
+    data: {
+      userId: owner.id,
+      title: "Navigation Quantennotiz",
+      content: "Synthetischer Notizinhalt",
+      searchEnabled: true,
+      studyModuleId: module.id,
+    },
+  });
+  const document = await database.document.create({
+    data: {
+      userId: owner.id,
+      studyModuleId: module.id,
+      storageKey: `${randomUUID()}.md`,
+      fileName: "navigation-quanten.md",
+      mimeType: "text/markdown",
+      byteSize: 32,
+      sha256: "c".repeat(64),
+      modifiedAt: new Date("2033-06-04T12:00:00.000Z"),
+      searchEnabled: true,
+    },
+  });
+  await database.document.create({
+    data: {
+      userId: owner.id,
+      storageKey: `${randomUUID()}.md`,
+      fileName: "navigation-entfernt.md",
+      mimeType: "text/markdown",
+      byteSize: 32,
+      sha256: "d".repeat(64),
+      modifiedAt: new Date("2033-06-04T12:00:00.000Z"),
+      searchEnabled: true,
+      deletedAt: new Date("2033-06-05T12:00:00.000Z"),
+    },
+  });
+
+  const profileRepository = new PrismaProfileRepository(database, externalId);
+  const authentication = new AuthenticationService(profileRepository, 1);
+  const application = createApplication({
+    logger: new SilentLogger(),
+    readinessProbe: { check: async () => undefined },
+    webOrigin: "http://127.0.0.1:5173",
+    moduleRouters: [
+      createProfileRouter({
+        authentication,
+        profile: new ProfileService(profileRepository),
+        secureCookies: false,
+      }),
+      createSearchRouter({
+        authentication,
+        search: new LocalSearchService(new PrismaSearchRepository(database)),
+      }),
+    ],
+  });
+  const server = createServer(application);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}/api/v1`;
+  t.after(async () => {
+    await close(server);
+    await database.user.deleteMany({
+      where: { externalId: { in: [externalId, otherExternalId] } },
+    });
+    await database.$disconnect();
+  });
+  const login = await fetch(`${base}/session`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  const cookie = (login.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+  const search = (await (
+    await fetch(`${base}/search?q=Navigation`, { headers: { cookie } })
+  ).json()) as SearchResponse;
+  const byType = (contentType: string) =>
+    search.results.filter((result) => result.contentType === contentType);
+
+  const modules = byType("study_module");
+  assert.equal(modules.length, 1);
+  assert.equal(modules[0]?.id, module.id);
+  assert.equal(modules[0]?.source.id, module.id);
+  assert.equal(modules[0]?.detailPath, `/study/modules/${module.id}`);
+
+  const entries = byType("study_entry");
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0]?.id, moduleEntry.id);
+  /* Der Eintrag wird über sein Modul geöffnet und dort markiert. */
+  assert.equal(entries[0]?.source.id, module.id);
+  assert.equal(entries[0]?.source.type, "study_module");
+  assert.equal(
+    entries[0]?.detailPath,
+    `/study/modules/${module.id}#entry-${moduleEntry.id}`,
+  );
+
+  const notes = byType("note");
+  assert.equal(notes.length, 1);
+  assert.equal(notes[0]?.id, note.id);
+  assert.equal(notes[0]?.source.id, note.id);
+  assert.equal(notes[0]?.detailPath, `/knowledge/notes/${note.id}`);
+
+  const documents = byType("document");
+  assert.equal(documents.length, 1);
+  assert.equal(documents[0]?.id, document.id);
+  assert.equal(documents[0]?.source.id, document.id);
+  assert.equal(documents[0]?.detailPath, `/knowledge/documents/${document.id}`);
+
+  assert.ok(search.results.every((result) => result.ownerId === owner.id));
+  assert.ok(
+    !search.results.some((result) => result.title.includes("archiviert")),
+  );
+  assert.ok(!search.results.some((result) => result.title.includes("fremd")));
+  assert.ok(
+    !search.results.some((result) => result.title.includes("ohne Freigabe")),
+  );
+  assert.ok(
+    !search.results.some((result) => result.title.includes("entfernt")),
+  );
+});
