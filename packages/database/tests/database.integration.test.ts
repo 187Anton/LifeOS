@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import { config as loadEnvironment } from "dotenv";
 
 import { createDatabaseClient } from "../src/client.js";
+import { Prisma } from "../src/generated/prisma/client.js";
+import { TaskArea } from "../src/generated/prisma/enums.js";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 
@@ -15,87 +17,78 @@ loadEnvironment({
   quiet: true,
 });
 
-test("erzwingt ganzzahlige Beträge, Währungen und Besitzer im Finanzmodell", async (t) => {
+test("führt Finanzmodelle, gespeicherte Währung und den Finanzbereich nicht mehr im aktiven PostgreSQL-Modell", async (t) => {
   const database = createDatabaseClient();
   const suffix = randomUUID();
-  const externalIds = [
-    `finance-db-owner-${suffix}`,
-    `finance-db-other-${suffix}`,
-  ];
+  const externalId = `finance-removed-${suffix}`;
   t.after(async () => {
-    await database.user.deleteMany({
-      where: { externalId: { in: externalIds } },
-    });
+    await database.user.deleteMany({ where: { externalId } });
     await database.$disconnect();
   });
-  const [owner, other] = await Promise.all(
-    externalIds.map((externalId) =>
-      database.user.create({
-        data: {
-          externalId,
-          displayName: "Synthetische Finanzperson",
-          settings: { create: {} },
-        },
-      }),
-    ),
-  );
-  assert.ok(owner && other);
-  const category = await database.financeCategory.create({
-    data: {
-      userId: owner.id,
-      name: "Synthetische Ausgabe",
-      kind: "expense",
-    },
-  });
-  const transaction = await database.financeTransaction.create({
-    data: {
-      userId: owner.id,
-      categoryId: category.id,
-      kind: "expense",
-      bookingDate: new Date("2032-05-10T00:00:00.000Z"),
-      amountMinor: 10_001,
-      currencyCode: "EUR",
-    },
-  });
-  assert.equal(transaction.amountMinor, 10_001);
+
+  assert.deepEqual(Object.keys(TaskArea).sort(), [
+    "fitness",
+    "personal",
+    "projects",
+    "study",
+    "work",
+  ]);
   assert.equal(
-    transaction.bookingDate.toISOString(),
-    "2032-05-10T00:00:00.000Z",
+    Object.keys(Prisma).some((name) => name.startsWith("Finance")),
+    false,
   );
-  await assert.rejects(() =>
-    database.financeTransaction.create({
-      data: {
-        userId: other.id,
-        categoryId: category.id,
-        kind: "expense",
-        bookingDate: new Date("2032-05-11T00:00:00.000Z"),
-        amountMinor: 500,
-        currencyCode: "EUR",
-      },
-    }),
+
+  const financeTables = await database.$queryRawUnsafe<
+    Array<{ count: bigint }>
+  >(
+    `SELECT count(*)::bigint AS "count" FROM information_schema.tables
+     WHERE table_schema = current_schema() AND table_name ILIKE '%finance%'`,
   );
-  await assert.rejects(() =>
-    database.financeBudget.create({
-      data: {
-        userId: owner.id,
-        period: "month",
-        periodStart: new Date("2032-05-02T00:00:00.000Z"),
-        amountMinor: 20_000,
-        currencyCode: "EUR",
-      },
-    }),
+  assert.equal(Number(financeTables[0]?.count), 0);
+
+  const currencyColumns = await database.$queryRawUnsafe<
+    Array<{ count: bigint }>
+  >(
+    `SELECT count(*)::bigint AS "count" FROM information_schema.columns
+     WHERE table_schema = current_schema()
+       AND table_name = 'UserSettings'
+       AND column_name = 'currencyCode'`,
   );
+  assert.equal(Number(currencyColumns[0]?.count), 0);
+
+  const taskAreaValues = await database.$queryRawUnsafe<
+    Array<{ value: string }>
+  >(`SELECT unnest(enum_range(NULL::"TaskArea"))::text AS "value"`);
+  assert.deepEqual(taskAreaValues.map((entry) => entry.value).sort(), [
+    "fitness",
+    "personal",
+    "projects",
+    "study",
+    "work",
+  ]);
+
+  const owner = await database.user.create({
+    data: {
+      externalId,
+      displayName: "Synthetische Aufgabenperson",
+      settings: { create: {} },
+    },
+  });
+  const task = await database.task.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetische Aufgabe nach Paket 3",
+      area: "personal",
+    },
+  });
+  assert.equal(task.area, "personal");
   await assert.rejects(() =>
-    database.financeTransaction.create({
-      data: {
-        userId: owner.id,
-        categoryId: category.id,
-        kind: "expense",
-        bookingDate: new Date("2032-05-12T00:00:00.000Z"),
-        amountMinor: 500,
-        currencyCode: "eur",
-      },
-    }),
+    database.$executeRawUnsafe(
+      `INSERT INTO "Task" ("id", "userId", "title", "area", "updatedAt")
+       VALUES (gen_random_uuid(), $1, $2, 'finance', now())`,
+      owner.id,
+      "Synthetischer Finanzbereich",
+    ),
   );
 });
 

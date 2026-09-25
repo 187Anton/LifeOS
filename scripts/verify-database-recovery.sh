@@ -81,7 +81,7 @@ SELECT value
 FROM (
   SELECT 1 AS ordinal, 'user|' || "externalId" || '|' || "displayName" AS value FROM "User"
   UNION ALL
-  SELECT 2, 'settings|' || timezone || '|' || "currencyCode" || '|' || locale || '|' || "weekStartsOn"::text FROM "UserSettings"
+  SELECT 2, 'settings|' || timezone || '|' || locale || '|' || "weekStartsOn"::text FROM "UserSettings"
   UNION ALL
   SELECT 3, 'credential|' || revision::text || '|' || length("passwordHash")::text FROM "UserCredential"
   UNION ALL
@@ -99,13 +99,7 @@ FROM (
   UNION ALL
   SELECT 10, 'ai-interaction|' || id::text || '|' || "userId"::text || '|' || status || '|' || "processingMode" || '|' || "externalTransferOccurred"::text || '|' || "requestHash" || '|' || jsonb_array_length("sourceReferences")::text FROM "AiInteraction"
   UNION ALL
-  SELECT 11, 'finance-category|' || id::text || '|' || "userId"::text || '|' || name || '|' || kind::text || '|' || coalesce("archivedAt"::text, '') FROM "FinanceCategory"
-  UNION ALL
-  SELECT 12, 'finance-transaction|' || id::text || '|' || "categoryId"::text || '|' || kind::text || '|' || "bookingDate"::text || '|' || "amountMinor"::text || '|' || "currencyCode" || '|' || coalesce("recurrenceFrequency"::text, '') FROM "FinanceTransaction"
-  UNION ALL
-  SELECT 13, 'finance-budget|' || id::text || '|' || coalesce("categoryId"::text, '') || '|' || period::text || '|' || "periodStart"::text || '|' || "amountMinor"::text || '|' || "warningThresholdPercent"::text FROM "FinanceBudget"
-  UNION ALL
-  SELECT 14, 'fitness-plan|' || id::text || '|' || "userId"::text || '|' || name || '|' || coalesce("archivedAt"::text, '') FROM "FitnessPlan"
+  SELECT 11, 'fitness-plan|' || id::text || '|' || "userId"::text || '|' || name || '|' || coalesce("archivedAt"::text, '') FROM "FitnessPlan"
   UNION ALL
   SELECT 15, 'fitness-exercise|' || id::text || '|' || "userId"::text || '|' || name || '|' || coalesce("archivedAt"::text, '') FROM "FitnessExercise"
   UNION ALL

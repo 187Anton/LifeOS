@@ -41,9 +41,6 @@ model User {
   workTaskLinks             WorkTaskLink[]
   workTimeEntries           WorkTimeEntry[]
   availabilityWindows       AvailabilityWindow[]
-  financeCategories         FinanceCategory[]
-  financeTransactions       FinanceTransaction[]
-  financeBudgets            FinanceBudget[]
   fitnessPlans              FitnessPlan[]
   fitnessExercises          FitnessExercise[]
   fitnessPlanExercises      FitnessPlanExercise[]
@@ -61,7 +58,6 @@ model User {
 model UserSettings {
   userId              String   @id
   timezone            String   @default("Europe/Berlin")
-  currencyCode        String   @default("EUR")
   locale              String   @default("de-DE")
   weekStartsOn        Int      @default(1)
   defaultCalendarView String   @default("week")
@@ -269,7 +265,6 @@ enum TaskArea {
   study
   work
   projects
-  finance
   fitness
   personal
 }
@@ -714,27 +709,6 @@ model AvailabilityWindow {
   @@index([userId, weekday])
 }
 
-enum FinanceCategoryKind {
-  income
-  expense
-}
-
-enum FinanceTransactionKind {
-  income
-  expense
-}
-
-enum FinanceRecurrenceFrequency {
-  weekly
-  monthly
-  yearly
-}
-
-enum FinanceBudgetPeriod {
-  month
-  year
-}
-
 enum ShoppingListStatus {
   active
   archived
@@ -837,67 +811,6 @@ model ShoppingItem {
   @@unique([id, userId])
   @@index([userId, shoppingListId, deletedAt, status])
   @@index([userId, categoryId, deletedAt])
-}
-
-model FinanceCategory {
-  id           String               @id @default(uuid())
-  userId       String
-  name         String
-  kind         FinanceCategoryKind
-  archivedAt   DateTime?
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
-  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions FinanceTransaction[]
-  budgets      FinanceBudget[]
-
-  @@unique([id, userId])
-  @@unique([userId, kind, name])
-  @@index([userId, archivedAt])
-}
-
-model FinanceTransaction {
-  id                  String                      @id @default(uuid())
-  userId              String
-  categoryId          String
-  kind                FinanceTransactionKind
-  bookingDate         String
-  amountMinor         Int
-  currencyCode        String
-  note                String?
-  recurrenceFrequency FinanceRecurrenceFrequency?
-  recurrenceInterval  Int?
-  recurrenceEndDate   String?
-  archivedAt          DateTime?
-  createdAt           DateTime                    @default(now())
-  updatedAt           DateTime                    @updatedAt
-  user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category            FinanceCategory             @relation(fields: [categoryId, userId], references: [id, userId], onDelete: NoAction)
-
-  @@unique([id, userId])
-  @@index([userId, archivedAt, bookingDate])
-  @@index([userId, categoryId, bookingDate])
-  @@index([userId, kind, bookingDate])
-}
-
-model FinanceBudget {
-  id                      String              @id @default(uuid())
-  userId                  String
-  categoryId              String?
-  period                  FinanceBudgetPeriod
-  periodStart             String
-  amountMinor             Int
-  currencyCode            String
-  warningThresholdPercent Int                 @default(80)
-  archivedAt              DateTime?
-  createdAt               DateTime            @default(now())
-  updatedAt               DateTime            @updatedAt
-  user                    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category                FinanceCategory?    @relation(fields: [categoryId, userId], references: [id, userId], onDelete: NoAction)
-
-  @@unique([id, userId])
-  @@index([userId, archivedAt, periodStart])
-  @@index([userId, categoryId, periodStart])
 }
 
 enum FitnessSessionStatus {

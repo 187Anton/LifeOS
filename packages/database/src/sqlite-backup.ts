@@ -275,6 +275,25 @@ const readAndVerifyManifest = async (backupDirectory: string) => {
   return manifest as unknown as SqliteBackupManifest;
 };
 
+/**
+ * Prüft ein vorhandenes Backup vollständig: Manifest-Prüfsumme, jede Datei-
+ * Prüfsumme und die Integrität der gesicherten Datenbank. Wird sowohl vor dem
+ * Restore als auch als ausdrücklich übergebener Backup-Kontext vor einer
+ * destruktiven Migration verwendet.
+ */
+export const verifySqliteBackupDirectory = async (backupDirectory: string) => {
+  const manifest = await readAndVerifyManifest(backupDirectory);
+  const backupDatabasePath = await verifyFile(
+    backupDirectory,
+    manifest.database,
+  );
+  for (const document of manifest.documents) {
+    await verifyFile(backupDirectory, document);
+  }
+  verifyIntegrity(backupDatabasePath);
+  return manifest;
+};
+
 export const createSqliteBackup = async (options: {
   databaseUrl: string;
   documentsDirectory: string;
@@ -410,15 +429,7 @@ export const restoreSqliteBackup = async (options: {
       "Restore-Ziele existieren bereits und werden nicht überschrieben.",
     );
   }
-  const manifest = await readAndVerifyManifest(options.backupDirectory);
-  const backupDatabasePath = await verifyFile(
-    options.backupDirectory,
-    manifest.database,
-  );
-  for (const document of manifest.documents) {
-    await verifyFile(options.backupDirectory, document);
-  }
-  verifyIntegrity(backupDatabasePath);
+  const manifest = await verifySqliteBackupDirectory(options.backupDirectory);
 
   await mkdir(path.dirname(targetDatabasePath), { recursive: true });
   await mkdir(path.dirname(options.targetDocumentsDirectory), {
@@ -429,7 +440,10 @@ export const restoreSqliteBackup = async (options: {
   let documentsPublished = false;
 
   try {
-    await copyFile(backupDatabasePath, stagingDatabase);
+    await copyFile(
+      path.join(options.backupDirectory, ...manifest.database.path.split("/")),
+      stagingDatabase,
+    );
     await chmod(stagingDatabase, 0o600);
     await mkdir(stagingDocuments, { recursive: true, mode: 0o700 });
     for (const document of manifest.documents) {
@@ -449,7 +463,9 @@ export const restoreSqliteBackup = async (options: {
       await chmod(targetPath, 0o600);
     }
 
-    await migrateSqliteDatabase(`file:${stagingDatabase}`);
+    await migrateSqliteDatabase(`file:${stagingDatabase}`, undefined, {
+      verifiedBackupDirectory: options.backupDirectory,
+    });
     checkpointDatabase(stagingDatabase);
     verifyIntegrity(stagingDatabase);
     await rename(stagingDocuments, options.targetDocumentsDirectory);

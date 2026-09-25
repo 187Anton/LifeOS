@@ -68,10 +68,9 @@ test("persistiert Hash, Sitzung, Einstellungen und Audit ohne Klartext", async (
   const storedSettings = await database.userSettings.findUniqueOrThrow({
     where: { userId: user.id },
   });
-  assert.equal(
-    storedSettings.currencyCode,
-    "EUR",
-    "das gespeicherte Bestandsfeld bleibt bis Paket 3 unverändert erhalten",
+  assert.ok(
+    !("currencyCode" in storedSettings),
+    "das entfernte Währungsfeld existiert seit Paket 3 auch nicht mehr in der Datenbank",
   );
   const audit = await database.auditEvent.findFirstOrThrow({
     where: { userId: user.id, action: "settings.updated" },

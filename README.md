@@ -9,10 +9,13 @@ Die Nutzerentscheidung vom 23.09.2026 sieht die vollständige Entfernung von
 Finanzen, Integrationen unter Einstellungen und eng verbundene Aufgaben-,
 Kalender- und Studienansichten vor. Paket 0 mit dem verbindlichen Plan und Paket
 1 mit der Einordnung der vorhandenen Integrationen unter Einstellungen sind
-umgesetzt. Paket 2 entfernt die aktive Finanzoberfläche, Finanz-API und deren
-aktive Verträge; die Schema- und Bestandsbereinigung folgt erst in Paket 3.
-Paket 2 ist bis zur Pflicht-CI und Integration noch nicht abgeschlossen. Die
-Pakete 3 bis 11 bleiben geplant und sind kein aktueller Funktionsnachweis.
+umgesetzt. Paket 2 hat die aktive Finanzoberfläche, Finanz-API und deren aktive
+Verträge entfernt und ist über PR #122 in `develop` integriert. Paket 3 entfernt
+die verbliebenen Finanzmodelle, das gespeicherte Währungsfeld und den
+Aufgabenbereich `finance` über neue versionierte Migrationen und sichert diesen
+Schritt über einen verpflichtenden Backup-Nachweis ab; es ist lokal geprüft,
+aber noch nicht in `develop` integriert. Die Pakete 4 bis 11 bleiben geplant und
+sind kein aktueller Funktionsnachweis.
 Studienmaterialien sollen lokal durchsuchbar werden; Apple
 Kalender auf Mac und iPhone soll Aufgabenplanung einschließlich Verschieben
 unterstützen. Umfang, Abnahme und Startauftrag stehen im
@@ -410,11 +413,18 @@ protokolliert noch im Klartext persistiert. Details stehen im
 **Finanzen sind kein aktiver Produktbereich mehr.** Es gibt keine Navigation,
 Finanzansicht oder registrierte Finanz-API-Route. Die bisherigen
 `/api/v1/finance`-Pfade antworten mit `404 NOT_FOUND`; eine Finanzbuchung lässt
-sich darüber nicht mehr anlegen. Bestehende Datensätze und historische
-Migrationen bleiben bis zur gesicherten Datenmigration in Paket 3 erhalten.
-Der [historische Finanzvertrag](docs/api/finance.md) dokumentiert die
-Stilllegung und den vorherigen Stand; ein bloßes App-Downgrade ist kein
-Wiederherstellungsverfahren.
+sich darüber nicht mehr anlegen. Paket 3 hat zusätzlich die Finanzmodelle, die
+Finanztabellen, die zugehörigen Enums, das gespeicherte Währungsfeld und den
+Aufgabenbereich `finance` über die versionierte Migration
+`20260925120000_remove_finance_module` entfernt; bestehende Aufgaben mit
+`area=finance` wurden datenerhaltend zu `personal` überführt. Vor jeder
+destruktiven Migration verlangt LifeOS ein geprüftes Backup: PostgreSQL nur mit
+Dump samt SHA-256, der Mac-Sidecar erzeugt selbst ein vollständiges und
+geprüftes Datenbank- und Dokumentenbackup, bevor er migriert. Der
+[historische Finanzvertrag](docs/api/finance.md) dokumentiert die Stilllegung
+und den vorherigen Stand. Die Wiederherstellung entfernter Finanzdaten ist
+danach nur aus einem vorher erstellten Backup in ein neues Ziel möglich; ein
+bloßes App-Downgrade ist kein Wiederherstellungsverfahren.
 
 Der Bereich **Fitness** verwaltet Trainingspläne, Übungen, Einheiten, Sätze und
 Gewichtseinträge vollständig lokal. Gewichte, Wiederholungen, Dauer und Distanz
@@ -488,6 +498,7 @@ npm run format:check
 npm run repo:check
 npm run security:secrets
 npm run db:verify:recovery
+npm run db:verify:finance-removal
 npm test
 ```
 
@@ -506,7 +517,7 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 | Datenbankstatus und SQL-Verbindung prüfen        | `npm run db:check`                                                         |
 | Lokale Dienste ohne Datenverlust stoppen         | `npm run db:stop`                                                          |
 | Prisma-Schema prüfen                             | `npm run db:validate`                                                      |
-| Versionierte Migrationen anwenden                | `npm run db:migrate`                                                       |
+| Versionierte Migrationen mit Backup-Nachweis     | `npm run db:migrate`                                                       |
 | Synthetische Seed-Daten anlegen                  | `npm run db:seed`                                                          |
 | Datenbank-Integrationstest ausführen             | `npm run db:test`                                                          |
 | SQLite-Spike-Schema prüfen                       | `npm run db:sqlite:validate`                                               |
@@ -539,6 +550,7 @@ Der vollständige Demo-, Backup-/Restore- und Apple-Kalender-Nachweis steht in
 | Dokumente prüfsummengeschützt sichern            | `npm run documents:backup -- …`                                            |
 | Dokumente ausschließlich in neues Ziel laden     | `npm run documents:restore -- …`                                           |
 | Migration, Backup und Restore isoliert prüfen    | `npm run db:verify:recovery`                                               |
+| Finanzentfernung mit Backup-Pflicht prüfen       | `npm run db:verify:finance-removal`                                        |
 | API lokal starten                                | `npm run api:start`                                                        |
 | API im Watch-Modus starten                       | `npm run api:dev`                                                          |
 | Weboberfläche lokal starten                      | `npm run web:dev`                                                          |

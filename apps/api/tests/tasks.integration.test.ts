@@ -132,6 +132,19 @@ test("verwaltet Aufgaben über /api/v1 mit Besitzprüfung und Audit", async (t) 
   const invalidBody = (await invalid.json()) as ApiErrorResponse;
   assert.equal(invalidBody.error.code, "VALIDATION_ERROR");
 
+  // Paket 3: Der frühere Bereich `finance` ist kein gültiger Aufgabenbereich mehr.
+  const retiredArea = await fetch(`${baseUrl}/tasks`, {
+    method: "POST",
+    headers: jsonHeaders,
+    body: JSON.stringify({
+      title: "Stillgelegter Finanzbereich",
+      area: "finance",
+    }),
+  });
+  assert.equal(retiredArea.status, 400);
+  const retiredAreaBody = (await retiredArea.json()) as ApiErrorResponse;
+  assert.equal(retiredAreaBody.error.code, "VALIDATION_ERROR");
+
   const foreignParentResponse = await fetch(`${baseUrl}/tasks`, {
     method: "POST",
     headers: jsonHeaders,

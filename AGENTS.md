@@ -308,7 +308,23 @@ CalDAV-Schnittstelle müssen jedoch kontrolliert kompatibel bleiben.
   ganztägige Ereignisse ausschließlich als `DATE`-Werte gespeichert. Ein
   Datenbank-Constraint muss beide Formen eindeutig voneinander trennen.
 - Vor jeder potenziell verlustbehafteten Migration ein überprüftes Backup
-  erstellen.
+  erstellen. `npm run db:migrate` ist der reguläre PostgreSQL-Migrationsweg und
+  migriert eine bestehende Datenbank nur nach einem geprüften
+  Custom-Format-Dump samt SHA-256: Der Wächter `scripts/migrate-database.sh`
+  nutzt den ausdrücklich übergebenen Kontext `LIFEOS_MIGRATION_BACKUP` oder
+  erzeugt selbst einen geprüften Dump unter
+  `LIFEOS_MIGRATION_BACKUP_DIRECTORY` (Standard `backups/`). Frische, leere
+  Datenbanken starten ohne unnötiges Backup; Restore- und Stagingpfade
+  übergeben ihren bereits geprüften Backup-Kontext ausdrücklich.
+- Der Mac-Sidecar darf eine destruktive SQLite-Migration niemals vor einem
+  erfolgreich erstellten und geprüften Backup anwenden. Migrationen mit der
+  Markierungsdatei `requires-backup` verlangen deshalb ein vollständiges,
+  geprüftes Datenbank- und Dokumentenbackup in einem neuen privaten Ziel
+  (`SQLITE_BACKUP_PATH`); ohne Backup-Ziel oder mit ungültigem Backup-Kontext
+  wird nicht migriert. `foreign-keys-off`-markierte Migrationen laufen bewusst
+  ohne Fremdschlüsselprüfung, damit Tabellenneubauten keine abhängigen Zeilen
+  kaskadierend löschen; danach prüft der Runner verpflichtend
+  `foreign_key_check` und `integrity_check`.
 - Keine Daten, Kalender oder Ereignisse stillschweigend löschen oder
   überschreiben.
 - API mit `/api/v1` beginnen und Breaking Changes nur über eine neue
@@ -762,3 +778,13 @@ gemeldet.
   `SpeechTranscriber` Deutsch, das deutsche Modell und ein berechtigter
   Offline-End-to-End-Nachweis fehlen jedoch; deshalb bleiben Mikrofonadapter,
   Mikrofonberechtigung und Cloud-Fallback ausgeschlossen.
+- **2026-09-25:** Paket 2 als über PR #122 integriert und mit beiden
+  Pflichtchecks bestätigt. Paket 3 entfernt Finanzmodelle, Finanz-Enums und
+  `UserSettings.currencyCode` über die versionierte Migration
+  `20260925120000_remove_finance_module` und überführt `Task.area=finance`
+  datenerhaltend zu `personal`; in SQLite werden `Task` und `UserSettings`
+  kontrolliert neu aufgebaut. Der verpflichtende Backup-Schutz
+  (`db:migrate`-Wächter mit geprüftem Dump, automatisches Sidecar-Backup vor
+  `requires-backup`-Migrationen) sowie die isolierten Nachweise
+  `db:verify:finance-removal` und der erweiterte Sidecar-Nachweis sind nach
+  PostgreSQL-, SQLite-, Import-, Recovery- und Sidecar-Tests festgehalten.

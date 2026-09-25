@@ -194,29 +194,41 @@ aktiven Profilverträgen und API-Eingaben, ohne das Bestandsfeld vor Paket 3
 zu migrieren. Kein Teilpaket gilt allein als abgeschlossenes Paket 2; DB-Reste
 bleiben bis Paket 3 erhalten.
 
-Stand 25.09.2026: 2a, 2b/1, 2b/2 und 2c/1 sind im Branch
-`feat/coherence-finance-removal` committet; 2c/2 und die Produktdokumentation
-sind lokal umgesetzt und mit den in
-[coherence-progress.md](coherence-progress.md) einzeln aufgeführten lokalen
-Prüfungen belegt. Ein Währungsschreiben an `PATCH /api/v1/settings` wird bewusst
-mit `400` abgewiesen, `UserSettings.currencyCode` bleibt bis Paket 3
-unangetastet. Paket 2 ist damit lokal geprüft, aber noch nicht über PR
-und Pflicht-CI abgenommen; Paket 3 ist nicht begonnen.
+Stand 25.09.2026: Paket 2 ist über
+[PR #122](https://github.com/187Anton/LifeOS/pull/122) vollständig in `develop`
+integriert; live bestätigt sind der Merge-Commit `ef828e7` als Spitze von
+`origin/develop` und beide Pflichtchecks (`Repository checks`,
+`Local macOS release` mit Ergebnis `pass`). Ein Währungsschreiben an
+`PATCH /api/v1/settings` wird weiterhin bewusst mit `400` abgewiesen.
 
-| Paket | Umfang und Einstieg                                                           | Erforderliche Abnahme zusätzlich zur Pflicht-CI                                                                                                                   |
-| ----- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0     | Dieser Plan, Fortschritt, Startanleitung; README-/AGENTS-Verweis              | Inhalt konsistent, Format/Links/Diff geprüft; PR nach develop                                                                                                     |
-| 1     | Einstellungen und Integrationseinbettung; Shell/App/IntegrationsWorkspace     | Desktop/mobile Navigation, Tastatur/Fokus, bestehende Integration bleibt bedienbar; drei schnelle Neuanlagen                                                      |
-| 2     | Finanzoberfläche/API/aktive Verträge entfernen; finance-Modul und Verbraucher | Keine Finanznavigation oder aktive Schreibroute, betroffene Unit/API/UI-Tests aktualisiert; DB-Reste ausdrücklich bis Paket 3                                     |
-| 3     | Finanzschema, Seeds, Import/Recovery, TaskArea bereinigen                     | PostgreSQL und SQLite: neue Installation, Altdatenupgrade, Backup/Restore, Neustart; übrige Fachobjekte erhalten                                                  |
-| 4     | Optionaler Studienmodulbezug, Verträge/API und gemeinsamer Aufgabeneditor     | Besitzerprüfung, Zuordnung/Entfernung, Projekt plus Modul, Archivfälle, Filter; Migration/Recovery beider Provider                                                |
-| 5     | Gemeinsame Kalender-/Planungsansichten                                        | Alle vier Kalenderansichten, Frist versus Zeitblock, keine Duplikate, Sommerzeit/Serien, Status und Bearbeitung aus Kalender                                      |
-| 6     | Moduldetailseite, gemeinsame Dokument-/Notizbedienung                         | Modul → Datei/Notiz/Aufgabe/Termin → Bearbeiten; echte Desktop/mobile Abläufe, Leer-/Fehlerfälle, Suche öffnet Objekt                                             |
-| 7     | PDF-Textextraktion und modulspezifische Suche                                 | Fundstellen/Seiten, geschützte/defekte/zu große Dateien, Altdateien, Suchfreigabe/Widerruf/Löschung; lokale App ohne Zusatzinstallation                           |
-| 8     | PPTX/DOCX ergänzen                                                            | Folien-/Absatzfundstellen, ZIP-Größenlimits, keine Makros/externen Abrufe; Regression PDF/Text/Notizen                                                            |
-| 9     | Verwaltete Aufgaben-CalDAV-Abbildung                                          | Erstellen/Lesen/Ändern/Löschen, ETag-Konflikt mit vollständigem Rollback, Sync-Token, UID-Stabilität, Frist/Block, Duplikatfreiheit, Bestand und Wiederverbindung |
-| 10    | Stabile Mac-/LAN-Erreichbarkeit, Einrichtung                                  | Authentifizierung/negative Netzwerkfälle, keine Web-API-Freigabe, Portkonflikt, Quit/Neustart, Mac und iPhone verschieben denselben Block                         |
-| 11    | Gesamtabnahme, dokumentierter main-PR und lokales App-Update                  | Vollständiger Studienablauf, echte Apple-Tests, geprüfte Backups/Updates und neues lokales DMG; keine öffentliche Veröffentlichung                                |
+Paket 3 ist auf dieser Basis lokal umgesetzt und geprüft. Der Ablauf ist
+sequenziell: **3/1** Backup-Schutz (PostgreSQL-Wächter `db:migrate` mit
+geprüftem Dump samt SHA-256, automatisches geprüftes Datenbank- und
+Dokumentenbackup des Mac-Sidecars vor `requires-backup`-Migrationen),
+**3/2** neue versionierte Migration `20260925120000_remove_finance_module` für
+PostgreSQL und SQLite mit datenerhaltender Überführung von `Task.area=finance`
+zu `personal` und Entfernung von `UserSettings.currencyCode`, der drei
+Finanzmodelle und der zugehörigen Enums, **3/3** Bereinigung der Verbraucher
+(Seeds, Import, Kompatibilitätsclient, Recovery-Snapshot, Verträge, Aufgaben-API,
+Web-Hilfen, Sidecar-Nachweis) und **3/4** Migrationstests und Dokumentation.
+Alte Migrationen, historische Finanznachweise und der historische
+Finanzvertrag bleiben unverändert erhalten. Paket 3 ist damit lokal geprüft,
+aber noch nicht über PR und Pflicht-CI abgenommen; Paket 4 ist nicht begonnen.
+
+| Paket | Umfang und Einstieg                                                           | Erforderliche Abnahme zusätzlich zur Pflicht-CI                                                                                                                                                     |
+| ----- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0     | Dieser Plan, Fortschritt, Startanleitung; README-/AGENTS-Verweis              | Inhalt konsistent, Format/Links/Diff geprüft; PR nach develop                                                                                                                                       |
+| 1     | Einstellungen und Integrationseinbettung; Shell/App/IntegrationsWorkspace     | Desktop/mobile Navigation, Tastatur/Fokus, bestehende Integration bleibt bedienbar; drei schnelle Neuanlagen                                                                                        |
+| 2     | Finanzoberfläche/API/aktive Verträge entfernen; finance-Modul und Verbraucher | Keine Finanznavigation oder aktive Schreibroute, betroffene Unit/API/UI-Tests aktualisiert; DB-Reste ausdrücklich bis Paket 3                                                                       |
+| 3     | Finanzschema, Seeds, Import/Recovery, TaskArea bereinigen                     | PostgreSQL und SQLite: neue Installation, Altdatenupgrade, geprüfter Dump/Restore samt SHA-256, Restore nur in neue Ziele; übrige Fachobjekte erhalten; Sidecar migriert erst nach geprüftem Backup |
+| 4     | Optionaler Studienmodulbezug, Verträge/API und gemeinsamer Aufgabeneditor     | Besitzerprüfung, Zuordnung/Entfernung, Projekt plus Modul, Archivfälle, Filter; Migration/Recovery beider Provider                                                                                  |
+| 5     | Gemeinsame Kalender-/Planungsansichten                                        | Alle vier Kalenderansichten, Frist versus Zeitblock, keine Duplikate, Sommerzeit/Serien, Status und Bearbeitung aus Kalender                                                                        |
+| 6     | Moduldetailseite, gemeinsame Dokument-/Notizbedienung                         | Modul → Datei/Notiz/Aufgabe/Termin → Bearbeiten; echte Desktop/mobile Abläufe, Leer-/Fehlerfälle, Suche öffnet Objekt                                                                               |
+| 7     | PDF-Textextraktion und modulspezifische Suche                                 | Fundstellen/Seiten, geschützte/defekte/zu große Dateien, Altdateien, Suchfreigabe/Widerruf/Löschung; lokale App ohne Zusatzinstallation                                                             |
+| 8     | PPTX/DOCX ergänzen                                                            | Folien-/Absatzfundstellen, ZIP-Größenlimits, keine Makros/externen Abrufe; Regression PDF/Text/Notizen                                                                                              |
+| 9     | Verwaltete Aufgaben-CalDAV-Abbildung                                          | Erstellen/Lesen/Ändern/Löschen, ETag-Konflikt mit vollständigem Rollback, Sync-Token, UID-Stabilität, Frist/Block, Duplikatfreiheit, Bestand und Wiederverbindung                                   |
+| 10    | Stabile Mac-/LAN-Erreichbarkeit, Einrichtung                                  | Authentifizierung/negative Netzwerkfälle, keine Web-API-Freigabe, Portkonflikt, Quit/Neustart, Mac und iPhone verschieben denselben Block                                                           |
+| 11    | Gesamtabnahme, dokumentierter main-PR und lokales App-Update                  | Vollständiger Studienablauf, echte Apple-Tests, geprüfte Backups/Updates und neues lokales DMG; keine öffentliche Veröffentlichung                                                                  |
 
 Für neue Datenfelder beide Prisma-Provider, Verträge und die vorhandenen
 Migration-, Import/Transfer-, Backup/Restore-, Recovery-, Runtime- und

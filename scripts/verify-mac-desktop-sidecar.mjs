@@ -1,10 +1,19 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
+
+import { createHash, randomBytes } from "node:crypto";
 
 import BetterSqlite3 from "better-sqlite3";
 
@@ -76,6 +85,7 @@ const startSidecar = async (databasePath, port) => {
       WEB_DIST_PATH: path.join(resources, "web"),
       SQLITE_MIGRATIONS_PATH: path.join(resources, "sqlite-migrations"),
       STORAGE_PATH: path.join(path.dirname(databasePath), "documents"),
+      SQLITE_BACKUP_PATH: path.join(path.dirname(databasePath), "backups"),
       LOG_LEVEL: "error",
       SHUTDOWN_TIMEOUT_MS: "1000",
       SESSION_TTL_HOURS: "1",
@@ -555,8 +565,8 @@ try {
   const database = new BetterSqlite3(databasePath, { readonly: true });
   assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
   assert.equal(database.pragma("journal_mode", { simple: true }), "wal");
-  // Die historische Finanzmigration bleibt bis Paket 3 erwartet; 2b/2 entfernt
-  // bewusst keinen Schemarest und keine Altdaten.
+  // Paket 3 entfernt die historische Finanzmigration nicht, sondern ergänzt sie
+  // um die bereinigende Migration; der Pfad bleibt vollständig nachvollziehbar.
   const applied = database
     .prepare('SELECT "name" FROM "_lifeos_migrations" ORDER BY "name"')
     .all()
@@ -573,7 +583,17 @@ try {
     "20260820210000_external_caldav",
     "20260820220000_github_integration",
     "20260921190000_grocery_lists",
+    "20260925120000_remove_finance_module",
   ]);
+  assert.equal(
+    database
+      .prepare(
+        `SELECT COUNT(*) AS "count" FROM "sqlite_master" WHERE "type" = 'table' AND "name" LIKE 'Finance%'`,
+      )
+      .get().count,
+    0,
+    "Paket 3 entfernt die Finanztabellen aus der aktiven App-Datenbank",
+  );
   const identityBeforeRestart = database
     .prepare(
       'SELECT u."id" AS "userId", c."id" AS "calendarId", c."syncToken", e."uid", e."etag", e."syncVersion" FROM "User" u JOIN "Calendar" c ON c."userId" = u."id" JOIN "CalendarEvent" e ON e."calendarId" = c."id" WHERE e."uid" = ?',
@@ -588,17 +608,19 @@ try {
     documents: database
       .prepare('SELECT COUNT(*) AS count FROM "Document"')
       .get().count,
-    financeTransactions: database
-      .prepare('SELECT COUNT(*) AS count FROM "FinanceTransaction"')
+    financeTables: database
+      .prepare(
+        `SELECT COUNT(*) AS count FROM "sqlite_master" WHERE "type" = 'table' AND "name" LIKE 'Finance%'`,
+      )
       .get().count,
     fitnessSessions: database
       .prepare('SELECT COUNT(*) AS count FROM "FitnessSession"')
       .get().count,
   };
   assert.equal(
-    countsBeforeRestart.financeTransactions,
+    countsBeforeRestart.financeTables,
     0,
-    "Ohne aktive Finanzroute darf der synthetische Sidecar-Lauf keine Finanzbuchung anlegen",
+    "Seit Paket 3 existieren keine Finanztabellen mehr im aktiven Schema",
   );
   const databaseBytes = await readFile(databasePath);
   assert.equal(databaseBytes.includes(Buffer.from(localPassword)), false);
@@ -694,8 +716,10 @@ try {
     documents: restartedDatabase
       .prepare('SELECT COUNT(*) AS count FROM "Document"')
       .get().count,
-    financeTransactions: restartedDatabase
-      .prepare('SELECT COUNT(*) AS count FROM "FinanceTransaction"')
+    financeTables: restartedDatabase
+      .prepare(
+        `SELECT COUNT(*) AS count FROM "sqlite_master" WHERE "type" = 'table' AND "name" LIKE 'Finance%'`,
+      )
       .get().count,
     fitnessSessions: restartedDatabase
       .prepare('SELECT COUNT(*) AS count FROM "FitnessSession"')
@@ -703,15 +727,196 @@ try {
   };
   restartedDatabase.close();
   assert.equal(
-    countsAfterRestart.financeTransactions,
+    countsAfterRestart.financeTables,
     0,
-    "Nach dem Neustart darf keine Finanzbuchung entstanden sein",
+    "Auch nach dem Neustart bleibt die Finanzentfernung bestehen",
   );
   assert.deepEqual(identityAfterRestart, identityBeforeRestart);
   assert.deepEqual(countsAfterRestart, countsBeforeRestart);
 
+  // Paket 3: Der gebündelte Sidecar darf die destruktive SQLite-Migration nur
+  // nach einem erfolgreich erstellten und geprüften vollständigen Backup
+  // anwenden. Der Nachweis startet deshalb gegen einen synthetischen
+  // Vor-Paket-3-Stand mit Finanzobjekten und einer Aufgabe mit area=finance.
+  const upgradeDirectory = path.join(directory, "upgrade");
+  const upgradeDataDirectory = path.join(upgradeDirectory, "data");
+  const upgradeDatabasePath = path.join(upgradeDataDirectory, "lifeos.sqlite");
+  const upgradeDocuments = path.join(upgradeDataDirectory, "documents");
+  const upgradeBackups = path.join(upgradeDataDirectory, "backups");
+  const upgradeUserId = "00000000-0000-4000-8000-000000000801";
+  const upgradeTaskId = "00000000-0000-4000-8000-000000000802";
+  const upgradeCategoryId = "00000000-0000-4000-8000-000000000803";
+  const upgradeDocumentName = "altbestand-vor-paket-3.txt";
+  const upgradeDocumentContent = "Synthetischer Dokumentbestand vor Paket 3.\n";
+  await mkdir(path.join(upgradeDirectory, "data"), {
+    recursive: true,
+    mode: 0o700,
+  });
+  await mkdir(path.join(upgradeDocuments, upgradeUserId), {
+    recursive: true,
+    mode: 0o700,
+  });
+  await writeFile(
+    path.join(upgradeDocuments, upgradeUserId, upgradeDocumentName),
+    upgradeDocumentContent,
+    { mode: 0o600 },
+  );
+
+  const legacyMigrations = await readdir(
+    path.join(resources, "sqlite-migrations"),
+    { withFileTypes: true },
+  );
+  const legacyMigrationNames = legacyMigrations
+    .filter(
+      (entry) =>
+        entry.isDirectory() &&
+        entry.name !== "20260925120000_remove_finance_module",
+    )
+    .map((entry) => entry.name)
+    .sort();
+  assert.equal(legacyMigrationNames.length, 11);
+  const upgradeDatabase = new BetterSqlite3(upgradeDatabasePath);
+  try {
+    upgradeDatabase.pragma("foreign_keys = ON");
+    upgradeDatabase.exec(
+      `CREATE TABLE IF NOT EXISTS "_lifeos_migrations" ("name" TEXT NOT NULL PRIMARY KEY, "checksum" TEXT NOT NULL, "appliedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP);`,
+    );
+    for (const name of legacyMigrationNames) {
+      const sql = await readFile(
+        path.join(resources, "sqlite-migrations", name, "migration.sql"),
+        "utf8",
+      );
+      upgradeDatabase.exec(sql);
+      upgradeDatabase
+        .prepare(
+          'INSERT INTO "_lifeos_migrations" ("name", "checksum") VALUES (?, ?)',
+        )
+        .run(name, createHash("sha256").update(sql, "utf8").digest("hex"));
+    }
+    upgradeDatabase.exec(`
+      INSERT INTO "User" ("id", "externalId", "displayName", "updatedAt") VALUES ('${upgradeUserId}', 'synthetic-upgrade', 'Synthetische Upgrade-Person', CURRENT_TIMESTAMP);
+      INSERT INTO "UserSettings" ("userId", "timezone", "currencyCode", "locale", "weekStartsOn", "updatedAt") VALUES ('${upgradeUserId}', 'Europe/Berlin', 'CHF', 'de-DE', 0, CURRENT_TIMESTAMP);
+      INSERT INTO "Task" ("id", "userId", "title", "status", "priority", "area", "tags", "updatedAt") VALUES ('${upgradeTaskId}', '${upgradeUserId}', 'Synthetische Finanzaufgabe', 'open', 'high', 'finance', '["synthetisch"]', CURRENT_TIMESTAMP);
+      INSERT INTO "FinanceCategory" ("id", "userId", "name", "kind", "updatedAt") VALUES ('${upgradeCategoryId}', '${upgradeUserId}', 'Synthetische Kategorie', 'expense', CURRENT_TIMESTAMP);
+      INSERT INTO "FinanceTransaction" ("id", "userId", "categoryId", "kind", "bookingDate", "amountMinor", "currencyCode", "updatedAt") VALUES ('00000000-0000-4000-8000-000000000804', '${upgradeUserId}', '${upgradeCategoryId}', 'expense', '2032-09-30', 4321, 'CHF', CURRENT_TIMESTAMP);
+      INSERT INTO "FinanceBudget" ("id", "userId", "categoryId", "period", "periodStart", "amountMinor", "currencyCode", "warningThresholdPercent", "updatedAt") VALUES ('00000000-0000-4000-8000-000000000805', '${upgradeUserId}', '${upgradeCategoryId}', 'month', '2032-09-01', 50000, 'CHF', 80, CURRENT_TIMESTAMP);
+    `);
+  } finally {
+    upgradeDatabase.close();
+  }
+
+  running = await startSidecar(upgradeDatabasePath, await reservePort());
+  await stopSidecar(running.child, running.output);
+  running = undefined;
+
+  const upgradeBackupEntries = await readdir(upgradeBackups);
+  assert.equal(upgradeBackupEntries.length, 1);
+  const upgradeBackupDirectory = path.join(
+    upgradeBackups,
+    upgradeBackupEntries[0],
+  );
+  const upgradeManifest = JSON.parse(
+    await readFile(path.join(upgradeBackupDirectory, "manifest.json"), "utf8"),
+  );
+  assert.equal(upgradeManifest.formatVersion, 1);
+  const upgradeBackupDatabase = new BetterSqlite3(
+    path.join(upgradeBackupDirectory, upgradeManifest.database.path),
+    { readonly: true },
+  );
+  try {
+    assert.equal(
+      upgradeBackupDatabase
+        .prepare(
+          `SELECT COUNT(*) AS "count" FROM "sqlite_master" WHERE "type" = 'table' AND "name" LIKE 'Finance%'`,
+        )
+        .get().count,
+      3,
+      "Das Vor-Migrationsbackup enthält die vollständigen Finanzobjekte",
+    );
+    assert.equal(
+      upgradeBackupDatabase
+        .prepare('SELECT "area" FROM "Task" WHERE "id" = ?')
+        .get(upgradeTaskId).area,
+      "finance",
+      "Das Vor-Migrationsbackup enthält den unveränderten Aufgabenbereich",
+    );
+    assert.equal(
+      upgradeBackupDatabase
+        .prepare('SELECT "currencyCode" FROM "UserSettings" WHERE "userId" = ?')
+        .get(upgradeUserId).currencyCode,
+      "CHF",
+    );
+  } finally {
+    upgradeBackupDatabase.close();
+  }
+  assert.ok(
+    upgradeManifest.documents.some((document) =>
+      document.path.endsWith(`${upgradeUserId}/${upgradeDocumentName}`),
+    ),
+  );
+  assert.equal(upgradeManifest.documents.length, 1);
+
+  const migratedDatabase = new BetterSqlite3(upgradeDatabasePath, {
+    readonly: true,
+  });
+  try {
+    assert.equal(
+      migratedDatabase.pragma("integrity_check", { simple: true }),
+      "ok",
+    );
+    assert.equal(
+      migratedDatabase.pragma("foreign_key_check").length,
+      0,
+      "Der Tabellenneubau hinterlässt keine ungültigen Fremdschlüssel",
+    );
+    assert.equal(
+      migratedDatabase
+        .prepare('SELECT "area" FROM "Task" WHERE "id" = ?')
+        .get(upgradeTaskId).area,
+      "personal",
+      "Die Finanzaufgabe wurde datenerhaltend zu personal überführt",
+    );
+    assert.equal(
+      migratedDatabase
+        .prepare('SELECT "title" FROM "Task" WHERE "id" = ?')
+        .get(upgradeTaskId).title,
+      "Synthetische Finanzaufgabe",
+    );
+    assert.equal(
+      migratedDatabase
+        .prepare(
+          `SELECT COUNT(*) AS "count" FROM "sqlite_master" WHERE "type" = 'table' AND "name" LIKE 'Finance%'`,
+        )
+        .get().count,
+      0,
+    );
+    assert.equal(
+      migratedDatabase
+        .prepare(
+          `SELECT COUNT(*) AS "count" FROM pragma_table_info('UserSettings') WHERE "name" = 'currencyCode'`,
+        )
+        .get().count,
+      0,
+    );
+    assert.equal(
+      migratedDatabase
+        .prepare('SELECT "timezone" FROM "UserSettings" WHERE "userId" = ?')
+        .get(upgradeUserId).timezone,
+      "Europe/Berlin",
+    );
+  } finally {
+    migratedDatabase.close();
+  }
+  assert.equal(
+    await readFile(
+      path.join(upgradeDocuments, upgradeUserId, upgradeDocumentName),
+      "utf8",
+    ),
+    upgradeDocumentContent,
+  );
+
   console.info(
-    `Gebündelter Sidecar mit Node ${manifest.nodeVersion} prüfte die synthetische 0.6-Produktdemo ohne aktive Finanzroute (acht alte Finanzpfade: 404 NOT_FOUND), startete zweimal ohne Homebrew-Pfad und erhielt Fach- sowie Kalenderidentitäten.`,
+    `Gebündelter Sidecar mit Node ${manifest.nodeVersion} prüfte die synthetische 0.6-Produktdemo ohne aktive Finanzroute (acht alte Finanzpfade: 404 NOT_FOUND), startete zweimal ohne Homebrew-Pfad, erhielt Fach- sowie Kalenderidentitäten und migrierte einen Vor-Paket-3-Stand erst nach geprüftem Vor-Migrationsbackup.`,
   );
 } finally {
   if (running && running.exitCode === null) running.kill("SIGTERM");

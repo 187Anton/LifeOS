@@ -16,14 +16,7 @@ const taskStatus = z.enum([
   "cancelled",
 ]);
 const taskPriority = z.enum(["low", "medium", "high", "critical"]);
-const taskArea = z.enum([
-  "study",
-  "work",
-  "projects",
-  "finance",
-  "fitness",
-  "personal",
-]);
+const taskArea = z.enum(["study", "work", "projects", "fitness", "personal"]);
 const timezone = z
   .string()
   .trim()
