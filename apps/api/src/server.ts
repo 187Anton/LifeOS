@@ -86,10 +86,22 @@ const main = async (): Promise<void> => {
   const config = parseConfig();
   const logger = new JsonLogger(config.logLevel);
   if (config.databaseProvider === "sqlite") {
-    await migrateSqliteDatabase(
+    const migration = await migrateSqliteDatabase(
       config.databaseUrl,
       config.sqliteMigrationsPath,
+      {
+        documentsDirectory: config.storagePath,
+        ...(config.sqliteBackupPath
+          ? { backupDirectory: config.sqliteBackupPath }
+          : {}),
+        logger: (message: string) => logger.info(message),
+      },
     );
+    if (migration.preMigrationBackup) {
+      logger.info(
+        `Vor-Migrationsbackup geprüft: ${migration.preMigrationBackup}`,
+      );
+    }
   }
   const database = createDatabaseClient(config.databaseUrl);
   const profileRepository = new PrismaProfileRepository(database);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -74,6 +74,7 @@ const startAppSidecar = async (appPath, databasePath, documentsPath, port) => {
       WEB_DIST_PATH: path.join(resources, "web"),
       SQLITE_MIGRATIONS_PATH: path.join(resources, "sqlite-migrations"),
       STORAGE_PATH: documentsPath,
+      SQLITE_BACKUP_PATH: path.join(path.dirname(databasePath), "backups"),
       LOG_LEVEL: "error",
       SHUTDOWN_TIMEOUT_MS: "1000",
       SESSION_TTL_HOURS: "1",
@@ -236,6 +237,26 @@ try {
   };
   await stopSidecar(running);
   running = undefined;
+  // Paket 3: Der Vor-Paket-3-Stand enthält Finanzobjekte, eine gespeicherte
+  // Währung und eine Aufgabe mit area=finance. Diese Daten stammen bewusst
+  // nicht aus der API, weil der Bereich seit Paket 2 kein Vertragsbestandteil
+  // mehr ist.
+  const legacyDatabase = new BetterSqlite3(activeDatabase);
+  try {
+    const legacyUser = legacyDatabase
+      .prepare('SELECT "id" FROM "User" LIMIT 1')
+      .get();
+    assert.ok(legacyUser);
+    const legacyUserId = legacyUser.id;
+    legacyDatabase.exec(`
+      UPDATE "Task" SET "area" = 'finance' WHERE "id" = '${identifiers.taskId}';
+      INSERT INTO "FinanceCategory" ("id", "userId", "name", "kind", "updatedAt") VALUES ('00000000-0000-4000-8000-000000000901', '${legacyUserId}', 'Synthetische Kategorie', 'expense', CURRENT_TIMESTAMP);
+      INSERT INTO "FinanceTransaction" ("id", "userId", "categoryId", "kind", "bookingDate", "amountMinor", "currencyCode", "updatedAt") VALUES ('00000000-0000-4000-8000-000000000902', '${legacyUserId}', '00000000-0000-4000-8000-000000000901', 'expense', '2034-08-31', 5678, 'EUR', CURRENT_TIMESTAMP);
+      INSERT INTO "FinanceBudget" ("id", "userId", "categoryId", "period", "periodStart", "amountMinor", "currencyCode", "warningThresholdPercent", "updatedAt") VALUES ('00000000-0000-4000-8000-000000000903', '${legacyUserId}', '00000000-0000-4000-8000-000000000901', 'month', '2034-08-01', 90000, 'EUR', 80, CURRENT_TIMESTAMP);
+    `);
+  } finally {
+    legacyDatabase.close();
+  }
   const baselineSnapshot = snapshot(activeDatabase, eventUid);
 
   running = await startAppSidecar(
@@ -247,6 +268,79 @@ try {
   await verifyData(running.baseUrl, password, identifiers);
   const updateSnapshot = snapshot(activeDatabase, eventUid);
   assert.deepEqual(updateSnapshot, baselineSnapshot);
+
+  // Paket 3: Der Update-Sidecar muss vor der destruktiven Migration selbst ein
+  // vollständiges, geprüftes Vor-Migrationsbackup erzeugt haben.
+  const appBackupRoot = path.join(path.dirname(activeDatabase), "backups");
+  const appBackupEntries = await readdir(appBackupRoot);
+  assert.equal(
+    appBackupEntries.length,
+    1,
+    "Der Update-Sidecar erzeugt genau ein Vor-Migrationsbackup",
+  );
+  const preMigrationBackup = path.join(appBackupRoot, appBackupEntries[0]);
+  const preMigrationManifest = JSON.parse(
+    await readFile(path.join(preMigrationBackup, "manifest.json"), "utf8"),
+  );
+  const preMigrationState = new BetterSqlite3(
+    path.join(preMigrationBackup, preMigrationManifest.database.path),
+    { readonly: true },
+  );
+  try {
+    assert.equal(
+      preMigrationState
+        .prepare(
+          `SELECT COUNT(*) AS "count" FROM "sqlite_master" WHERE "type" = 'table' AND "name" LIKE 'Finance%'`,
+        )
+        .get().count,
+      3,
+      "Das Vor-Migrationsbackup enthält die Finanzobjekte",
+    );
+    assert.equal(
+      preMigrationState
+        .prepare('SELECT "currencyCode" FROM "UserSettings"')
+        .get().currencyCode,
+      "EUR",
+    );
+    assert.equal(
+      preMigrationState
+        .prepare('SELECT "area" FROM "Task" WHERE "id" = ?')
+        .get(identifiers.taskId).area,
+      "finance",
+    );
+  } finally {
+    preMigrationState.close();
+  }
+  const migratedState = new BetterSqlite3(activeDatabase, { readonly: true });
+  try {
+    assert.equal(
+      migratedState
+        .prepare(
+          `SELECT COUNT(*) AS "count" FROM "sqlite_master" WHERE "type" = 'table' AND "name" LIKE 'Finance%'`,
+        )
+        .get().count,
+      0,
+      "Der aktive Stand enthält keine Finanzobjekte mehr",
+    );
+    assert.equal(
+      migratedState
+        .prepare(
+          `SELECT COUNT(*) AS "count" FROM pragma_table_info('UserSettings') WHERE "name" = 'currencyCode'`,
+        )
+        .get().count,
+      0,
+    );
+    assert.equal(
+      migratedState
+        .prepare('SELECT "area" FROM "Task" WHERE "id" = ?')
+        .get(identifiers.taskId).area,
+      "personal",
+      "Die Finanzaufgabe wurde datenerhaltend zu personal überführt",
+    );
+    assert.equal(migratedState.pragma("foreign_key_check").length, 0);
+  } finally {
+    migratedState.close();
+  }
   await createSqliteBackup({
     databaseUrl: `file:${activeDatabase}`,
     documentsDirectory: activeDocuments,

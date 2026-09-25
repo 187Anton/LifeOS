@@ -58,15 +58,6 @@ const statusValues: TaskStatus[] = [
   "cancelled",
 ];
 const priorityValues: TaskPriority[] = ["low", "medium", "high", "critical"];
-/**
- * Auswählbare Bereiche. Ein bereits gesetzter Altbestand wie `area=finance`
- * bleibt sichtbar, damit keine bestehende Aufgabe beim Bearbeiten ihren
- * Bereich verliert; Paket 3 überführt diese Werte datenerhaltend.
- */
-const areaOptions = (current: TaskArea): TaskArea[] =>
-  selectableTaskAreas.includes(current)
-    ? selectableTaskAreas
-    : [current, ...selectableTaskAreas];
 const transitions: Record<TaskStatus, TaskStatus[]> = {
   open: ["open", "in_progress", "blocked", "done", "cancelled"],
   in_progress: ["in_progress", "open", "blocked", "done", "cancelled"],
@@ -291,7 +282,7 @@ export const TaskForm = ({
             value={draft.area}
             onChange={(input) => update("area", input.target.value as TaskArea)}
           >
-            {areaOptions(draft.area).map((area) => (
+            {selectableTaskAreas.map((area) => (
               <option key={area} value={area}>
                 {taskAreaLabels[area]}
               </option>

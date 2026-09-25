@@ -5,24 +5,43 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Aktuelles Paket
 
-- Paket: **2 – Finanzfunktionen entfernen**, Teilauftrag **2c/2 – finanzexklusive
-  Profileinstellung entfernen** lokal umgesetzt und geprüft. Die
-  Integrationsabnahme von Paket 2 steht noch aus: Commit, PR,
-  Pflicht-CI und Merge fehlen. 2a, 2b/1, 2b/2 und 2c/1 sind committet;
-  Produktdokumentation und 2c/2 sind ungecommittet. Paket 3 ist nicht begonnen.
-- Branch: `feat/coherence-finance-removal`.
-- Basis: `22d5ba6b9fdd005baf973a192c7fb082deac621b` (`origin/develop`).
-- Worktree: `/private/tmp/lifeos-coherence-finance-removal`.
-- Delegationsbezug: `coherence-p2a-deepseek-20260924`, Hermes
-  `deleg_b0a1e32e` / `sa-0-80a1e76a`; ein DeepSeek-Subagent beendete
-  seinen Lauf am Limit von 40 Arbeitsschritten. Keine weitere Delegation aktiv.
-- Vor Start der Codeänderung live geprüft: Worktree auf unverändertem Basisstand
-  `22d5ba6`, keine eigenen Commits; ungecommittet waren die Planerweiterung des
-  Koordinators (`docs/coherence-implementation-plan.md`, Teilpakete 2a/2b/2c)
-  und die Vorgängerfassung dieser Datei. Beide bleiben erhalten.
-- Erledigt: AGENTS.md, README, Leitfaden, Plan- und Fortschrittsdatei im
-  Worktree gelesen; alle Finanzbezüge in `apps/web` erfasst; Abhängigkeiten im
-  Worktree mit `npm ci` installiert (kein Eingriff in den Hauptcheckout).
+- Paket: **3 – Finanzschema, Seeds, Import/Recovery und TaskArea bereinigen**
+  lokal umgesetzt und geprüft. Die Integrationsabnahme steht noch aus: Commit,
+  PR, Pflicht-CI und Merge fehlen.
+- Vorgänger: **Paket 2** ist über
+  [PR #122](https://github.com/187Anton/LifeOS/pull/122) nach `develop`
+  integriert; live bestätigt wurden der Merge-Commit
+  `ef828e7a9d4e39dbbea9d2415b009ce08d181d24` als `origin/develop`-Spitze und
+  beide Pflichtchecks `Repository checks` und `Local macOS release` mit
+  Ergebnis `pass`. Der frühere Worktree
+  `/private/tmp/lifeos-coherence-finance-removal` und der Hauptcheckout wurden
+  nicht verändert.
+- Branch: `feat/coherence-finance-schema`.
+- Basis: `ef828e7a9d4e39dbbea9d2415b009ce08d181d24` (`origin/develop`).
+- Worktree: `/private/tmp/lifeos-coherence-finance-schema`.
+- Delegationsbezug: `coherence-p3-deepseek-20260925` (alleiniger Worker, keine
+  Subagenten).
+- Persönliche Daten: Antons Entwicklungsdatenbank blieb unberührt. Der lokale
+  Compose-Container dieses Worktrees band PostgreSQL an `127.0.0.1:5433` mit
+  eigenem, leerem Volume; alle Migrationen, Seeds, Dumps und Restores liefen
+  ausschließlich gegen synthetische Datenbanken (`lifeos`,
+  `lifeos_p3_upgrade_*`, `lifeos_restore_p3_*`). Die installierte App und der
+  Hauptcheckout wurden nicht angefasst.
+- Geänderter Umfang: neue versionierte Migration
+  `20260925120000_remove_finance_module` für PostgreSQL und SQLite,
+  `Task.area=finance` → `personal`, Entfernung von `UserSettings.currencyCode`,
+  der drei Finanzmodelle und der zugehörigen Enums, Bereinigung von Seeds,
+  Import, Kompatibilitätsclient, Recovery-Snapshot, Verträgen, Aufgaben-API,
+  Web-Hilfen und Sidecar-Nachweis sowie der verpflichtende Backup-Schutz
+  (`scripts/migrate-database.sh` mit geprüftem Dump; automatisches, geprüftes
+  Datenbank- und Dokumentenbackup des Sidecars vor `requires-backup`-
+  Migrationen).
+- Offen bis zur Abnahme: Commit, Push, PR nach `develop`, Pflicht-CI, Merge und
+  die visuelle Sichtprüfung der gerenderten Leitfadenseiten.
+- Paket 4 ist nicht begonnen.
+
+## Paket 2 – lokale Nachweise (historisch, integriert über PR #122)
+
 - Geplanter 2a-Umfang (vor der Codeänderung): `View`-Wert `finance` und beide
   Navigationseinträge (Desktop und Mobil) entfernen, Finanzansicht
   (`FinanceWorkspace.tsx`) und `FinanceIcon` löschen, Finanzoptionen in der
@@ -293,6 +312,78 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   Paket 3 (Schema, Seeds, TaskArea) erst danach; kein Push, PR oder Merge ist
   bereits erfolgt.
 
+## Paket 3 – Umsetzung und Nachweise (25.09.2026)
+
+### Schema und Migrationen
+
+- Neue PostgreSQL-Migration `20260925120000_remove_finance_module`: sie überführt
+  zuerst `Task.area='finance'` datenerhaltend zu `personal`, baut dann den
+  `TaskArea`-Typ ohne `finance` neu auf, entfernt `UserSettings.currencyCode`,
+  die drei Finanzmodelle und die vier ausschließlich zugehörigen Finanz-Enums.
+  Alle älteren Migrationen bleiben unverändert.
+- Neue prüfsummengeschützte SQLite-Migration mit demselben Namen: kontrollierter
+  Tabellenneubau von `Task` (Bereichs-CHECK ohne `finance`; alle Spalten, alle
+  sechs Indizes einschließlich `Task_id_userId_key` und beide Tag-Trigger
+  erhalten) und von `UserSettings` (ohne `currencyCode`), anschließend Entfernen
+  der drei Finanztabellen. Der Runner prüft danach verpflichtend
+  `foreign_key_check` und `integrity_check`.
+- Zwei Migrationsmarker steuern den Rahmen: `requires-backup` (Pflicht zum
+  Vor-Migrationsbackup) und `foreign-keys-off` (Tabellenneubau ohne
+  kaskadierende Löschung, danach Fremdschlüsselprüfung).
+
+### Backup-Schutz vor der destruktiven Migration
+
+- PostgreSQL: `npm run db:migrate` läuft über `scripts/migrate-database.sh` und
+  migriert eine bestehende Datenbank nur mit geprüftem Dump samt SHA-256; fehlt
+  der Nachweis oder schlägt die Dumpprüfung fehl, bricht der Lauf ab. Frische
+  Datenbanken migrieren ohne unnötiges Backup. Restore- und Stagingpfade
+  übergeben ihren bereits geprüften Backup-Kontext ausdrücklich über
+  `LIFEOS_MIGRATION_BACKUP`.
+- SQLite und Mac-App: Der Sidecar erzeugt vor einer mit `requires-backup`
+  markierten Migration automatisch ein vollständiges, geprüftes Backup aus
+  Datenbank und Dokumenten in ein neues Ziel unterhalb von
+  `SQLITE_BACKUP_PATH`. Ohne Backup-Ziel oder bei fehlgeschlagener Prüfung wird
+  nicht migriert; frisch leere Installationen starten ohne Backup. Tauri legt
+  dafür sein privates `backups`-Verzeichnis an und übergibt es an den Sidecar.
+- Verbleibende Finanzdaten sind nur aus einem vor der Migration erstellten
+  Backup in ein neues Ziel wiederherstellbar; ein App-Downgrade ist kein
+  Rollback.
+
+### Bereinigte aktive Verbraucher
+
+PostgreSQL- und SQLite-Seeds samt synthetischer Fixture, Kompatibilitätsclient,
+PostgreSQL-zu-SQLite-Import, Recovery-Snapshot, Sidecar- und Update-Nachweise,
+Verträge, Aufgaben-API und Web-Hilfen setzen keine aktiven Finanzmodelle, keine
+gespeicherte Währung und kein `TaskArea=finance` mehr voraus. Die alten
+`/api/v1/finance`-Pfade bleiben als negative `404`-Prüfung bestehen.
+
+### Nachweise
+
+- Prisma-Validierung und Client-Generierung für PostgreSQL und SQLite.
+- Frische PostgreSQL-Installation mit allen 22 Migrationen; frischer
+  SQLite-Lauf mit allen 12 Migrationen und wiederholtem Migrationslauf.
+- PostgreSQL-Upgrade aus einem über die echten alten Migrationen aufgebauten
+  Vor-Paket-3-Stand mit Finanzdaten und `Task.area=finance`
+  (`npm run db:verify:finance-removal`): Aufgabe wird `personal`, ihr übriger
+  Datensatz sowie Projekt, Einstellungen und Dokument bleiben unverändert,
+  Finanztabellen und Währungsfeld entfallen, `preserved_snapshot` ist identisch.
+- Geprüfter Dump, Restore in eine neue Datenbank und anschließende Migration
+  über `scripts/restore-database.sh` mit ausdrücklich übergebenem
+  Backup-Kontext.
+- SQLite: frische Installation ohne Backup, Upgrade mit automatisch erzeugtem
+  und geprüftem Backup, Abbruch ohne Backup-Ziel sowie Akzeptanz und Ablehnung
+  eines ausdrücklich übergebenen Backup-Kontexts.
+- `npm run db:verify:recovery`, `npm run db:sqlite:test`,
+  `npm run db:sqlite:verify:recovery`, `npm run test:sqlite:api`,
+  `npm run verify:sqlite:api-runtime`, API-, Datenbank- und Web-Unit-Tests,
+  Playwright für Desktop und Smartphone, `npm run desktop:verify:sidecar`,
+  Update-/Rollback-Nachweis mit dem Basis-DMG aus `origin/develop`,
+  `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run build`,
+  `npm run test:repo`, `npm run security:secrets` und `git diff --check`.
+- Leitfaden mit dem gebündelten Dokumenten-Renderer gerendert (26 Seiten);
+  inhaltliche Prüfung der geänderten Passagen, visuelle Seitenprüfung bleibt
+  mangels Bildanalyse-Werkzeug eingeschränkt.
+
 ## Verifizierter Vorgängerstand
 
 - Paket: **1 – Einstellungen und Integrationseinbettung**.
@@ -328,8 +419,8 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 | ----------------------------- | ------------------------------------ |
 | 0 Plan und Übergabe           | Integriert über PR #120              |
 | 1 Einstellungen/Integrationen | Integriert über PR #121              |
-| 2 Finanzfunktionen entfernen  | Lokal geprüft (2a–2c/2); PR/CI offen |
-| 3 Finanzdatenmigration        | Nicht begonnen                       |
+| 2 Finanzfunktionen entfernen  | Integriert über PR #122              |
+| 3 Finanzdatenmigration        | Lokal geprüft (Paket 3); PR/CI offen |
 | 4 Aufgaben–Studienmodul       | Nicht begonnen                       |
 | 5 Kalender/Planung            | Nicht begonnen                       |
 | 6 Modul-Arbeitsbereich        | Nicht begonnen                       |

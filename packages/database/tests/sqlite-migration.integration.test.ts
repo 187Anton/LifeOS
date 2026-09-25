@@ -39,9 +39,6 @@ const readMigrationSnapshot = async (
         include: { events: { orderBy: { id: "asc" } } },
       },
       aiInteractions: { orderBy: { id: "asc" } },
-      financeCategories: { orderBy: { id: "asc" } },
-      financeTransactions: { orderBy: { id: "asc" } },
-      financeBudgets: { orderBy: { id: "asc" } },
       fitnessPlans: { orderBy: { id: "asc" } },
       fitnessExercises: { orderBy: { id: "asc" } },
       fitnessPlanExercises: { orderBy: { id: "asc" } },
@@ -75,6 +72,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
     "20260820210000_external_caldav",
     "20260820220000_github_integration",
     "20260921190000_grocery_lists",
+    "20260925120000_remove_finance_module",
   ]);
 
   const database = createSqliteDatabaseClient(databaseUrl);
@@ -83,7 +81,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const migrationRows = await database.$queryRawUnsafe<
     Array<{ name: string; checksum: string }>
   >('SELECT "name", "checksum" FROM "_lifeos_migrations"');
-  assert.equal(migrationRows.length, 11);
+  assert.equal(migrationRows.length, 12);
   assert.equal(migrationRows[0]?.name, "20260809190000_sqlite_foundation");
   assert.match(migrationRows[0]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[1]?.name, "20260809203000_product_modules");
@@ -106,6 +104,8 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   assert.match(migrationRows[9]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[10]?.name, "20260921190000_grocery_lists");
   assert.match(migrationRows[10]?.checksum ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(migrationRows[11]?.name, "20260925120000_remove_finance_module");
+  assert.match(migrationRows[11]?.checksum ?? "", /^[0-9a-f]{64}$/);
 
   const foreignKeys = await database.$queryRawUnsafe<
     Array<{ foreign_keys: bigint }>
@@ -400,40 +400,92 @@ test("speichert Projektziele und Meilensteine mit reinen Fälligkeitstagen und B
   );
 });
 
-test("erzwingt ganzzahlige Finanzwerte und Besitzergrenzen in SQLite", async (t) => {
+test("führt Finanzobjekte, gespeicherte Währung und den Finanzbereich in SQLite nicht mehr", async (t) => {
   const databaseUrl = await createIsolatedDatabase(t);
   await migrateSqliteDatabase(databaseUrl);
   await seedSqliteDatabase(databaseUrl);
   const fixture = await readSqliteSeedFixture();
   const database = createSqliteDatabaseClient(databaseUrl);
   t.after(async () => database.$disconnect());
-  const category = await database.financeCategory.findFirstOrThrow({
-    where: { userId: fixture.user.id, kind: "expense" },
+
+  const tables = await database.$queryRawUnsafe<Array<{ name: string }>>(
+    `SELECT "name" FROM "sqlite_master" WHERE "type" = 'table'`,
+  );
+  assert.deepEqual(
+    tables
+      .map((table) => table.name)
+      .filter((name) => name.toLowerCase().includes("finance")),
+    [],
+  );
+
+  const settingsColumns = await database.$queryRawUnsafe<
+    Array<{ name: string }>
+  >("PRAGMA table_info('UserSettings')");
+  assert.deepEqual(
+    settingsColumns
+      .map((column) => column.name)
+      .filter((name) => name === "currencyCode"),
+    [],
+  );
+
+  const taskIndexes = await database.$queryRawUnsafe<Array<{ name: string }>>(
+    `SELECT "name" FROM "sqlite_master" WHERE "type" = 'index' AND "tbl_name" = 'Task'`,
+  );
+  assert.deepEqual(
+    taskIndexes
+      .map((index) => index.name)
+      .filter((name) => !name.startsWith("sqlite_autoindex"))
+      .sort(),
+    [
+      "Task_id_userId_key",
+      "Task_parentTaskId_idx",
+      "Task_projectId_idx",
+      "Task_userId_area_dueDate_idx",
+      "Task_userId_deletedAt_archivedAt_idx",
+      "Task_userId_priority_dueDate_idx",
+      "Task_userId_status_dueDate_idx",
+    ],
+  );
+
+  const task = await database.task.create({
+    data: {
+      userId: fixture.user.id,
+      title: "Synthetische Aufgabe nach Paket 3",
+      area: "personal",
+    },
   });
-  const transaction = await database.financeTransaction.findFirstOrThrow({
-    where: { userId: fixture.user.id },
-  });
-  assert.equal(transaction.bookingDate, "2030-01-10");
-  assert.equal(transaction.amountMinor, 4_250);
+  assert.equal(task.area, "personal");
   await assert.rejects(() =>
     database.$executeRawUnsafe(
-      `INSERT INTO "FinanceTransaction" ("id", "userId", "categoryId", "kind", "bookingDate", "amountMinor", "currencyCode", "createdAt", "updatedAt") VALUES (?, ?, ?, 'expense', '2032-08-02', 10.5, 'EUR', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      `INSERT INTO "Task" ("id", "userId", "title", "area", "updatedAt") VALUES (?, ?, ?, 'finance', CURRENT_TIMESTAMP)`,
       "00000000-0000-4000-8000-000000000899",
       fixture.user.id,
-      category.id,
+      "Synthetischer Finanzbereich",
     ),
   );
   await assert.rejects(() =>
-    database.financeTransaction.create({
-      data: {
-        userId: "00000000-0000-4000-8000-000000000999",
-        categoryId: category.id,
-        kind: "expense",
-        bookingDate: "2032-08-02",
-        amountMinor: 100,
-        currencyCode: "EUR",
-      },
-    }),
+    database.$executeRawUnsafe(
+      `INSERT INTO "Task" ("id", "userId", "title", "area", "updatedAt") VALUES (?, ?, ?, 'privat', CURRENT_TIMESTAMP)`,
+      "00000000-0000-4000-8000-000000000898",
+      fixture.user.id,
+      "Synthetischer unbekannter Bereich",
+    ),
+  );
+
+  const triggerNames = await database.$queryRawUnsafe<Array<{ name: string }>>(
+    `SELECT "name" FROM "sqlite_master" WHERE "type" = 'trigger' AND "tbl_name" = 'Task' ORDER BY "name"`,
+  );
+  assert.deepEqual(
+    triggerNames.map((trigger) => trigger.name),
+    ["Task_tags_insert_check", "Task_tags_update_check"],
+  );
+  await assert.rejects(() =>
+    database.$executeRawUnsafe(
+      `INSERT INTO "Task" ("id", "userId", "title", "area", "tags", "updatedAt") VALUES (?, ?, ?, 'personal', '["  "]', CURRENT_TIMESTAMP)`,
+      "00000000-0000-4000-8000-000000000897",
+      fixture.user.id,
+      "Synthetische Aufgabe mit leeren Tags",
+    ),
   );
 });
 

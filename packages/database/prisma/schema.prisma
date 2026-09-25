@@ -41,9 +41,6 @@ model User {
   workTaskLinks             WorkTaskLink[]
   workTimeEntries           WorkTimeEntry[]
   availabilityWindows       AvailabilityWindow[]
-  financeCategories         FinanceCategory[]
-  financeTransactions       FinanceTransaction[]
-  financeBudgets            FinanceBudget[]
   fitnessPlans              FitnessPlan[]
   fitnessExercises          FitnessExercise[]
   fitnessPlanExercises      FitnessPlanExercise[]
@@ -61,7 +58,6 @@ model User {
 model UserSettings {
   userId              String   @id @db.Uuid
   timezone            String   @default("Europe/Berlin") @db.VarChar(100)
-  currencyCode        String   @default("EUR") @db.Char(3)
   locale              String   @default("de-DE") @db.VarChar(35)
   weekStartsOn        Int      @default(1)
   defaultCalendarView String   @default("week") @db.VarChar(10)
@@ -269,7 +265,6 @@ enum TaskArea {
   study
   work
   projects
-  finance
   fitness
   personal
 }
@@ -714,27 +709,6 @@ model AvailabilityWindow {
   @@index([userId, weekday])
 }
 
-enum FinanceCategoryKind {
-  income
-  expense
-}
-
-enum FinanceTransactionKind {
-  income
-  expense
-}
-
-enum FinanceRecurrenceFrequency {
-  weekly
-  monthly
-  yearly
-}
-
-enum FinanceBudgetPeriod {
-  month
-  year
-}
-
 enum ShoppingListStatus {
   active
   archived
@@ -837,67 +811,6 @@ model ShoppingItem {
   @@unique([id, userId])
   @@index([userId, shoppingListId, deletedAt, status])
   @@index([userId, categoryId, deletedAt])
-}
-
-model FinanceCategory {
-  id           String               @id @default(uuid()) @db.Uuid
-  userId       String               @db.Uuid
-  name         String               @db.VarChar(200)
-  kind         FinanceCategoryKind
-  archivedAt   DateTime?            @db.Timestamptz(3)
-  createdAt    DateTime             @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime             @updatedAt @db.Timestamptz(3)
-  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions FinanceTransaction[]
-  budgets      FinanceBudget[]
-
-  @@unique([id, userId])
-  @@unique([userId, kind, name])
-  @@index([userId, archivedAt])
-}
-
-model FinanceTransaction {
-  id                  String                      @id @default(uuid()) @db.Uuid
-  userId              String                      @db.Uuid
-  categoryId          String                      @db.Uuid
-  kind                FinanceTransactionKind
-  bookingDate         DateTime                    @db.Date
-  amountMinor         Int
-  currencyCode        String                      @db.Char(3)
-  note                String?
-  recurrenceFrequency FinanceRecurrenceFrequency?
-  recurrenceInterval  Int?
-  recurrenceEndDate   DateTime?                   @db.Date
-  archivedAt          DateTime?                   @db.Timestamptz(3)
-  createdAt           DateTime                    @default(now()) @db.Timestamptz(3)
-  updatedAt           DateTime                    @updatedAt @db.Timestamptz(3)
-  user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category            FinanceCategory             @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
-
-  @@unique([id, userId])
-  @@index([userId, archivedAt, bookingDate])
-  @@index([userId, categoryId, bookingDate])
-  @@index([userId, kind, bookingDate])
-}
-
-model FinanceBudget {
-  id                      String              @id @default(uuid()) @db.Uuid
-  userId                  String              @db.Uuid
-  categoryId              String?             @db.Uuid
-  period                  FinanceBudgetPeriod
-  periodStart             DateTime            @db.Date
-  amountMinor             Int
-  currencyCode            String              @db.Char(3)
-  warningThresholdPercent Int                 @default(80)
-  archivedAt              DateTime?           @db.Timestamptz(3)
-  createdAt               DateTime            @default(now()) @db.Timestamptz(3)
-  updatedAt               DateTime            @updatedAt @db.Timestamptz(3)
-  user                    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category                FinanceCategory?    @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict)
-
-  @@unique([id, userId])
-  @@index([userId, archivedAt, periodStart])
-  @@index([userId, categoryId, periodStart])
 }
 
 enum FitnessSessionStatus {

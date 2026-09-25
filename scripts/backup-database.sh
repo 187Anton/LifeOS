@@ -23,7 +23,20 @@ if [[ -e "$destination" || -L "$destination" ||
 fi
 
 mkdir -p "$(dirname "$destination")"
-if ! docker compose exec -T db sh -ec \
+backup_database="${LIFEOS_BACKUP_DATABASE:-}"
+if [[ -n "$backup_database" ]] && [[ ! "$backup_database" =~ ^[a-z0-9_]+$ ]]; then
+  printf 'Fehler: LIFEOS_BACKUP_DATABASE darf nur Kleinbuchstaben, Zahlen und Unterstriche enthalten.\n' >&2
+  exit 1
+fi
+if [[ -n "$backup_database" ]]; then
+  if ! docker compose exec -T db sh -ec \
+    'pg_dump -U "$POSTGRES_USER" -d "$1" --format=custom --no-owner --no-acl' \
+    lifeos-backup "$backup_database" >"$destination"; then
+    rm -f "$destination"
+    printf 'Fehler: Das PostgreSQL-Backup konnte nicht erstellt werden.\n' >&2
+    exit 1
+  fi
+elif ! docker compose exec -T db sh -ec \
   'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner --no-acl' \
   >"$destination"; then
   rm -f "$destination"

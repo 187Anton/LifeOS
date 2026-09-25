@@ -18,7 +18,7 @@
     "db:sqlite:generate": "prisma generate --config prisma.sqlite.config.ts",
     "db:sqlite:migrate": "node --import tsx prisma/sqlite/migrate-cli.ts",
     "db:sqlite:seed": "prisma db seed --config prisma.sqlite.config.ts",
-    "db:sqlite:test": "npm run db:sqlite:generate && node --import tsx --test tests/sqlite-migration.integration.test.ts",
+    "db:sqlite:test": "npm run db:sqlite:generate && node --import tsx --test tests/sqlite-migration.integration.test.ts tests/sqlite-pre-migration-backup.integration.test.ts",
     "pretest": "prisma generate && prisma generate --config prisma.sqlite.config.ts",
     "test": "node --env-file-if-exists=../../.env --import tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"

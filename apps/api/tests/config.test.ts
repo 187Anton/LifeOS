@@ -52,6 +52,8 @@ test("akzeptiert absolute Ressourcenpfade der Desktop-App", () => {
     WEB_DIST_PATH: "/Applications/LifeOS.app/Contents/Resources/web",
     SQLITE_MIGRATIONS_PATH:
       "/Applications/LifeOS.app/Contents/Resources/sqlite-migrations",
+    SQLITE_BACKUP_PATH:
+      "/Users/synthetic/Library/Application Support/lifeos/backups",
   });
 
   assert.equal(
@@ -61,6 +63,26 @@ test("akzeptiert absolute Ressourcenpfade der Desktop-App", () => {
   assert.equal(
     config.sqliteMigrationsPath,
     "/Applications/LifeOS.app/Contents/Resources/sqlite-migrations",
+  );
+  assert.equal(
+    config.sqliteBackupPath,
+    "/Users/synthetic/Library/Application Support/lifeos/backups",
+    "das private Backup-Verzeichnis der App erreicht den Sidecar unverändert",
+  );
+});
+
+test("weist relative Backup-Verzeichnisse zurück", () => {
+  assert.throws(
+    () =>
+      parseConfig({
+        ...validEnvironment,
+        SQLITE_BACKUP_PATH: "lifeos/backups",
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof ConfigurationError);
+      assert.deepEqual(error.fields, ["SQLITE_BACKUP_PATH"]);
+      return true;
+    },
   );
 });
 

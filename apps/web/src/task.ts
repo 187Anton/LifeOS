@@ -24,16 +24,14 @@ export const taskAreaLabels: Record<TaskArea, string> = {
   study: "Studium",
   work: "Arbeit",
   projects: "Projekte",
-  finance: "Finanzen",
   fitness: "Fitness",
   personal: "Persönlich",
 };
 
 /**
- * Bereiche, die in der Oberfläche neu gewählt werden können. `finance` bleibt
- * vorerst nur in der Beschriftung erhalten, damit vorhandene Aufgaben mit
- * `area=finance` bis zur datenerhaltenden Überführung in Paket 3 korrekt
- * angezeigt werden und beim Bearbeiten keinen Wert verlieren.
+ * Bereiche, die in der Oberfläche gewählt werden können. Der frühere Wert
+ * `finance` ist in Paket 3 datenerhaltend zu `personal` überführt und kein
+ * Bestandteil des aktiven Aufgabenvertrags mehr.
  */
 export const selectableTaskAreas: TaskArea[] = [
   "study",

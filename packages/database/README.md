@@ -57,12 +57,20 @@ Mac-App-Migration.
   Nachvollziehbarkeit und Audit. Die Migration
   `20260820150000_source_grounded_ai` ist für PostgreSQL und SQLite
   versioniert.
-- `FinanceCategory`, `FinanceTransaction` und `FinanceBudget` bilden den
-  lokalen Finanzbereich. Beträge sind positive ganze kleinste
-  Währungseinheiten, Währungen explizite dreistellige Codes und Buchungs- sowie
-  Budgettage reine Datumswerte. Zusammengesetzte Fremdschlüssel verhindern
-  fremde Kategorien; die Migration `20260820190000_finance_module` ist für
-  PostgreSQL und SQLite versioniert.
+- **Historischer Nachweis (bis Paket 3):** `FinanceCategory`,
+  `FinanceTransaction` und `FinanceBudget` bildeten den lokalen Finanzbereich.
+  Beträge waren positive ganze kleinste Währungseinheiten, Währungen explizite
+  dreistellige Codes und Buchungs- sowie Budgettage reine Datumswerte.
+  Zusammengesetzte Fremdschlüssel verhinderten fremde Kategorien; die Migration
+  `20260820190000_finance_module` bleibt unverändert erhalten. Paket 3 entfernt
+  diese Modelle, die zugehörigen Enums und das gespeicherte Währungsfeld
+  `UserSettings.currencyCode` über die Migration
+  `20260925120000_remove_finance_module`: Bestehende Aufgaben mit
+  `area=finance` werden datenerhaltend zu `personal`, der PostgreSQL-Typ
+  `TaskArea` wird ohne `finance` neu aufgebaut, in SQLite werden `Task` und
+  `UserSettings` kontrolliert neu aufgebaut. Eine Wiederherstellung der
+  Finanzdaten ist danach nur aus einem vor der Migration erstellten Backup in
+  ein neues Ziel möglich; ein App-Downgrade ist kein Rollback.
 - `FitnessPlan`, `FitnessExercise`, `FitnessPlanExercise`, `FitnessSession`,
   `FitnessSet` und `BodyWeightEntry` bilden die lokale Trainingsverwaltung.
   Messwerte sind ganze Gramm, Sekunden, Meter beziehungsweise Wiederholungen;
@@ -136,12 +144,17 @@ npm run db:verify:recovery
 
 - `db:validate` prüft Schema und Prisma-Konfiguration.
 - `db:generate` erzeugt den nicht versionierten TypeScript-Client.
-- `db:migrate` wendet ausschließlich vorhandene, versionierte Migrationen an.
+- `db:migrate` migriert über `scripts/migrate-database.sh` **nur mit geprüftem
+  Backup**: Enthält eine bestehende Datenbank offene Migrationen, verlangt der
+  Wächter einen Custom-Format-Dump samt SHA-256. Er wird entweder ausdrücklich
+  über `LIFEOS_MIGRATION_BACKUP=<dump>` übergeben (Restore- und Stagingpfade)
+  oder automatisch nach `LIFEOS_MIGRATION_BACKUP_DIRECTORY` (Standard:
+  `backups/`) geschrieben und dort erneut geprüft. Frische, leere Datenbanken
+  starten ohne unnötiges Backup; ohne Backup-Nachweis wird nicht migriert.
 - `db:seed` legt wiederholbar dieselbe synthetische Person, Einstellungen,
   einen Kalender, ein Ereignis, einen Projektanker, eine Aufgabe, deren
-  Beziehung, synthetische Finanzkategorien, Buchung und Budget, einen
-  Trainingsplan samt Übung, Einheit, Satz und Gewichtseintrag, eine
-  deaktivierte KI-Interaktion ohne Klartext und ein Audit-Ereignis an.
+  Beziehung, einen Trainingsplan samt Übung, Einheit, Satz und Gewichtseintrag,
+  eine deaktivierte KI-Interaktion ohne Klartext und ein Audit-Ereignis an.
   Externe Verbindungen werden absichtlich nicht geseedet, weil Seeds weder
   Zugangsdaten noch einen Integrationsschlüssel enthalten dürfen.
 - `db:test` speichert und liest einen eigenen synthetischen Datensatz und
@@ -154,6 +167,12 @@ npm run db:verify:recovery
   wird weder geleert noch überschrieben.
 - `db:verify:recovery` prüft Migration, wiederholten Seed, Dump und Restore in
   zwei isolierten synthetischen Datenbanken und entfernt sie anschließend.
+- `db:verify:finance-removal` baut über die echten alten Migrationen einen
+  synthetischen Vor-Paket-3-Stand mit Finanzdaten und einer Aufgabe mit
+  `area=finance`, weist die Migration ohne geprüftes Backup ab, migriert
+  anschließend mit Vor-Migrationsbackup und restauriert dieses Backup in ein
+  neues isoliertes Ziel. Die konfigurierte Entwicklungsdatenbank bleibt
+  unberührt.
 
 Das lokale Passwort wird getrennt vom Seed mit `npm run auth:bootstrap`
 gesetzt. Dadurch liegt kein funktionsfähiges Standardpasswort im Repository.

@@ -149,8 +149,7 @@ export type TaskStatus =
 
 export type TaskPriority = "low" | "medium" | "high" | "critical";
 
-export type TaskArea =
-  "study" | "work" | "projects" | "finance" | "fitness" | "personal";
+export type TaskArea = "study" | "work" | "projects" | "fitness" | "personal";
 
 export interface TaskResponse {
   id: string;

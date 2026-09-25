@@ -887,43 +887,6 @@ describe("LifeOS-Weboberfläche", () => {
     expect(within(createAreaSelect).getAllByRole("option")).toHaveLength(5);
   });
 
-  it("zeigt vorhandene Aufgaben mit Bereich Finanzen weiterhin an, ohne den Bereich anzubieten", async () => {
-    const legacyTask: typeof task = {
-      ...task,
-      id: "aufgabe-finanz-altbestand",
-      title: "Altbestand Finanzbereich",
-      area: "finance",
-    };
-    installApi({ tasks: [task, legacyTask] });
-    const user = userEvent.setup();
-    render(<App />);
-
-    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
-    await user.click(screen.getAllByRole("button", { name: "Aufgaben" })[0]!);
-    await screen.findByRole("heading", { name: "Aufgaben" });
-
-    const card = screen
-      .getByText("Altbestand Finanzbereich")
-      .closest("article");
-    expect(card).not.toBeNull();
-    expect(within(card!).getByText("Finanzen")).toBeVisible();
-
-    await user.click(
-      within(card!).getByRole("button", {
-        name: "Altbestand Finanzbereich bearbeiten",
-      }),
-    );
-    const editor = screen.getByRole("region", {
-      name: "Altbestand Finanzbereich",
-    });
-    const areaSelect = within(editor).getByLabelText("Bereich");
-    expect((areaSelect as HTMLSelectElement).value).toBe("finance");
-    expect(
-      within(areaSelect).queryByRole("option", { name: "Finanzen" }),
-    ).not.toBeNull();
-    await user.click(within(editor).getByRole("button", { name: "Schließen" }));
-  });
-
   it("legt einen Studienabschnitt und ein Modul nachvollziehbar an", async () => {
     installApi();
     const user = userEvent.setup();

@@ -1,0 +1,3 @@
+Der Tabellenneubau von "Task" und "UserSettings" benötigt abgeschaltete
+Fremdschlüsselprüfung, damit keine abhängigen Zeilen kaskadierend gelöscht werden.
+Der Runner prüft Fremdschlüssel danach verpflichtend mit foreign_key_check.

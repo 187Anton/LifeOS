@@ -10,7 +10,6 @@
   "settings": {
     "userId": "10000000-0000-4000-8000-000000000001",
     "timezone": "Europe/Berlin",
-    "currencyCode": "EUR",
     "locale": "de-DE",
     "weekStartsOn": 1,
     "defaultCalendarView": "week",

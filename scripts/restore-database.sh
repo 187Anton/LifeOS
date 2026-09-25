@@ -95,7 +95,7 @@ restored_database_url="$(
       process.stdout.write(url.toString());
     '
 )"
-DATABASE_URL="$restored_database_url" npm run db:migrate
+LIFEOS_MIGRATION_BACKUP="$backup_file" DATABASE_URL="$restored_database_url" npm run db:migrate
 
 completed=1
 printf 'Backup wurde in der neuen Datenbank %s wiederhergestellt und migriert.\n' "$target_database"
