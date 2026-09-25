@@ -151,6 +151,25 @@ export type TaskPriority = "low" | "medium" | "high" | "critical";
 
 export type TaskArea = "study" | "work" | "projects" | "fitness" | "personal";
 
+/**
+ * Filterwert der Aufgabenliste für Aufgaben ohne Studienmodulbezug. Ein
+ * UUID-Wert filtert stattdessen auf genau dieses eigene Modul.
+ */
+export const TASK_STUDY_MODULE_FILTER_NONE = "none" as const;
+
+/**
+ * Serverseitiger Filtervertrag der Aufgabenliste. Alle Angaben sind optional
+ * und werden von der API ausschließlich besitzgebunden ausgewertet.
+ */
+export interface TaskListQuery {
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  area?: TaskArea;
+  /** UUID eines eigenen Moduls oder `none` für Aufgaben ohne Modulbezug. */
+  studyModuleId?: string;
+  includeArchived?: boolean;
+}
+
 export interface TaskResponse {
   id: string;
   ownerId: string;
@@ -165,6 +184,8 @@ export interface TaskResponse {
   tags: string[];
   area: TaskArea;
   projectId: string | null;
+  /** Optionaler, besitzgebundener direkter Studienmodulbezug. */
+  studyModuleId: string | null;
   parentTaskId: string | null;
   completedAt: string | null;
   archivedAt: string | null;
@@ -184,6 +205,7 @@ export interface CreateTaskRequest {
   tags?: string[];
   area?: TaskArea;
   projectId?: string | null;
+  studyModuleId?: string | null;
   parentTaskId?: string | null;
 }
 
@@ -199,6 +221,8 @@ export interface UpdateTaskRequest {
   tags?: string[];
   area?: TaskArea;
   projectId?: string | null;
+  /** `null` entfernt den Bezug; ein fremdes oder archiviertes Modul wird abgelehnt. */
+  studyModuleId?: string | null;
   parentTaskId?: string | null;
   archived?: boolean;
 }

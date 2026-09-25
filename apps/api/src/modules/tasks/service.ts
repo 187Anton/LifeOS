@@ -9,6 +9,7 @@ import { ApiError } from "../../errors.js";
 import {
   ParentTaskNotFoundError,
   ProjectNotFoundError,
+  StudyModuleNotFoundError,
   TaskHierarchyConflictError,
   TaskNotFoundError,
   type TaskChanges,
@@ -51,6 +52,7 @@ const createValues = (input: CreateTaskRequest, now: Date): TaskValues => {
     tags: normalizeTags(input.tags),
     area: input.area ?? "personal",
     projectId: input.projectId ?? null,
+    studyModuleId: input.studyModuleId ?? null,
     parentTaskId: input.parentTaskId ?? null,
     completedAt: status === "done" ? now : null,
   };
@@ -128,6 +130,8 @@ export class TaskService {
     if (hasOwn(input, "tags")) changes.tags = normalizeTags(input.tags);
     if (hasOwn(input, "area")) changes.area = input.area;
     if (hasOwn(input, "projectId")) changes.projectId = input.projectId ?? null;
+    if (hasOwn(input, "studyModuleId"))
+      changes.studyModuleId = input.studyModuleId ?? null;
     if (hasOwn(input, "parentTaskId"))
       changes.parentTaskId = input.parentTaskId ?? null;
     if (hasOwn(input, "archived"))
@@ -173,6 +177,19 @@ export class TaskService {
         [
           {
             field: "body.projectId",
+            message: "Ungültiger Wert.",
+          },
+        ],
+      );
+    }
+    if (error instanceof StudyModuleNotFoundError) {
+      throw new ApiError(
+        400,
+        "VALIDATION_ERROR",
+        "Das Studienmodul ist nicht verfügbar.",
+        [
+          {
+            field: "body.studyModuleId",
             message: "Ungültiger Wert.",
           },
         ],

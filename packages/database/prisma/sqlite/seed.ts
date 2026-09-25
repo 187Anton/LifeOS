@@ -268,6 +268,9 @@ const SYNTHETIC_PROJECT_MILESTONE_ID = "00000000-0000-4000-8000-000000000109";
 const SYNTHETIC_PROJECT_EVENT_LINK_ID = "00000000-0000-4000-8000-000000000110";
 const SYNTHETIC_NOTE_ID = "00000000-0000-4000-8000-000000000111";
 const SYNTHETIC_AI_INTERACTION_ID = "00000000-0000-4000-8000-000000000112";
+const SYNTHETIC_STUDY_PROGRAM_ID = "00000000-0000-4000-8000-000000000113";
+const SYNTHETIC_STUDY_MODULE_ID = "00000000-0000-4000-8000-000000000114";
+const SYNTHETIC_TASK_ID = "00000000-0000-4000-8000-000000000115";
 const SYNTHETIC_FITNESS_PLAN_ID = "00000000-0000-4000-8000-000000000117";
 const SYNTHETIC_FITNESS_EXERCISE_ID = "00000000-0000-4000-8000-000000000118";
 const SYNTHETIC_FITNESS_PLAN_EXERCISE_ID =
@@ -415,6 +418,58 @@ export const seedSqliteDatabase = async (
           projectId: SYNTHETIC_PROJECT_ID,
           calendarEventId: firstEvent.id,
           createdAt: toDate(fixture.user.createdAt),
+        },
+      });
+      await transaction.studyProgram.upsert({
+        where: { id: SYNTHETIC_STUDY_PROGRAM_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_STUDY_PROGRAM_ID,
+          userId: fixture.user.id,
+          title: "Synthetischer SQLite-Studienabschnitt",
+          institution: "Synthetische Testhochschule",
+          periodLabel: "Wintersemester 2030",
+          status: "active",
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.studyModule.upsert({
+        where: { id: SYNTHETIC_STUDY_MODULE_ID },
+        update: { searchEnabled: true },
+        create: {
+          id: SYNTHETIC_STUDY_MODULE_ID,
+          userId: fixture.user.id,
+          programId: SYNTHETIC_STUDY_PROGRAM_ID,
+          code: "SYN-SQLITE",
+          title: "Synthetisches SQLite-Modul",
+          status: "active",
+          notes: "Lokaler Beispieldatensatz ohne persönliche Daten.",
+          documentReferences: ["documents/studium/synthetisch.txt"],
+          searchEnabled: true,
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
+        },
+      });
+      await transaction.task.upsert({
+        where: { id: SYNTHETIC_TASK_ID },
+        update: {},
+        create: {
+          id: SYNTHETIC_TASK_ID,
+          userId: fixture.user.id,
+          title: "Synthetische SQLite-Aufgabe",
+          description: "Lokaler Beispieldatensatz für reproduzierbare Tests.",
+          priority: "high",
+          dueDate: "2030-01-16",
+          scheduledStartAt: new Date("2030-01-15T15:00:00.000Z"),
+          scheduledStartTimezone: "Europe/Berlin",
+          estimatedDurationMinutes: 60,
+          tags: ["organisation", "synthetisch"],
+          area: "study",
+          projectId: SYNTHETIC_PROJECT_ID,
+          studyModuleId: SYNTHETIC_STUDY_MODULE_ID,
+          createdAt: toDate(fixture.user.createdAt),
+          updatedAt: toDate(fixture.user.updatedAt),
         },
       });
       await transaction.note.upsert({

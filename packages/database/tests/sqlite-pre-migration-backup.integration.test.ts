@@ -26,6 +26,7 @@ import {
 } from "../src/sqlite-backup.js";
 
 const destructiveMigration = "20260925120000_remove_finance_module";
+const taskStudyModuleMigration = "20260925121600_task_study_module";
 const legacyUserId = "00000000-0000-4000-8000-000000000601";
 const legacyProjectId = "00000000-0000-4000-8000-000000000602";
 const financeTaskId = "00000000-0000-4000-8000-000000000603";
@@ -75,7 +76,12 @@ const prepareLegacyDatabase = async (directory: string) => {
   for (const entry of await readdir(sqliteMigrationsDirectory, {
     withFileTypes: true,
   })) {
-    if (!entry.isDirectory() || entry.name === destructiveMigration) continue;
+    if (
+      !entry.isDirectory() ||
+      entry.name === destructiveMigration ||
+      entry.name === taskStudyModuleMigration
+    )
+      continue;
     await cp(
       path.join(sqliteMigrationsDirectory, entry.name),
       path.join(legacyMigrations, entry.name),
@@ -89,6 +95,7 @@ const prepareLegacyDatabase = async (directory: string) => {
     legacyMigrations,
   );
   assert.equal(legacyRun.appliedNow.includes(destructiveMigration), false);
+  assert.equal(legacyRun.appliedNow.includes(taskStudyModuleMigration), false);
   assert.ok(legacyRun.appliedNow.length > 0);
 
   const database = new BetterSqlite3(databasePath);
@@ -143,6 +150,7 @@ test("migriert eine frische SQLite-Installation ohne unnötiges Vor-Migrationsba
   assert.equal(result.preMigrationBackup, null);
   assert.equal(await pathExists(backupDirectory), false);
   assert.ok(result.appliedNow.includes(destructiveMigration));
+  assert.ok(result.appliedNow.includes(taskStudyModuleMigration));
 });
 
 test("erzeugt vor der destruktiven Migration ein vollständiges und geprüftes Backup", async (t) => {
@@ -168,7 +176,12 @@ test("erzeugt vor der destruktiven Migration ein vollständiges und geprüftes B
     { backupDirectory, documentsDirectory: legacy.documentsDirectory },
   );
 
-  assert.deepEqual(result.appliedNow, [destructiveMigration]);
+  // Beide destruktiven Migrationen werden nach dem geprüften Backup in
+  // sortierter Reihenfolge angewendet.
+  assert.deepEqual(result.appliedNow, [
+    destructiveMigration,
+    taskStudyModuleMigration,
+  ]);
   assert.ok(result.preMigrationBackup);
   assert.equal(path.dirname(result.preMigrationBackup), backupDirectory);
   assert.deepEqual(await readdir(backupDirectory), [
@@ -221,7 +234,12 @@ test("erzeugt vor der destruktiven Migration ein vollständiges und geprüftes B
     financeTaskId,
   );
   assert.equal(taskAfter.area, "personal");
-  assert.deepEqual(taskAfter, { ...taskBefore, area: "personal" });
+  // Paket 4 ergänzt ausschließlich den optionalen Studienmodulbezug mit NULL.
+  assert.deepEqual(taskAfter, {
+    ...taskBefore,
+    area: "personal",
+    studyModuleId: null,
+  });
 
   const workTaskAfter = readValue<Record<string, unknown>>(
     legacy.databasePath,
@@ -274,7 +292,8 @@ test("erzeugt vor der destruktiven Migration ein vollständiges und geprüftes B
       legacy.databasePath,
       `SELECT count(*) AS "count" FROM pragma_table_info('Task')`,
     ).count,
-    Object.keys(taskBefore).length,
+    // Paket 4 ergänzt genau eine Spalte für den optionalen Modulbezug.
+    Object.keys(taskBefore).length + 1,
   );
 
   assert.equal(

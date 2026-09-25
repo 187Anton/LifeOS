@@ -2,6 +2,8 @@ import type {
   CalendarEventResponse,
   CreateTaskEventLinkRequest,
   CreateTaskRequest,
+  ProjectResponse,
+  StudyModuleResponse,
   TaskArea,
   TaskPriority,
   TaskResponse,
@@ -30,14 +32,19 @@ import {
   SearchIcon,
   TaskIcon,
 } from "./Icons";
-import { TaskForm } from "./TaskForm";
+import { TaskForm, type TaskDefaults } from "./TaskForm";
 
 type DueFilter = "all" | "overdue" | "today" | "upcoming" | "none";
+/** `all`, `none` (ohne Modulbezug) oder die UUID eines Moduls. */
+type ModuleFilter = string;
 
 interface TaskWorkspaceProps {
   tasks: TaskResponse[];
   events: CalendarEventResponse[];
   links: TaskEventLinkResponse[];
+  modules: StudyModuleResponse[];
+  projects: ProjectResponse[];
+  createDefaults: TaskDefaults | null;
   selectedCalendarId: string | null;
   timezone: string;
   loading: boolean;
@@ -61,6 +68,9 @@ export const TaskWorkspace = ({
   tasks,
   events,
   links,
+  modules,
+  projects,
+  createDefaults,
   selectedCalendarId,
   timezone,
   loading,
@@ -79,16 +89,53 @@ export const TaskWorkspace = ({
   const [editorTask, setEditorTask] = useState<TaskResponse | null | undefined>(
     createRequested ? null : undefined,
   );
+  const [preset, setPreset] = useState<TaskDefaults | null>(
+    createRequested ? createDefaults : null,
+  );
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<TaskStatus | "all">("all");
   const [priority, setPriority] = useState<TaskPriority | "all">("all");
   const [area, setArea] = useState<TaskArea | "all">("all");
+  const [moduleFilter, setModuleFilter] = useState<ModuleFilter>("all");
   const [due, setDue] = useState<DueFilter>("all");
   const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     if (createRequested) onCreateRequestHandled();
   }, [createRequested, onCreateRequestHandled]);
+
+  const moduleTitles = useMemo(
+    () =>
+      new Map(
+        modules.map((module) => [
+          module.id,
+          module.archivedAt ? `Archiviert · ${module.title}` : module.title,
+        ]),
+      ),
+    [modules],
+  );
+
+  /**
+   * Der Modulfilter bietet alle aktiven Module sowie bereits zugeordnete
+   * archivierte Module an, damit Altbezüge nachvollziehbar filterbar bleiben.
+   */
+  const filterModules = useMemo(() => {
+    const referenced = new Set(
+      tasks
+        .map((task) => task.studyModuleId)
+        .filter((id): id is string => Boolean(id)),
+    );
+    const active = modules.filter((module) => module.archivedAt === null);
+    const archived = modules.filter(
+      (module) => module.archivedAt !== null && referenced.has(module.id),
+    );
+    return [...active, ...archived];
+  }, [modules, tasks]);
+
+  const openNewTask = (defaults: TaskDefaults | null) => {
+    setPreset(defaults);
+    setEditorTask(null);
+  };
 
   const filteredTasks = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase("de-DE");
@@ -98,6 +145,11 @@ export const TaskWorkspace = ({
       .filter((task) => status === "all" || task.status === status)
       .filter((task) => priority === "all" || task.priority === priority)
       .filter((task) => area === "all" || task.area === area)
+      .filter((task) => {
+        if (moduleFilter === "all") return true;
+        if (moduleFilter === "none") return task.studyModuleId === null;
+        return task.studyModuleId === moduleFilter;
+      })
       .filter((task) => {
         if (due === "all") return true;
         if (due === "none") return task.dueDate === null;
@@ -112,19 +164,31 @@ export const TaskWorkspace = ({
         );
       })
       .sort(compareTasks);
-  }, [area, due, priority, query, showArchived, status, tasks, timezone]);
+  }, [
+    area,
+    due,
+    moduleFilter,
+    priority,
+    query,
+    showArchived,
+    status,
+    tasks,
+    timezone,
+  ]);
 
   const resetFilters = () => {
     setQuery("");
     setStatus("all");
     setPriority("all");
     setArea("all");
+    setModuleFilter("all");
     setDue("all");
     setShowArchived(false);
   };
 
   const save = async (payload: CreateTaskRequest | UpdateTaskRequest) => {
     await onSave(editorTask ?? null, payload);
+    setPreset(null);
     setEditorTask(undefined);
   };
 
@@ -145,7 +209,7 @@ export const TaskWorkspace = ({
           <h1>Aufgaben</h1>
           <p>Plane Arbeit nachvollziehbar – lokal und ohne externe Dienste.</p>
         </div>
-        <button className="primary-button" onClick={() => setEditorTask(null)}>
+        <button className="primary-button" onClick={() => openNewTask(null)}>
           <PlusIcon /> Neue Aufgabe
         </button>
       </header>
@@ -226,6 +290,23 @@ export const TaskWorkspace = ({
           </select>
         </label>
         <label>
+          <span>Studienmodul</span>
+          <select
+            value={moduleFilter}
+            onChange={(input) => setModuleFilter(input.target.value)}
+          >
+            <option value="all">Alle Module</option>
+            <option value="none">Ohne Modul</option>
+            {filterModules.map((module) => (
+              <option key={module.id} value={module.id}>
+                {module.archivedAt
+                  ? `Archiviert · ${module.title}`
+                  : module.title}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
           <span>Fälligkeit</span>
           <select
             value={due}
@@ -284,7 +365,7 @@ export const TaskWorkspace = ({
               </p>
               <button
                 className="primary-button"
-                onClick={() => setEditorTask(null)}
+                onClick={() => openNewTask(null)}
               >
                 <PlusIcon /> Erste Aufgabe anlegen
               </button>
@@ -324,6 +405,12 @@ export const TaskWorkspace = ({
                             {taskPriorityLabels[task.priority]}
                           </span>
                           <span>{taskAreaLabels[task.area]}</span>
+                          {task.studyModuleId ? (
+                            <span className="module-badge">
+                              {moduleTitles.get(task.studyModuleId) ??
+                                "Modul nicht mehr verfügbar"}
+                            </span>
+                          ) : null}
                           {task.archivedAt ? <span>Archiviert</span> : null}
                         </div>
                         <h3>{task.title}</h3>
@@ -384,6 +471,9 @@ export const TaskWorkspace = ({
             tasks={tasks}
             events={events}
             links={links}
+            modules={modules}
+            projects={projects}
+            defaults={preset}
             selectedCalendarId={selectedCalendarId}
             timezone={timezone}
             pending={saving}

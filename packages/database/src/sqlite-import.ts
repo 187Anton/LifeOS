@@ -247,6 +247,12 @@ const insertDataset = async (
       await transaction.projectMilestone.createMany({
         data: dataset.projectMilestones,
       });
+    if (dataset.studyPrograms.length)
+      await transaction.studyProgram.createMany({
+        data: dataset.studyPrograms,
+      });
+    if (dataset.studyModules.length)
+      await transaction.studyModule.createMany({ data: dataset.studyModules });
     if (dataset.tasks.length)
       await transaction.task.createMany({ data: dataset.tasks });
     if (dataset.taskEventLinks.length)
@@ -257,12 +263,6 @@ const insertDataset = async (
       await transaction.projectEventLink.createMany({
         data: dataset.projectEventLinks,
       });
-    if (dataset.studyPrograms.length)
-      await transaction.studyProgram.createMany({
-        data: dataset.studyPrograms,
-      });
-    if (dataset.studyModules.length)
-      await transaction.studyModule.createMany({ data: dataset.studyModules });
     if (dataset.notes.length)
       await transaction.note.createMany({ data: dataset.notes });
     if (dataset.noteVersions.length)

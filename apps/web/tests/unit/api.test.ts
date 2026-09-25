@@ -144,6 +144,30 @@ describe("API-Client", () => {
     ]);
   });
 
+  it("filtert Aufgaben serverseitig nach Studienmodul und ohne Modulbezug", async () => {
+    const empty = () =>
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(empty())
+      .mockResolvedValueOnce(empty());
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.listTasks(true, "modul-1");
+    await api.listTasks(true, null);
+
+    const taskCalls = fetchMock.mock.calls as unknown as Array<
+      [string, RequestInit]
+    >;
+    expect(taskCalls.map(([url]) => url)).toEqual([
+      "/api/v1/tasks?includeArchived=true&studyModuleId=modul-1",
+      "/api/v1/tasks?includeArchived=true&studyModuleId=none",
+    ]);
+  });
+
   it("verwaltet Aufgaben-Termin-Beziehungen über den additiven v1-Vertrag", async () => {
     const link = {
       id: "link-1",

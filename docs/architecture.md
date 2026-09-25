@@ -257,9 +257,15 @@ Prüfungen und Abgaben dürfen ohne erfundene Uhrzeit als `DATE` gespeichert
 werden. Zeitgebundene Einträge verwenden immer Beginn, Ende und IANA-Zeitzone;
 ein Datenbank-Constraint verhindert gemischte oder rückwärts laufende Formen.
 Optionale Aufgaben- und Kalenderrelationen verwenden zusammengesetzte
-Besitzschlüssel und kopieren keine Fachdaten. Schreibende Änderungen erzeugen
-nur Feldnamen im Audit-Ereignis, keine persönlichen Inhalte. Das Studienmodul
-ändert weder Aufgaben noch Kalenderereignisse automatisch.
+Besitzschlüssel und kopieren keine Fachdaten. Das gilt auch für den optionalen
+direkten Modulbezug der Aufgabe: `Task.studyModuleId` ist nullable, zeigt über
+den zusammengesetzten Fremdschlüssel `(studyModuleId, userId)` ausschließlich auf
+ein eigenes Modul und darf zusätzlich zum Projektbezug bestehen. Bestehende
+Aufgaben bleiben mit `NULL` unverändert. Eine Zuordnung verändert weder
+Studieneinträge noch Kalenderereignisse; aus vorhandenen `StudyEntry.taskId`-
+Verknüpfungen wird keine Modulzuordnung abgeleitet. Schreibende Änderungen
+erzeugen nur Feldnamen im Audit-Ereignis, keine persönlichen Inhalte. Das
+Studienmodul ändert weder Aufgaben noch Kalenderereignisse automatisch.
 Dashboard und Kalenderansicht laden Studieneinträge als rein lesende
 Projektion aus dem Studien-API-Zustand. Sie erzeugen dabei weder zusätzliche
 `CalendarEvent`-Datensätze noch CalDAV-Ressourcen.

@@ -212,8 +212,30 @@ Finanzmodelle und der zugehörigen Enums, **3/3** Bereinigung der Verbraucher
 (Seeds, Import, Kompatibilitätsclient, Recovery-Snapshot, Verträge, Aufgaben-API,
 Web-Hilfen, Sidecar-Nachweis) und **3/4** Migrationstests und Dokumentation.
 Alte Migrationen, historische Finanznachweise und der historische
-Finanzvertrag bleiben unverändert erhalten. Paket 3 ist damit lokal geprüft,
-aber noch nicht über PR und Pflicht-CI abgenommen; Paket 4 ist nicht begonnen.
+Finanzvertrag bleiben unverändert erhalten. Paket 3 ist inzwischen über
+[PR #123](https://github.com/187Anton/LifeOS/pull/123) in `develop` integriert;
+bestätigt ist der Merge-Commit `56404d7` als Spitze von `origin/develop`.
+
+Paket 4 ist auf dieser Basis lokal umgesetzt und geprüft. Der Ablauf ist
+sequenziell: **4/1** optionale, besitzgebundene Relation `Task.studyModuleId`
+über den zusammengesetzten Fremdschlüssel `(studyModuleId, userId)` samt
+Rückrelation, Index und je einer neuen versionierten Migration für PostgreSQL
+(`20260925121551_task_study_module`) und SQLite
+(`20260925121600_task_study_module`, kontrollierte Tabellenneuanlage mit
+`foreign-keys-off` und `requires-backup`), **4/2** Anpassung von Seeds,
+PostgreSQL-zu-SQLite-Import (Studienprogramme und -module vor Aufgaben mit
+Modulbezug), Kompatibilitätsgrenze sowie Migrations-, Import-, Backup- und
+Recovery-Nachweisen, **4/3** Erweiterung von Aufgabenverträgen und Aufgaben-API
+um `studyModuleId` und den serverseitigen Modulfilter (`none` für Aufgaben ohne
+Modulbezug) mit Ablehnung fremder, archivierter oder unbekannter Module für
+Neuzuordnungen, **4/4** Erweiterung des gemeinsamen `TaskForm` um aktive
+Modul- und Projektauswahl, Kennzeichnung archivierter Altbezüge, Modulfilter der
+Aufgabenansicht inklusive „Ohne Modul“ und den Einstieg „Aufgabe anlegen“ am
+aktiven Modul der Studienansicht. `Task.area` bleibt ein eigenes Feld und wird
+nur bei der Neuanlage aus einem Modul sichtbar mit „Studium“ vorbelegt.
+Bestehende `StudyEntry.taskId`- und `calendarEventId`-Bezüge bleiben unverändert;
+es findet keine automatische Modul-, Frist- oder Statusübernahme statt. Paket 4
+ist damit lokal geprüft, aber noch nicht über PR und Pflicht-CI abgenommen.
 
 | Paket | Umfang und Einstieg                                                           | Erforderliche Abnahme zusätzlich zur Pflicht-CI                                                                                                                                                     |
 | ----- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

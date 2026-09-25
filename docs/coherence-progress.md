@@ -5,40 +5,102 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Aktuelles Paket
 
-- Paket: **3 – Finanzschema, Seeds, Import/Recovery und TaskArea bereinigen**
-  lokal umgesetzt und geprüft. Die Integrationsabnahme steht noch aus: Commit,
-  PR, Pflicht-CI und Merge fehlen.
-- Vorgänger: **Paket 2** ist über
-  [PR #122](https://github.com/187Anton/LifeOS/pull/122) nach `develop`
-  integriert; live bestätigt wurden der Merge-Commit
-  `ef828e7a9d4e39dbbea9d2415b009ce08d181d24` als `origin/develop`-Spitze und
-  beide Pflichtchecks `Repository checks` und `Local macOS release` mit
-  Ergebnis `pass`. Der frühere Worktree
-  `/private/tmp/lifeos-coherence-finance-removal` und der Hauptcheckout wurden
+- Paket: **4 – Optionaler Studienmodulbezug, Verträge/API und gemeinsamer
+  Aufgabeneditor** lokal umgesetzt und geprüft. Die Integrationsabnahme steht
+  noch aus: Commit, PR, Pflicht-CI und Merge fehlen.
+- Vorgänger: **Paket 3** ist über
+  [PR #123](https://github.com/187Anton/LifeOS/pull/123) nach `develop`
+  integriert; bestätigt sind der Merge-Commit `56404d7` als Spitze von
+  `origin/develop` und die Basis dieses Pakets. Der frühere Worktree
+  `/private/tmp/lifeos-coherence-finance-schema` und der Hauptcheckout wurden
   nicht verändert.
-- Branch: `feat/coherence-finance-schema`.
-- Basis: `ef828e7a9d4e39dbbea9d2415b009ce08d181d24` (`origin/develop`).
-- Worktree: `/private/tmp/lifeos-coherence-finance-schema`.
-- Delegationsbezug: `coherence-p3-deepseek-20260925` (alleiniger Worker, keine
-  Subagenten).
+- Branch: `feat/coherence-task-study-module`.
+- Basis: `56404d7` (`origin/develop`, PR #123).
+- Worktree: `/Users/anton/Projekte/LifeOS/.worktrees/study-module`; der
+  Hauptcheckout `/Users/anton/Projekte/LifeOS` blieb unverändert.
+- Umsetzung: allein in diesem Worker; keine Subagenten, keine zweite
+  Schreibinstanz.
 - Persönliche Daten: Antons Entwicklungsdatenbank blieb unberührt. Der lokale
   Compose-Container dieses Worktrees band PostgreSQL an `127.0.0.1:5433` mit
-  eigenem, leerem Volume; alle Migrationen, Seeds, Dumps und Restores liefen
-  ausschließlich gegen synthetische Datenbanken (`lifeos`,
-  `lifeos_p3_upgrade_*`, `lifeos_restore_p3_*`). Die installierte App und der
-  Hauptcheckout wurden nicht angefasst.
-- Geänderter Umfang: neue versionierte Migration
-  `20260925120000_remove_finance_module` für PostgreSQL und SQLite,
-  `Task.area=finance` → `personal`, Entfernung von `UserSettings.currencyCode`,
-  der drei Finanzmodelle und der zugehörigen Enums, Bereinigung von Seeds,
-  Import, Kompatibilitätsclient, Recovery-Snapshot, Verträgen, Aufgaben-API,
-  Web-Hilfen und Sidecar-Nachweis sowie der verpflichtende Backup-Schutz
-  (`scripts/migrate-database.sh` mit geprüftem Dump; automatisches, geprüftes
-  Datenbank- und Dokumentenbackup des Sidecars vor `requires-backup`-
-  Migrationen).
-- Offen bis zur Abnahme: Commit, Push, PR nach `develop`, Pflicht-CI, Merge und
-  die visuelle Sichtprüfung der gerenderten Leitfadenseiten.
-- Paket 4 ist nicht begonnen.
+  eigenem, leerem Volume; Migrationen, Seeds, Datenbank-, API- und
+  Recovery-Nachweise liefen ausschließlich gegen synthetische Datenbanken
+  (`lifeos`, `lifeos_restore_*`). Die installierte App und der Hauptcheckout
+  wurden nicht angefasst.
+- Geänderter Umfang: `Task.studyModuleId` als optionales, besitzgebundenes Feld
+  mit zusammengesetztem Fremdschlüssel `(studyModuleId, userId)` und
+  Rückrelation in beiden Prisma-Schemata, neue versionierte Migrationen
+  `20260925121551_task_study_module` (PostgreSQL) und
+  `20260925121600_task_study_module` (SQLite, kontrollierte Tabellenneuanlage
+  mit `foreign-keys-off` und `requires-backup`), Seeds beider Provider,
+  PostgreSQL-zu-SQLite-Import (Studienprogramme und -module vor Aufgaben),
+  SQLite-Kompatibilitätsgrenze, Aufgabenverträge (`TaskResponse`,
+  `CreateTaskRequest`, `UpdateTaskRequest`, `TaskListQuery`,
+  `TASK_STUDY_MODULE_FILTER_NONE`), Aufgaben-API inklusive Modulfilter und
+  Besitzprüfung, gemeinsamer `TaskForm`, `TaskWorkspace`, `StudyWorkspace`,
+  `App.tsx`, `api.ts`, zugehörige Styles sowie die betroffenen Migrations-,
+  Import-, Backup-/Restore-, API-, Unit- und E2E-Nachweise.
+- Nicht geändert: `LifeOS Leitfaden.docx`. Eine inhaltliche Ergänzung wäre
+  vorgesehen, die im Plan geforderte vollständige Rendering- und
+  Seiten-Sichtprüfung ist in dieser Sitzung jedoch ohne Bildprüfwerkzeug nicht
+  nachweisbar; der Leitfaden bleibt deshalb bewusst unverändert und die
+  Sichtprüfung offen.
+- Offen bis zur Abnahme: Commit, Push, PR nach `develop`, Pflicht-CI und Merge.
+- Keine Delegation: Umsetzung und Nachweise liefen ausschließlich in diesem
+  Worker; es wurden keine Subagenten gestartet.
+
+## Paket 4 – lokale Nachweise
+
+- Schema und Migrationen: `npm run db:validate`, `npm run db:sqlite:validate`,
+  `npm run db:generate` und `npm run db:sqlite:generate` gültig bzw. erfolgreich.
+  PostgreSQL-Migration `20260925121551_task_study_module` (nullable Spalte,
+  zusammengesetzter Fremdschlüssel `(studyModuleId, userId)` mit
+  `onDelete: Restrict`, Index, Rückrelation), SQLite-Migration
+  `20260925121600_task_study_module` (kontrollierte Tabellenneuanlage mit
+  `onDelete: NoAction`, Marker `foreign-keys-off` und `requires-backup`);
+  Bestandsaufgaben bleiben `NULL`.
+- Migration und Aufbau: `packages/database/tests/sqlite-migration.integration.test.ts`
+  11/11 (frische Migration, Index- und Triggerlisten, Modulbezug samt
+  Besitzergrenze, archiviertes Modul, unveränderte Bestandsaufgabe) und
+  `sqlite-pre-migration-backup.integration.test.ts` 5/5 (Vor-Migrationsstand ohne
+  Paket 3 und 4, geprüftes Backup vor beiden destruktiven Migrationen).
+- Datenbank: `packages/database/tests/database.integration.test.ts` 12/12 gegen
+  die isolierte synthetische PostgreSQL-Datenbank (Zuordnung, Entfernung,
+  Projekt plus Modul, fremder Besitzer, archiviertes Modul, unveränderte
+  `StudyEntry`-Bezüge, kein stilles Löschen eines referenzierten Moduls).
+- Import und Recovery: `npm run db:sqlite:verify:recovery` 2/2 (PostgreSQL-Quelle,
+  Import in der Reihenfolge Programme/Module vor Aufgaben, Backup, Restore mit
+  erhaltenem Modulbezug) sowie `npm run db:verify:finance-removal` grün gegen
+  isolierte synthetische Datenbanken, erweitert um die Spalten- und
+  `NULL`-Prüfung der Aufgaben nach der Migration.
+- API: `npm run test --workspace @lifeos/api` 102/102 und
+  `npm run test:sqlite:api` 102/102, darunter der neue
+  `apps/api/tests/task-study-module.integration.test.ts` (Zuordnung, Entfernung,
+  Modulfilter einschließlich `none`, fremder Besitzer, archiviertes und
+  unbekanntes Modul, unveränderte Studiendaten).
+- Web-Unit: `npm run test:unit --workspace @lifeos/web` 52/52, darunter der
+  gemeinsame Editor mit Modul- und Projektwahl, der Modulfilter „Ohne Modul“,
+  die Kennzeichnung des archivierten Altbezugs und der Einstieg aus dem
+  Studienmodul mit vorausgewähltem Bereich „Studium“.
+- Desktop und Mobil: `npm run test --workspace @lifeos/web` 36/36 in den
+  Projekten `desktop-chrome` und `mobile-chrome`, darunter der neue Ablauf
+  „verwaltet den optionalen Studienmodulbezug auf Desktop und Smartphone“.
+- SQLite-API-Runtime: `npm run verify:sqlite:api-runtime` grün; nach dem Neustart
+  bleibt der Modulbezug erhalten, `studyModuleId` filtert genau die zugeordnete
+  Aufgabe, `studyModuleId=none` liefert keine, und die SQLite-Datei enthält
+  denselben Bezug samt Modul.
+- Mac-Sidecar: `node scripts/verify-mac-desktop-sidecar.mjs` grün (Exit 0) —
+  synthetische 0.6-Produktdemo, zweiter Start ohne Homebrew-Pfad, erhaltene
+  Fach- und Kalenderidentitäten, erhaltene Modulbezüge der Aufgabe nach dem
+  Neustart, Vor-Paket-3-Stand erst nach geprüftem Vor-Migrationsbackup.
+- Qualität: `npm run format:check`, `npm run lint`, `npm run typecheck` mit
+  synthetischer `DATABASE_URL`, `npm run build`, `npm run test:repo` 19/19,
+  `npm run repo:check`, `npm run security:secrets` und `git diff --check`
+  bestanden.
+- Reproduzierter Umgebungshinweis ohne Fachänderung: `res.sendFile` behandelt
+  einen absoluten Pfad unterhalb eines Punktverzeichnisses (etwa `.worktrees`)
+  als Dotfile und antwortet mit `Not Found`, obwohl `express.static` dieselbe
+  Datei ausliefert. Der Sidecar-Nachweis lief deshalb aus einem punktfreien
+  Verzeichnis mit Verweisen auf `resources` und `binaries`.
 
 ## Paket 2 – lokale Nachweise (historisch, integriert über PR #122)
 

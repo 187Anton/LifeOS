@@ -17,6 +17,9 @@ SCRIPT_DIR="$(cd "${BASH_SOURCE[0]%/*}" && pwd)"
 REPOSITORY_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 migration_directory="$REPOSITORY_ROOT/packages/database/prisma/migrations"
 destructive_migration="20260925120000_remove_finance_module"
+# Paket 4 heißt in PostgreSQL 20260925121551_task_study_module; der SQLite-Pfad
+# verwendet denselben Namen mit eigener Zeitmarke.
+task_study_module_migration="20260925121551_task_study_module"
 
 suffix="$(date -u +%s)_$$"
 upgrade_database="lifeos_p3_upgrade_${suffix}"
@@ -99,6 +102,9 @@ create_database "$upgrade_database"
 for directory in "$migration_directory"/*/; do
   name="$(basename "$directory")"
   [[ "$name" == "$destructive_migration" ]] && continue
+  # Paket 4 ergänzt eine weitere Migration mit Tabellenaufbau; sie gehört nicht
+  # in den synthetischen Vor-Paket-3-Stand und wird später regulär angewendet.
+  [[ "$name" == "$task_study_module_migration" ]] && continue
   psql_replay "$upgrade_database" "$directory/migration.sql"
   (
     cd "$REPOSITORY_ROOT/packages/database"
@@ -106,7 +112,7 @@ for directory in "$migration_directory"/*/; do
   )
 done
 
-if [[ "$(psql_query "$upgrade_database" "SELECT count(*) FROM \"_prisma_migrations\"")" -lt 20 ]]; then
+if [[ "$(psql_query "$upgrade_database" "SELECT count(*) FROM \"_prisma_migrations\"")" -lt 19 ]]; then
   fail "Der synthetische Vor-Paket-3-Stand wurde nicht vollständig aufgebaut."
 fi
 if [[ "$(psql_query "$upgrade_database" "SELECT to_regclass('public.\"FinanceCategory\"') IS NULL")" != "f" ]]; then
@@ -213,8 +219,16 @@ fi
 if [[ "$(psql_query "$upgrade_database" "SELECT count(*) FROM pg_type WHERE typname ILIKE '%finance%'")" != "0" ]]; then
   fail "Die Finanz-Enums wurden nicht entfernt."
 fi
-if [[ "$(psql_query "$upgrade_database" "SELECT enum_range(NULL::\"TaskArea\")::text")" != "{study,work,projects,fitness,personal}" ]]; then
+if [[ "$(psql_query "$upgrade_database" 'SELECT enum_range(NULL::"TaskArea")::text')" != "{study,work,projects,fitness,personal}" ]]; then
   fail "Der PostgreSQL-TaskArea-Typ wurde nicht sauber neu aufgebaut."
+fi
+# Paket 4: Der optionale Studienmodulbezug wird ergänzt und bleibt für
+# bestehende Aufgaben leer.
+if [[ "$(psql_query "$upgrade_database" "SELECT count(*) FROM information_schema.columns WHERE table_name = 'Task' AND column_name = 'studyModuleId'")" != "1" ]]; then
+  fail "Der optionale Studienmodulbezug der Aufgabe wurde nicht ergänzt."
+fi
+if [[ "$(psql_query "$upgrade_database" 'SELECT count(*) FROM "Task" WHERE "studyModuleId" IS NULL')" != "2" ]]; then
+  fail "Bestehende Aufgaben verlieren ihren leeren Studienmodulbezug."
 fi
 preserved_after="$(preserved_snapshot)"
 expected_preserved="$(printf '%s' "$preserved_before" | sed 's/|finance|/|personal|/')"

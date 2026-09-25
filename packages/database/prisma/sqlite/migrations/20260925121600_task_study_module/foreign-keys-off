@@ -1,0 +1,5 @@
+Die Migration baut die Tabelle "Task" neu auf, um den zusammengesetzten
+Fremdschlüssel (studyModuleId, userId) aufzunehmen. Wie bei Paket 3 läuft sie
+bewusst ohne Fremdschlüsselprüfung, damit das Ersetzen der Tabelle keine
+abhängigen Zeilen kaskadierend löscht; der Runner prüft danach verpflichtend
+foreign_key_check und integrity_check.

@@ -381,6 +381,7 @@ model Task {
   tags                     String[]        @default([])
   area                     TaskArea        @default(personal)
   projectId                String?         @db.Uuid
+  studyModuleId            String?         @db.Uuid
   parentTaskId             String?         @db.Uuid
   completedAt              DateTime?       @db.Timestamptz(3)
   archivedAt               DateTime?       @db.Timestamptz(3)
@@ -389,6 +390,7 @@ model Task {
   updatedAt                DateTime        @updatedAt @db.Timestamptz(3)
   user                     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   project                  Project?        @relation(fields: [projectId, userId], references: [id, userId], onDelete: Restrict)
+  studyModule              StudyModule?    @relation(fields: [studyModuleId, userId], references: [id, userId], onDelete: Restrict)
   parentTask               Task?           @relation("TaskHierarchy", fields: [parentTaskId, userId], references: [id, userId], onDelete: Restrict)
   subtasks                 Task[]          @relation("TaskHierarchy")
   eventLinks               TaskEventLink[]
@@ -403,6 +405,7 @@ model Task {
   @@index([userId, area, dueDate])
   @@index([parentTaskId])
   @@index([projectId])
+  @@index([studyModuleId])
 }
 
 model TaskEventLink {
@@ -473,6 +476,7 @@ model StudyModule {
   entries            StudyEntry[]
   knowledgeNotes     Note[]
   documents          Document[]
+  tasks              Task[]
 
   @@unique([id, userId])
   @@index([userId, archivedAt])

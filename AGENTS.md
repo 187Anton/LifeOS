@@ -369,8 +369,16 @@ einen Test oder einen reproduzierbaren Upgrade-Ablauf nachgewiesen wurde.
   zunächst nur ein Nutzer existiert.
 - Aufgabenfälligkeiten werden als `DATE`, geplante Aufgabenstarts als
   `TIMESTAMPTZ` plus IANA-Zeitzone und geschätzte Dauern als ganze Minuten
-  gespeichert. Eltern- und Projektbezüge müssen denselben Besitzer haben;
-  Archivierung bleibt umkehrbar und Löschen setzt eine Löschmarkierung.
+  gespeichert. Eltern-, Projekt- und Studienmodulbezüge müssen denselben Besitzer
+  haben; Archivierung bleibt umkehrbar und Löschen setzt eine Löschmarkierung.
+  Eine Aufgabe trägt höchstens einen optionalen direkten Studienmodulbezug
+  (`Task.studyModuleId`), der als zusammengesetzter Fremdschlüssel
+  `(studyModuleId, userId)` abgesichert ist und zusätzlich zum Projektbezug
+  bestehen darf. Bestehende Aufgaben bleiben unverändert; für neue Zuordnungen
+  sind fremde, archivierte oder nicht vorhandene Module abzulehnen, ein bereits
+  archivierter Bezug bleibt erhalten und ausdrücklich entfernbar. Aus
+  vorhandenen `StudyEntry.taskId`-Verknüpfungen wird keine Modulzuordnung
+  abgeleitet.
 - Datenbankänderungen ausschließlich über versionierte Migrationen vornehmen.
 - Keine echten Unternehmensgeheimnisse, Tokens, Passwörter oder sensiblen
   Beispieldaten committen.
@@ -788,3 +796,14 @@ gemeldet.
   `requires-backup`-Migrationen) sowie die isolierten Nachweise
   `db:verify:finance-removal` und der erweiterte Sidecar-Nachweis sind nach
   PostgreSQL-, SQLite-, Import-, Recovery- und Sidecar-Tests festgehalten.
+- **2026-09-25:** Optionaler, besitzgebundener Studienmodulbezug der Aufgabe
+  (`Task.studyModuleId`, zusammengesetzter Fremdschlüssel `(studyModuleId,
+userId)`, Projekt- und Modulbezug gleichzeitig) über die versionierten
+  Migrationen `20260925121551_task_study_module` und
+  `20260925121600_task_study_module`, Aufgabenverträge mit serverseitigem
+  Modulfilter, Seeds, PostgreSQL-zu-SQLite-Import in der Reihenfolge
+  Programme/Module vor Aufgaben und den gemeinsamen Aufgabeneditor inklusive
+  Modulfilter „Ohne Modul“, Kennzeichnung archivierter Altbezüge und Einstieg
+  aus dem Studienmodul nach PostgreSQL-, SQLite-, Import-, Backup-/Restore-,
+  API-, Unit- und Desktop-/Mobil-E2E-Tests festgehalten; Paket 3 ist zuvor über
+  PR #123 mit Merge-Commit `56404d7` in `develop` bestätigt.

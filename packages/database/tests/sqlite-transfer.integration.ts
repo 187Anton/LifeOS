@@ -134,26 +134,8 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       dueDate: new Date("2032-09-30T00:00:00.000Z"),
     },
   });
-  const task = await source.task.create({
-    data: {
-      userId: user.id,
-      title: "Synthetische Transferaufgabe",
-      priority: "high",
-      dueDate: new Date("2032-09-02T00:00:00.000Z"),
-      scheduledStartAt: new Date("2032-09-01T10:00:00.000Z"),
-      scheduledStartTimezone: "Europe/Berlin",
-      estimatedDurationMinutes: 45,
-      tags: ["transfer", "synthetisch"],
-      area: "work",
-      projectId: project.id,
-    },
-  });
-  await source.taskEventLink.create({
-    data: { userId: user.id, taskId: task.id, calendarEventId: event.id },
-  });
-  await source.projectEventLink.create({
-    data: { userId: user.id, projectId: project.id, calendarEventId: event.id },
-  });
+  // Paket 4: Studienprogramm und -modul werden vor der Aufgabe mit
+  // Modulbezug angelegt, damit der Import die Reihenfolge einhält.
   const program = await source.studyProgram.create({
     data: {
       userId: user.id,
@@ -174,6 +156,27 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       documentReferences: ["documents/study/module.txt"],
       searchEnabled: true,
     },
+  });
+  const task = await source.task.create({
+    data: {
+      userId: user.id,
+      title: "Synthetische Transferaufgabe",
+      priority: "high",
+      dueDate: new Date("2032-09-02T00:00:00.000Z"),
+      scheduledStartAt: new Date("2032-09-01T10:00:00.000Z"),
+      scheduledStartTimezone: "Europe/Berlin",
+      estimatedDurationMinutes: 45,
+      tags: ["transfer", "synthetisch"],
+      area: "work",
+      projectId: project.id,
+      studyModuleId: module.id,
+    },
+  });
+  await source.taskEventLink.create({
+    data: { userId: user.id, taskId: task.id, calendarEventId: event.id },
+  });
+  await source.projectEventLink.create({
+    data: { userId: user.id, projectId: project.id, calendarEventId: event.id },
   });
   const note = await source.note.create({
     data: {
@@ -215,7 +218,9 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       extractedText: "Synthetisch extrahierter Transfertext.",
     },
   });
-  await source.studyEntry.create({
+  // Paket 4: Der Studieneintrag verweist weiterhin auf dieselbe Aufgabe;
+  // der Modulbezug der Aufgabe wird daraus nicht automatisch abgeleitet.
+  const studyEntry = await source.studyEntry.create({
     data: {
       userId: user.id,
       moduleId: module.id,
@@ -513,6 +518,9 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     importedUser.tasks[0]?.dueDate?.toISOString(),
     "2032-09-02T00:00:00.000Z",
   );
+  // Paket 4: Projekt- und Modulbezug überstehen den Import unverändert.
+  assert.equal(importedUser.tasks[0]?.studyModuleId, module.id);
+  assert.equal(importedUser.tasks[0]?.projectId, project.id);
   assert.deepEqual(importedUser.studyModules[0]?.documentReferences, [
     "documents/study/module.txt",
   ]);
@@ -635,6 +643,21 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   assert.equal(restoredEvent.uid, event.uid);
   assert.equal(restoredEvent.etag, event.etag);
   assert.equal(restoredEvent.syncVersion, event.syncVersion);
+  // Paket 4: Der Modulbezug bleibt nach Backup und Wiederherstellung erhalten,
+  // der Studieneintrag verweist weiterhin auf dieselbe Aufgabe.
+  assert.equal(
+    (await restored.task.findUniqueOrThrow({ where: { id: task.id } }))
+      .studyModuleId,
+    module.id,
+  );
+  assert.equal(
+    (
+      await restored.studyEntry.findUniqueOrThrow({
+        where: { id: studyEntry.id },
+      })
+    ).taskId,
+    task.id,
+  );
   assert.equal(
     (
       await restored.fitnessSet.findUniqueOrThrow({

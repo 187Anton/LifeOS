@@ -2,6 +2,8 @@ import type {
   CalendarEventResponse,
   CreateTaskEventLinkRequest,
   CreateTaskRequest,
+  ProjectResponse,
+  StudyModuleResponse,
   TaskArea,
   TaskPriority,
   TaskResponse,
@@ -21,11 +23,24 @@ import {
 import { ArchiveIcon, TrashIcon } from "./Icons";
 import { TaskEventLinkPanel } from "./TaskEventLinkPanel";
 
+/**
+ * Vorbelegung einer neu angelegten Aufgabe. Sie füllt ausschließlich den
+ * gemeinsamen Editor vor; bestehende Aufgaben werden dadurch nie verändert.
+ */
+export interface TaskDefaults {
+  area?: TaskArea;
+  projectId?: string | null;
+  studyModuleId?: string | null;
+}
+
 interface TaskFormProps {
   task: TaskResponse | null;
   tasks: TaskResponse[];
   events: CalendarEventResponse[];
   links: TaskEventLinkResponse[];
+  modules: StudyModuleResponse[];
+  projects: ProjectResponse[];
+  defaults: TaskDefaults | null;
   selectedCalendarId: string | null;
   timezone: string;
   pending: boolean;
@@ -47,6 +62,8 @@ interface Draft {
   estimatedDurationMinutes: string;
   tags: string;
   area: TaskArea;
+  projectId: string;
+  studyModuleId: string;
   parentTaskId: string;
 }
 
@@ -66,7 +83,13 @@ const transitions: Record<TaskStatus, TaskStatus[]> = {
   cancelled: ["cancelled", "open"],
 };
 
-const initialDraft = (task: TaskResponse | null): Draft => ({
+const moduleLabel = (module: StudyModuleResponse): string =>
+  module.code ? `${module.title} · ${module.code}` : module.title;
+
+const initialDraft = (
+  task: TaskResponse | null,
+  defaults: TaskDefaults | null,
+): Draft => ({
   title: task?.title ?? "",
   description: task?.description ?? "",
   status: task?.status ?? "open",
@@ -78,7 +101,9 @@ const initialDraft = (task: TaskResponse | null): Draft => ({
       : "",
   estimatedDurationMinutes: task?.estimatedDurationMinutes?.toString() ?? "",
   tags: task?.tags.join(", ") ?? "",
-  area: task?.area ?? "personal",
+  area: task?.area ?? defaults?.area ?? "personal",
+  projectId: task?.projectId ?? defaults?.projectId ?? "",
+  studyModuleId: task?.studyModuleId ?? defaults?.studyModuleId ?? "",
   parentTaskId: task?.parentTaskId ?? "",
 });
 
@@ -87,6 +112,9 @@ export const TaskForm = ({
   tasks,
   events,
   links,
+  modules,
+  projects,
+  defaults,
   selectedCalendarId,
   timezone,
   pending,
@@ -97,7 +125,7 @@ export const TaskForm = ({
   onLink,
   onUnlink,
 }: TaskFormProps) => {
-  const [draft, setDraft] = useState(() => initialDraft(task));
+  const [draft, setDraft] = useState(() => initialDraft(task, defaults));
   const [validationError, setValidationError] = useState<string | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState(false);
 
@@ -146,6 +174,8 @@ export const TaskForm = ({
           ),
         ],
         area: draft.area,
+        projectId: draft.projectId || null,
+        studyModuleId: draft.studyModuleId || null,
         parentTaskId: draft.parentTaskId || null,
       });
     } catch {
@@ -157,6 +187,32 @@ export const TaskForm = ({
   const possibleParents = tasks.filter(
     (candidate) => candidate.id !== task?.id && candidate.archivedAt === null,
   );
+  /**
+   * Archivierte oder nicht mehr vorhandene Bezüge bleiben sichtbar und
+   * entfernbar, werden aber nicht als neue Zuordnung angeboten.
+   */
+  const selectedModule = draft.studyModuleId
+    ? (modules.find((module) => module.id === draft.studyModuleId) ?? null)
+    : null;
+  const archivedModule =
+    selectedModule && selectedModule.archivedAt !== null
+      ? selectedModule
+      : null;
+  const missingModule = Boolean(draft.studyModuleId) && !selectedModule;
+  const activeModules = modules.filter((module) => module.archivedAt === null);
+
+  const selectedProject = draft.projectId
+    ? (projects.find((project) => project.id === draft.projectId) ?? null)
+    : null;
+  const archivedProject =
+    selectedProject && selectedProject.archivedAt !== null
+      ? selectedProject
+      : null;
+  const missingProject = Boolean(draft.projectId) && !selectedProject;
+  const activeProjects = projects.filter(
+    (project) => project.archivedAt === null,
+  );
+
   const changeArchiveState = async () => {
     if (!task) return;
     try {
@@ -288,6 +344,74 @@ export const TaskForm = ({
               </option>
             ))}
           </select>
+        </div>
+        <div className="field">
+          <label htmlFor="task-study-module">Studienmodul</label>
+          <select
+            id="task-study-module"
+            value={draft.studyModuleId}
+            onChange={(input) => update("studyModuleId", input.target.value)}
+          >
+            <option value="">Kein Modul</option>
+            {archivedModule ? (
+              <option value={archivedModule.id}>
+                Archiviert · {moduleLabel(archivedModule)}
+              </option>
+            ) : null}
+            {missingModule ? (
+              <option value={draft.studyModuleId}>
+                Nicht mehr verfügbares Modul
+              </option>
+            ) : null}
+            {activeModules.map((module) => (
+              <option key={module.id} value={module.id}>
+                {moduleLabel(module)}
+              </option>
+            ))}
+          </select>
+          {archivedModule ? (
+            <small role="status">
+              Dieses Modul ist archiviert. Der bestehende Bezug bleibt erhalten,
+              kann aber für neue Zuordnungen nicht gewählt werden.
+            </small>
+          ) : null}
+          {missingModule ? (
+            <small role="status">
+              Dieses Modul ist nicht mehr verfügbar. Der Bezug kann nur entfernt
+              werden.
+            </small>
+          ) : null}
+        </div>
+        <div className="field">
+          <label htmlFor="task-project">Projekt</label>
+          <select
+            id="task-project"
+            value={draft.projectId}
+            onChange={(input) => update("projectId", input.target.value)}
+          >
+            <option value="">Kein Projekt</option>
+            {archivedProject ? (
+              <option value={archivedProject.id}>
+                Archiviert · {archivedProject.title}
+              </option>
+            ) : null}
+            {missingProject ? (
+              <option value={draft.projectId}>
+                Nicht mehr verfügbares Projekt
+              </option>
+            ) : null}
+            {activeProjects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.title}
+              </option>
+            ))}
+          </select>
+          {archivedProject ? (
+            <small role="status">
+              Dieses Projekt ist archiviert. Der bestehende Bezug bleibt
+              erhalten.
+            </small>
+          ) : null}
         </div>
         <div className="field">
           <label htmlFor="task-parent">Elternaufgabe</label>

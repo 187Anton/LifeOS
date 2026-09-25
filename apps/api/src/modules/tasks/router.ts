@@ -1,4 +1,8 @@
-import type { CreateTaskRequest, UpdateTaskRequest } from "@lifeos/contracts";
+import {
+  TASK_STUDY_MODULE_FILTER_NONE,
+  type CreateTaskRequest,
+  type UpdateTaskRequest,
+} from "@lifeos/contracts";
 import { Router } from "express";
 import { z } from "zod";
 
@@ -59,6 +63,7 @@ const optionalTaskFields = {
   tags: tags.optional(),
   area: taskArea.optional(),
   projectId: z.uuid().nullable().optional(),
+  studyModuleId: z.uuid().nullable().optional(),
   parentTaskId: z.uuid().nullable().optional(),
 };
 
@@ -102,6 +107,13 @@ const taskListQuery = z.strictObject({
   status: taskStatus.optional(),
   priority: taskPriority.optional(),
   area: taskArea.optional(),
+  // UUID eines eigenen Moduls oder `none` für Aufgaben ohne Modulbezug.
+  studyModuleId: z
+    .union([z.uuid(), z.literal(TASK_STUDY_MODULE_FILTER_NONE)])
+    .transform((value) =>
+      value === TASK_STUDY_MODULE_FILTER_NONE ? null : value,
+    )
+    .optional(),
   includeArchived: z
     .enum(["true", "false"])
     .default("false")

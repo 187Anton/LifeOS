@@ -16,6 +16,7 @@ const task = {
   tags: [],
   area: "work" as const,
   projectId: null,
+  studyModuleId: null,
   parentTaskId: null,
   completedAt: null,
   archivedAt: null,

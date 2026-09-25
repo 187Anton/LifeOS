@@ -57,6 +57,7 @@ import { KnowledgeWorkspace } from "./components/KnowledgeWorkspace";
 import { FitnessWorkspace } from "./components/FitnessWorkspace";
 import { IntegrationsWorkspace } from "./components/IntegrationsWorkspace";
 import { ShoppingWorkspace } from "./components/ShoppingWorkspace";
+import type { TaskDefaults } from "./components/TaskForm";
 import { weekRange, type DateRange } from "./planning";
 
 type SessionState = "checking" | "anonymous" | "authenticated";
@@ -104,6 +105,12 @@ export const App = () => {
   const [createRequest, setCreateRequest] = useState<"task" | "event" | null>(
     null,
   );
+  /**
+   * Vorbelegung für einen neu geöffneten Aufgabeneditor. Sie wird
+   * ausschließlich von der Anlage im Studienmodul gesetzt und füllt nur die
+   * Neuanlage vor; bestehende Aufgaben bleiben unberührt.
+   */
+  const [taskDraft, setTaskDraft] = useState<TaskDefaults | null>(null);
   const [loginPending, setLoginPending] = useState(false);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [tasksLoading, setTasksLoading] = useState(false);
@@ -599,6 +606,7 @@ export const App = () => {
       }
       await Promise.all([
         loadTasks(),
+        loadStudy(),
         loadDashboard(),
         loadPlanning(planningRange),
       ]);
@@ -619,6 +627,7 @@ export const App = () => {
       setTaskSuccess("Die Aufgabe wurde aktualisiert.");
       await Promise.all([
         loadTasks(),
+        loadStudy(),
         loadDashboard(),
         loadPlanning(planningRange),
       ]);
@@ -849,6 +858,7 @@ export const App = () => {
           onOpenPlanning={() => setView("planning")}
           studyEntries={study?.entries ?? []}
           onCreateTask={() => {
+            setTaskDraft(null);
             setCreateRequest("task");
             setView("tasks");
           }}
@@ -862,6 +872,9 @@ export const App = () => {
           tasks={tasks}
           events={events}
           links={taskEventLinks}
+          modules={study?.modules ?? []}
+          projects={projects?.projects ?? []}
+          createDefaults={taskDraft}
           selectedCalendarId={selectedCalendarId}
           timezone={profile.settings.timezone}
           loading={tasksLoading}
@@ -922,6 +935,11 @@ export const App = () => {
               "Der Studieneintrag wurde aktualisiert.",
             )
           }
+          onCreateTaskForModule={(moduleId: string) => {
+            setTaskDraft({ studyModuleId: moduleId, area: "study" });
+            setCreateRequest("task");
+            setView("tasks");
+          }}
         />
       ) : view === "work" ? (
         <WorkWorkspace
