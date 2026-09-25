@@ -40,7 +40,7 @@ import type {
   SearchResultResponse,
   AiQueryResponse,
 } from "@lifeos/contracts";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, ApiClientError, type EventPayload } from "./api";
 import { CalendarWorkspace } from "./components/CalendarWorkspace";
@@ -126,6 +126,13 @@ export const App = () => {
    */
   const [eventsCalendarId, setEventsCalendarId] = useState<string | null>(null);
   /**
+   * Laufende Ereignisanfrage. Jede Anfrage erhält eine eigene Nummer; eine
+   * Antwort darf den Zustand nur setzen, solange sie die jüngste Anfrage ist.
+   * Ein Kalenderwechsel darf nicht davon überschrieben werden, dass eine
+   * vorherige Anfrage verspätet eintrifft.
+   */
+  const eventsRequestRef = useRef(0);
+  /**
    * Vorbelegung für einen neu geöffneten Aufgabeneditor. Sie wird
    * ausschließlich von der Anlage im Studienmodul gesetzt und füllt nur die
    * Neuanlage vor; bestehende Aufgaben bleiben unberührt.
@@ -183,12 +190,23 @@ export const App = () => {
   }, []);
 
   const loadEvents = useCallback(async (calendarId: string) => {
+    const request = eventsRequestRef.current + 1;
+    eventsRequestRef.current = request;
     setEventsLoading(true);
     setCalendarError(null);
     try {
-      setEvents(await api.listEvents(calendarId));
+      const loaded = await api.listEvents(calendarId);
+      /**
+       * Eine verspätete Antwort einer überholten Anfrage darf weder die
+       * Ereignisse noch deren Kalenderbezug ersetzen; sonst würden Ereignisse
+       * eines anderen Kalenders unter der aktuellen Kalender-ID projiziert.
+       */
+      if (eventsRequestRef.current !== request) return;
+      setEvents(loaded);
       setEventsCalendarId(calendarId);
     } catch (error) {
+      /** Auch ein Fehler einer überholten Anfrage bleibt ohne Wirkung. */
+      if (eventsRequestRef.current !== request) return;
       if (error instanceof ApiClientError && error.status === 401) {
         setSession("anonymous");
       } else {
@@ -197,7 +215,7 @@ export const App = () => {
       setEvents([]);
       setEventsCalendarId(null);
     } finally {
-      setEventsLoading(false);
+      if (eventsRequestRef.current === request) setEventsLoading(false);
     }
   }, []);
 
@@ -534,6 +552,12 @@ export const App = () => {
     setSelectedCalendarId(calendarId);
     setSuccess(null);
     setCalendarWarning(null);
+    /**
+     * Die geladenen Ereignisse gehören weiterhin zum bisherigen Kalender. Sie
+     * bleiben bis zur Antwort des neuen Kalenders aus der Projektion heraus;
+     * das entscheidet die Kalenderansicht anhand von `eventsCalendarId` gegen
+     * die aktuelle Auswahl.
+     */
     void loadEvents(calendarId);
   };
 

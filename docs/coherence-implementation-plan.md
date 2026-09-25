@@ -450,3 +450,16 @@ des gespeicherten Zwischenstands fort; starte kein weiteres Paket.“
   sichtbaren Tag ergibt und Ereigniszeitpunkte unverändert bleiben. Keine
   Schemaänderung, keine Migration, keine CalDAV-/Apple-Änderung, keine Änderung
   freier `TaskEventLink`-Beziehungen und kein neuer Schreibpfad.
+
+- 25.09.2026: Dritte Korrekturrunde zu Paket 5. Festgehalten sind zwei Regeln
+  für den Kalenderwechsel: Die Kalenderprojektion verwendet ausschließlich
+  Ereignisse, deren geladener Kalenderbezug exakt dem ausgewählten Kalender
+  entspricht; und eine Ereignisantwort darf Ereignisse, Kalenderbezug und
+  Ladezustand nur setzen, solange sie zur jüngsten Anfrage gehört. Damit kann
+  ein Termin desselben UID-Werts aus einem anderen Kalender weder während des
+  Ladens noch über eine verspätet eintreffende Antwort einen verknüpften
+  Studieneintrag unterdrücken. Belegt durch einen App-Referenztest mit
+  kalenderweise zurückgehaltenen Antworten (nachweislich rot gegen den Stand
+  `60d6697`, grün mit der Korrektur). Keine Schemaänderung, keine Migration,
+  keine CalDAV-/Apple-Änderung, keine Änderung freier
+  `TaskEventLink`-Beziehungen und kein neuer Schreibpfad.

@@ -438,6 +438,22 @@ export const CalendarWorkspace = ({
   const [anchor, setAnchor] = useState(() => todayInTimezone(profileTimezone));
   const range = useMemo(() => rangeForView(view, anchor), [view, anchor]);
   /**
+   * Nur Ereignisse, die nachweislich zum ausgewählten Kalender gehören, dürfen
+   * in die Projektion und deren `(calendarId, uid)`-Abgleich eingehen. Beim
+   * Kalenderwechsel sind die zuvor geladenen Ereignisse noch dem bisherigen
+   * Kalender zugeordnet; sie bleiben deshalb draußen, bis die Antwort für den
+   * neuen Kalender vorliegt. Sonst könnte ein Termin desselben UID-Werts aus
+   * dem alten Kalender einen verknüpften Studieneintrag fälschlich
+   * unterdrücken.
+   */
+  const projectedEvents = useMemo(
+    () =>
+      selectedCalendarId !== null && eventsCalendarId === selectedCalendarId
+        ? events
+        : [],
+    [events, eventsCalendarId, selectedCalendarId],
+  );
+  /**
    * Eine gemeinsame Projektion für Tag, Woche, Monat und Agenda: Termine,
    * Aufgabenfristen, geplante Zeitblöcke, Startmarkierungen und Studienzeiten
    * stammen aus derselben Quelle. Serien bleiben flüchtige Vorkommen des
@@ -446,7 +462,7 @@ export const CalendarWorkspace = ({
   const projection = useMemo(
     () =>
       buildCalendarProjection({
-        events,
+        events: projectedEvents,
         tasks,
         studyEntries,
         range,
@@ -455,9 +471,9 @@ export const CalendarWorkspace = ({
         ownerId,
       }),
     [
-      events,
       ownerId,
       profileTimezone,
+      projectedEvents,
       range,
       selectedCalendarId,
       studyEntries,

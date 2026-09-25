@@ -1,5 +1,6 @@
 import type { TaskArea } from "@lifeos/contracts";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -172,6 +173,27 @@ const installApi = ({
   const availabilityState: Record<string, unknown>[] = [];
   let conflictReturned = false;
   let setupIsRequired = setupRequired;
+  /**
+   * Antworten der Ereignisliste je Kalender kontrolliert zurückhalten. Damit
+   * lässt sich ein Kalenderwechsel mit verzögert und vertauscht eintreffenden
+   * Antworten prüfen.
+   */
+  const eventGates = new Map<
+    string,
+    { promise: Promise<void>; release: () => void }
+  >();
+  const holdEvents = (calendarId: string) => {
+    if (eventGates.has(calendarId)) return;
+    let release = () => {};
+    const promise = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    eventGates.set(calendarId, { promise, release });
+  };
+  const releaseEvents = (calendarId: string) => {
+    eventGates.get(calendarId)?.release();
+    eventGates.delete(calendarId);
+  };
   const fetchMock = vi.fn(
     (request: string | URL | Request, init?: RequestInit) => {
       const path =
@@ -625,9 +647,12 @@ const installApi = ({
         /* Der Ereignis-Mock filtert je Kalender, damit ein fremder Termin
          * nicht versehentlich im ausgewählten Kalender erscheint. */
         const calendarId = eventsMatch[1] ?? calendar.id;
-        return json(
+        const response = json(
           eventState.filter((item) => item.calendarId === calendarId),
         );
+        /* Eine angehaltene Antwort trifft erst nach der Freigabe ein. */
+        const gate = eventGates.get(calendarId);
+        return gate ? gate.promise.then(() => response) : response;
       }
       if (eventsMatch && method === "POST") {
         const payload = requestBody(init);
@@ -722,7 +747,16 @@ const installApi = ({
     },
   );
   vi.stubGlobal("fetch", fetchMock);
-  return { fetchMock, eventState, taskState, linkState };
+  return {
+    fetchMock,
+    eventState,
+    taskState,
+    linkState,
+    /** Hält die nächste Ereignisantwort dieses Kalenders zurück. */
+    holdEvents,
+    /** Gibt eine zurückgehaltene Ereignisantwort dieses Kalenders frei. */
+    releaseEvents,
+  };
 };
 
 afterEach(() => {
@@ -1803,5 +1837,138 @@ describe("LifeOS-Weboberfläche", () => {
     const studyCard = studyText.closest("article");
     expect(studyCard).not.toBeNull();
     expect(within(studyCard!).getByText("Studium")).toBeVisible();
+  });
+
+  it("wechselt den Kalender ohne veraltete Ereignisse und ohne falsche Unterdrückung", async () => {
+    /*
+     * Dieselbe UID in zwei Kalendern: Der eine Studieneintrag ist mit dem Termin
+     * in `kalender-2` verknüpft, der außerhalb des sichtbaren Zeitraums liegt.
+     * Der gleichlautende Termin in `kalender-1` darf diesen Eintrag deshalb nie
+     * unterdrücken – weder während des Ladens nach einem Kalenderwechsel noch,
+     * wenn eine überholte Antwort verspätet eintrifft.
+     */
+    const sharedUid = "vorlesung-gemeinsam";
+    const kalender1Event = {
+      ...event,
+      uid: sharedUid,
+      title: "Vorlesung mit gemeinsamer UID",
+      calendarId: "kalender-1",
+    };
+    const kalender2Heute = {
+      ...event,
+      uid: "termin-kalender-2-heute",
+      title: "Termin im zweiten Kalender",
+      calendarId: "kalender-2",
+    };
+    const kalender2Fremd = {
+      ...event,
+      uid: sharedUid,
+      title: "Vorlesung außerhalb des Zeitraums",
+      calendarId: "kalender-2",
+      startsAt: "2031-01-15T09:00:00.000Z",
+      endsAt: "2031-01-15T10:00:00.000Z",
+    };
+    const linkedEntry = (
+      id: string,
+      title: string,
+      calendarEventCalendarId: string,
+    ) => ({
+      id,
+      ownerId: "nutzer-1",
+      moduleId: "modul-1",
+      kind: "lecture",
+      title,
+      status: "planned",
+      dueDate: null,
+      startsAt: eventStartsAt,
+      endsAt: eventEndsAt,
+      timezone: "Europe/Berlin",
+      credits: null,
+      grade: null,
+      notes: null,
+      taskId: null,
+      calendarEventId: `ereignis-${id}`,
+      calendarEventUid: sharedUid,
+      calendarEventCalendarId,
+      archivedAt: null,
+      createdAt: "2032-03-01T10:00:00.000Z",
+      updatedAt: "2032-03-01T10:00:00.000Z",
+    });
+    const api = installApi({
+      calendars: [calendar, secondCalendar],
+      events: [kalender1Event, kalender2Heute, kalender2Fremd],
+      studyEntries: [
+        linkedEntry(
+          "eintrag-kalender-1",
+          "Verknüpfte Vorlesung Kalender 1",
+          "kalender-1",
+        ),
+        linkedEntry(
+          "eintrag-kalender-2",
+          "Verknüpfte Vorlesung Kalender 2",
+          "kalender-2",
+        ),
+      ],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Kalender" })[0]!);
+    await screen.findByRole("heading", { name: "Kalender" });
+
+    /* Ausgangslage in kalender-1: nur der dort gezeigte Termin unterdrückt seinen Eintrag. */
+    expect(
+      await screen.findByText("Vorlesung mit gemeinsamer UID"),
+    ).toBeVisible();
+    expect(screen.queryByText("Verknüpfte Vorlesung Kalender 1")).toBeNull();
+    expect(screen.getByText("Verknüpfte Vorlesung Kalender 2")).toBeVisible();
+
+    /* Wechsel zu kalender-2: die Antwort dieses Kalenders bleibt aus. */
+    api.holdEvents("kalender-2");
+    await user.selectOptions(screen.getByLabelText("Kalender"), "kalender-2");
+
+    /*
+     * Während des Ladens zeigt die Ansicht den Ladezustand; kein Termin aus
+     * kalender-1 darf dabei unter der neuen Kalender-ID erscheinen.
+     */
+    expect(screen.getByText("Kalender wird geladen …")).toBeVisible();
+    expect(screen.queryByText("Vorlesung mit gemeinsamer UID")).toBeNull();
+
+    /* Antwort des neuen Kalenders: nur sein eigener Termin erscheint. */
+    api.releaseEvents("kalender-2");
+    expect(await screen.findByText("Termin im zweiten Kalender")).toBeVisible();
+    expect(screen.getByText("Verknüpfte Vorlesung Kalender 2")).toBeVisible();
+    expect(screen.getByText("Verknüpfte Vorlesung Kalender 1")).toBeVisible();
+    expect(screen.queryByText("Vorlesung außerhalb des Zeitraums")).toBeNull();
+
+    /*
+     * Zwei Wechsel kurz hintereinander: die Antwort von kalender-1 wird
+     * zurückgehalten, während kalender-2 bereits antwortet. Danach trifft die
+     * überholte Antwort verspätet ein und darf weder Ereignisse noch deren
+     * Kalenderbezug ersetzen.
+     */
+    api.holdEvents("kalender-1");
+    await user.selectOptions(screen.getByLabelText("Kalender"), "kalender-1");
+    expect(screen.getByText("Kalender wird geladen …")).toBeVisible();
+
+    await user.selectOptions(screen.getByLabelText("Kalender"), "kalender-2");
+    expect(await screen.findByText("Termin im zweiten Kalender")).toBeVisible();
+
+    await act(async () => {
+      api.releaseEvents("kalender-1");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    /*
+     * Der mit dem ausgewählten Kalender verknüpfte Eintrag darf durch die
+     * verspätete Antwort nicht verschwinden, und die Anzeige bleibt die des
+     * ausgewählten Kalenders.
+     */
+    expect(screen.getByText("Termin im zweiten Kalender")).toBeVisible();
+    expect(screen.queryByText("Vorlesung mit gemeinsamer UID")).toBeNull();
+    expect(screen.getByText("Verknüpfte Vorlesung Kalender 2")).toBeVisible();
+    expect(screen.getByText("Verknüpfte Vorlesung Kalender 1")).toBeVisible();
   });
 });

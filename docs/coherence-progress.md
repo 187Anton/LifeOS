@@ -6,14 +6,18 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 ## Aktuelles Paket
 
 - Paket: **5 – Gemeinsame Kalender- und Planungsansichten** lokal umgesetzt und
-  in zwei Korrekturrunden nachgezogen. Stand nach der zweiten Korrekturrunde:
-  118/118 API-, 70/70 Web-Unit-, 42/42 E2E-Tests. Der zuletzt geprüfte Commit
-  `acd420b` liegt auf dem getrackten Branch `feat/coherence-calendar-planning-views`;
+  in drei Korrekturrunden nachgezogen. Stand nach der dritten Korrekturrunde
+  (Kalenderwechsel und veraltete Ereignisantworten): 71/71 Web-Unit- und
+  42/42 E2E-Tests in dieser Runde erneut gemessen; die API-Suite blieb bei
+  118/118 aus der zweiten Runde, weil in dieser Runde keine API-Datei geändert
+  wurde und sie deshalb nicht erneut ausgeführt wurde. Der letzte geprüfte
+  Commit ist `60d6697` auf dem getrackten Branch
+  `feat/coherence-calendar-planning-views`; für genau diesen Commit ist die
+  Pflicht-CI live abgefragt und **grün** (`Repository checks` 5m10s und
+  `Local macOS release` 10m50s, Lauf `36161389947`, `gh pr checks 125`).
   [PR #125](https://github.com/187Anton/LifeOS/pull/125) ist gegen `develop`
-  eröffnet und die Pflicht-CI war dort **grün** (`Repository checks` und
-  `Local macOS release` je `pass`, live abgefragt über `gh pr checks 125`). Der
-  Commit dieser zweiten Runde wird nach dem Push im PR dokumentiert; offen und
-  ausdrücklich nicht ausgeführt ist der Merge.
+  eröffnet (`MERGEABLE`, `CLEAN`) und nicht gemergt. Der Commit dieser dritten
+  Runde entsteht nach dem Push; seine CI ist im PR separat zu prüfen.
 - Vorgänger: **Paket 4** ist über
   [PR #124](https://github.com/187Anton/LifeOS/pull/124) nach `develop`
   integriert; bestätigt ist der Merge-Commit `a8a2847` als Spitze von
@@ -22,11 +26,11 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 - Basis: `a8a2847` (`origin/develop`, PR #124).
 - Worktree: `/private/tmp/lifeos-coherence-planning-views`; der Hauptcheckout
   `/Users/anton/Projekte/LifeOS` blieb unverändert.
-- Umsetzung: die ursprüngliche Paket-5-Umsetzung lief allein in diesem Worker;
-  die spätere Korrektur der vier Abnahmebefunde wurde als klar begrenzter
-  Auftrag über die lokale Hermes-Delegation an einen DeepSeek-Worker übergeben
-  (Planung, Prüfung und Abnahme durch den koordinierenden Agenten, immer genau
-  ein Worker nacheinander, keine zweite Schreibinstanz).
+- Umsetzung: die ursprüngliche Paket-5-Umsetzung und die erste Korrekturrunde
+  liefen mit genau einem DeepSeek-Worker nacheinander (Planung, Prüfung und
+  Abnahme durch den koordinierenden Agenten, keine zweite Schreibinstanz). Die
+  zweite und die dritte Korrekturrunde hat der koordinierende Agent selbst
+  umgesetzt und geprüft (keine Delegation).
 - Persönliche Daten: Antons Entwicklungsdatenbank blieb unberührt. Der lokale
   Compose-Container dieses Worktrees band PostgreSQL an `127.0.0.1` mit eigener,
   leerer Datenbank `lifeos_planning_views`; Migrationen und Tests liefen
@@ -42,18 +46,21 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   Task-Kalender-Relation bleibt Paket 9. `LifeOS Leitfaden.docx` und `README.md`
   blieben unverändert, weil Paket 5 keine neue Bedienung oder Einrichtung
   einführt.
-- Git-Stand: Der gemessene Korrekturstand ist als `acd420b` auf
+- Git-Stand: Der gemessene Stand ist als `60d6697`
+  (`fix(calendar): align calendar and planning projection rules`) auf
   `origin/feat/coherence-calendar-planning-views` gepusht; der Branch ist
   hochgeladen und getrackt, `origin/develop` blieb bei `a8a2847`. PR #125 gegen
-  `develop` ist eröffnet (nicht gemergt) und die Pflicht-CI dort grün.
-- Delegation: Der koordinierende Agent hat die Umsetzung der vier Befunde an
-  einen deepseek-Worker übergeben und dessen Ergebnis unabhängig geprüft
-  (Diff, Paketgrenzen, eigene Testläufe). Die Modellwahl wurde in der
-  Delegationssitzung verifiziert; es gab keinen stillen Wechsel auf ein anderes
-  Modell. Die zweite Korrekturrunde (Statusfilter, öffentliche Identität,
-  Zeitraum und Zeitzone, Übergabe) hat der koordinierende Agent selbst
-  umgesetzt und geprüft; sie lief ohne Delegation, weil der Auftrag keine
-  Rollenteilung vorgab.
+  `develop` ist eröffnet (nicht gemergt); die Pflicht-CI für `60d6697` ist live
+  als grün bestätigt (Lauf `36161389947`, beide Jobs `pass`).
+- Delegation: In der ersten Korrekturrunde hat der koordinierende Agent die
+  Umsetzung der vier Befunde an einen deepseek-Worker übergeben und dessen
+  Ergebnis unabhängig geprüft (Diff, Paketgrenzen, eigene Testläufe). Die
+  Modellwahl wurde in der Delegationssitzung verifiziert; es gab keinen stillen
+  Wechsel auf ein anderes Modell. Die zweite Korrekturrunde (Statusfilter,
+  öffentliche Identität, Zeitraum und Zeitzone, Übergabe) und die dritte
+  Korrekturrunde (Kalenderwechsel und veraltete Ereignisantworten) hat der
+  koordinierende Agent selbst umgesetzt und geprüft; beide liefen ohne
+  Delegation, weil der jeweilige Auftrag keine Rollenteilung vorgab.
 
 ## Paket 5 – lokale Nachweise
 
@@ -257,6 +264,63 @@ calendarId } } }`), und die Web-Projektion prüft gegen die Schlüssel der
 - Nicht geändert: Datenbankschema, Migrationen, CalDAV-/Apple-Pfade, freie
   `TaskEventLink`-Beziehungen, Finanzmodule, Modulseiten und Dokumentsuche. Die
   verwaltete Task-Kalender-Relation bleibt Paket 9.
+
+## Paket 5 – Korrektur der Kalenderwechsel- und Antwortreihenfolge-Befunde
+
+Stand: 25.09.2026, gemessen im Worktree
+`/private/tmp/lifeos-coherence-planning-views` auf Branch
+`feat/coherence-calendar-planning-views` (Basis `a8a2847`) gegen den Stand
+`60d6697`. Diese Runde wurde vom koordinierenden Agenten selbst umgesetzt und
+geprüft (keine Delegation).
+
+- **Befund.** Beim Kalenderwechsel blieben die zuvor geladenen Ereignisse im
+  Zustand von `App.tsx`, während `selectedCalendarId` bereits den neuen Kalender
+  bezeichnete. Die Kalenderprojektion führt Termine unter dem übergebenen
+  `calendarId`; dadurch wurden Termine des alten Kalenders mit der ID des neuen
+  Kalenders verschlüsselt. Bei gleicher UID konnte ein verknüpfter
+  Studieneintrag fälschlich unterdrückt werden. Zusätzlich konnte die verspätete
+  Antwort einer überholten Anfrage – etwa bei zwei schnellen Wechseln – die
+  Anzeige nach dem letzten Wechsel überschreiben.
+- **Korrektur 1 – Zuordnung.** `CalendarWorkspace` leitet die Projektion aus
+  `projectedEvents` ab: Ereignisse gehen nur ein, wenn `eventsCalendarId` exakt
+  dem ausgewählten Kalender entspricht. Während eines Wechsels, nach einem
+  Fehler oder nach einem Kalenderwechsel ohne neue Daten bleiben fremde
+  Ereignisse draußen, statt unter der neuen Kalender-ID projiziert zu werden.
+  Der Vertrag von `buildCalendarProjection` („die geladenen Ereignisse gehören
+  genau diesem Kalender“) ist damit geprüft statt angenommen.
+- **Korrektur 2 – Antwortreihenfolge.** `App.tsx` nummeriert jede
+  Ereignisanfrage über `eventsRequestRef` und übernimmt Ereignisse,
+  Kalenderbezug und Ladezustand nur, wenn die Antwort zur jüngsten Anfrage
+  gehört. Eine verspätete Antwort einer überholten Anfrage bleibt ohne Wirkung,
+  auch im Fehlerpfad.
+- **Regressionstest.** App-Test „wechselt den Kalender ohne veraltete Ereignisse
+  und ohne falsche Unterdrückung“: derselbe UID-Wert in zwei Kalendern, ein
+  Studieneintrag ist mit dem neuen Kalender verknüpft, sein eigener Termin liegt
+  außerhalb des sichtbaren Zeitraums. Der Ereignis-Mock des Tests hält Antworten
+  je Kalender zurück (`holdEvents`/`releaseEvents`), damit Laden und vertauschte
+  Antwortreihenfolge deterministisch prüfbar sind. Geprüft werden Ausgangslage,
+  Ladezustand ohne fremden Termin, die gelieferte Antwort des neuen Kalenders
+  und zuletzt die verspätete Antwort des überholten Kalenders; in jedem Schritt
+  muss der mit dem ausgewählten Kalender verknüpfte Eintrag sichtbar bleiben.
+- **Reproduktion belegt.** Mit dem unveränderten Stand `60d6697` (beide
+  Quelldateien per `git show HEAD:…` eingesetzt, ohne Reset, Clean oder
+  Checkout; danach aus einer Kopie wiederhergestellt und mit `git diff --stat`
+  geprüft) schlägt der Test fehl: nach der verspäteten Antwort sind weder der
+  Termin des ausgewählten Kalenders noch der damit verknüpfte Studieneintrag zu
+  finden – der Eintrag wird also fälschlich unterdrückt und die Anzeige wechselt
+  auf die Daten des überholten Kalenders. Mit der Korrektur ist der Test grün.
+- Gemessene Nachweise dieser Runde: Web-Unit `npx vitest run` in `apps/web`
+  **71/71** in 11 Dateien (vorher 70, inklusive des neuen Regressionstests),
+  Playwright `npx playwright test` in `apps/web` **42/42** in `desktop-chrome`
+  und `mobile-chrome`. Qualität: `npm run typecheck`, `npm run lint`,
+  `npm run format:check`, `npm run build`, `npm run repo:check` und
+  `npm run security:secrets` bestanden.
+- Nicht erneut ausgeführt und deshalb hier nicht als Ergebnis behauptet: die
+  API-Suite (in dieser Runde wurde keine API-Datei geändert), `npm run
+test:repo`, `npm run test:sqlite:api`, die Recovery-/Sidecar-Nachweise und der
+  ARM64-DMG-/Notarisierungspfad.
+- Nicht geändert: Datenbankschema, Migrationen, CalDAV-/Apple-Pfade, freie
+  `TaskEventLink`-Beziehungen, Finanzmodule, Modulseiten und Dokumentsuche.
 
 ## Paket 4 – lokale Nachweise
 
