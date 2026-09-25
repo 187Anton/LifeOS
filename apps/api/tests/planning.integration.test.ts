@@ -69,7 +69,7 @@ test("führt Kalender, Aufgaben, Studium und Arbeit besitzgebunden zusammen", as
       name: "Synthetischer Planungskalender",
     },
   });
-  await Promise.all([
+  const [linkedEvent] = await Promise.all([
     database.calendarEvent.create({
       data: {
         userId: owner.id,
@@ -107,6 +107,23 @@ test("führt Kalender, Aufgaben, Studium und Arbeit besitzgebunden zusammen", as
       estimatedDurationMinutes: 120,
     },
   });
+  await database.task.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetischer Start ohne Dauer",
+      area: "personal",
+      scheduledStartAt: new Date("2032-06-14T13:00:00.000Z"),
+      scheduledStartTimezone: "Europe/Berlin",
+    },
+  });
+  await database.task.create({
+    data: {
+      userId: other.id,
+      title: "Fremde synthetische Aufgabe",
+      area: "personal",
+      dueDate: new Date("2032-06-14T00:00:00.000Z"),
+    },
+  });
   const program = await database.studyProgram.create({
     data: {
       userId: owner.id,
@@ -125,6 +142,44 @@ test("führt Kalender, Aufgaben, Studium und Arbeit besitzgebunden zusammen", as
       kind: "exam",
       title: "Synthetische Prüfung",
       dueDate: new Date("2032-06-15T00:00:00.000Z"),
+    },
+  });
+  const linkedEntry = await database.studyEntry.create({
+    data: {
+      userId: owner.id,
+      moduleId: module.id,
+      kind: "lecture",
+      title: "Synthetische Vorlesung mit Terminbezug",
+      startsAt: new Date("2032-06-14T07:00:00.000Z"),
+      endsAt: new Date("2032-06-14T08:00:00.000Z"),
+      timezone: "Europe/Berlin",
+      calendarEventId: linkedEvent.id,
+    },
+  });
+  /**
+   * Gemeinsame Statusregel beider Ansichten in der realen Datenbank: erledigt
+   * bleibt unsichtbar, aktiv einschließlich `paused` bleibt sichtbar.
+   */
+  const completedEntry = await database.studyEntry.create({
+    data: {
+      userId: owner.id,
+      moduleId: module.id,
+      kind: "exam",
+      title: "Erledigte synthetische Prüfung",
+      status: "completed",
+      dueDate: new Date("2032-06-16T00:00:00.000Z"),
+    },
+  });
+  const pausedEntry = await database.studyEntry.create({
+    data: {
+      userId: owner.id,
+      moduleId: module.id,
+      kind: "learning",
+      title: "Pausierte synthetische Lernzeit",
+      status: "paused",
+      startsAt: new Date("2032-06-16T08:00:00.000Z"),
+      endsAt: new Date("2032-06-16T09:00:00.000Z"),
+      timezone: "Europe/Berlin",
     },
   });
   const workContext = await database.workContext.create({
@@ -239,6 +294,39 @@ test("führt Kalender, Aufgaben, Studium und Arbeit besitzgebunden zusammen", as
   assert.ok(planning.warnings.some((warning) => warning.kind === "capacity"));
   assert.ok(planning.items.some((item) => item.kind === "deadline"));
   assert.ok(planning.items.some((item) => item.kind === "planned_task"));
+  assert.equal(
+    planning.items.every((item) => item.ownerId === owner.id),
+    true,
+  );
+  assert.equal(
+    planning.items.some((item) => item.title === "Fremde synthetische Aufgabe"),
+    false,
+  );
+  const startMarker = planning.items.find(
+    (item) => item.kind === "start_marker",
+  );
+  assert.ok(startMarker);
+  assert.equal(startMarker.endsAt, null);
+  assert.equal(startMarker.durationMinutes, null);
+  assert.equal(startMarker.objectType, "task");
+  assert.equal(startMarker.editable, "task");
+  assert.equal(startMarker.status, "open");
+  const linkedEventItem = planning.items.find(
+    (item) => item.uid === `planning-a-${suffix}@lifeos.local`,
+  );
+  assert.ok(linkedEventItem);
+  assert.equal(linkedEventItem.objectType, "calendar_event");
+  assert.equal(linkedEventItem.editable, "calendar_event");
+  assert.equal(linkedEventItem.sourceId, linkedEvent.id);
+  assert.equal(
+    planning.items.some((item) => item.sourceId === linkedEntry.id),
+    false,
+  );
+  assert.equal(
+    planning.items.some((item) => item.sourceId === completedEntry.id),
+    false,
+  );
+  assert.ok(planning.items.some((item) => item.sourceId === pausedEntry.id));
 
   await database.workProject.update({
     where: { id: workProject.id },
@@ -295,4 +383,320 @@ test("führt Kalender, Aufgaben, Studium und Arbeit besitzgebunden zusammen", as
   });
   assert.ok(audit);
   assert.equal(JSON.stringify(audit.metadata).includes("Synthetische"), false);
+});
+
+test("projiziert Mitternachtsblock und führenden Termin aus der realen Datenbank", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalId = `planning-midnight-${suffix}`;
+  const otherExternalId = `planning-midnight-other-${suffix}`;
+  const owner = await database.user.create({
+    data: {
+      externalId,
+      displayName: "Synthetische Mitternachtsperson",
+      settings: { create: { timezone: "Europe/Berlin" } },
+    },
+  });
+  const foreign = await database.user.create({
+    data: {
+      externalId: otherExternalId,
+      displayName: "Andere synthetische Mitternachtsperson",
+      settings: { create: {} },
+    },
+  });
+  const calendar = await database.calendar.create({
+    data: {
+      userId: owner.id,
+      externalId: `planning-midnight-calendar-${suffix}`,
+      name: "Synthetischer Mitternachtskalender",
+    },
+  });
+  const otherCalendar = await database.calendar.create({
+    data: {
+      userId: owner.id,
+      externalId: `planning-midnight-other-calendar-${suffix}`,
+      name: "Synthetischer Zweitkalender",
+    },
+  });
+  t.after(async () => {
+    await database.user.deleteMany({
+      where: { externalId: { in: [externalId, otherExternalId] } },
+    });
+    await database.$disconnect();
+  });
+
+  /** Mitternachtsblock Sonntag 20.06.2032 23:00 bis Montag 21.06. 01:00. */
+  const midnightTask = await database.task.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetischer Mitternachtsblock",
+      area: "work",
+      scheduledStartAt: new Date("2032-06-20T21:00:00.000Z"),
+      scheduledStartTimezone: "Europe/Berlin",
+      estimatedDurationMinutes: 120,
+    },
+  });
+  await database.task.create({
+    data: {
+      userId: foreign.id,
+      title: "Fremder synthetischer Mitternachtsblock",
+      area: "work",
+      scheduledStartAt: new Date("2032-06-20T21:00:00.000Z"),
+      scheduledStartTimezone: "Europe/Berlin",
+      estimatedDurationMinutes: 120,
+    },
+  });
+  const program = await database.studyProgram.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetisches Mitternachtsstudium",
+      institution: "Lokale Testeinrichtung",
+      periodLabel: "Testabschnitt",
+    },
+  });
+  const module = await database.studyModule.create({
+    data: { userId: owner.id, programId: program.id, title: "Testmodul" },
+  });
+  /**
+   * Führender Termin in einem anderen Kalender und außerhalb beider
+   * Wochenzeiträume: Die Projektion zeigt ihn nicht, der verknüpfte
+   * Studieneintrag muss deshalb sichtbar bleiben.
+   */
+  const otherCalendarEvent = await database.calendarEvent.create({
+    data: {
+      userId: owner.id,
+      calendarId: otherCalendar.id,
+      uid: `planning-midnight-a-${suffix}@lifeos.local`,
+      title: "Synthetischer Termin im Zweitkalender",
+      startsAt: new Date("2032-07-05T07:00:00.000Z"),
+      endsAt: new Date("2032-07-05T08:00:00.000Z"),
+      timezone: "Europe/Berlin",
+      etag: '"planning-midnight-a"',
+    },
+  });
+  const linkedEntry = await database.studyEntry.create({
+    data: {
+      userId: owner.id,
+      moduleId: module.id,
+      kind: "lecture",
+      title: "Synthetische Vorlesung im Zweitkalender",
+      startsAt: new Date("2032-06-21T07:00:00.000Z"),
+      endsAt: new Date("2032-06-21T08:00:00.000Z"),
+      timezone: "Europe/Berlin",
+      calendarEventId: otherCalendarEvent.id,
+    },
+  });
+  /** Gegenprobe: gelieferter Termin unterdrückt den verknüpften Eintrag. */
+  const deliveredEvent = await database.calendarEvent.create({
+    data: {
+      userId: owner.id,
+      calendarId: calendar.id,
+      uid: `planning-midnight-b-${suffix}@lifeos.local`,
+      title: "Synthetischer Termin im Hauptkalender",
+      startsAt: new Date("2032-06-22T07:00:00.000Z"),
+      endsAt: new Date("2032-06-22T08:00:00.000Z"),
+      timezone: "Europe/Berlin",
+      etag: '"planning-midnight-b"',
+    },
+  });
+  const suppressedEntry = await database.studyEntry.create({
+    data: {
+      userId: owner.id,
+      moduleId: module.id,
+      kind: "lecture",
+      title: "Synthetische Vorlesung im Hauptkalender",
+      startsAt: new Date("2032-06-22T07:00:00.000Z"),
+      endsAt: new Date("2032-06-22T08:00:00.000Z"),
+      timezone: "Europe/Berlin",
+      calendarEventId: deliveredEvent.id,
+    },
+  });
+
+  const service = new PlanningService(new PrismaPlanningRepository(database));
+
+  /** Woche 1: Montag 14.06. bis Sonntag 20.06.2032. */
+  const firstWeek = await service.getPlanning(owner.id, {
+    from: "2032-06-14",
+    to: "2032-06-20",
+  });
+  const firstBlock = firstWeek.items.filter(
+    (item) => item.sourceId === midnightTask.id,
+  );
+  assert.equal(firstBlock.length, 1);
+  assert.equal(firstBlock[0]?.date, "2032-06-20");
+  assert.equal(firstBlock[0]?.calendarId, null);
+  assert.equal(
+    firstWeek.items.every((item) => item.ownerId === owner.id),
+    true,
+  );
+  assert.equal(
+    firstWeek.items.some(
+      (item) => item.title === "Fremder synthetischer Mitternachtsblock",
+    ),
+    false,
+  );
+  assert.deepEqual(
+    firstWeek.warnings
+      .filter(
+        (warning) =>
+          warning.kind === "capacity" || warning.kind === "missing_data",
+      )
+      .map((warning) => warning.date),
+    ["2032-06-20"],
+  );
+
+  /** Woche 2: Montag 21.06. bis Sonntag 27.06.2032. */
+  const secondWeek = await service.getPlanning(owner.id, {
+    from: "2032-06-21",
+    to: "2032-06-27",
+  });
+  const secondBlock = secondWeek.items.filter(
+    (item) => item.sourceId === midnightTask.id,
+  );
+  assert.equal(secondBlock.length, 1);
+  assert.equal(secondBlock[0]?.date, "2032-06-21");
+  assert.equal(secondBlock[0]?.startsAt, "2032-06-20T21:00:00.000Z");
+  /** Kapazität genau einmal: die Fortsetzungswoche trägt keine Warnung. */
+  assert.deepEqual(
+    secondWeek.warnings.filter(
+      (warning) =>
+        warning.kind === "capacity" || warning.kind === "missing_data",
+    ),
+    [],
+  );
+  /** Nicht gelieferter führender Termin: Eintrag bleibt sichtbar. */
+  assert.ok(secondWeek.items.some((item) => item.sourceId === linkedEntry.id));
+  assert.equal(
+    secondWeek.items.some((item) => item.sourceId === otherCalendarEvent.id),
+    false,
+  );
+  /** Gelieferter führender Termin: Eintrag wird unterdrückt. */
+  const deliveredItem = secondWeek.items.find(
+    (item) => item.sourceId === deliveredEvent.id,
+  );
+  assert.ok(deliveredItem);
+  assert.equal(deliveredItem.calendarId, calendar.id);
+  assert.equal(deliveredItem.timezone, "Europe/Berlin");
+  assert.equal(
+    secondWeek.items.some((item) => item.sourceId === suppressedEntry.id),
+    false,
+  );
+});
+
+test("unterdrückt bei gleicher UID in zwei Kalendern nur den verknüpften Termin", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalId = `planning-uid-${suffix}`;
+  const owner = await database.user.create({
+    data: {
+      externalId,
+      displayName: "Synthetische Kalenderperson",
+      settings: { create: { timezone: "Europe/Berlin" } },
+    },
+  });
+  const calendar = await database.calendar.create({
+    data: {
+      userId: owner.id,
+      externalId: `planning-uid-calendar-${suffix}`,
+      name: "Synthetischer Hauptkalender",
+    },
+  });
+  const otherCalendar = await database.calendar.create({
+    data: {
+      userId: owner.id,
+      externalId: `planning-uid-other-${suffix}`,
+      name: "Synthetischer Zweitkalender",
+    },
+  });
+  t.after(async () => {
+    await database.user.deleteMany({ where: { externalId } });
+    await database.$disconnect();
+  });
+
+  /**
+   * Dieselbe UID in zwei Kalendern: einmal im sichtbaren Zeitraum, einmal
+   * außerhalb. Die UID allein ist deshalb kein zulässiger Schlüssel.
+   */
+  const sharedUid = `planning-uid-${suffix}@lifeos.local`;
+  const visibleEvent = await database.calendarEvent.create({
+    data: {
+      userId: owner.id,
+      calendarId: calendar.id,
+      uid: sharedUid,
+      title: "Synthetischer Termin im sichtbaren Zeitraum",
+      startsAt: new Date("2032-06-15T07:00:00.000Z"),
+      endsAt: new Date("2032-06-15T08:00:00.000Z"),
+      timezone: "Europe/Berlin",
+      etag: '"planning-uid-a"',
+    },
+  });
+  const hiddenEvent = await database.calendarEvent.create({
+    data: {
+      userId: owner.id,
+      calendarId: otherCalendar.id,
+      uid: sharedUid,
+      title: "Synthetischer Termin außerhalb des Zeitraums",
+      startsAt: new Date("2032-07-05T07:00:00.000Z"),
+      endsAt: new Date("2032-07-05T08:00:00.000Z"),
+      timezone: "Europe/Berlin",
+      etag: '"planning-uid-b"',
+    },
+  });
+  const program = await database.studyProgram.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetisches Kalenderstudium",
+      institution: "Lokale Testeinrichtung",
+      periodLabel: "Testabschnitt",
+    },
+  });
+  const module = await database.studyModule.create({
+    data: { userId: owner.id, programId: program.id, title: "Testmodul" },
+  });
+  const linkedEntry = await database.studyEntry.create({
+    data: {
+      userId: owner.id,
+      moduleId: module.id,
+      kind: "lecture",
+      title: "Synthetische Vorlesung im Hauptkalender",
+      startsAt: new Date("2032-06-15T07:00:00.000Z"),
+      endsAt: new Date("2032-06-15T08:00:00.000Z"),
+      timezone: "Europe/Berlin",
+      calendarEventId: visibleEvent.id,
+    },
+  });
+  const otherCalendarEntry = await database.studyEntry.create({
+    data: {
+      userId: owner.id,
+      moduleId: module.id,
+      kind: "lecture",
+      title: "Synthetische Vorlesung im Zweitkalender",
+      startsAt: new Date("2032-06-15T09:00:00.000Z"),
+      endsAt: new Date("2032-06-15T10:00:00.000Z"),
+      timezone: "Europe/Berlin",
+      calendarEventId: hiddenEvent.id,
+    },
+  });
+
+  const planning = await new PlanningService(
+    new PrismaPlanningRepository(database),
+  ).getPlanning(owner.id, { from: "2032-06-15", to: "2032-06-21" });
+
+  assert.ok(planning.items.some((item) => item.sourceId === visibleEvent.id));
+  assert.equal(
+    planning.items.some((item) => item.sourceId === hiddenEvent.id),
+    false,
+  );
+  /** Der verknüpfte Termin im sichtbaren Zeitraum unterdrückt seinen Eintrag. */
+  assert.equal(
+    planning.items.some((item) => item.sourceId === linkedEntry.id),
+    false,
+  );
+  /**
+   * Der Eintrag mit derselben UID aus dem Zweitkalender bleibt sichtbar: Sein
+   * führender Termin ist in dieser Projektion nicht vertreten.
+   */
+  assert.ok(
+    planning.items.some((item) => item.sourceId === otherCalendarEntry.id),
+  );
 });

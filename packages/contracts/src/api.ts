@@ -494,6 +494,21 @@ export interface StudyEntryResponse extends StudyRecordResponse {
   notes: string | null;
   taskId: string | null;
   calendarEventId: string | null;
+  /**
+   * Stabile öffentliche UID des führenden Kalenderereignisses. Sie ist
+   * zusammen mit `calendarEventCalendarId` die einzige Kennung, mit der eine
+   * Ansicht prüfen kann, ob der Termin in der gerade gezeigten
+   * Kalenderprojektion tatsächlich enthalten ist; die interne
+   * `calendarEventId` bleibt rein intern. Die UID allein ist nicht
+   * kalenderübergreifend eindeutig. Ohne führenden Termin `null`.
+   */
+  calendarEventUid: string | null;
+  /**
+   * Kalender des führenden Kalenderereignisses. Erst zusammen mit
+   * `calendarEventUid` ergibt sich eine kalenderübergreifend eindeutige
+   * öffentliche Identität. Ohne führenden Termin `null`.
+   */
+  calendarEventCalendarId: string | null;
 }
 
 export interface StudyOverviewResponse {
@@ -793,10 +808,37 @@ export interface UpdateWorkTimeEntryRequest extends Partial<CreateWorkTimeEntryR
   archived?: boolean;
 }
 
+/**
+ * Quelle eines Eintrags der gemeinsamen Kalender- und Planungsprojektion.
+ * Kalenderansichten und Planungsansichten lesen dieselben Projektionseinträge;
+ * die Auswahl filtert ausschließlich die Anzeige und verändert keine Daten.
+ */
 export type PlanningArea =
   "calendar" | "study" | "work" | "tasks" | "availability";
 export type PlanningItemKind =
-  "fixed_event" | "deadline" | "planned_task" | "actual_time" | "availability";
+  | "fixed_event"
+  | "deadline"
+  | "planned_task"
+  | "start_marker"
+  | "actual_time"
+  | "availability";
+/**
+ * Objektart des zugrunde liegenden Datensatzes. Die Projektion erfindet dafür
+ * keine zweite Datenquelle, sondern verweist auf das bestehende Fachobjekt.
+ */
+export type PlanningItemObjectType =
+  | "calendar_event"
+  | "task"
+  | "study_entry"
+  | "work_project"
+  | "work_time_entry"
+  | "availability_window";
+/**
+ * Bestehender Editor, den die Weboberfläche für einen Projektionseintrag
+ * öffnet. `null` bedeutet, dass die Ansicht den Eintrag nur darstellt und
+ * keinen Schreibpfad anbietet.
+ */
+export type PlanningEditTarget = "calendar_event" | "task";
 export type PlanningPriority = "low" | "medium" | "high" | "critical";
 
 export interface AvailabilityWindowResponse {
@@ -822,9 +864,27 @@ export interface UpdateAvailabilityWindowRequest extends Partial<CreateAvailabil
 export interface PlanningItemResponse {
   id: string;
   sourceId: string;
+  /**
+   * Stabile UID des führenden Kalenderereignisses. Sie bleibt über Serien,
+   * ETag-Änderungen und CalDAV hinweg unverändert und ist der einzige
+   * öffentliche Schlüssel, über den eine Ansicht den bestehenden Termin-Editor
+   * öffnet; für alle anderen Quellen `null`.
+   */
+  uid: string | null;
+  /**
+   * Kalender des führenden Ereignisses. Die UID allein ist nicht zwingend über
+   * Kalender hinweg eindeutig; die Planungsansicht übergibt deshalb beim Klick
+   * zusätzlich diesen Kalender, damit der bestehende Termin-Editor im richtigen
+   * Kalender geöffnet wird. Für alle anderen Quellen `null`.
+   */
+  calendarId: string | null;
   area: PlanningArea;
   kind: PlanningItemKind;
+  objectType: PlanningItemObjectType;
+  ownerId: string;
   title: string;
+  /** Fachlicher Status des Quelldatensatzes. */
+  status: string;
   date: string;
   startsAt: string | null;
   endsAt: string | null;
@@ -832,6 +892,11 @@ export interface PlanningItemResponse {
   durationMinutes: number | null;
   priority: PlanningPriority;
   overdue: boolean;
+  /**
+   * Bestehender Editor für diesen Eintrag. `null` bedeutet reine Anzeige;
+   * die Projektion selbst schreibt nie.
+   */
+  editable: PlanningEditTarget | null;
   sourceUpdatedAt: string | null;
 }
 

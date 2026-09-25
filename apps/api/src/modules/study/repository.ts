@@ -118,7 +118,11 @@ const mapModule = (record: StudyModuleModel): StudyModuleResponse => ({
   documentReferences: record.documentReferences,
   searchEnabled: record.searchEnabled,
 });
-const mapEntry = (record: StudyEntryModel): StudyEntryResponse => ({
+const mapEntry = (
+  record: StudyEntryModel,
+  calendarEventUid: string | null = null,
+  calendarEventCalendarId: string | null = null,
+): StudyEntryResponse => ({
   ...common(record),
   moduleId: record.moduleId,
   kind: record.kind,
@@ -133,6 +137,8 @@ const mapEntry = (record: StudyEntryModel): StudyEntryResponse => ({
   notes: record.notes,
   taskId: record.taskId,
   calendarEventId: record.calendarEventId,
+  calendarEventUid,
+  calendarEventCalendarId,
 });
 
 const changedFields = (metadata: unknown): string[] => {
@@ -191,6 +197,12 @@ export class PrismaStudyRepository implements StudyRepository {
           { startsAt: { sort: "asc", nulls: "last" } },
           { createdAt: "asc" },
         ],
+        /**
+         * Nur die stabile öffentliche UID und der Kalender des führenden
+         * Termins werden gelesen; die interne `calendarEventId` bleibt davon
+         * unberührt.
+         */
+        include: { calendarEvent: { select: { uid: true, calendarId: true } } },
       }),
       this.database.auditEvent.findMany({
         where: {
@@ -204,7 +216,13 @@ export class PrismaStudyRepository implements StudyRepository {
     return {
       programs: programs.map(mapProgram),
       modules: modules.map(mapModule),
-      entries: entries.map(mapEntry),
+      entries: entries.map((entry) =>
+        mapEntry(
+          entry,
+          entry.calendarEvent?.uid ?? null,
+          entry.calendarEvent?.calendarId ?? null,
+        ),
+      ),
       history: auditEvents.map((event) => mapAudit(event)),
     };
   }
@@ -290,7 +308,7 @@ export class PrismaStudyRepository implements StudyRepository {
   }
   async createEntry(userId: string, values: EntryValues) {
     return this.database.$transaction(async (tx) => {
-      await this.requireEntryReferences(tx, userId, values);
+      const references = await this.requireEntryReferences(tx, userId, values);
       const record = await tx.studyEntry.create({
         data: { userId, ...values },
       });
@@ -301,7 +319,11 @@ export class PrismaStudyRepository implements StudyRepository {
         "StudyEntry",
         record.id,
       );
-      return mapEntry(record);
+      return mapEntry(
+        record,
+        references.calendarEventUid,
+        references.calendarEventCalendarId,
+      );
     });
   }
   async updateEntry(
@@ -312,7 +334,7 @@ export class PrismaStudyRepository implements StudyRepository {
     return this.database.$transaction(async (tx) => {
       const current = await tx.studyEntry.findFirst({ where: { id, userId } });
       if (!current) throw new StudyRecordNotFoundError();
-      await this.requireEntryReferences(tx, userId, {
+      const references = await this.requireEntryReferences(tx, userId, {
         moduleId: changes.moduleId ?? current.moduleId,
         taskId: Object.hasOwn(changes, "taskId")
           ? (changes.taskId ?? null)
@@ -333,7 +355,11 @@ export class PrismaStudyRepository implements StudyRepository {
         id,
         changes,
       );
-      return mapEntry(record);
+      return mapEntry(
+        record,
+        references.calendarEventUid,
+        references.calendarEventCalendarId,
+      );
     });
   }
 
@@ -353,29 +379,41 @@ export class PrismaStudyRepository implements StudyRepository {
     tx: StudyTransaction,
     userId: string,
     values: Pick<EntryValues, "moduleId" | "taskId" | "calendarEventId">,
-  ) {
-    const checks = [
-      tx.studyModule.findFirst({
-        where: { id: values.moduleId, userId, archivedAt: null },
-      }),
-      values.taskId
-        ? tx.task.findFirst({
-            where: {
-              id: values.taskId,
-              userId,
-              archivedAt: null,
-              deletedAt: null,
-            },
-          })
-        : Promise.resolve(true),
-      values.calendarEventId
-        ? tx.calendarEvent.findFirst({
-            where: { id: values.calendarEventId, userId, deletedAt: null },
-          })
-        : Promise.resolve(true),
-    ];
-    if ((await Promise.all(checks)).some((value) => !value))
+  ): Promise<{
+    calendarEventUid: string | null;
+    calendarEventCalendarId: string | null;
+  }> {
+    const module = await tx.studyModule.findFirst({
+      where: { id: values.moduleId, userId, archivedAt: null },
+    });
+    const task = values.taskId
+      ? await tx.task.findFirst({
+          where: {
+            id: values.taskId,
+            userId,
+            archivedAt: null,
+            deletedAt: null,
+          },
+        })
+      : true;
+    /**
+     * Die vorhandene Referenzprüfung liest zugleich UID und Kalender des
+     * führenden Termins, damit die Antwort konsistent zur lesbaren
+     * öffentlichen Identität des Termins ist.
+     */
+    const calendarEvent = values.calendarEventId
+      ? await tx.calendarEvent.findFirst({
+          where: { id: values.calendarEventId, userId, deletedAt: null },
+          select: { uid: true, calendarId: true },
+        })
+      : true;
+    if (!module || !task || !calendarEvent)
       throw new StudyReferenceNotFoundError();
+    return {
+      calendarEventUid: calendarEvent === true ? null : calendarEvent.uid,
+      calendarEventCalendarId:
+        calendarEvent === true ? null : calendarEvent.calendarId,
+    };
   }
   private audit(
     tx: StudyTransaction,

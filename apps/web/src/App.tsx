@@ -40,7 +40,7 @@ import type {
   SearchResultResponse,
   AiQueryResponse,
 } from "@lifeos/contracts";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, ApiClientError, type EventPayload } from "./api";
 import { CalendarWorkspace } from "./components/CalendarWorkspace";
@@ -106,6 +106,33 @@ export const App = () => {
     null,
   );
   /**
+   * Aus den gemeinsamen Kalender- und Planungsansichten angeforderte
+   * Bearbeitung. Sie öffnet ausschließlich den vorhandenen Editor des
+   * jeweiligen Fachobjekts und erzeugt keinen neuen Schreibpfad.
+   */
+  const [editTaskRequest, setEditTaskRequest] = useState<string | null>(null);
+  /**
+   * Bearbeitungsanforderung an den Termin-Editor. Sie trägt immer den Kalender
+   * des führenden Termins mit; die UID allein ist nicht kalenderübergreifend
+   * eindeutig.
+   */
+  const [editEventRequest, setEditEventRequest] = useState<{
+    calendarId: string;
+    uid: string;
+  } | null>(null);
+  /**
+   * Kalender der aktuell geladenen `events`. Eine Bearbeitungsanforderung gilt
+   * erst als auflösbar, wenn ihr Kalender genau diesem entspricht.
+   */
+  const [eventsCalendarId, setEventsCalendarId] = useState<string | null>(null);
+  /**
+   * Laufende Ereignisanfrage. Jede Anfrage erhält eine eigene Nummer; eine
+   * Antwort darf den Zustand nur setzen, solange sie die jüngste Anfrage ist.
+   * Ein Kalenderwechsel darf nicht davon überschrieben werden, dass eine
+   * vorherige Anfrage verspätet eintrifft.
+   */
+  const eventsRequestRef = useRef(0);
+  /**
    * Vorbelegung für einen neu geöffneten Aufgabeneditor. Sie wird
    * ausschließlich von der Anlage im Studienmodul gesetzt und füllt nur die
    * Neuanlage vor; bestehende Aufgaben bleiben unberührt.
@@ -163,19 +190,32 @@ export const App = () => {
   }, []);
 
   const loadEvents = useCallback(async (calendarId: string) => {
+    const request = eventsRequestRef.current + 1;
+    eventsRequestRef.current = request;
     setEventsLoading(true);
     setCalendarError(null);
     try {
-      setEvents(await api.listEvents(calendarId));
+      const loaded = await api.listEvents(calendarId);
+      /**
+       * Eine verspätete Antwort einer überholten Anfrage darf weder die
+       * Ereignisse noch deren Kalenderbezug ersetzen; sonst würden Ereignisse
+       * eines anderen Kalenders unter der aktuellen Kalender-ID projiziert.
+       */
+      if (eventsRequestRef.current !== request) return;
+      setEvents(loaded);
+      setEventsCalendarId(calendarId);
     } catch (error) {
+      /** Auch ein Fehler einer überholten Anfrage bleibt ohne Wirkung. */
+      if (eventsRequestRef.current !== request) return;
       if (error instanceof ApiClientError && error.status === 401) {
         setSession("anonymous");
       } else {
         setCalendarError(errorMessage(error));
       }
       setEvents([]);
+      setEventsCalendarId(null);
     } finally {
-      setEventsLoading(false);
+      if (eventsRequestRef.current === request) setEventsLoading(false);
     }
   }, []);
 
@@ -407,7 +447,10 @@ export const App = () => {
       loadedProfile.settings.weekStartsOn,
     );
     setPlanningRange(currentPlanningRange);
-    if (!selected) setEvents([]);
+    if (!selected) {
+      setEvents([]);
+      setEventsCalendarId(null);
+    }
     setSession("authenticated");
     await Promise.all([
       selected ? loadEvents(selected.id) : Promise.resolve(),
@@ -486,6 +529,7 @@ export const App = () => {
     setProfile(null);
     setCalendars([]);
     setEvents([]);
+    setEventsCalendarId(null);
     setTasks([]);
     setTaskEventLinks([]);
     setDashboard(null);
@@ -508,8 +552,78 @@ export const App = () => {
     setSelectedCalendarId(calendarId);
     setSuccess(null);
     setCalendarWarning(null);
+    /**
+     * Die geladenen Ereignisse gehören weiterhin zum bisherigen Kalender. Sie
+     * bleiben bis zur Antwort des neuen Kalenders aus der Projektion heraus;
+     * das entscheidet die Kalenderansicht anhand von `eventsCalendarId` gegen
+     * die aktuelle Auswahl.
+     */
     void loadEvents(calendarId);
   };
+
+  /**
+   * Nach jeder bestätigten Bearbeitung Aufgaben, Kalender, Studium, Dashboard
+   * und Planung konsistent neu laden. Kein Vorgang verändert dabei
+   * automatisch das jeweils andere Fachobjekt.
+   */
+  const reloadProjections = useCallback(
+    async (calendarId: string | null) => {
+      await Promise.all([
+        calendarId ? loadEvents(calendarId) : Promise.resolve(),
+        loadTasks(),
+        loadStudy(),
+        loadDashboard(),
+        loadPlanning(planningRange),
+      ]);
+    },
+    [
+      loadDashboard,
+      loadEvents,
+      loadPlanning,
+      loadStudy,
+      loadTasks,
+      planningRange,
+    ],
+  );
+
+  /**
+   * Öffnet den gemeinsamen Aufgabeneditor für eine Aufgabe aus Kalender- oder
+   * Planungsansicht. Es entsteht kein zweiter Schreibpfad.
+   */
+  const openTaskEditor = useCallback((taskId: string) => {
+    setTaskDraft(null);
+    setTaskError(null);
+    setEditTaskRequest(taskId);
+    setView("tasks");
+  }, []);
+
+  /**
+   * Öffnet das führende Kalenderereignis im bestehenden Termin-Editor. Die
+   * Anforderung trägt Kalender und stabile UID: Ist der Zielkalender noch nicht
+   * ausgewählt, wird zuerst genau dieser ausgewählt und – nur wenn seine
+   * Ereignisse noch nicht geladen sind – einmalig nachgeladen. Die Anforderung
+   * bleibt bestehen, bis die Kalenderansicht sie auflösen kann oder der Editor
+   * wieder geschlossen wird. Es entsteht kein neuer Endpunkt und kein zweiter
+   * Schreibpfad.
+   */
+  const openEventEditor = useCallback(
+    (request: { calendarId: string; uid: string }) => {
+      setEditEventRequest(request);
+      setView("calendar");
+      if (request.calendarId === selectedCalendarId) return;
+      setSelectedCalendarId(request.calendarId);
+      setCalendarWarning(null);
+      if (request.calendarId === eventsCalendarId) return;
+      void loadEvents(request.calendarId);
+    },
+    [eventsCalendarId, loadEvents, selectedCalendarId],
+  );
+
+  const handleEditTaskRequest = useCallback(() => setEditTaskRequest(null), []);
+  const handleEditEventRequest = useCallback(
+    () => setEditEventRequest(null),
+    [],
+  );
 
   const saveEvent = async (
     event: CalendarEventResponse | null,
@@ -533,11 +647,7 @@ export const App = () => {
         await api.createEvent(selectedCalendarId, payload);
         setSuccess("Der Termin wurde angelegt.");
       }
-      await Promise.all([
-        loadEvents(selectedCalendarId),
-        loadDashboard(),
-        loadPlanning(planningRange),
-      ]);
+      await reloadProjections(selectedCalendarId);
     } catch (error) {
       if (
         error instanceof ApiClientError &&
@@ -566,10 +676,8 @@ export const App = () => {
       await api.deleteEvent(selectedCalendarId, event.uid, event.etag);
       setSuccess("Der Termin wurde gelöscht.");
       await Promise.all([
-        loadEvents(selectedCalendarId),
         loadTaskEventLinks(),
-        loadDashboard(),
-        loadPlanning(planningRange),
+        reloadProjections(selectedCalendarId),
       ]);
     } catch (error) {
       if (
@@ -604,12 +712,7 @@ export const App = () => {
         await api.createTask(payload as CreateTaskRequest);
         setTaskSuccess("Die Aufgabe wurde angelegt.");
       }
-      await Promise.all([
-        loadTasks(),
-        loadStudy(),
-        loadDashboard(),
-        loadPlanning(planningRange),
-      ]);
+      await reloadProjections(selectedCalendarId);
     } catch (error) {
       setTaskError(errorMessage(error));
       throw error;
@@ -625,12 +728,7 @@ export const App = () => {
     try {
       await api.updateTask(taskId, payload);
       setTaskSuccess("Die Aufgabe wurde aktualisiert.");
-      await Promise.all([
-        loadTasks(),
-        loadStudy(),
-        loadDashboard(),
-        loadPlanning(planningRange),
-      ]);
+      await reloadProjections(selectedCalendarId);
     } catch (error) {
       setTaskError(errorMessage(error));
       throw error;
@@ -647,10 +745,8 @@ export const App = () => {
       await api.deleteTask(taskId);
       setTaskSuccess("Die Aufgabe wurde gelöscht.");
       await Promise.all([
-        loadTasks(),
         loadTaskEventLinks(),
-        loadDashboard(),
-        loadPlanning(planningRange),
+        reloadProjections(selectedCalendarId),
       ]);
     } catch (error) {
       setTaskError(errorMessage(error));
@@ -883,6 +979,8 @@ export const App = () => {
           success={taskSuccess}
           createRequested={createRequest === "task"}
           onCreateRequestHandled={() => setCreateRequest(null)}
+          editRequestId={editTaskRequest}
+          onEditRequestHandled={handleEditTaskRequest}
           onReload={() => void loadTasks()}
           onSave={saveTask}
           onUpdate={updateTask}
@@ -1012,6 +1110,8 @@ export const App = () => {
           success={planningSuccess}
           onReload={() => void loadPlanning(planningRange)}
           onRangeChange={changePlanningRange}
+          onOpenEvent={openEventEditor}
+          onOpenTask={openTaskEditor}
           onCreateAvailability={(value: CreateAvailabilityWindowRequest) =>
             changePlanning(
               () => api.createAvailability(value),
@@ -1196,10 +1296,13 @@ export const App = () => {
         <CalendarWorkspace
           calendars={calendars}
           selectedCalendarId={selectedCalendarId}
+          eventsCalendarId={eventsCalendarId}
           events={events}
           studyEntries={study?.entries ?? []}
           tasks={tasks}
           links={taskEventLinks}
+          ownerId={profile.id}
+          profileTimezone={profile.settings.timezone}
           initialView={profile.settings.defaultCalendarView}
           loading={eventsLoading}
           saving={saving}
@@ -1208,7 +1311,11 @@ export const App = () => {
           success={success}
           createRequested={createRequest === "event"}
           onCreateRequestHandled={() => setCreateRequest(null)}
+          editEventRequest={editEventRequest}
+          onEditEventRequestHandled={handleEditEventRequest}
+          onRequestEditEvent={openEventEditor}
           onCalendarChange={changeCalendar}
+          onOpenTask={openTaskEditor}
           onReload={() => {
             setCalendarWarning(null);
             if (selectedCalendarId) void loadEvents(selectedCalendarId);

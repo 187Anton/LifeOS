@@ -235,7 +235,90 @@ aktiven Modul der Studienansicht. `Task.area` bleibt ein eigenes Feld und wird
 nur bei der Neuanlage aus einem Modul sichtbar mit „Studium“ vorbelegt.
 Bestehende `StudyEntry.taskId`- und `calendarEventId`-Bezüge bleiben unverändert;
 es findet keine automatische Modul-, Frist- oder Statusübernahme statt. Paket 4
-ist damit lokal geprüft, aber noch nicht über PR und Pflicht-CI abgenommen.
+ist über [PR #124](https://github.com/187Anton/LifeOS/pull/124) in `develop`
+integriert; bestätigt ist der Merge-Commit `a8a2847` als Spitze von
+`origin/develop`.
+
+Paket 5 ist auf `a8a2847` (`origin/develop`, PR #124) lokal umgesetzt und
+geprüft. Der Ablauf ist sequenziell: **5/1** gemeinsamer Projektionsvertrag in
+`packages/contracts/src/api.ts` (`PlanningArea`, `PlanningItemKind`,
+`PlanningItemObjectType`, `PlanningEditTarget`, `PlanningPriority`) mit Quelle
+(`area`, `sourceId`, `uid`), Objektart (`objectType`), Besitzer (`ownerId`),
+Titel, Status (`status`), Datum (`date`), Start und Ende (`startsAt`, `endsAt`),
+Zeitzone (`timezone`) und Bearbeitbarkeit (`editable`), **5/2** Anpassung des
+Planning-Service, damit Aufgabenfristen als Ganztagsobjekte, Aufgaben mit Start
+und Dauer als geplante Zeitblöcke und Aufgaben mit Start ohne Dauer als reine
+Startmarkierungen erscheinen – Startmarkierungen erhalten kein Ende, Fristen
+erzeugen keine belegte Arbeitszeit und fließen weder in Kapazität noch in
+Überschneidungsberechnungen ein, **5/3** gemeinsame Web-Projektion
+`apps/web/src/calendar-projection.ts`, die Kalenderereignis-Vorkommen
+(Serien bleiben flüchtige Projektionen des Kalenderkerns mit stabiler UID und
+aktuellem ETag), Aufgabenfristen, geplante Zeitblöcke, Startmarkierungen und
+Verfügbarkeiten auf einen Typ abbildet sowie verknüpfte Studieneinträge über ihr
+führendes Kalenderereignis darstellt, **5/4** Umstellung der vier
+Kalenderansichten Tag, Woche, Monat und Agenda und der Planungsansichten
+(Woche/Agenda) auf diese Projektion inklusive klar getrennter Beschriftung
+„Frist“, „Geplanter Zeitblock“ und „Start ohne Dauer“, **5/5** Bearbeitung aus
+den Ansichten heraus: Kalenderereignisse öffnen den vorhandenen Termin-Editor,
+Aufgabenfristen, Zeitblöcke und Startmarkierungen den vorhandenen Aufgabeneditor
+(`editEventRequest`/`editTaskRequest` in `App.tsx`, ohne eigenen Effekt und ohne
+zweiten Schreibpfad), **5/6** konsistentes Nachladen von Aufgaben, Kalender,
+Studium, Dashboard und Planung nach jeder bestätigten Bearbeitung
+(`reloadProjections`) und **5/7** Unit-, Integrations- und E2E-Nachweise. Eine
+Aufgabenfrist und ein geplanter Zeitblock derselben Aufgabe bleiben zwei
+bewusst beschriftete Projektionen. Es entstanden keine Schemaänderung, keine
+Migration und keine verwaltete Task-Kalender-Relation; Paket 9 bleibt dafür
+zuständig.
+
+Nach der ersten Abnahme wurde Paket 5 um vier Befunde korrigiert (Stand
+25.09.2026, weiterhin lokal, noch nicht über PR und Pflicht-CI abgenommen):
+**K1** Aufgaben und Studieneinträge werden in Kalender- und Planungsansicht
+nach derselben Projektregel, nämlich der Profilzeitzone, auf Kalendertage
+abgebildet, während Kalenderereignisse ihre gespeicherte Zeitzone für die
+Anzeige behalten und nicht neu interpretiert werden; **K2** zeitgebundene
+Blöcke werden bei echter Zeitüberlappung aufgenommen, erscheinen genau einmal
+pro Zeitraum mit dem Anzeigetag `max(eigener Starttag, Zeitraumstart)`, tragen
+eine klare Fortsetzungskennzeichnung und zählen die Dauer nur an ihrem eigenen
+Starttag gegen die Kapazität; **K3** die Kalenderansicht blendet erledigte,
+abgebrochene und archivierte Studieneinträge wieder aus (aktive bleiben
+sichtbar), der API-Statusfilter bleibt bewusst unverändert; **K4** ein
+verknüpfter Studieneintrag wird nur unterdrückt, wenn sein führender Termin in
+der tatsächlich gelieferten Projektion vorkommt – dafür gibt
+`StudyEntryResponse` die stabile öffentliche `calendarEventUid` read-only aus,
+und ein fester Termin öffnet aus der Planungsansicht den bestehenden
+Termin-Editor über `{calendarId, uid}` samt Kalenderwechsel, ohne dass die UID
+je als kalenderübergreifend eindeutiger Schlüssel dient. Zusätzlich wurde ein
+reproduzierbarer E2E-Testflake (Prüfung direkt nach dem Speichern, während der
+Editor noch offen war) im Test deterministisch gemacht; die Fachlogik blieb
+unverändert. Gemessener Endstand: 116/116 API-, 67/67 Web-Unit- und 42/42
+E2E-Tests (vier volle Playwright-Läufe hintereinander ohne Fehlschlag), dazu
+`typecheck`, `lint`, `format:check`, `build`, `repo:check` und `security:secrets`
+bestanden. Details stehen in
+[coherence-progress.md](coherence-progress.md).
+
+Die zweite Korrekturrunde (Stand 25.09.2026, weiterhin ausschließlich Paket 5)
+gleicht die verbliebenen Befunde an: **K5** dieselbe Statusregel in beiden
+Ansichten – erledigte und abgebrochene Studieneinträge bleiben unsichtbar,
+aktive einschließlich `paused` bleiben sichtbar, archivierte liefert die
+Planungsquelle weiterhin nicht aus; die Planungs-API wendet diese Regel über
+`hiddenStudyStatus` an. **K6** verknüpfte Studieneinträge werden über die
+zusammengesetzte öffentliche Identität `(calendarId, uid)` verglichen, nie über
+die UID allein – dieselbe UID in zwei Kalendern unterdrückt nur den tatsächlich
+verknüpften Termin; dafür gibt `StudyEntryResponse.calendarEventCalendarId` den
+öffentlichen Kalender des führenden Termins read-only aus (interne
+Datenbank-IDs bleiben intern) und die Planungsquelle liest die Relation
+schreibgeschützt mit. **K7** alle Quellen verwenden dieselbe Profilzeitzone als
+Tagesbasis: Anker und „Heute“ der Kalenderansicht hängen nicht mehr von der
+Kalenderzeitzone ab, ein abweichender Kalender-Zeitzonenwert ergibt auch über
+Mitternacht keinen anderen sichtbaren Tag, und Kalenderereignisse behalten ihre
+gespeicherte Zeitzone und ihren Zeitpunkt für Anzeige und Bearbeitung
+unverändert. Gemessener Endstand dieser Runde: 118/118 API- (inkl. eines neuen
+Integrationsfalls gegen die reale Datenbank), 70/70 Web-Unit- und 42/42
+E2E-Tests, dazu `typecheck`, `lint`, `format:check`, `build`, `repo:check` und
+`security:secrets` bestanden. Der Commit `acd420b` liegt auf dem getrackten
+Paket-5-Branch, PR #125 ist gegen `develop` eröffnet, die Pflicht-CI dort ist
+grün und der Merge wurde nicht ausgeführt. Details stehen in
+[coherence-progress.md](coherence-progress.md).
 
 | Paket | Umfang und Einstieg                                                           | Erforderliche Abnahme zusätzlich zur Pflicht-CI                                                                                                                                                     |
 | ----- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -335,3 +418,48 @@ des gespeicherten Zwischenstands fort; starte kein weiteres Paket.“
 
 - 23.09.2026: Paket 0 aus den Nutzerentscheidungen erstellt. Kein Produktcode,
   keine Datenmigration, keine Apple-Konten und keine App-Installation geändert.
+- 25.09.2026: Paket 5 nach lokalem Nachweis dokumentiert. Festgehalten sind der
+  gemeinsame Projektionsvertrag, die Trennung von Frist, geplantem Zeitblock und
+  Startmarkierung ohne erfundenes Ende, die Duplikatunterdrückung verknüpfter
+  Studieneinträge, die Bearbeitung aus den Ansichten über die bestehenden
+  Editoren, das konsistente Nachladen aller Projektionen sowie die
+  besitzgebundene Zuordnung ohne neue interne Schreibpfade. Keine
+  Schemaänderung, keine Migration, keine verwaltete Task-Kalender-Relation.
+- 25.09.2026: Paket 5 um vier Abnahmebefunde korrigiert. Festgehalten sind
+  dieselben Tagesgrenzen für Aufgaben und Studieneinträge nach der
+  Profilzeitzone bei unveränderter Ereignis-Zeitzone für die Anzeige,
+  Mitternachtsblöcke mit genau einem Eintrag pro Zeitraum, Anzeigetag,
+  Fortsetzungskennzeichnung und Kapazität nur am eigenen Starttag, das
+  Ausblenden erledigter, abgebrochener und archivierter Studieneinträge in der
+  Kalenderansicht sowie die Unterdrückung eines verknüpften Studieneintrags
+  ausschließlich gegen die tatsächlich gelieferte Projektion mit sicherer
+  Editor-Zuordnung über `{calendarId, uid}`. Read-only ergänzt wurden
+  `StudyEntryResponse.calendarEventUid` und `PlanningItemResponse.calendarId`.
+  Zusätzlich ein reproduzierbarer E2E-Testflake deterministisch gemacht. Keine
+  Schemaänderung, keine Migration, keine CalDAV-/Apple-Änderung, keine Änderung
+  freier `TaskEventLink`-Beziehungen und kein neuer Schreibpfad.
+
+- 25.09.2026: Zweite Korrekturrunde zu Paket 5. Festgehalten sind die
+  gemeinsame Statusregel beider Ansichten (erledigt und abgebrochen unsichtbar,
+  aktiv einschließlich `paused` sichtbar, archiviert weiterhin nicht
+  ausgeliefert), der Abgleich verknüpfter Studieneinträge über die
+  zusammengesetzte öffentliche Identität `(calendarId, uid)` mit read-only
+  ausgegebenem `StudyEntryResponse.calendarEventCalendarId` sowie die
+  gemeinsame Profilzeitzone als Tagesbasis der Kalenderansicht, sodass ein
+  abweichender Kalender-Zeitzonenwert auch über Mitternacht keinen anderen
+  sichtbaren Tag ergibt und Ereigniszeitpunkte unverändert bleiben. Keine
+  Schemaänderung, keine Migration, keine CalDAV-/Apple-Änderung, keine Änderung
+  freier `TaskEventLink`-Beziehungen und kein neuer Schreibpfad.
+
+- 25.09.2026: Dritte Korrekturrunde zu Paket 5. Festgehalten sind zwei Regeln
+  für den Kalenderwechsel: Die Kalenderprojektion verwendet ausschließlich
+  Ereignisse, deren geladener Kalenderbezug exakt dem ausgewählten Kalender
+  entspricht; und eine Ereignisantwort darf Ereignisse, Kalenderbezug und
+  Ladezustand nur setzen, solange sie zur jüngsten Anfrage gehört. Damit kann
+  ein Termin desselben UID-Werts aus einem anderen Kalender weder während des
+  Ladens noch über eine verspätet eintreffende Antwort einen verknüpften
+  Studieneintrag unterdrücken. Belegt durch einen App-Referenztest mit
+  kalenderweise zurückgehaltenen Antworten (nachweislich rot gegen den Stand
+  `60d6697`, grün mit der Korrektur). Keine Schemaänderung, keine Migration,
+  keine CalDAV-/Apple-Änderung, keine Änderung freier
+  `TaskEventLink`-Beziehungen und kein neuer Schreibpfad.
