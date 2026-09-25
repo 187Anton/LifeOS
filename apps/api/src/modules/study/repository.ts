@@ -121,6 +121,7 @@ const mapModule = (record: StudyModuleModel): StudyModuleResponse => ({
 const mapEntry = (
   record: StudyEntryModel,
   calendarEventUid: string | null = null,
+  calendarEventCalendarId: string | null = null,
 ): StudyEntryResponse => ({
   ...common(record),
   moduleId: record.moduleId,
@@ -137,6 +138,7 @@ const mapEntry = (
   taskId: record.taskId,
   calendarEventId: record.calendarEventId,
   calendarEventUid,
+  calendarEventCalendarId,
 });
 
 const changedFields = (metadata: unknown): string[] => {
@@ -196,10 +198,11 @@ export class PrismaStudyRepository implements StudyRepository {
           { createdAt: "asc" },
         ],
         /**
-         * Nur die stabile öffentliche UID des führenden Termins wird gelesen;
-         * die interne `calendarEventId` bleibt davon unberührt.
+         * Nur die stabile öffentliche UID und der Kalender des führenden
+         * Termins werden gelesen; die interne `calendarEventId` bleibt davon
+         * unberührt.
          */
-        include: { calendarEvent: { select: { uid: true } } },
+        include: { calendarEvent: { select: { uid: true, calendarId: true } } },
       }),
       this.database.auditEvent.findMany({
         where: {
@@ -214,7 +217,11 @@ export class PrismaStudyRepository implements StudyRepository {
       programs: programs.map(mapProgram),
       modules: modules.map(mapModule),
       entries: entries.map((entry) =>
-        mapEntry(entry, entry.calendarEvent?.uid ?? null),
+        mapEntry(
+          entry,
+          entry.calendarEvent?.uid ?? null,
+          entry.calendarEvent?.calendarId ?? null,
+        ),
       ),
       history: auditEvents.map((event) => mapAudit(event)),
     };
@@ -312,7 +319,11 @@ export class PrismaStudyRepository implements StudyRepository {
         "StudyEntry",
         record.id,
       );
-      return mapEntry(record, references.calendarEventUid);
+      return mapEntry(
+        record,
+        references.calendarEventUid,
+        references.calendarEventCalendarId,
+      );
     });
   }
   async updateEntry(
@@ -344,7 +355,11 @@ export class PrismaStudyRepository implements StudyRepository {
         id,
         changes,
       );
-      return mapEntry(record, references.calendarEventUid);
+      return mapEntry(
+        record,
+        references.calendarEventUid,
+        references.calendarEventCalendarId,
+      );
     });
   }
 
@@ -364,7 +379,10 @@ export class PrismaStudyRepository implements StudyRepository {
     tx: StudyTransaction,
     userId: string,
     values: Pick<EntryValues, "moduleId" | "taskId" | "calendarEventId">,
-  ): Promise<{ calendarEventUid: string | null }> {
+  ): Promise<{
+    calendarEventUid: string | null;
+    calendarEventCalendarId: string | null;
+  }> {
     const module = await tx.studyModule.findFirst({
       where: { id: values.moduleId, userId, archivedAt: null },
     });
@@ -379,19 +397,22 @@ export class PrismaStudyRepository implements StudyRepository {
         })
       : true;
     /**
-     * Die vorhandene Referenzprüfung liest zugleich die stabile UID des
-     * führenden Termins, damit die Antwort konsistent zur gelesenen UID ist.
+     * Die vorhandene Referenzprüfung liest zugleich UID und Kalender des
+     * führenden Termins, damit die Antwort konsistent zur lesbaren
+     * öffentlichen Identität des Termins ist.
      */
     const calendarEvent = values.calendarEventId
       ? await tx.calendarEvent.findFirst({
           where: { id: values.calendarEventId, userId, deletedAt: null },
-          select: { uid: true },
+          select: { uid: true, calendarId: true },
         })
       : true;
     if (!module || !task || !calendarEvent)
       throw new StudyReferenceNotFoundError();
     return {
       calendarEventUid: calendarEvent === true ? null : calendarEvent.uid,
+      calendarEventCalendarId:
+        calendarEvent === true ? null : calendarEvent.calendarId,
     };
   }
   private audit(

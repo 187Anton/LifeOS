@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../../src/App";
+import { todayInTimezone } from "../../src/planning";
 
 const profile = {
   id: "nutzer-1",
@@ -116,6 +117,7 @@ const installApi = ({
   studyModules = [],
   studyEntries = [],
   planningItems,
+  profileTimezone = profile.settings.timezone,
   deleteEventConflict = false,
   dashboardError = false,
   setupRequired = false,
@@ -127,6 +129,8 @@ const installApi = ({
   studyEntries?: Array<Record<string, unknown>>;
   /** Ersetzt die Standardeinträge der Planungsantwort vollständig. */
   planningItems?: Array<Record<string, unknown>>;
+  /** Profilzeitzone des Kontos; Standard ist Europe/Berlin. */
+  profileTimezone?: string;
   links?: Array<{
     id: string;
     task: { id: string; title: string | null; available: boolean };
@@ -191,7 +195,11 @@ const installApi = ({
           },
           201,
         );
-      if (path === "/api/v1/profile") return json(profile);
+      if (path === "/api/v1/profile")
+        return json({
+          ...profile,
+          settings: { ...profile.settings, timezone: profileTimezone },
+        });
       if (path === "/api/v1/integrations/caldav" && method === "GET")
         return json({
           available: false,
@@ -1618,6 +1626,53 @@ describe("LifeOS-Weboberfläche", () => {
     expect(screen.getByText("10:00–11:00")).toBeVisible();
   });
 
+  it("zeigt bei abweichender Kalenderzeitzone denselben sichtbaren Tag wie die Planung", async () => {
+    /*
+     * Profilzeitzone und Kalenderzeitzone liegen 26 Stunden auseinander; ihre
+     * Kalendertage können deshalb zu keinem Zeitpunkt übereinstimmen. Der
+     * sichtbare Tag der Kalenderansicht muss trotzdem der Profiltag sein –
+     * dieselbe Tagesgrenze wie in der Planungsansicht. Der gespeicherte
+     * Zeitpunkt und die Ereigniszeitzone werden dabei nicht umgedeutet.
+     */
+    const profileTimezone = "Pacific/Kiritimati";
+    const calendarTimezone = "Etc/GMT+12";
+    const profilTag = todayInTimezone(profileTimezone);
+    const tagNummer = new Intl.DateTimeFormat("de-DE", {
+      day: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(`${profilTag}T12:00:00.000Z`));
+    installApi({
+      profileTimezone,
+      calendars: [{ ...calendar, timezone: calendarTimezone }],
+      tasks: [
+        {
+          ...task,
+          id: "aufgabe-profilzeitzone",
+          title: "Block am Profiltag",
+          scheduledStartAt: new Date().toISOString(),
+          scheduledStartTimezone: profileTimezone,
+          estimatedDurationMinutes: 30,
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Kalender" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Tag" }));
+
+    /* Der Tageskopf zeigt den Profiltag, nicht den Tag der Kalenderzeitzone. */
+    expect(
+      await screen.findByRole("heading", {
+        level: 2,
+        name: new RegExp(`,\\s*${tagNummer}\\.`),
+      }),
+    ).toBeVisible();
+    /* Und der Block erscheint an genau diesem sichtbaren Tag. */
+    expect(await screen.findByText("Block am Profiltag")).toBeVisible();
+  });
+
   it("zeigt bei nicht erreichbarer API die Anmeldung mit Fehlerhinweis", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
 
@@ -1724,6 +1779,7 @@ describe("LifeOS-Weboberfläche", () => {
           taskId: null,
           calendarEventId: "ereignis-fremd",
           calendarEventUid: "termin-fremd",
+          calendarEventCalendarId: "kalender-2",
           archivedAt: null,
           createdAt: "2032-03-01T10:00:00.000Z",
           updatedAt: "2032-03-01T10:00:00.000Z",

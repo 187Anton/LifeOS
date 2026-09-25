@@ -296,6 +296,30 @@ E2E-Tests (vier volle Playwright-Läufe hintereinander ohne Fehlschlag), dazu
 bestanden. Details stehen in
 [coherence-progress.md](coherence-progress.md).
 
+Die zweite Korrekturrunde (Stand 25.09.2026, weiterhin ausschließlich Paket 5)
+gleicht die verbliebenen Befunde an: **K5** dieselbe Statusregel in beiden
+Ansichten – erledigte und abgebrochene Studieneinträge bleiben unsichtbar,
+aktive einschließlich `paused` bleiben sichtbar, archivierte liefert die
+Planungsquelle weiterhin nicht aus; die Planungs-API wendet diese Regel über
+`hiddenStudyStatus` an. **K6** verknüpfte Studieneinträge werden über die
+zusammengesetzte öffentliche Identität `(calendarId, uid)` verglichen, nie über
+die UID allein – dieselbe UID in zwei Kalendern unterdrückt nur den tatsächlich
+verknüpften Termin; dafür gibt `StudyEntryResponse.calendarEventCalendarId` den
+öffentlichen Kalender des führenden Termins read-only aus (interne
+Datenbank-IDs bleiben intern) und die Planungsquelle liest die Relation
+schreibgeschützt mit. **K7** alle Quellen verwenden dieselbe Profilzeitzone als
+Tagesbasis: Anker und „Heute“ der Kalenderansicht hängen nicht mehr von der
+Kalenderzeitzone ab, ein abweichender Kalender-Zeitzonenwert ergibt auch über
+Mitternacht keinen anderen sichtbaren Tag, und Kalenderereignisse behalten ihre
+gespeicherte Zeitzone und ihren Zeitpunkt für Anzeige und Bearbeitung
+unverändert. Gemessener Endstand dieser Runde: 118/118 API- (inkl. eines neuen
+Integrationsfalls gegen die reale Datenbank), 70/70 Web-Unit- und 42/42
+E2E-Tests, dazu `typecheck`, `lint`, `format:check`, `build`, `repo:check` und
+`security:secrets` bestanden. Der Commit `acd420b` liegt auf dem getrackten
+Paket-5-Branch, PR #125 ist gegen `develop` eröffnet, die Pflicht-CI dort ist
+grün und der Merge wurde nicht ausgeführt. Details stehen in
+[coherence-progress.md](coherence-progress.md).
+
 | Paket | Umfang und Einstieg                                                           | Erforderliche Abnahme zusätzlich zur Pflicht-CI                                                                                                                                                     |
 | ----- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0     | Dieser Plan, Fortschritt, Startanleitung; README-/AGENTS-Verweis              | Inhalt konsistent, Format/Links/Diff geprüft; PR nach develop                                                                                                                                       |
@@ -412,5 +436,17 @@ des gespeicherten Zwischenstands fort; starte kein weiteres Paket.“
   Editor-Zuordnung über `{calendarId, uid}`. Read-only ergänzt wurden
   `StudyEntryResponse.calendarEventUid` und `PlanningItemResponse.calendarId`.
   Zusätzlich ein reproduzierbarer E2E-Testflake deterministisch gemacht. Keine
+  Schemaänderung, keine Migration, keine CalDAV-/Apple-Änderung, keine Änderung
+  freier `TaskEventLink`-Beziehungen und kein neuer Schreibpfad.
+
+- 25.09.2026: Zweite Korrekturrunde zu Paket 5. Festgehalten sind die
+  gemeinsame Statusregel beider Ansichten (erledigt und abgebrochen unsichtbar,
+  aktiv einschließlich `paused` sichtbar, archiviert weiterhin nicht
+  ausgeliefert), der Abgleich verknüpfter Studieneinträge über die
+  zusammengesetzte öffentliche Identität `(calendarId, uid)` mit read-only
+  ausgegebenem `StudyEntryResponse.calendarEventCalendarId` sowie die
+  gemeinsame Profilzeitzone als Tagesbasis der Kalenderansicht, sodass ein
+  abweichender Kalender-Zeitzonenwert auch über Mitternacht keinen anderen
+  sichtbaren Tag ergibt und Ereigniszeitpunkte unverändert bleiben. Keine
   Schemaänderung, keine Migration, keine CalDAV-/Apple-Änderung, keine Änderung
   freier `TaskEventLink`-Beziehungen und kein neuer Schreibpfad.

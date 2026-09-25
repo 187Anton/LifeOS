@@ -171,7 +171,17 @@ const taskFixture = (overrides: Record<string, unknown>) =>
     ...overrides,
   }) as unknown as PlanningSourceData["tasks"][number];
 
-const studyEntryFixture = (overrides: Record<string, unknown>) =>
+/**
+ * Quellfixture eines Studieneintrags. Der führende Termin wird als
+ * schreibgeschützte Relation übergeben – öffentlich über `(uid, calendarId)`,
+ * nie über eine interne Ereignis-ID.
+ */
+const studyEntryFixture = ({
+  calendarEvent = null,
+  ...overrides
+}: Record<string, unknown> & {
+  calendarEvent?: { uid: string; calendarId: string } | null;
+}) =>
   ({
     userId: "owner-1",
     status: "planned",
@@ -182,9 +192,13 @@ const studyEntryFixture = (overrides: Record<string, unknown>) =>
     endsAt: null,
     taskId: null,
     calendarEventId: null,
+    calendarEvent,
     updatedAt: new Date("2032-03-01T00:00:00.000Z"),
     ...overrides,
   }) as unknown as PlanningSourceData["studyEntries"][number];
+
+/** Führender Termin der Standardquelle (`event-1`). */
+const linkedEvent = { uid: "synthetische-serie-1", calendarId: "calendar-1" };
 
 test("unterscheidet Frist, geplanten Zeitblock und Startmarkierung", async () => {
   const data = sourceWith({
@@ -313,7 +327,7 @@ test("unterdrückt verknüpfte Studieneinträge zugunsten des führenden Termins
         id: "entry-linked",
         title: "Verknüpfte Vorlesung",
         kind: "lecture",
-        calendarEventId: "event-1",
+        calendarEvent: linkedEvent,
         startsAt: linkedStart,
         endsAt: linkedEnd,
       }),
@@ -321,7 +335,7 @@ test("unterdrückt verknüpfte Studieneinträge zugunsten des führenden Termins
         id: "entry-linked-deadline",
         title: "Verknüpfte Abgabe",
         dueDate: new Date("2032-03-29"),
-        calendarEventId: "event-1",
+        calendarEvent: linkedEvent,
         startsAt: linkedStart,
         endsAt: linkedEnd,
       }),
@@ -736,7 +750,7 @@ test("führt einen Mitternachtsblock über die Wochengrenze in beiden Wochen", a
   );
 });
 
-test("lässt den API-Filter für abgebrochene Studieneinträge bewusst unverändert", async () => {
+test("wendet in der Planung dieselben Statusfälle an wie die Kalenderansicht", async () => {
   const data = sourceWith({
     events: [],
     tasks: [],
@@ -754,6 +768,11 @@ test("lässt den API-Filter für abgebrochene Studieneinträge bewusst unveränd
         dueDate: new Date("2032-06-14"),
       }),
       studyEntryFixture({
+        id: "entry-paused",
+        status: "paused",
+        dueDate: new Date("2032-06-14"),
+      }),
+      studyEntryFixture({
         id: "entry-planned",
         status: "planned",
         dueDate: new Date("2032-06-14"),
@@ -764,16 +783,17 @@ test("lässt den API-Filter für abgebrochene Studieneinträge bewusst unveränd
     "owner-1",
     { from: "2032-06-14", to: "2032-06-14" },
   );
-  const ids = planning.items.map((item) => item.sourceId);
   /**
-   * Die Planungs-API filtert ausschließlich `cancelled`; `completed` bleibt in
-   * der reinen Projektion sichtbar. Die Kalenderansicht (Web) filtert
-   * zusätzlich `completed` und `paused`. Diese bewusste Abweichung ist hier
-   * festgehalten, damit sie nicht versehentlich verwischt.
+   * Gemeinsame Statusregel beider Ansichten: erledigte und abgebrochene
+   * Studieneinträge bleiben unsichtbar, aktive einschließlich `paused`
+   * bleiben sichtbar. Archivierte Einträge liefert die Planungsquelle gar
+   * nicht erst aus. Die Web-Projektion prüft dieselben Statusfälle in
+   * `apps/web/tests/unit/calendar-projection.test.ts`.
    */
-  assert.equal(ids.includes("entry-cancelled"), false);
-  assert.equal(ids.includes("entry-completed"), true);
-  assert.equal(ids.includes("entry-planned"), true);
+  assert.deepEqual(
+    planning.items.map((item) => item.sourceId),
+    ["entry-paused", "entry-planned"],
+  );
 });
 
 test("zeigt den Studieneintrag, wenn der führende Termin nicht geliefert wird", async () => {
@@ -802,7 +822,10 @@ test("zeigt den Studieneintrag, wenn der führende Termin nicht geliefert wird",
         id: "entry-outside",
         title: "Vorlesung außerhalb des Zeitraums",
         kind: "lecture",
-        calendarEventId: "event-other-calendar",
+        calendarEvent: {
+          uid: "synthetischer-termin-anderer-kalender",
+          calendarId: "calendar-ny",
+        },
         startsAt: linkedStart,
         endsAt: linkedEnd,
       }),
@@ -810,7 +833,10 @@ test("zeigt den Studieneintrag, wenn der führende Termin nicht geliefert wird",
         id: "entry-not-delivered",
         title: "Vorlesung ohne gelieferten Termin",
         kind: "lecture",
-        calendarEventId: "event-missing",
+        calendarEvent: {
+          uid: "nicht-gelieferter-termin",
+          calendarId: "calendar-ny",
+        },
         startsAt: linkedStart,
         endsAt: linkedEnd,
       }),
@@ -845,7 +871,7 @@ test("unterdrückt verknüpfte Studieneinträge nur gegen die gelieferte Projekt
         id: "entry-linked",
         title: "Verknüpfte Vorlesung",
         kind: "lecture",
-        calendarEventId: "event-1",
+        calendarEvent: linkedEvent,
         startsAt: new Date("2032-03-29T07:00:00.000Z"),
         endsAt: new Date("2032-03-29T08:00:00.000Z"),
       }),
@@ -876,5 +902,90 @@ test("unterdrückt verknüpfte Studieneinträge nur gegen die gelieferte Projekt
   assert.equal(
     withCalendar.items.some((item) => item.sourceId === "entry-linked"),
     false,
+  );
+});
+
+test("unterdrückt einen verknüpften Studieneintrag nur bei gleicher UID im selben Kalender", async () => {
+  const sharedUid = "vorlesung-doppelt";
+  const calendarEventFixture = (
+    id: string,
+    calendarId: string,
+    hour: number,
+  ): PlanningSourceData["events"][number] =>
+    ({
+      id,
+      userId: "owner-1",
+      uid: sharedUid,
+      calendarId,
+      title: `Vorlesung in ${calendarId}`,
+      isAllDay: false,
+      startsAt: new Date(
+        `2032-03-29T${String(hour).padStart(2, "0")}:00:00.000Z`,
+      ),
+      endsAt: new Date(
+        `2032-03-29T${String(hour + 1).padStart(2, "0")}:00:00.000Z`,
+      ),
+      timezone: "Europe/Berlin",
+      updatedAt: new Date("2032-03-01T00:00:00.000Z"),
+    }) as unknown as PlanningSourceData["events"][number];
+
+  const data = sourceWith({
+    tasks: [],
+    workTimeEntries: [],
+    availabilityWindows: [],
+    events: [
+      calendarEventFixture("event-kalender-1", "calendar-1", 7),
+      calendarEventFixture("event-kalender-2", "calendar-2", 9),
+    ],
+    studyEntries: [
+      studyEntryFixture({
+        id: "entry-kalender-1",
+        kind: "lecture",
+        calendarEvent: { uid: sharedUid, calendarId: "calendar-1" },
+        startsAt: new Date("2032-03-29T07:00:00.000Z"),
+        endsAt: new Date("2032-03-29T08:00:00.000Z"),
+      }),
+      studyEntryFixture({
+        id: "entry-kalender-2",
+        kind: "lecture",
+        calendarEvent: { uid: sharedUid, calendarId: "calendar-2" },
+        startsAt: new Date("2032-03-29T09:00:00.000Z"),
+        endsAt: new Date("2032-03-29T10:00:00.000Z"),
+      }),
+      studyEntryFixture({
+        id: "entry-dritter-kalender",
+        kind: "lecture",
+        calendarEvent: { uid: sharedUid, calendarId: "calendar-3" },
+        startsAt: new Date("2032-03-29T11:00:00.000Z"),
+        endsAt: new Date("2032-03-29T12:00:00.000Z"),
+      }),
+    ],
+  });
+  const planning = await new PlanningService(repository(data)).getPlanning(
+    "owner-1",
+    { from: "2032-03-29", to: "2032-03-29" },
+  );
+
+  /**
+   * Die UID allein ist nicht kalenderübergreifend eindeutig. Beide Termine
+   * werden gezeigt; unterdrückt werden nur die Einträge, deren verknüpfter
+   * Termin im jeweils gleichen Kalender tatsächlich in der Projektion steht.
+   * Der Eintrag mit derselben UID aus einem dritten, nicht gelieferten
+   * Kalender bleibt sichtbar.
+   */
+  assert.equal(
+    planning.items.filter((item) => item.uid === sharedUid).length,
+    2,
+  );
+  assert.equal(
+    planning.items.some((item) => item.sourceId === "entry-kalender-1"),
+    false,
+  );
+  assert.equal(
+    planning.items.some((item) => item.sourceId === "entry-kalender-2"),
+    false,
+  );
+  assert.ok(
+    planning.items.some((item) => item.sourceId === "entry-dritter-kalender"),
   );
 });

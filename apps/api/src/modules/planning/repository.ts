@@ -17,11 +17,22 @@ import type {
 export class AvailabilityNotFoundError extends Error {}
 export class AvailabilityConflictError extends Error {}
 
+/**
+ * Studieneintrag der Projektionsquelle. Der führende Termin wird ausschließlich
+ * über seine öffentliche Identität `(calendarId, uid)` mitgelesen; die interne
+ * `calendarEventId` bleibt davon unberührt. Damit vergleichen Planungs-API und
+ * Kalenderansicht verknüpfte Einträge mit demselben Schlüssel, und eine UID, die
+ * nur in einem anderen Kalender vorkommt, unterdrückt nichts.
+ */
+export type PlanningStudyEntrySource = StudyEntryModel & {
+  calendarEvent: { uid: string; calendarId: string } | null;
+};
+
 export interface PlanningSourceData {
   settings: UserSettingsModel | null;
   events: CalendarEventModel[];
   tasks: TaskModel[];
-  studyEntries: StudyEntryModel[];
+  studyEntries: PlanningStudyEntrySource[];
   workProjects: WorkProjectModel[];
   workTimeEntries: WorkTimeEntryModel[];
   availabilityWindows: AvailabilityWindowModel[];
@@ -86,6 +97,10 @@ export class PrismaPlanningRepository implements PlanningRepository {
           { dueDate: { sort: "asc", nulls: "last" } },
           { startsAt: { sort: "asc", nulls: "last" } },
         ],
+        /**
+         * Nur die öffentliche Identität des führenden Termins wird gelesen.
+         */
+        include: { calendarEvent: { select: { uid: true, calendarId: true } } },
       }),
       this.database.workProject.findMany({
         where: { userId, archivedAt: null },

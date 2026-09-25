@@ -78,6 +78,7 @@ const studyEntry = (
   taskId: null,
   calendarEventId: null,
   calendarEventUid: null,
+  calendarEventCalendarId: null,
   archivedAt: null,
   createdAt: "2032-03-01T10:00:00.000Z",
   updatedAt: "2032-03-01T10:00:00.000Z",
@@ -90,10 +91,17 @@ const build = (
     tasks?: TaskResponse[];
     studyEntries?: StudyEntryResponse[];
     view?: ReturnType<typeof rangeForView>;
-    /** Kalender-/Rasterzeitzone der Ansicht (Standard Europe/Berlin). */
-    timezone?: string;
-    /** Profilzeitzone für Tagesgrenzen von Aufgaben und Studium. */
+    /**
+     * Profilzeitzone und Tagesgrenze der Ansicht. Sie gilt für Aufgaben,
+     * Studieneinträge und Ereignisse; es gibt bewusst keinen zweiten
+     * Kalender-Zeitzonenwert mehr, der einen anderen sichtbaren Tag erzeugen
+     * könnte.
+     */
     profileTimezone?: string;
+    /**
+     * Ausgewählter Kalender der Ansicht; bildet die erste Hälfte der
+     * öffentlichen Identität `(calendarId, uid)` der gezeigten Ereignisse.
+     */
     calendarId?: string | null;
   } = {},
 ): CalendarProjectionEntry[] =>
@@ -102,9 +110,8 @@ const build = (
     tasks: overrides.tasks ?? [],
     studyEntries: overrides.studyEntries ?? [],
     range: overrides.view ?? rangeForView("week", "2032-03-10"),
-    timezone: overrides.timezone ?? "Europe/Berlin",
     profileTimezone: overrides.profileTimezone ?? "Europe/Berlin",
-    calendarId: overrides.calendarId ?? null,
+    calendarId: overrides.calendarId ?? "kalender-1",
     ownerId: owner,
   });
 
@@ -238,6 +245,7 @@ describe("Gemeinsame Kalenderprojektion", () => {
           endsAt: "2032-03-10T09:30:00.000Z",
           calendarEventId: "ereignis-1",
           calendarEventUid: "vorlesung-1",
+          calendarEventCalendarId: "kalender-1",
         }),
         studyEntry({
           id: "eintrag-eigen",
@@ -334,10 +342,9 @@ describe("Gemeinsame Kalenderprojektion", () => {
     expect(noEntries).toHaveLength(0);
   });
 
-  it("ordnet Aufgaben und Studium nach Profilzeitzone und rasiert Termine im Kalender", () => {
+  it("gibt Aufgaben, Studium und Terminen bei abweichender Kalenderzeitzone denselben sichtbaren Tag", () => {
     const entries = build({
       view: { start: "2032-03-10", end: "2032-03-12" },
-      timezone: "America/New_York",
       profileTimezone: "Europe/Berlin",
       tasks: [
         task({
@@ -371,7 +378,9 @@ describe("Gemeinsame Kalenderprojektion", () => {
     /*
      * Der Aufgabenblock und die Studienzeit liegen in Berlin (Profilzeitzone)
      * auf dem 11., in New York auf dem 10. Die Projektion folgt der
-     * Profilzeitzone und nicht dem Kalenderraster.
+     * Profilzeitzone – für Aufgaben, Studium und Termine gleichermaßen, damit
+     * ein abweichender Kalender-Zeitzonenwert keinen anderen sichtbaren Tag
+     * ergibt.
      */
     const block = entries.find(
       (entry) => entry.item.id === "task:aufgabe-tz:planned",
@@ -383,13 +392,126 @@ describe("Gemeinsame Kalenderprojektion", () => {
     expect(study?.dateKey).toBe("2032-03-11");
     expect(study?.item.kind).toBe("planned_task");
 
-    /* Der Termin bleibt im Kalenderraster und wird in seiner Zeitzone beschriftet. */
+    /*
+     * Der Termin steht am selben sichtbaren Tag, wird aber in seiner
+     * gespeicherten Zeitzone beschriftet; das zugrunde liegende Ereignis bleibt
+     * mit Zeitpunkt und Zeitzone unverändert und damit der Bearbeitungspfad.
+     */
     const nyEvent = entries.find((entry) => entry.item.uid === "termin-ny");
-    expect(nyEvent?.dateKey).toBe("2032-03-10");
+    expect(nyEvent?.dateKey).toBe("2032-03-11");
+    expect(nyEvent?.event?.startsAt).toBe("2032-03-11T02:00:00.000Z");
     expect(nyEvent?.item.timezone).toBe("America/New_York");
     expect(formatProjectionTime(nyEvent!.item, nyEvent!.item.timezone)).toBe(
       "21:00–22:00",
     );
+  });
+
+  it("unterdrückt einen verknüpften Studieneintrag nur bei gleicher UID im selben Kalender", () => {
+    const linkUid = "vorlesung-doppelt";
+    const linkedEntry = (calendarEventCalendarId: string) =>
+      studyEntry({
+        id: `eintrag-${calendarEventCalendarId}`,
+        kind: "lecture",
+        title: "Synthetische Vorlesung",
+        startsAt: "2032-03-11T08:00:00.000Z",
+        endsAt: "2032-03-11T10:00:00.000Z",
+        timezone: "Europe/Berlin",
+        calendarEventUid: linkUid,
+        calendarEventCalendarId,
+      });
+    const sharedEvents = [
+      event({
+        uid: linkUid,
+        title: "Vorlesung im gezeigten Kalender",
+        startsAt: "2032-03-11T08:00:00.000Z",
+        endsAt: "2032-03-11T10:00:00.000Z",
+      }),
+    ];
+
+    /*
+     * Dieselbe UID kommt in zwei Kalendern vor. Nur der Eintrag, der den
+     * tatsächlich gezeigten Termin als führenden Termin führt, wird
+     * unterdrückt; der Eintrag mit derselben UID aus dem anderen Kalender
+     * bleibt sichtbar.
+     */
+    const sameCalendar = build({
+      calendarId: "kalender-1",
+      events: sharedEvents,
+      studyEntries: [linkedEntry("kalender-1")],
+    });
+    expect(
+      sameCalendar.some(
+        (entry) => entry.item.sourceId === "eintrag-kalender-1",
+      ),
+    ).toBe(false);
+    expect(
+      sameCalendar.filter((entry) => entry.item.uid === linkUid),
+    ).toHaveLength(1);
+
+    const otherCalendar = build({
+      calendarId: "kalender-1",
+      events: sharedEvents,
+      studyEntries: [linkedEntry("kalender-2")],
+    });
+    expect(
+      otherCalendar.some(
+        (entry) => entry.item.sourceId === "eintrag-kalender-2",
+      ),
+    ).toBe(true);
+    /*
+     * Die UID allein darf nie als kalenderübergreifender Schlüssel dienen:
+     * Studienergebnisse tragen keine Ereignis-UID, deshalb trägt genau der
+     * eine gezeigte Termin die UID – die Studienzeit daneben bleibt sichtbar.
+     */
+    expect(
+      otherCalendar.filter((entry) => entry.item.uid === linkUid),
+    ).toHaveLength(1);
+  });
+
+  it("wendet in der Kalenderansicht dieselben Statusfälle an wie die Planungs-API", () => {
+    /*
+     * Gemeinsame Statusregel der Projektion (auch in der Planungs-API
+     * umgesetzt): erledigt und abgebrochen bleiben unsichtbar, aktiv
+     * einschließlich `paused` bleibt sichtbar, archiviert bleibt unsichtbar.
+     */
+    const entries = build({
+      studyEntries: [
+        studyEntry({
+          id: "aktiv",
+          title: "Aktiver Eintrag",
+          status: "planned",
+          dueDate: "2032-03-11",
+        }),
+        studyEntry({
+          id: "pausiert",
+          title: "Pausierter Eintrag",
+          status: "paused",
+          dueDate: "2032-03-11",
+        }),
+        studyEntry({
+          id: "erledigt",
+          title: "Erledigter Eintrag",
+          status: "completed",
+          dueDate: "2032-03-11",
+        }),
+        studyEntry({
+          id: "abgebrochen",
+          title: "Abgebrochener Eintrag",
+          status: "cancelled",
+          dueDate: "2032-03-11",
+        }),
+        studyEntry({
+          id: "archiviert",
+          title: "Archivierter Eintrag",
+          status: "planned",
+          dueDate: "2032-03-11",
+          archivedAt: "2032-03-01T10:00:00.000Z",
+        }),
+      ],
+    });
+
+    const ids = entries.map((entry) => entry.item.sourceId);
+    expect(ids).toEqual(["aktiv", "pausiert"]);
   });
 
   it("zeigt einen Mitternachtsblock genau einmal am Anzeigetag mit Fortsetzung", () => {
@@ -503,6 +625,7 @@ describe("Gemeinsame Kalenderprojektion", () => {
         endsAt: "2032-03-10T11:00:00.000Z",
         timezone: "Europe/Berlin",
         calendarEventUid,
+        calendarEventCalendarId: "kalender-1",
       });
 
     /* (i) Führender Termin im gezeigten Zeitraum: nur der Termin erscheint. */

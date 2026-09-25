@@ -477,8 +477,14 @@ const installApi = async (
       const to = url.searchParams.get("to") ?? from;
       const inRange = (date: string) => date >= from && date <= to;
       const items: Array<Record<string, unknown>> = [];
-      /** UIDs der in dieser Projektion tatsächlich gelieferten Termine. */
-      const displayedEventUids = new Set<string>();
+      /**
+       * Öffentliche Identität `(calendarId, uid)` der in dieser Projektion
+       * tatsächlich gelieferten Termine. Die UID allein ist nicht
+       * kalenderübergreifend eindeutig.
+       */
+      const displayedEventKeys = new Set<string>();
+      const eventKey = (calendarId: string, uid: string) =>
+        `${calendarId}\u0000${uid}`;
       for (const value of tasks) {
         const status = stringValue(value.status);
         if (status === "done" || status === "cancelled") continue;
@@ -546,10 +552,12 @@ const installApi = async (
         if (!inRange(date)) continue;
         /*
          * Nur tatsächlich gelieferte Termine dürfen einen verknüpften
-         * Studieneintrag unterdrücken; die UID wird nie kalenderübergreifend
-         * als eindeutig angenommen.
+         * Studieneintrag unterdrücken; verglichen wird über `(calendarId,
+         * uid)`, nie über die UID allein.
          */
-        displayedEventUids.add(stringValue(value.uid));
+        displayedEventKeys.add(
+          eventKey(stringValue(calendar.id), stringValue(value.uid)),
+        );
         items.push({
           id: `calendar:${stringValue(value.uid)}`,
           sourceId: value.uid,
@@ -579,14 +587,34 @@ const installApi = async (
       }
       for (const value of study.entries) {
         /*
-         * Paket 5: Ein verknüpfter Studieneintrag wird nur unterdrückt, wenn
-         * sein führender Termin in der gezeigten Projektion tatsächlich
-         * vorkommt. Ein Termin in einem anderen Kalender oder außerhalb des
-         * Zeitraums lässt den Studieneintrag sichtbar.
+         * Gemeinsame Statusregel beider Ansichten: erledigte und abgebrochene
+         * Einträge bleiben unsichtbar, aktive einschließlich `paused` bleiben
+         * sichtbar.
          */
+        const entryStatus = stringValue(value.status);
+        /*
+         * Archivierte Einträge liefert die Planungsquelle gar nicht erst aus.
+         */
+        if (value.archivedAt) continue;
+        if (entryStatus === "completed" || entryStatus === "cancelled")
+          continue;
+        /*
+         * Paket 5: Ein verknüpfter Studieneintrag wird nur unterdrückt, wenn
+         * sein führender Termin – verglichen über `(calendarId, uid)` – in der
+         * gezeigten Projektion tatsächlich vorkommt. Ein Termin in einem
+         * anderen Kalender oder außerhalb des Zeitraums lässt den
+         * Studieneintrag sichtbar.
+         */
+        const linkedCalendarId = value.calendarEventCalendarId
+          ? stringValue(value.calendarEventCalendarId)
+          : null;
+        const linkedUid = value.calendarEventUid
+          ? stringValue(value.calendarEventUid)
+          : null;
         if (
-          value.calendarEventUid &&
-          displayedEventUids.has(stringValue(value.calendarEventUid))
+          linkedCalendarId &&
+          linkedUid &&
+          displayedEventKeys.has(eventKey(linkedCalendarId, linkedUid))
         )
           continue;
         const date = value.dueDate
@@ -899,6 +927,7 @@ const installApi = async (
         taskId: null,
         calendarEventId: null,
         calendarEventUid: null,
+        calendarEventCalendarId: null,
         archivedAt: null,
         createdAt: "2032-01-01T00:00:00.000Z",
         updatedAt: "2032-01-01T00:00:00.000Z",
@@ -2041,11 +2070,12 @@ test("trennt Frist, Zeitblock und Startmarkierung, unterdrückt verknüpfte Stud
         taskId: null,
         calendarEventId: "ereignis-verknuepft",
         /*
-         * Paket 5: Die Unterdrückung prüft die stabile UID des führenden
+         * Paket 5: Die Unterdrückung prüft `(calendarId, uid)` des führenden
          * Termins gegen die tatsächlich gelieferte Projektion. Ohne diese
-         * Angabe bliebe der Eintrag sichtbar und würde doppelt erscheinen.
+         * Angaben bliebe der Eintrag sichtbar und würde doppelt erscheinen.
          */
         calendarEventUid: linkedUid,
+        calendarEventCalendarId: calendar.id,
         archivedAt: null,
         createdAt: "2026-07-22T08:00:00.000Z",
         updatedAt: "2026-07-22T08:00:00.000Z",
@@ -2254,6 +2284,7 @@ test("zeigt im Kalender nur aktive Studieneinträge und blendet erledigte, abgeb
     taskId: null,
     calendarEventId: null,
     calendarEventUid: null,
+    calendarEventCalendarId: null,
     archivedAt,
     createdAt: "2026-07-22T08:00:00.000Z",
     updatedAt: "2026-07-22T08:00:00.000Z",
@@ -2264,6 +2295,12 @@ test("zeigt im Kalender nur aktive Studieneinträge und blendet erledigte, abgeb
         "study-entry-aktiv",
         "Aktive Studienfrist",
         "planned",
+        null,
+      ),
+      syntheticStudyEntry(
+        "study-entry-pausiert",
+        "Pausierte Studienfrist",
+        "paused",
         null,
       ),
       syntheticStudyEntry(
@@ -2291,8 +2328,9 @@ test("zeigt im Kalender nur aktive Studieneinträge und blendet erledigte, abgeb
   await page.getByRole("button", { name: "Kalender" }).first().click();
 
   /*
-   * Nur der aktive Eintrag ist in der gemeinsamen Kalenderprojektion sichtbar.
-   * Die Sichtbarkeit wird positiv über die gerenderte Karte geprüft.
+   * Nur die aktiven Einträge sind in der gemeinsamen Kalenderprojektion
+   * sichtbar; die Sichtbarkeit wird positiv über die gerenderten Karten
+   * geprüft. `paused` bleibt aktiv und damit sichtbar.
    */
   const activeCard = page.locator(".projection-card", {
     hasText: "Aktive Studienfrist",
@@ -2301,18 +2339,40 @@ test("zeigt im Kalender nur aktive Studieneinträge und blendet erledigte, abgeb
   await expect(activeCard.getByText("Frist", { exact: true })).toBeVisible();
   await expect(activeCard.getByText("Studium", { exact: true })).toBeVisible();
   await expect(
-    page.locator(".projection-card", { hasText: "Studienfrist" }),
+    page.locator(".projection-card", { hasText: "Pausierte Studienfrist" }),
   ).toHaveCount(1);
+  await expect(
+    page.locator(".projection-card", { hasText: "Studienfrist" }),
+  ).toHaveCount(2);
 
   /*
    * Das Fehlen wird über eine Zählung von 0 geprüft und nicht über eine rein
    * negative Sichtbarkeitsannahme auf einem einzelnen Element.
    */
-  for (const hiddenTitle of [
+  const hiddenTitles = [
     "Erledigte Studienfrist",
     "Abgebrochene Studienfrist",
     "Archivierte Studienfrist",
-  ]) {
+  ];
+  for (const hiddenTitle of hiddenTitles) {
+    expect(await page.getByText(hiddenTitle).count()).toBe(0);
+  }
+
+  /*
+   * Dieselben Statusfälle in der Planungsansicht: dieselbe Statusregel,
+   * dieselbe Menge sichtbarer Einträge.
+   */
+  await page.getByRole("button", { name: "Planung" }).first().click();
+  await expect(
+    page.locator(".planning-item", { hasText: "Aktive Studienfrist" }),
+  ).toHaveCount(1);
+  await expect(
+    page.locator(".planning-item", { hasText: "Pausierte Studienfrist" }),
+  ).toHaveCount(1);
+  await expect(
+    page.locator(".planning-item", { hasText: "Studienfrist" }),
+  ).toHaveCount(2);
+  for (const hiddenTitle of hiddenTitles) {
     expect(await page.getByText(hiddenTitle).count()).toBe(0);
   }
 });

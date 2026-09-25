@@ -41,9 +41,12 @@ import { dateTimeInputToIso } from "./date";
  *   Block und Zeitraum entsteht genau ein Eintrag.
  * - Eine Startmarkierung ohne Dauer erhält kein erfundenes Ende.
  * - Ein verknüpfter Studieneintrag wird nur unterdrückt, wenn sein führender
- *   Termin in der tatsächlich gelieferten Projektion erscheint.
+ *   Termin – verglichen über `(calendarId, uid)` – in der tatsächlich
+ *   gelieferten Projektion erscheint.
+ * - Alle Quellen verwenden dieselbe Profilzeitzone als Tagesbasis; ein
+ *   abweichender Kalender-Zeitzonenwert erzeugt keinen anderen sichtbaren Tag.
  * - Kalenderereignisse behalten ihre gespeicherte Zeitzone für die Anzeige und
- *   werden weiterhin im Kalender-Raster (Kalenderzeitzone) dargestellt.
+ *   werden nicht umgedeutet.
  */
 
 /** Projektionseintrag einer Kalenderansicht. */
@@ -117,9 +120,11 @@ const activeTaskStatus = (status: TaskStatus): boolean =>
   status !== "done" && status !== "cancelled";
 
 /**
- * Erledigte und abgebrochene Studieneinträge bleiben aus der Kalenderansicht
- * heraus; das entspricht dem bewahrten Altverhalten der Web-Schicht. Der
- * API-Statusfilter bleibt davon unabhängig und unverändert.
+ * Gemeinsame Statusregel der Projektion für Studieneinträge: erledigte
+ * (`completed`) und abgebrochene (`cancelled`) Einträge bleiben unsichtbar,
+ * aktive einschließlich `paused` bleiben sichtbar. Archivierte Einträge sind
+ * ebenfalls unsichtbar. Die Planungs-API wendet dieselbe Regel an, damit
+ * Kalender und Planung dieselben Statusfälle zeigen.
  */
 const hiddenStudyStatus = (status: string): boolean =>
   status === "completed" || status === "cancelled";
@@ -203,20 +208,31 @@ export interface CalendarProjectionInput {
   /** Bereich der Kalenderansicht: `start` einschließlich, `end` ausschließlich. */
   range: DateRange;
   /**
-   * Kalender-/Rasterzeitzone der Ansicht. Kalenderereignisse werden darin
-   * gerastert und in ihrer gespeicherten Zeitzone beschriftet.
+   * Profilzeitzone. Sie ist die verbindliche Tagesgrenze der Ansicht: Aufgaben,
+   * Studieneinträge und Kalenderereignisse werden darin auf Kalendertage
+   * abgebildet, damit ein abweichender Kalender-Zeitzonenwert – auch über
+   * Mitternacht – keinen anderen sichtbaren Tag ergibt. Gespeicherte Zeitpunkte
+   * und Ereigniszeitzonen werden dadurch nicht umgedeutet; Ereigniszeiten
+   * bleiben in ihrer gespeicherten Zeitzone beschriftet.
    */
-  timezone: string;
-  /** Profilzeitzone für Tagesgrenzen von Aufgaben und Studieneinträgen. */
   profileTimezone: string;
   /**
    * Ausgewählter Kalender der Ansicht. Die geladenen Ereignisse gehören genau
    * diesem Kalender; er wird deshalb als `calendarId` der Kalender-Items
-   * geführt. Die UID allein ist nicht zwingend über Kalender hinweg eindeutig.
+   * geführt und ist die eine Hälfte der öffentlichen Identität `(calendarId,
+   * uid)`. Die UID allein ist nicht zwingend über Kalender hinweg eindeutig.
    */
   calendarId?: string | null;
   ownerId: string;
 }
+
+/**
+ * Kalenderübergreifend eindeutige öffentliche Identität eines Kalendertermins.
+ * Dieselbe UID darf in mehreren Kalendern vorkommen; erst zusammen mit dem
+ * Kalender identifiziert sie den tatsächlich verknüpften Termin.
+ */
+const eventKey = (calendarId: string | null, uid: string): string =>
+  `${calendarId ?? ""}\u0000${uid}`;
 
 interface BlockPlacement {
   dateKey: string;
@@ -264,7 +280,6 @@ export const buildCalendarProjection = ({
   tasks,
   studyEntries,
   range,
-  timezone,
   profileTimezone,
   calendarId = null,
   ownerId,
@@ -274,15 +289,16 @@ export const buildCalendarProjection = ({
     date >= range.start && date < range.end;
   const today = todayInTimezone(profileTimezone);
 
-  const occurrences = occurrencesInRange(events, range, timezone);
+  const occurrences = occurrencesInRange(events, range, profileTimezone);
   /**
    * Nur die tatsächlich projizierten Ereignisse dürfen einen verknüpften
-   * Studieneintrag unterdrücken. Die UID wird nie als kalenderübergreifend
-   * eindeutiger Schlüssel verwendet, sondern ausschließlich gegen die UIDs der
-   * tatsächlich gelieferten Projektion geprüft.
+   * Studieneintrag unterdrücken. Verglichen wird die öffentliche Identität
+   * `(calendarId, uid)`; die UID allein ist nicht kalenderübergreifend
+   * eindeutig und darf einen Eintrag deshalb nie über einen Termin in einem
+   * anderen Kalender unterdrücken.
    */
-  const projectedEventUids = new Set(
-    occurrences.map((occurrence) => occurrence.event.uid),
+  const projectedEventKeys = new Set(
+    occurrences.map((occurrence) => eventKey(calendarId, occurrence.event.uid)),
   );
 
   for (const occurrence of occurrences) {
@@ -322,9 +338,10 @@ export const buildCalendarProjection = ({
       endDate: occurrence.endDate,
       recurring: occurrence.recurring,
       /**
-       * Kalenderereignisse werden weiterhin im Kalender-Raster der
-       * Kalenderzeitzone geführt; die Fortsetzungskennzeichen gelten für
-       * zeitgebundene Aufgaben- und Studienblöcke.
+       * Kalenderereignisse stehen am selben sichtbaren Tag wie alle anderen
+       * Quellen und werden in ihrer gespeicherten Zeitzone beschriftet; die
+       * Fortsetzungskennzeichen gelten für zeitgebundene Aufgaben- und
+       * Studienblöcke.
        */
       continuesBefore: false,
       continuesAfter: false,
@@ -472,15 +489,18 @@ export const buildCalendarProjection = ({
     }
     if (!entry.startsAt || !entry.endsAt) continue;
     /**
-     * Doppelte Darstellung vermeiden: Nur wenn das führende Kalenderereignis in
-     * der aktuellen Projektion tatsächlich vertreten ist, zeigt die
-     * Kalenderansicht ausschließlich den Termin aus dem Kalenderkern. Liegt der
-     * Termin in einem anderen Kalender, außerhalb des Zeitraums oder wurde er
-     * gelöscht, bleibt die eigene Studiumsprojektion sichtbar.
+     * Doppelte Darstellung vermeiden: Nur wenn genau der verknüpfte Termin –
+     * identifiziert über `(calendarId, uid)` – in der aktuellen Projektion
+     * tatsächlich vertreten ist, zeigt die Kalenderansicht ausschließlich den
+     * Termin aus dem Kalenderkern. Eine gleichlautende UID in einem anderen
+     * Kalender, ein Termin außerhalb des Zeitraums oder ein gelöschter Termin
+     * lässt die eigene Studiumsprojektion sichtbar.
      */
     if (
       entry.calendarEventUid &&
-      projectedEventUids.has(entry.calendarEventUid)
+      projectedEventKeys.has(
+        eventKey(entry.calendarEventCalendarId, entry.calendarEventUid),
+      )
     )
       continue;
     const startsAt = new Date(entry.startsAt);

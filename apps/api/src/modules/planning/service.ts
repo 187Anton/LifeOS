@@ -35,6 +35,22 @@ const activeStatus = (status: string) =>
   status !== "cancelled" && status !== "done";
 const completedStatus = (status: string) =>
   status === "completed" || status === "done" || status === "cancelled";
+/**
+ * Gemeinsame Statusregel der Projektion für Studieneinträge: erledigte und
+ * abgebrochene Einträge bleiben unsichtbar, aktive einschließlich `paused`
+ * bleiben sichtbar. Archivierte Einträge liefert die Datenbankabfrage bereits
+ * nicht aus. Die Kalenderansicht wendet dieselbe Regel an, damit Kalender und
+ * Planung dieselben Statusfälle zeigen.
+ */
+const hiddenStudyStatus = (status: string) =>
+  status === "completed" || status === "cancelled";
+/**
+ * Kalenderübergreifend eindeutige öffentliche Identität eines Kalendertermins.
+ * Die UID allein genügt nicht, weil dieselbe UID in mehreren Kalendern
+ * vorkommen darf.
+ */
+const eventKey = (calendarId: string, uid: string) =>
+  `${calendarId}\u0000${uid}`;
 const inRange = (date: string, from: string, to: string) =>
   date >= from && date <= to;
 const priorityRank: Record<PlanningPriority, number> = {
@@ -171,8 +187,12 @@ export class PlanningService {
     const owned = <Value extends { userId: string }>(
       values: Value[],
     ): Value[] => values.filter((value) => value.userId === userId);
-    /** Ereignisse, die die Projektion tatsächlich anzeigt. */
-    const displayedEventIds = new Set<string>();
+    /**
+     * Öffentliche Identität der Ereignisse, die die Projektion tatsächlich
+     * anzeigt. Verglichen wird über `(calendarId, uid)`, nie über die UID
+     * allein: dieselbe UID kann in mehreren Kalendern vorkommen.
+     */
+    const displayedEventKeys = new Set<string>();
 
     for (const event of owned(source.events)) {
       const date = event.isAllDay
@@ -199,7 +219,8 @@ export class PlanningService {
        * der Bereich „Kalender" ausgeblendet, erscheint das Ereignis nicht und
        * sein verknüpfter Studieneintrag darf deshalb nicht verschwinden.
        */
-      if (visibleAreas.has("calendar")) displayedEventIds.add(event.id);
+      if (visibleAreas.has("calendar"))
+        displayedEventKeys.add(eventKey(event.calendarId, event.uid));
       items.push({
         id: `calendar:${event.id}`,
         sourceId: event.id,
@@ -325,7 +346,7 @@ export class PlanningService {
     }
 
     for (const entry of owned(source.studyEntries).filter(
-      (value) => value.status !== "cancelled",
+      (value) => !hiddenStudyStatus(value.status),
     )) {
       if (entry.dueDate) {
         const date = entry.dueDate.toISOString().slice(0, 10);
@@ -347,7 +368,7 @@ export class PlanningService {
             timezone,
             durationMinutes: null,
             priority: entry.kind === "exam" ? "high" : "medium",
-            overdue: date < today && !completedStatus(entry.status),
+            overdue: date < today && !hiddenStudyStatus(entry.status),
             editable: null,
             sourceUpdatedAt: entry.updatedAt.toISOString(),
           });
@@ -357,11 +378,15 @@ export class PlanningService {
          * Doppelte Darstellung vermeiden: Ist ein führendes Kalenderereignis
          * vorhanden und wird es in diesem Zeitraum gezeigt, ersetzt es die
          * zeitgebundene Studienprojektion. Reine Fristen bleiben unabhängig
-         * davon eine eigene, bewusst beschriftete Projektion.
+         * davon eine eigene, bewusst beschriftete Projektion. Verglichen wird
+         * die öffentliche Identität `(calendarId, uid)`; eine UID, die nur in
+         * einem anderen Kalender vorkommt, unterdrückt hier nichts.
          */
         if (
-          entry.calendarEventId &&
-          displayedEventIds.has(entry.calendarEventId)
+          entry.calendarEvent &&
+          displayedEventKeys.has(
+            eventKey(entry.calendarEvent.calendarId, entry.calendarEvent.uid),
+          )
         )
           continue;
         if (entry.startsAt >= range.toExclusive || entry.endsAt <= range.from)

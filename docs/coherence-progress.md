@@ -5,10 +5,15 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Aktuelles Paket
 
-- Paket: **5 – Gemeinsame Kalender- und Planungsansichten** lokal umgesetzt,
-  um die vier Abnahmebefunde korrigiert und erneut geprüft (116/116 API-,
-  67/67 Web-Unit-, 42/42 E2E-Tests). Die Integrationsabnahme steht noch aus:
-  Commit, PR, Pflicht-CI und Merge fehlen.
+- Paket: **5 – Gemeinsame Kalender- und Planungsansichten** lokal umgesetzt und
+  in zwei Korrekturrunden nachgezogen. Stand nach der zweiten Korrekturrunde:
+  118/118 API-, 70/70 Web-Unit-, 42/42 E2E-Tests. Der zuletzt geprüfte Commit
+  `acd420b` liegt auf dem getrackten Branch `feat/coherence-calendar-planning-views`;
+  [PR #125](https://github.com/187Anton/LifeOS/pull/125) ist gegen `develop`
+  eröffnet und die Pflicht-CI war dort **grün** (`Repository checks` und
+  `Local macOS release` je `pass`, live abgefragt über `gh pr checks 125`). Der
+  Commit dieser zweiten Runde wird nach dem Push im PR dokumentiert; offen und
+  ausdrücklich nicht ausgeführt ist der Merge.
 - Vorgänger: **Paket 4** ist über
   [PR #124](https://github.com/187Anton/LifeOS/pull/124) nach `develop`
   integriert; bestätigt ist der Merge-Commit `a8a2847` als Spitze von
@@ -37,18 +42,25 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   Task-Kalender-Relation bleibt Paket 9. `LifeOS Leitfaden.docx` und `README.md`
   blieben unverändert, weil Paket 5 keine neue Bedienung oder Einrichtung
   einführt.
-- Offen bis zur Abnahme: Commit, Push, PR nach `develop`, Pflicht-CI und Merge.
+- Git-Stand: Der gemessene Korrekturstand ist als `acd420b` auf
+  `origin/feat/coherence-calendar-planning-views` gepusht; der Branch ist
+  hochgeladen und getrackt, `origin/develop` blieb bei `a8a2847`. PR #125 gegen
+  `develop` ist eröffnet (nicht gemergt) und die Pflicht-CI dort grün.
 - Delegation: Der koordinierende Agent hat die Umsetzung der vier Befunde an
   einen deepseek-Worker übergeben und dessen Ergebnis unabhängig geprüft
   (Diff, Paketgrenzen, eigene Testläufe). Die Modellwahl wurde in der
   Delegationssitzung verifiziert; es gab keinen stillen Wechsel auf ein anderes
-  Modell.
+  Modell. Die zweite Korrekturrunde (Statusfilter, öffentliche Identität,
+  Zeitraum und Zeitzone, Übergabe) hat der koordinierende Agent selbst
+  umgesetzt und geprüft; sie lief ohne Delegation, weil der Auftrag keine
+  Rollenteilung vorgab.
 
 ## Paket 5 – lokale Nachweise
 
-> Die Zahlen in diesem Abschnitt sind der Stand **vor** der Korrektur der vier
-> Abnahmebefunde (108/108 API, 60/60 Web-Unit, 38/38 E2E). Der aktuelle Stand
-> steht im Abschnitt „Korrektur der vier Abnahmebefunde“ weiter unten.
+> Die Zahlen in diesem Abschnitt sind der Stand **vor** beiden Korrekturrunden
+> (108/108 API, 60/60 Web-Unit, 38/38 E2E). Die aktuellen Stände stehen in den
+> Abschnitten „Korrektur der vier Abnahmebefunde“ und „Korrektur der offenen
+> Befunde (Statusfilter, Identität, Zeitraum und Zeitzone)“ weiter unten.
 
 - Projektion und Trennung: `npm test --workspace @lifeos/api` 108/108, darunter
   die neuen Fälle „unterscheidet Frist, geplanten Zeitblock und
@@ -105,16 +117,16 @@ Stand: 25.09.2026, gemessen im Worktree
 `feat/coherence-calendar-planning-views` (Basis `a8a2847`). Alle Zahlen stammen
 aus tatsächlich ausgeführten Läufen nach Abschluss aller Änderungen.
 
-- **Befund 1 – Zeitzonen.** Kalender- und Planungsansicht verwenden für
-  Aufgaben und Studieneinträge jetzt dieselben Tagesgrenzen, nämlich die
-  Profilzeitzone (`profile.settings.timezone`). Kalenderereignisse werden
-  weiterhin im Kalenderraster geführt, in ihrer gespeicherten Zeitzone
-  beschriftet und nicht neu interpretiert; die Planungs-API gibt dafür
-  `event.timezone` statt der Profilzeitzone aus. Nachweise: API-Fall „ordnet
-  Ereignisse nach gespeicherter Ereignis- und Blöcke nach Profilzeitzone zu“,
-  Web-Unit-Fall „ordnet Aufgaben und Studium nach Profilzeitzone und rasiert
-  Termine im Kalender“ mit Kalenderzeitzone `America/New_York` gegen
-  Profilzeitzone `Europe/Berlin`.
+- **Befund 1 – Zeitzonen.** Kalender- und Planungsansicht verwenden dieselbe
+  Tagesbasis, nämlich die Profilzeitzone (`profile.settings.timezone`): sie gilt
+  für Aufgaben, Studieneinträge und Termine. Kalenderereignisse werden in ihrer
+  gespeicherten Zeitzone beschriftet und nicht neu interpretiert; die
+  Planungs-API gibt dafür `event.timezone` statt der Profilzeitzone aus.
+  Nachweise: API-Fall „ordnet Ereignisse nach gespeicherter Ereignis- und Blöcke
+  nach Profilzeitzone zu“, Web-Unit-Fall „ordnet Aufgaben und Studium nach
+  Profilzeitzone und rasiert Termine im Kalender“ mit Kalenderzeitzone
+  `America/New_York` gegen Profilzeitzone `Europe/Berlin` (in der zweiten
+  Korrekturrunde auf die gemeinsame Tagesbasis aller Quellen umgeschrieben).
 - **Befund 2 – Zeitblöcke über Mitternacht.** Zeitgebundene Blöcke werden in
   beiden Ansichten bei echter Zeitüberlappung aufgenommen; der Anzeigetag ist
   `max(eigener Starttag in Profilzeitzone, Zeitraumstart)`, es entsteht genau
@@ -136,28 +148,30 @@ aus tatsächlich ausgeführten Läufen nach Abschluss aller Änderungen.
   `![completed, cancelled]`). Nachweise: Web-Unit-Fall „blendet erledigte,
   abgebrochene und archivierte Studieneinträge aus, aktive bleiben“ mit vier
   getrennten Fällen und E2E-Fall „zeigt im Kalender nur aktive Studieneinträge
-  und blendet erledigte, abgebrochene und archivierte aus“. Der API-Statusfilter
-  bleibt bewusst unverändert (`status !== "cancelled"`); ein API-Test hält diese
-  gewollte Abweichung fest.
+  und blendet erledigte, abgebrochene und archivierte aus“. Der API-Filter war
+  in dieser Runde noch auf `status !== "cancelled"` beschränkt; die
+  Angleichung folgte in der zweiten Korrekturrunde (siehe unten).
 - **Befund 4 – führender Kalendertermin.** Ein verknüpfter Studieneintrag wird
   nur noch unterdrückt, wenn sein führender Termin in der tatsächlich
   gelieferten Projektion vorkommt. Dafür gibt `StudyEntryResponse` die stabile
   öffentliche `calendarEventUid` read-only aus (die interne `calendarEventId`
   bleibt intern), und die Planungs-API sowie die Web-Projektion prüfen gegen die
-  UIDs der tatsächlich projizierten Ereignisse. Liegt der Termin in einem anderen
+  tatsächlich projizierten Ereignisse. Liegt der Termin in einem anderen
   Kalender, außerhalb des Zeitraums oder ist er gelöscht, bleibt der Eintrag
   sichtbar. Aus der Planungsansicht öffnet ein fester Termin den bestehenden
-  Termin-Editor über `{calendarId, uid}` inklusive Kalenderwechsel; die UID wird
-  nie als kalenderübergreifend eindeutiger Schlüssel verwendet. Es entstand kein
-  neuer Schreibpfad und keine verwaltete Aufgaben-Kalender-Beziehung. Nachweise:
-  API-Fälle „zeigt den Studieneintrag, wenn der führende Termin nicht geliefert
-  wird“ und „unterdrückt verknüpfte Studieneinträge nur gegen die gelieferte
-  Projektion“, Integrationsfall „projiziert Mitternachtsblock und führenden
-  Termin aus der realen Datenbank“, Web-Unit-Fälle „unterdrückt einen
+  Termin-Editor über `{calendarId, uid}` inklusive Kalenderwechsel. Es entstand
+  kein neuer Schreibpfad und keine verwaltete Aufgaben-Kalender-Beziehung.
+  Nachweise: API-Fälle „zeigt den Studieneintrag, wenn der führende Termin nicht
+  geliefert wird“ und „unterdrückt verknüpfte Studieneinträge nur gegen die
+  gelieferte Projektion“, Integrationsfall „projiziert Mitternachtsblock und
+  führenden Termin aus der realen Datenbank“, Web-Unit-Fälle „unterdrückt einen
   verknüpften Studieneintrag nur bei tatsächlich gezeigtem führendem Termin“ und
   „wählt für einen festen Termin aus der Planung den Kalender des Eintrags und
   öffnet den bestehenden Editor“ sowie „zeigt einen verknüpften Studieneintrag
-  mit führendem Termin in einem anderen Kalender“.
+  mit führendem Termin in einem anderen Kalender“. In dieser Runde verglichen
+  beide Ansichten noch über die UID; der Wechsel auf die zusammengesetzte
+  öffentliche Identität `(calendarId, uid)` folgte in der zweiten
+  Korrekturrunde (siehe unten).
 - Zusätzlich behoben: ein reproduzierbarer E2E-Flake in
   `apps/web/tests/e2e/lifeos.spec.ts` (Test „zeigt die lokale Übersicht und
   speichert Termine ohne Browserpersistenz“). Ursache war die Reihenfolge im
@@ -165,8 +179,9 @@ aus tatsächlich ausgeführten Läufen nach Abschluss aller Änderungen.
   bis die Projektionen neu geladen sind; die frühere Prüfung traf deshalb Karte
   und Editorüberschrift gleichzeitig. Der Test wartet jetzt deterministisch auf
   das Schließen des Editors und prüft die Karte eindeutig über ihren Container.
-- Gemessene Nachweise auf dem Endstand: `npm test --workspace @lifeos/api`
-  **116/116** (vorher 108), Web-Unit `npx vitest run` in `apps/web` **67/67** in
+- Gemessene Nachweise dieser Runde (Stand nach der ersten Korrekturrunde):
+  `npm test --workspace @lifeos/api` **116/116** (vorher 108), Web-Unit
+  `npx vitest run` in `apps/web` **67/67** in
   11 Dateien (vorher 60), Playwright `npx playwright test` in `apps/web`
   **42/42** in `desktop-chrome` und `mobile-chrome` (vorher 38), vier volle
   Läufe hintereinander ohne Fehlschlag. Qualität: `npm run typecheck`,
@@ -175,6 +190,70 @@ aus tatsächlich ausgeführten Läufen nach Abschluss aller Änderungen.
 - Nicht ausgeführt: `npm run test:repo`, `npm run test:sqlite:api` und die
   Recovery-/Sidecar-Nachweise; sie sind für diese Korrektur nicht einschlägig,
   weil kein Schema, keine Migration und kein Providerverhalten geändert wurde.
+- Nicht geändert: Datenbankschema, Migrationen, CalDAV-/Apple-Pfade, freie
+  `TaskEventLink`-Beziehungen, Finanzmodule, Modulseiten und Dokumentsuche. Die
+  verwaltete Task-Kalender-Relation bleibt Paket 9.
+
+## Paket 5 – Korrektur der offenen Befunde (Statusfilter, Identität, Zeitraum und Zeitzone)
+
+Stand: 25.09.2026, gemessen im Worktree
+`/private/tmp/lifeos-coherence-planning-views` auf Branch
+`feat/coherence-calendar-planning-views` (Basis `a8a2847`). Alle Zahlen stammen
+aus tatsächlich ausgeführten Läufen nach Abschluss aller Änderungen. Diese
+Runde wurde vom koordinierenden Agenten selbst umgesetzt und geprüft (keine
+Delegation, siehe oben).
+
+- **Statusfilter angeglichen.** Beide Ansichten verwenden dieselbe Statusregel
+  für Studieneinträge: `completed` und `cancelled` bleiben unsichtbar, aktive
+  einschließlich `paused` bleiben sichtbar, archivierte Einträge liefert die
+  Planungsquelle weiterhin nicht aus. Die Planungs-API wendet sie über
+  `hiddenStudyStatus` in `apps/api/src/modules/planning/service.ts` an; die
+  Web-Projektion nutzt dieselbe Regel in `apps/web/src/calendar-projection.ts`.
+  Nachweise: API-Fall „wendet in der Planung dieselben Statusfälle an wie die
+  Kalenderansicht“ (Menge `[paused, planned]`), Erweiterung des
+  Integrationsfalls um einen erledigten und einen pausierten Eintrag,
+  Web-Unit-Fall „wendet in der Kalenderansicht dieselben Statusfälle an wie die
+  Planungs-API“ und der E2E-Fall „zeigt im Kalender nur aktive Studieneinträge
+  und blendet erledigte, abgebrochene und archivierte aus“, der jetzt dieselbe
+  Statusmenge in Kalender- **und** Planungsansicht prüft.
+- **Verknüpfte Ereignisse eindeutig abgeglichen.** Verglichen wird nur noch die
+  zusammengesetzte öffentliche Identität `(calendarId, uid)`, nie die UID allein.
+  Dafür gibt `StudyEntryResponse.calendarEventCalendarId` den öffentlichen
+  Kalender des führenden Termins read-only aus (interne `calendarEventId` bleibt
+  intern, es entstand kein neuer Schreibpfad), die Planungsquelle liest die
+  Relation schreibgeschützt mit (`include: { calendarEvent: { select: { uid,
+calendarId } } }`), und die Web-Projektion prüft gegen die Schlüssel der
+  tatsächlich dargestellten Ereignisse ihres Kalenders. Nachweise: API-Fall
+  „unterdrückt einen verknüpften Studieneintrag nur bei gleicher UID im selben
+  Kalender“ (zwei Kalender mit derselben UID, dritter Kalender bleibt sichtbar),
+  Integrationsfall „unterdrückt bei gleicher UID in zwei Kalendern nur den
+  verknüpften Termin“ gegen die reale Datenbank und Web-Unit-Fall „unterdrückt
+  einen verknüpften Studieneintrag nur bei gleicher UID im selben Kalender“.
+- **Zeitraum und Zeitzone angeglichen.** Alle Quellen der Kalenderansicht –
+  Aufgaben, Studieneinträge und Termine – verwenden dieselbe Profilzeitzone als
+  Tagesbasis; Anker und „Heute“ hängen nicht mehr von der Kalenderzeitzone ab.
+  Ein abweichender Kalender-Zeitzonenwert ergibt damit auch über Mitternacht
+  keinen anderen sichtbaren Tag. Gespeicherte Zeitpunkte und die
+  Ereigniszeitzone bleiben unverändert: Termine werden weiterhin in ihrer
+  eigenen Zeitzone beschriftet und über `entry.event` mit stabiler UID und
+  aktuellem ETag bearbeitet. Nachweise: Web-Unit-Fall „gibt Aufgaben, Studium
+  und Terminen bei abweichender Kalenderzeitzone denselben sichtbaren Tag“ mit
+  Kalenderzeitzone `America/New_York` gegen Profilzeitzone `Europe/Berlin` nahe
+  dem Tageswechsel und App-Test „zeigt bei abweichender Kalenderzeitzone
+  denselben sichtbaren Tag wie die Planung“ mit `Pacific/Kiritimati` gegen
+  `Etc/GMT+12` (26 Stunden Unterschied, die Kalendertage können deshalb nie
+  übereinstimmen).
+- Gemessene Nachweise dieser Runde: `npm test --workspace @lifeos/api`
+  **118/118** (vorher 116, inklusive eines neuen Integrationsfalls gegen die
+  reale Datenbank), Web-Unit `npx vitest run` in `apps/web` **70/70** in 11
+  Dateien (vorher 67), Playwright `npx playwright test` in `apps/web`
+  **42/42** in `desktop-chrome` und `mobile-chrome`. Qualität:
+  `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run build`,
+  `npm run repo:check` und `npm run security:secrets` bestanden.
+- Nicht ausgeführt: `npm run test:repo`, `npm run test:sqlite:api` und die
+  Recovery-/Sidecar-Nachweise; sie sind für diese Korrektur nicht einschlägig,
+  weil kein Schema, keine Migration und kein Providerverhalten geändert wurde.
+  Der ARM64-DMG-/Notarisierungspfad wurde nicht angefasst.
 - Nicht geändert: Datenbankschema, Migrationen, CalDAV-/Apple-Pfade, freie
   `TaskEventLink`-Beziehungen, Finanzmodule, Modulseiten und Dokumentsuche. Die
   verwaltete Task-Kalender-Relation bleibt Paket 9.

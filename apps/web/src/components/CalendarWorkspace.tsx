@@ -40,9 +40,11 @@ interface CalendarWorkspaceProps {
   /** Besitzerkennung der geladenen, ausschließlich eigenen Daten. */
   ownerId: string;
   /**
-   * Profilzeitzone für Tagesgrenzen von Aufgaben und Studieneinträgen. Die
-   * Prop `timezone` bleibt die Kalender-/Rasterzeitzone der ausgewählten
-   * Kalenderquelle.
+   * Profilzeitzone und damit Tagesgrenze der gesamten Ansicht: Sie gilt für
+   * Aufgaben, Studieneinträge und Termine gleichermaßen, damit der
+   * Kalender-Zeitzonenwert der Quelle keinen anderen sichtbaren Tag ergibt.
+   * Die Prop `timezone` bleibt der beschreibende Zeitzonenwert des gewählten
+   * Kalenders.
    */
   profileTimezone: string;
   initialView: CalendarView;
@@ -425,9 +427,15 @@ export const CalendarWorkspace = ({
   const selectedCalendar = calendars.find(
     (calendar) => calendar.id === selectedCalendarId,
   );
+  /**
+   * Kalenderzeitzone: beschreibt weiterhin, in welcher Zeitzone der Kalender
+   * geführt wird (Kalender-Chip). Der sichtbare Tag der Ansicht hängt dagegen
+   * ausschließlich von der Profilzeitzone ab, damit ein abweichender
+   * Kalender-Zeitzonenwert – auch über Mitternacht – keinen anderen Tag ergibt.
+   */
   const timezone = selectedCalendar?.timezone ?? "UTC";
   const [view, setView] = useState<CalendarView>(initialView);
-  const [anchor, setAnchor] = useState(() => todayInTimezone(timezone));
+  const [anchor, setAnchor] = useState(() => todayInTimezone(profileTimezone));
   const range = useMemo(() => rangeForView(view, anchor), [view, anchor]);
   /**
    * Eine gemeinsame Projektion für Tag, Woche, Monat und Agenda: Termine,
@@ -442,7 +450,6 @@ export const CalendarWorkspace = ({
         tasks,
         studyEntries,
         range,
-        timezone,
         profileTimezone,
         calendarId: selectedCalendarId ?? null,
         ownerId,
@@ -455,7 +462,6 @@ export const CalendarWorkspace = ({
       selectedCalendarId,
       studyEntries,
       tasks,
-      timezone,
     ],
   );
 
@@ -587,7 +593,7 @@ export const CalendarWorkspace = ({
               <button
                 type="button"
                 className="text-button"
-                onClick={() => setAnchor(todayInTimezone(timezone))}
+                onClick={() => setAnchor(todayInTimezone(profileTimezone))}
               >
                 Heute
               </button>
@@ -605,7 +611,7 @@ export const CalendarWorkspace = ({
           <div className="section-heading event-list-heading">
             <div>
               <h2 id="event-list-title">
-                {formatPeriodTitle(view, range, timezone)}
+                {formatPeriodTitle(view, range, profileTimezone)}
               </h2>
               <p>{selectedCalendar?.name ?? "Kein Kalender ausgewählt"}</p>
             </div>

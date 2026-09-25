@@ -495,12 +495,20 @@ export interface StudyEntryResponse extends StudyRecordResponse {
   taskId: string | null;
   calendarEventId: string | null;
   /**
-   * Stabile öffentliche UID des führenden Kalenderereignisses. Sie ist die
-   * einzige Kennung, mit der eine Ansicht prüfen kann, ob der Termin in der
-   * gerade gezeigten Kalenderprojektion tatsächlich enthalten ist; die interne
-   * `calendarEventId` bleibt rein intern. Ohne führenden Termin `null`.
+   * Stabile öffentliche UID des führenden Kalenderereignisses. Sie ist
+   * zusammen mit `calendarEventCalendarId` die einzige Kennung, mit der eine
+   * Ansicht prüfen kann, ob der Termin in der gerade gezeigten
+   * Kalenderprojektion tatsächlich enthalten ist; die interne
+   * `calendarEventId` bleibt rein intern. Die UID allein ist nicht
+   * kalenderübergreifend eindeutig. Ohne führenden Termin `null`.
    */
   calendarEventUid: string | null;
+  /**
+   * Kalender des führenden Kalenderereignisses. Erst zusammen mit
+   * `calendarEventUid` ergibt sich eine kalenderübergreifend eindeutige
+   * öffentliche Identität. Ohne führenden Termin `null`.
+   */
+  calendarEventCalendarId: string | null;
 }
 
 export interface StudyOverviewResponse {
