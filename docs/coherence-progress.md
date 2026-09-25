@@ -5,11 +5,11 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Aktuelles Paket
 
-- Paket: **2 – Finanzfunktionen entfernen**, Teilauftrag **2b/2 – Sidecar-
-  Nachweis ohne aktive Finanzroute**; in Arbeit, weder PR noch Paketabnahme.
-  2a und 2b/1 sind committet; 2b/2 ist lokal umgesetzt und synthetisch geprüft,
-  der Paketcommit dieses Schritts entsteht direkt nach dieser Notiz. 2c sowie
-  Paket 3 bleiben offen.
+- Paket: **2 – Finanzfunktionen entfernen**, Teilauftrag **2c/1 – aktive
+  Finanzverträge und Web-Client bereinigen**; in Arbeit, weder PR noch
+  Paketabnahme. 2a, 2b/1 und 2b/2 sind committet, 2c/1 ist lokal umgesetzt und
+  geprüft (Paketcommit dieses Schritts entsteht direkt nach dieser Notiz);
+  Produktdokumentation und Paketabnahme sowie Paket 3 bleiben offen.
 - Branch: `feat/coherence-finance-removal`.
 - Basis: `22d5ba6b9fdd005baf973a192c7fb082deac621b` (`origin/develop`).
 - Worktree: `/private/tmp/lifeos-coherence-finance-removal`.
@@ -143,14 +143,68 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   diese Fortschrittsdatei; keine produktive Migration, kein Schema- oder
   Schutzregelungseingriff, keine Altdaten berührt (ausschließlich temporäre
   synthetische SQLite-Datei im System-Temp).
-- Delegationsbezug 2b/2: `coherence-p2b2-deepseek-20260925`; exakte Hermes-ID
-  in `/Users/anton/.hermes/coherence-handoff/paket-2.txt` ergänzen.
-- Exakter nächster Schritt: Paketcommit dieses Schritts prüfen (Hash steht noch
-  nicht in dieser Notiz, weil der Commit direkt danach entsteht), dann
-  Vertrags-/Client-Reste in 2c bereinigen (Frontend-Client,
-  `@lifeos/contracts`, Produktdokumentation) und Paket 2 abnehmen; Paket 3
-  (Schema, Seeds, TaskArea) erst danach. Paket 2 bleibt offen; kein
-  Push/PR/Merge bis Paketabnahme.
+- Delegationsbezug 2b/2: `coherence-p2b2-deepseek-20260925`,
+  `deleg_16bf623e` / `sa-0-1c4885d4`; Commit `2ab72f6`
+  (`test(desktop): assert retired finance route in sidecar check`). Der
+  Koordinator prüfte Script-Diff und Schlussmeldung des echten Testlaufs.
+- Geplanter Schritt 2c/1: tote Finanzmethoden und -Tests aus Web-API-Client,
+  aktive Finance-Typen aus `@lifeos/contracts` und ausschließlich verwaiste
+  Finanz-CSS-Selektoren entfernen. `TaskArea=finance` und gemeinsame
+  Währungseinstellung bis Paket 3 erhalten; historische Dokumentation bleibt.
+  Keine Backend-/Datenbankänderung. Delegationsbezug
+  `coherence-p2c1-deepseek-20260925` (Hermes-ID separat speichern).
+- Vorprüfung 2c/1 (vor der ersten Codeänderung, Stand 25.09.2026): tatsächliches
+  cwd `/private/tmp/lifeos-coherence-finance-removal`, Branch
+  `feat/coherence-finance-removal`, HEAD `2ab72f6`
+  (`test(desktop): assert retired finance route in sidecar check`),
+  ungecommittet weiterhin nur die Koordinatoränderung an dieser Datei; Basis
+  `22d5ba6` unverändert. Node 22.21.1 unter `/opt/homebrew/opt/node@22/bin`
+  vorhanden, `better-sqlite3` im Worktree für Node 22 gebaut. Aktive
+  Vertragsverbraucher konkret: `apps/web/src/api.ts` importiert acht
+  `Finance*`-Typen und stellt acht Finanzmethoden bereit;
+  `apps/web/tests/unit/api.test.ts` enthält genau einen Finanz-Client-Test
+  („verwaltet und exportiert Finanzdaten …“). In `apps/web/src/styles.css` sind
+  ausschließlich `.finance-page`, `.finance-filters`, `.finance-metrics`,
+  `.finance-grid`, `.finance-list`, `.month-comparison`, `.inline-create` und
+  `.budget-warning.reached`/`.budget-warning.exceeded` verwaist; belegt über die
+  in 2a gelöschte `FinanceWorkspace.tsx`, die genau diese Klassennamen nutzte
+  (`.budget-warning` selbst hatte nie eine eigene Regel). `TaskArea=finance`
+  (`task.ts`, `TaskForm.tsx`, `App.test.tsx`) und
+  `UserSettingsResponse.currencyCode` bleiben unverändert. `apps/web/dist/` liegt
+  aus einem früheren Lauf im Worktree und wird nicht editiert.
+- Ergebnis 2c/1 (echte Prüfungen bestanden, Stand 25.09.2026): In
+  `packages/contracts/src/api.ts` sind ausschließlich die aktiven
+  Finance-Typgruppen entfernt (Category, Transaction, Budget, MonthSummary,
+  BudgetWarning, Analytics, Overview, Export sowie die zugehörigen Enums und
+  Create-/Update-Requests); `TaskArea` inklusive `"finance"` und
+  `UserSettingsResponse.currencyCode` bleiben unverändert. In
+  `apps/web/src/api.ts` sind die acht Finanzmethoden
+  (`getFinance`, `createFinanceCategory`, `updateFinanceCategory`,
+  `createFinanceTransaction`, `updateFinanceTransaction`, `createFinanceBudget`,
+  `updateFinanceBudget`, `exportFinance`) und die acht zugehörigen Typimporte
+  entfernt. Der frühere Finanz-Client-Test in `apps/web/tests/unit/api.test.ts`
+  ist durch eine Stilllegungsprüfung ersetzt, die die Clientquelle ohne
+  `finance` (case-insensitiv) und die Abwesenheit von `getFinance`/
+  `exportFinance` belegt. In `apps/web/src/styles.css` sind ausschließlich die
+  verwaisten Regeln `.finance-page`, `.finance-filters`, `.finance-metrics`,
+  `.finance-grid`, `.finance-list`, `.month-comparison`, `.inline-create` und
+  `.budget-warning.reached`/`.exceeded` samt ihren beiden Media-Queries entfernt;
+  gemeinsam genutzte Nachbarregeln (z. B. `.knowledge-editor`,
+  `.inline-link-form`, `.study-section`, `.record-card`) blieben unangetastet.
+- Tatsächliche Tests 2c/1 (Node 22.21.1,
+  `PATH=/opt/homebrew/opt/node@22/bin:$PATH`): Web-Unit-Tests 50/50 bestanden
+  (10 Dateien, eine ersetzte Prüfung); `typecheck` und `build` von
+  `@lifeos/contracts`; `typecheck`, `lint` und `build` von `@lifeos/web`
+  (Buildausgabe u. a. `dist/assets/index-sKz2WLPf.css`); `typecheck` und `build`
+  von `@lifeos/api`; `npm run format:check` bestanden; `git diff --check` ohne
+  Befund. Abwesenheitsbeleg für das Produktions-CSS: die gebaute
+  `apps/web/dist/assets/*.css` enthält keinen der entfernten Selektoren.
+- Exakter nächster Schritt: Koordinator prüft den 2c/1-Diff und die Tests selbst;
+  danach die noch offene Produktdokumentation (README/Leitfaden-Hinweise zu
+  Finanzen) klären und Paket 2 gesammelt abnehmen. Paket 3 (Schema, Seeds,
+  TaskArea) erst danach. Paket 2 bleibt offen; kein Push/PR/Merge.
+  Delegationsbezug 2c/1: `coherence-p2c1-deepseek-20260925`; der Commit-Hash
+  dieses Schritts entsteht nach dieser Notiz und wird vom Koordinator eingetragen.
 
 ## Verifizierter Vorgängerstand
 
@@ -183,20 +237,20 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Paketfolge
 
-| Paket                         | Status                                     |
-| ----------------------------- | ------------------------------------------ |
-| 0 Plan und Übergabe           | Integriert über PR #120                    |
-| 1 Einstellungen/Integrationen | Integriert über PR #121                    |
-| 2 Finanzfunktionen entfernen  | 2a committet; 2b/2 lokal geprüft; 2c offen |
-| 3 Finanzdatenmigration        | Nicht begonnen                             |
-| 4 Aufgaben–Studienmodul       | Nicht begonnen                             |
-| 5 Kalender/Planung            | Nicht begonnen                             |
-| 6 Modul-Arbeitsbereich        | Nicht begonnen                             |
-| 7 PDF-Suche                   | Nicht begonnen                             |
-| 8 Office-Suche                | Nicht begonnen                             |
-| 9 Aufgaben–CalDAV             | Nicht begonnen                             |
-| 10 Mac/iPhone-Anbindung       | Nicht begonnen                             |
-| 11 Gesamtabnahme/App-Update   | Nicht begonnen                             |
+| Paket                         | Status                                   |
+| ----------------------------- | ---------------------------------------- |
+| 0 Plan und Übergabe           | Integriert über PR #120                  |
+| 1 Einstellungen/Integrationen | Integriert über PR #121                  |
+| 2 Finanzfunktionen entfernen  | 2a/2b/2c-Client committet; Abnahme offen |
+| 3 Finanzdatenmigration        | Nicht begonnen                           |
+| 4 Aufgaben–Studienmodul       | Nicht begonnen                           |
+| 5 Kalender/Planung            | Nicht begonnen                           |
+| 6 Modul-Arbeitsbereich        | Nicht begonnen                           |
+| 7 PDF-Suche                   | Nicht begonnen                           |
+| 8 Office-Suche                | Nicht begonnen                           |
+| 9 Aufgaben–CalDAV             | Nicht begonnen                           |
+| 10 Mac/iPhone-Anbindung       | Nicht begonnen                           |
+| 11 Gesamtabnahme/App-Update   | Nicht begonnen                           |
 
 ## Fortsetzen
 
