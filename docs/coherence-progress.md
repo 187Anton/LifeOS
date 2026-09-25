@@ -5,8 +5,9 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Aktuelles Paket
 
-- Paket: **2 – Finanzfunktionen entfernen**, Teilauftrag **2a – Weboberfläche**;
-  unvollständig, weder PR noch Paketabnahme.
+- Paket: **2 – Finanzfunktionen entfernen**, Teilauftrag **2b/1 – Finanz-API aus
+  `server.ts` entfernen**; in Arbeit, weder PR noch Paketabnahme. 2a ist
+  committet, 2b/2 und 2c sowie Paket 3 bleiben offen.
 - Branch: `feat/coherence-finance-removal`.
 - Basis: `22d5ba6b9fdd005baf973a192c7fb082deac621b` (`origin/develop`).
 - Worktree: `/private/tmp/lifeos-coherence-finance-removal`.
@@ -43,16 +44,58 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 - Offene Fehler/Abnahme: 2a-Diff und Tests durch Koordinator geprüft;
   API und aktive Verträge bleiben bis 2b/2c unverändert. Finanzschema und
   Altdaten bleiben bis Paket 3. Keine Produktionsmigration, kein PR.
-- Pause: Das angezeigte Codex-Wochenkontingent beträgt 25 % Rest; für das
-  größere Backend-Teilpaket 2b bleibt nur eine schmale Reserve. Keine neue
-  Delegation gestartet, kein automatischer Kontingent-Reset.
-- Exakter nächster Schritt: vor Wiederaufnahme laufende Delegationen und
-  Schreiber, Worktree-Status, `origin/develop` und Codex-Kontingent neu prüfen.
-  Ab 25 % Rest und ohne weitere Blocker 2b (Finanz-API-Routen und ausschließlich
-  finanzbezogene Backend-Logik samt Tests/Stilllegungsvertrag) in kleine
-  Delegationen auf demselben Paketbranch aufteilen; Fortschritt jeweils vor
-  Codeänderung und nach jedem Teilschritt aktualisieren. Unter 25 % mit
-  größerem Teilauftrag pausieren. Paket 2 ist unvollständig.
+- Wiederaufnahme: Nutzer hebt die Wochenkontingent-Schranke ausdrücklich auf.
+  Das neue Fünfstundenfenster zeigt 100 % Rest; unter 15 % wird nur an sicherer
+  Stelle angehalten. Keine Delegation oder anderer Schreiber aktiv;
+  `origin/develop` bleibt `22d5ba6`, Worktree vor Übergabe sauber bei
+  `4122ea5`, keine offene Paket-PR. Kein automatischer Kontingent-Reset.
+- Geplanter begrenzter Schritt 2b/1: Finanzrouter aus `server.ts` entfernen,
+  ausschließlich finanzbezogenen Backend-Modulcode entfernen, API-Tests auf
+  stillgelegte Route und unveränderte übrige Routen umstellen; Vertrag und
+  Frontend-Client folgen in 2c. Altdaten, TaskArea und Migrationen unberührt.
+- Delegationsbezug: `coherence-p2b1-deepseek-20260925`; exakte Hermes-ID
+  `deleg_6b20810f` / `sa-0-d698ac71`; 40 Arbeitsschritte ausgeschöpft,
+  danach keine aktive Delegation. Übergabe auch separat in
+  `/Users/anton/.hermes/coherence-handoff/paket-2.txt` gespeichert.
+- Vorprüfung 2b/1 (vor der ersten Codeänderung, Stand 25.09.2026): Worktree
+  `/private/tmp/lifeos-coherence-finance-removal` auf Branch
+  `feat/coherence-finance-removal`, HEAD `4122ea5`, ungecommittet nur die
+  Koordinatoränderung an dieser Datei; Basis `22d5ba6` unverändert. Einzige
+  Verbraucher von `apps/api/src/modules/finance/*` sind `src/server.ts` und
+  `apps/api/tests/finance.integration.test.ts`.
+- Bekannte Abhängigkeit außerhalb des 2b/1-Umfangs: `scripts/verify-mac-desktop-sidecar.mjs`
+  (Zeilen 364–394, 539–540, 561, 581–582, 639–654, 693–694) legt über
+  `/api/v1/finance/*` synthetische Daten an und liest sie nach dem Neustart
+  erneut; dieser Pfad wird von `scripts/verify-mac-dmg.sh` und damit vom
+  CI-Pflichtcheck `Local macOS release` ausgeführt. Ohne Bereinigung dieses
+  Skripts kann dieser Check nach 2b/1 nicht mehr grün sein. Das Skript wurde in
+  2b/1 nicht verändert (Auftragsumfang) und bleibt als erster Schritt für
+  2b/2/2c dokumentiert.
+- Zwischenstand 2b/1 (Codeänderung durchgeführt, Stand 25.09.2026): Import,
+  Service-Instanz und Routerregistrierung des Finanzmoduls aus
+  `apps/api/src/server.ts` entfernt; `apps/api/src/modules/finance/` (repository,
+  router, service) gelöscht; `apps/api/tests/finance.integration.test.ts`
+  entfernt und durch `apps/api/tests/finance-decommissioned.test.ts` (zwei
+  Datenbank-freie Prüfungen: statische Serververdrahtung ohne Finanzbezug und
+  Laufzeit-`404 NOT_FOUND` für alle alten Finanzpfade) ersetzt;
+  `docs/api/finance.md` um den Stilllegungshinweis ergänzt. Bereits bestanden:
+  neue Prüfdatei (2/2, Node 22.21.1), ESLint `apps/api`, Typecheck `@lifeos/api`,
+  Build `@lifeos/api`, Prettier-Prüfung der geänderten Dateien; im gebauten
+  `apps/api/dist/server.js` existiert kein `/finance`-Routenpfad mehr (Treffer
+  nur aus Prisma-DMMF und `TaskArea`-Enum, beides bleibt bis Paket 3).
+  Der Koordinator baute `better-sqlite3` im isolierten Worktree für Node
+  22.21.1 neu (vorher ABI-Konflikt mit Node 26) und führte anschließend
+  `npm run test:sqlite:api` aus: 100/100 Tests bestanden, ausschließlich
+  temporäre synthetische SQLite-Datei. `npm run format:check` bestand.
+  Offen: Commit und Folgearbeiten 2b/2 und 2c.
+- Gesperrt/nicht ausgeführt: PostgreSQL-Integrationstests gegen die laufende
+  lokale Entwicklungsdatenbank (`lifeos-db-1`, seit 2 Wochen aktiv), um keine
+  Finanzaltdaten oder fremden Bestand anzufassen; die Pflicht-CI führt sie in
+  ihrer eigenen Wegwerfdatenbank aus.
+- Exakter nächster Schritt: 2b/1-Diff und Tests abschließend prüfen und
+  committen. Danach den Mac-Sidecar-Nachweis ohne Finanzrouten aktualisieren,
+  ausschließlich synthetisch testen und erst dann Vertrags-/Client-Reste in
+  2c bereinigen. Paket 2 bleibt offen, kein Push/PR/Merge bis Paketabnahme.
 
 ## Verifizierter Vorgängerstand
 
