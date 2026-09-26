@@ -15,6 +15,11 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   `desktop:verify:sidecar`, `typecheck`, `lint`, `format:check`, `build`,
   `repo:check` und `security:secrets`. Der Head dieser Runde entsteht nach dem
   Push; ein Merge ist nicht beauftragt und wurde nicht ausgeführt.
+- Übergabe: [PR #127](https://github.com/187Anton/LifeOS/pull/127) gegen
+  `develop`. Die Pflichtprüfungen `Repository checks` und
+  `Local macOS release` sind für den inhaltlichen Head `2f46246`
+  (`feat(knowledge): add local PDF text extraction and module-scoped search`)
+  beide `SUCCESS`. Ein Merge ist nicht beauftragt und wurde nicht ausgeführt.
 - Vorgänger: **Paket 6** ist über
   [PR #126](https://github.com/187Anton/LifeOS/pull/126) nach `develop`
   integriert. Live bestätigt sind der Merge-Commit `65de029`
