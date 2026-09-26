@@ -374,8 +374,21 @@ export const api = {
       method: "DELETE",
     });
   },
-  search(query: string) {
-    return request<SearchResponse>(`/search?q=${encodeURIComponent(query)}`);
+  /**
+   * Verarbeitet ein bereits abgelegtes Dokument erneut lokal. Der Endpunkt ist
+   * besitzgebunden und liefert den aktualisierten Dokumentzustand zurück.
+   */
+  reprocessDocument(documentId: string) {
+    return request<DocumentResponse>(
+      `/documents/${encodeURIComponent(documentId)}/extraction`,
+      { method: "POST" },
+    );
+  },
+  search(query: string, studyModuleId?: string | null) {
+    const parameters = new URLSearchParams({ q: query });
+    /** Der Modulfilter beschränkt die Suche auf ein Studienmodul. */
+    if (studyModuleId) parameters.set("studyModuleId", studyModuleId);
+    return request<SearchResponse>(`/search?${parameters.toString()}`);
   },
   getAiStatus() {
     return request<AiStatusResponse>("/ai/status");

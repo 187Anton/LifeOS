@@ -170,6 +170,17 @@ export const createKnowledgeRouter = ({
         ),
       ),
   );
+  router.post(
+    "/documents/:id/extraction",
+    validateRequest({ params }),
+    async (_request, response) =>
+      response.json(
+        await knowledge.reprocessDocument(
+          owner(response),
+          response.locals.validated.params.id,
+        ),
+      ),
+  );
   router.delete(
     "/documents/:id",
     validateRequest({ params }),

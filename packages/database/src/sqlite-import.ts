@@ -92,7 +92,20 @@ const readDataset = async (database: ReadClient) => ({
   }),
   notes: await database.note.findMany({ orderBy: { id: "asc" } }),
   noteVersions: await database.noteVersion.findMany({ orderBy: { id: "asc" } }),
-  documents: await database.document.findMany({ orderBy: { id: "asc" } }),
+  documents: (await database.document.findMany({ orderBy: { id: "asc" } })).map(
+    (document) => ({
+      ...document,
+      /**
+       * Paket 7: Die seitenbezogenen Fundstellen sind ein JSON-Array. Die
+       * Übertragung normalisiert einen fehlenden oder unerwarteten Wert auf eine
+       * leere Liste, damit weder PostgreSQL noch SQLite einen ungültigen Wert
+       * erhalten und keine Altdaten verloren gehen.
+       */
+      extractionPages: (Array.isArray(document.extractionPages)
+        ? document.extractionPages
+        : []) as Prisma.InputJsonValue,
+    }),
+  ),
   tasks: await database.task.findMany({ orderBy: { id: "asc" } }),
   taskEventLinks: await database.taskEventLink.findMany({
     orderBy: { id: "asc" },

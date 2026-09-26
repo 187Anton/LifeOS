@@ -1,5 +1,8 @@
 import type { DatabaseClient } from "@lifeos/database";
+import type { Prisma } from "@lifeos/database";
 import type {
+  DocumentExtractionResponse,
+  DocumentExtractionStatus,
   DocumentResponse,
   KnowledgeOverviewResponse,
   NoteDetailResponse,
@@ -23,6 +26,29 @@ export interface NoteValues {
 export type NoteChanges = Partial<NoteValues> & {
   archivedAt?: Date | null;
 };
+
+/** Eine Seite mit lokal extrahiertem Text. */
+export interface ExtractedDocumentPage {
+  page: number;
+  text: string;
+}
+
+/**
+ * Ergebnis einer lokalen Extraktion. `sourceSha256` bindet die Extraktion an
+ * genau die Dateiprüfsumme, aus der sie entstanden ist.
+ */
+export interface DocumentExtractionValues {
+  status: DocumentExtractionStatus;
+  version: string | null;
+  sourceSha256: string | null;
+  errorCode: string | null;
+  pageCount: number | null;
+  truncated: boolean;
+  pages: ExtractedDocumentPage[] | null;
+  extractedAt: Date | null;
+  extractedText: string | null;
+}
+
 export interface DocumentValues {
   storageKey: string;
   fileName: string;
@@ -33,7 +59,7 @@ export interface DocumentValues {
   projectId: string | null;
   studyModuleId: string | null;
   searchEnabled: boolean;
-  extractedText: string | null;
+  extraction: DocumentExtractionValues;
 }
 export type DocumentChanges = Pick<
   UpdateDocumentRequest,
@@ -51,9 +77,25 @@ type NoteRecord = NoteValues & {
   project: Link;
   studyModule: Link;
 };
-type DocumentRecord = DocumentValues & {
+type DocumentRecord = {
   id: string;
   userId: string;
+  storageKey: string;
+  fileName: string;
+  mimeType: string;
+  byteSize: number;
+  sha256: string;
+  modifiedAt: Date;
+  searchEnabled: boolean;
+  extractedText: string | null;
+  extractionStatus: DocumentExtractionStatus;
+  extractionVersion: string | null;
+  extractionSha256: string | null;
+  extractionErrorCode: string | null;
+  extractionPageCount: number | null;
+  extractionTruncated: boolean;
+  extractionPages: Prisma.JsonValue;
+  extractedAt: Date | null;
   archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -90,6 +132,47 @@ const mapNote = (record: NoteRecord): NoteResponse => ({
   project: record.project,
   studyModule: record.studyModule,
 });
+
+/**
+ * Liest die gespeicherten Seitenfundstellen aus dem JSON-Feld. Es werden nur
+ * wohlgeformte Einträge übernommen; ein unerwarteter Wert führt zu keiner
+ * stillen Falschzuordnung, sondern zu einer leeren Seitenliste.
+ */
+const storedPages = (value: Prisma.JsonValue): ExtractedDocumentPage[] => {
+  if (!Array.isArray(value)) return [];
+  const pages: ExtractedDocumentPage[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry))
+      continue;
+    const candidate = entry as { page?: unknown; text?: unknown };
+    if (
+      typeof candidate.page !== "number" ||
+      !Number.isInteger(candidate.page) ||
+      candidate.page < 1 ||
+      typeof candidate.text !== "string" ||
+      !candidate.text
+    )
+      continue;
+    pages.push({ page: candidate.page, text: candidate.text });
+  }
+  return pages;
+};
+
+const mapExtraction = (record: DocumentRecord): DocumentExtractionResponse => {
+  const pages = storedPages(record.extractionPages);
+  return {
+    status: record.extractionStatus,
+    version: record.extractionVersion,
+    sourceSha256: record.extractionSha256,
+    current: record.extractionSha256 === record.sha256,
+    errorCode: record.extractionErrorCode,
+    pageCount: record.extractionPageCount,
+    storedPages: pages.length,
+    truncated: record.extractionTruncated,
+    extractedAt: record.extractedAt?.toISOString() ?? null,
+  };
+};
+
 const mapDocument = (record: DocumentRecord): DocumentResponse => ({
   ...common(record),
   fileName: record.fileName,
@@ -101,6 +184,19 @@ const mapDocument = (record: DocumentRecord): DocumentResponse => ({
   project: record.project,
   studyModule: record.studyModule,
   contentUrl: `/api/v1/documents/${record.id}/content`,
+  extraction: mapExtraction(record),
+});
+
+const extractionColumns = (values: DocumentExtractionValues) => ({
+  extractedText: values.extractedText,
+  extractionStatus: values.status,
+  extractionVersion: values.version,
+  extractionSha256: values.sourceSha256,
+  extractionErrorCode: values.errorCode,
+  extractionPageCount: values.pageCount,
+  extractionTruncated: values.truncated,
+  extractionPages: (values.pages ?? []) as unknown as Prisma.InputJsonValue,
+  extractedAt: values.extractedAt,
 });
 
 export interface KnowledgeRepository {
@@ -128,6 +224,12 @@ export interface KnowledgeRepository {
     userId: string,
     documentId: string,
     changes: DocumentChanges,
+  ): Promise<DocumentResponse>;
+  /** Veröffentlicht ein neues Extraktionsergebnis atomar am Dokument. */
+  replaceDocumentExtraction(
+    userId: string,
+    documentId: string,
+    values: DocumentExtractionValues,
   ): Promise<DocumentResponse>;
   markDocumentDeleted(
     userId: string,
@@ -289,8 +391,9 @@ export class PrismaKnowledgeRepository implements KnowledgeRepository {
   async createDocument(userId: string, values: DocumentValues) {
     return this.database.$transaction(async (tx) => {
       await this.references(tx, userId, values.projectId, values.studyModuleId);
+      const { extraction, ...metadata } = values;
       const record = await tx.document.create({
-        data: { userId, ...values },
+        data: { userId, ...metadata, ...extractionColumns(extraction) },
         include: includeLinks,
       });
       await this.audit(
@@ -306,9 +409,10 @@ export class PrismaKnowledgeRepository implements KnowledgeRepository {
           "projectId",
           "studyModuleId",
           "searchEnabled",
+          "extractionStatus",
         ],
       );
-      return mapDocument(record as DocumentRecord);
+      return mapDocument(record as unknown as DocumentRecord);
     });
   }
 
@@ -318,7 +422,38 @@ export class PrismaKnowledgeRepository implements KnowledgeRepository {
       include: includeLinks,
     });
     if (!record) throw new KnowledgeRecordNotFoundError();
-    return record as DocumentRecord;
+    return record as unknown as DocumentRecord;
+  }
+
+  async replaceDocumentExtraction(
+    userId: string,
+    documentId: string,
+    values: DocumentExtractionValues,
+  ) {
+    return this.database.$transaction(async (tx) => {
+      const current = await tx.document.findFirst({
+        where: { id: documentId, userId, deletedAt: null },
+      });
+      if (!current) throw new KnowledgeRecordNotFoundError();
+      const record = await tx.document.update({
+        where: { id: documentId },
+        data: extractionColumns(values),
+        include: includeLinks,
+      });
+      /**
+       * Audit-Einträge nennen ausschließlich Feldnamen und den Status. Weder
+       * Seitentexte noch Klartext aus dem Dokument gelangen in das Protokoll.
+       */
+      await this.audit(
+        tx,
+        userId,
+        "knowledge.document.extraction",
+        "Document",
+        documentId,
+        ["extractionStatus", "extractionVersion", "extractionSha256"],
+      );
+      return mapDocument(record as unknown as DocumentRecord);
+    });
   }
 
   async updateDocument(
@@ -354,7 +489,7 @@ export class PrismaKnowledgeRepository implements KnowledgeRepository {
         documentId,
         Object.keys(changes),
       );
-      return mapDocument(record as DocumentRecord);
+      return mapDocument(record as unknown as DocumentRecord);
     });
   }
 
@@ -382,7 +517,7 @@ export class PrismaKnowledgeRepository implements KnowledgeRepository {
         documentId,
         ["deletedAt"],
       );
-      return record as DocumentRecord;
+      return record as unknown as DocumentRecord;
     });
   }
 

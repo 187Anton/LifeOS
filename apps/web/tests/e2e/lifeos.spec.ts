@@ -1025,6 +1025,9 @@ const installApi = async (
             detailPath: `/study/modules/${String(module.id)}`,
             ownerId: profile.id,
             searchEnabled: true,
+            page: null,
+            pages: [],
+            moduleId: module.id,
           },
           ...study.entries
             .filter(
@@ -1048,33 +1051,62 @@ const installApi = async (
               detailPath: `/study/modules/${String(module.id)}#entry-${String(entry.id)}`,
               ownerId: profile.id,
               searchEnabled: true,
+              page: null,
+              pages: [],
+              moduleId: module.id,
             })),
         ]);
+      /** Paket 7: Seitenfundstellen kommen aus der Extraktion des Dokuments. */
+      const documentPages = (document: Record<string, unknown>) => {
+        const extraction = document.extraction as
+          Record<string, unknown> | undefined;
+        if (extraction?.status !== "available") return [];
+        if (extraction.sourceSha256 !== document.sha256) return [];
+        /* Die seitenbezogenen Fundstellen hängen am Dokument, nicht am Extraktionsstatus. */
+        const stored = document.extractionPages;
+        return Array.isArray(stored)
+          ? (stored as Array<{ page: number; text: string }>)
+          : [];
+      };
       const documentResults = documents
         .filter(
           (document) =>
             document.searchEnabled === true &&
             document.archivedAt == null &&
-            matches(
-              `${asText(document.fileName)} ${asText(document.extractedText)}`,
-            ),
+            (matches(document.fileName) ||
+              documentPages(document).some((entry) => matches(entry.text))),
         )
-        .map((document) => ({
-          id: document.id,
-          title: document.fileName,
-          contentType: "document",
-          source: {
-            type: "document",
+        .map((document) => {
+          const pages = documentPages(document)
+            .filter((entry) => matches(entry.text))
+            .map((entry) => entry.page);
+          return {
             id: document.id,
             title: document.fileName,
-          },
-          updatedAt: document.updatedAt,
-          snippet: String(document.fileName),
-          matchReason: "title",
-          detailPath: `/knowledge/documents/${String(document.id)}`,
-          ownerId: profile.id,
-          searchEnabled: true,
-        }));
+            contentType: "document",
+            source: {
+              type: "document",
+              id: document.id,
+              title: document.fileName,
+            },
+            updatedAt: document.updatedAt,
+            snippet: pages.length
+              ? String(
+                  documentPages(document).find(
+                    (entry) => entry.page === pages[0],
+                  )?.text ?? "",
+                )
+              : String(document.fileName),
+            matchReason: pages.length ? "content" : "title",
+            detailPath: `/knowledge/documents/${String(document.id)}`,
+            ownerId: profile.id,
+            searchEnabled: true,
+            page: pages[0] ?? null,
+            pages,
+            moduleId:
+              (document.studyModule as { id?: string } | null)?.id ?? null,
+          };
+        });
       const results = [
         ...notes
           .filter(
@@ -1096,11 +1128,24 @@ const installApi = async (
             detailPath: `/knowledge/notes/${String(note.id)}`,
             ownerId: profile.id,
             searchEnabled: true,
+            page: null,
+            pages: [],
+            moduleId: (note.studyModule as { id?: string } | null)?.id ?? null,
           })),
         ...documentResults,
         ...moduleResults,
       ];
-      await route.fulfill({ json: { query, results } });
+      /** Paket 7: Der optionale Modulfilter beschränkt die Treffermenge. */
+      const moduleFilter = new URL(request.url()).searchParams.get(
+        "studyModuleId",
+      );
+      const scoped = moduleFilter
+        ? results.filter(
+            (result) =>
+              (result as { moduleId?: unknown }).moduleId === moduleFilter,
+          )
+        : results;
+      await route.fulfill({ json: { query, results: scoped } });
       return;
     }
     if (path === "/api/v1/ai/queries" && method === "POST") {
@@ -1213,12 +1258,14 @@ const installApi = async (
       const module = moduleId
         ? (study.modules.find((value) => value.id === moduleId) ?? null)
         : null;
+      const uploadedMimeType =
+        request.headers()["content-type"] ?? "application/octet-stream";
+      const uploadedIsPdf = uploadedMimeType === "application/pdf";
       const created = {
         id: `document-${documents.length + 1}`,
         ownerId: profile.id,
         fileName: url.searchParams.get("fileName"),
-        mimeType:
-          request.headers()["content-type"] ?? "application/octet-stream",
+        mimeType: uploadedMimeType,
         byteSize: new TextEncoder().encode(request.postData() ?? "").byteLength,
         sha256: "a".repeat(64),
         modifiedAt: "2032-01-01T00:00:00.000Z",
@@ -1229,9 +1276,50 @@ const installApi = async (
         createdAt: "2032-01-01T00:00:00.000Z",
         updatedAt: "2032-01-01T00:00:00.000Z",
         contentUrl: `/api/v1/documents/document-${documents.length + 1}/content`,
+        /** Paket 7: Der Upload liefert den dokumentgebundenen Extraktionszustand. */
+        extraction: {
+          status: uploadedIsPdf ? "available" : "no_text",
+          version: uploadedIsPdf ? "pdfjs-6.3.289/text-v1" : null,
+          sourceSha256: uploadedIsPdf ? "a".repeat(64) : null,
+          current: uploadedIsPdf,
+          errorCode: null,
+          pageCount: uploadedIsPdf ? 2 : null,
+          storedPages: uploadedIsPdf ? 1 : 0,
+          truncated: false,
+          extractedAt: "2032-01-01T00:30:00.000Z",
+        },
+        extractionPages: uploadedIsPdf
+          ? [{ page: 2, text: "Synthetische PDF-Seite zwei." }]
+          : [],
       };
       documents.push(created);
       await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    const extractionMatch = path.match(
+      /^\/api\/v1\/documents\/([^/]+)\/extraction$/,
+    );
+    if (extractionMatch && method === "POST") {
+      const found = documents.find((item) => item.id === extractionMatch[1]);
+      if (!found) {
+        await route.fulfill({
+          status: 404,
+          json: { error: { code: "NOT_FOUND", message: "Nicht gefunden" } },
+        });
+        return;
+      }
+      found.extraction = {
+        status: "available",
+        version: "pdfjs-6.3.289/text-v1",
+        sourceSha256: found.sha256,
+        current: true,
+        errorCode: null,
+        pageCount: 3,
+        storedPages: 2,
+        truncated: false,
+        extractedAt: "2032-04-01T00:00:00.000Z",
+      };
+      await route.fulfill({ json: found });
       return;
     }
     const documentMatch = path.match(/^\/api\/v1\/documents\/([^/]+)$/);
@@ -1263,6 +1351,14 @@ const installApi = async (
         updatedAt: "2032-01-02T00:00:00.000Z",
       });
       await route.fulfill({ json: document });
+      return;
+    }
+    if (documentMatch && method === "DELETE") {
+      const index = documents.findIndex(
+        (value) => value.id === documentMatch[1],
+      );
+      if (index >= 0) documents.splice(index, 1);
+      await route.fulfill({ status: 204, body: "" });
       return;
     }
     if (path === "/api/v1/projects" && method === "POST") {
@@ -3135,6 +3231,23 @@ const detailDocument = {
   createdAt: "2032-01-01T00:00:00.000Z",
   updatedAt: "2032-01-01T00:00:00.000Z",
   contentUrl: "/api/v1/documents/document-modul-detail/content",
+  /** Paket 7: seitenbezogene Fundstellen der lokalen Extraktion. */
+  extractionPages: [
+    { page: 1, text: "Synthetische Einleitung ohne Suchbegriff." },
+    { page: 3, text: "Synthetische Quantenplanung im Skript." },
+  ],
+  /** Paket 7: dokumentgebundener Extraktionszustand mit Seitenangabe. */
+  extraction: {
+    status: "available",
+    version: "pdfjs-6.3.289/text-v1",
+    sourceSha256: "a".repeat(64),
+    current: true,
+    errorCode: null,
+    pageCount: 3,
+    storedPages: 1,
+    truncated: false,
+    extractedAt: "2032-01-01T01:00:00.000Z",
+  },
 };
 
 /** Wechselt über die sichtbare Hauptnavigation in eine Ansicht. */
@@ -3450,6 +3563,8 @@ test("öffnet Suchziele konkret und meldet verschwundene Ziele ohne fremdes Obje
             detailPath: "/study/modules/modul-weg",
             ownerId: profile.id,
             searchEnabled: true,
+            page: null,
+            pages: [],
           },
           {
             id: "dokument-weg",
@@ -3466,6 +3581,8 @@ test("öffnet Suchziele konkret und meldet verschwundene Ziele ohne fremdes Obje
             detailPath: "/knowledge/documents/dokument-weg",
             ownerId: profile.id,
             searchEnabled: true,
+            page: null,
+            pages: [],
           },
         ],
       },
@@ -3757,4 +3874,157 @@ test("bietet die PWA-Installation nur nach Browserfreigabe an", async ({
   await expect(
     page.getByRole("button", { name: "App installieren" }),
   ).toHaveCount(0);
+});
+
+test("verarbeitet PDFs seitenbezogen und sucht im Modul auf Desktop und Smartphone", async ({
+  page,
+}) => {
+  /** Ein Bestands-PDF ohne lokale Verarbeitung. */
+  const pendingDocument = {
+    id: "document-pdf-altbestand",
+    ownerId: profile.id,
+    fileName: "altes-skript.pdf",
+    mimeType: "application/pdf",
+    byteSize: 4096,
+    sha256: "b".repeat(64),
+    modifiedAt: "2032-01-01T00:00:00.000Z",
+    searchEnabled: true,
+    project: null,
+    studyModule: { id: detailModule.id, title: detailModule.title },
+    archivedAt: null,
+    createdAt: "2032-01-01T00:00:00.000Z",
+    updatedAt: "2032-01-01T00:00:00.000Z",
+    contentUrl: "/api/v1/documents/document-pdf-altbestand/content",
+    extractionPages: [],
+    extraction: {
+      status: "pending",
+      version: null,
+      sourceSha256: null,
+      current: false,
+      errorCode: null,
+      pageCount: null,
+      storedPages: 0,
+      truncated: false,
+      extractedAt: null,
+    },
+  };
+  await installApi(page, {
+    studyPrograms: [detailProgram],
+    studyModules: [detailModule],
+    knowledgeDocuments: [
+      /* Für die Seitentreffer wird das Skript ausdrücklich freigegeben. */
+      { ...detailDocument, searchEnabled: true },
+      pendingDocument,
+    ],
+  });
+  await page.goto("/");
+  await showView(page, "Wissen");
+  await expect(
+    page.getByRole("heading", { name: "Notizen & Dokumente" }),
+  ).toBeVisible();
+
+  /** Der Extraktionszustand wird ausdrücklich benannt. */
+  const pendingCard = page
+    .locator(".document-card")
+    .filter({ hasText: "altes-skript.pdf" });
+  await expect(pendingCard).toContainText("Noch nicht verarbeitet");
+  await expect(
+    page.locator(".document-card").filter({ hasText: "modul-skript.txt" }),
+  ).toContainText("Text lokal extrahiert");
+
+  /** Ein PDF wird lokal abgelegt; die Antwort enthält den Extraktionszustand. */
+  await page.getByLabel("Datei").evaluate((element) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(
+      new File(["%PDF-1.4 synthetisch"], "synthetisches-skript.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    (element as HTMLInputElement).files = transfer.files;
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.getByRole("button", { name: "Lokal ablegen" }).click();
+  const uploadedCard = page
+    .locator(".document-card")
+    .filter({ hasText: "synthetisches-skript.pdf" });
+  await expect(uploadedCard).toBeVisible();
+  await expect(uploadedCard).toContainText("Text lokal extrahiert");
+
+  /** Ein Bestandsdokument wird erneut lokal verarbeitet. */
+  await pendingCard.getByRole("button", { name: "Erneut verarbeiten" }).click();
+  await expect(
+    page.getByText("Das Dokument wurde erneut lokal verarbeitet."),
+  ).toBeVisible();
+  await expect(pendingCard).toContainText("Text lokal extrahiert");
+
+  /** Ein Seitentreffer nennt die betroffene Seite und führt zum Objekt. */
+  await page.getByLabel("Suchbegriff").fill("Quantenplanung");
+  await page.getByRole("button", { name: "Suchen" }).click();
+  const pageHit = page
+    .locator(".search-result")
+    .filter({ hasText: "Quantenplanung" })
+    .first();
+  await expect(pageHit).toContainText("Seite 3");
+  await expect(
+    pageHit.getByRole("link", { name: "Quelle öffnen" }),
+  ).toHaveAttribute("href", "/knowledge/documents/document-modul-detail");
+
+  /** Die Modulsuche wird aus der Moduldetailansicht geöffnet. */
+  await showView(page, "Studium");
+  await page.getByRole("button", { name: "Moduldetails öffnen" }).click();
+  await expect(
+    page.getByRole("heading", { name: detailModule.title, level: 1 }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Im Modul suchen" }).click();
+  await expect(
+    page.getByText(`Modulsuche aktiv: ${detailModule.title}`),
+  ).toBeVisible();
+  await page.getByLabel("Suchbegriff").fill("Quantenplanung");
+  await page.getByRole("button", { name: "Suchen" }).click();
+  const moduleHit = page
+    .locator(".search-result")
+    .filter({ hasText: "Quantenplanung" })
+    .first();
+  await expect(moduleHit).toContainText("Seite 3");
+
+  /** Widerruf der Suchfreigabe schließt Treffer sofort aus. */
+  await showView(page, "Wissen");
+  await page
+    .locator(".document-card")
+    .filter({ hasText: "modul-skript.txt" })
+    .getByRole("button", { name: "Metadaten bearbeiten" })
+    .click();
+  const documentEditor = page.locator(
+    '[aria-labelledby="document-editor-title"]',
+  );
+  await documentEditor.getByLabel("Für lokale Suche freigeben").uncheck();
+  await documentEditor
+    .getByRole("button", { name: "Änderung speichern" })
+    .click();
+  await expect(
+    page.getByText("Das Dokument wurde aktualisiert."),
+  ).toBeVisible();
+  await page.getByLabel("Suchbegriff").fill("Quantenplanung");
+  await page.getByRole("button", { name: "Suchen" }).click();
+  await expect(
+    page.getByText("Keine freigegebenen Treffer für „Quantenplanung“"),
+  ).toBeVisible();
+
+  /** Löschung entfernt das Dokument sofort aus der Ablage. */
+  await page
+    .locator(".document-card")
+    .filter({ hasText: "altes-skript.pdf" })
+    .getByRole("button", { name: "Löschen" })
+    .click();
+  await expect(
+    page.locator(".document-card").filter({ hasText: "altes-skript.pdf" }),
+  ).toHaveCount(0);
+
+  /** Kein Browser-Storage für Suchanfragen oder Treffer. */
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
 });

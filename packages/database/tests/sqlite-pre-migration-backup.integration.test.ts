@@ -27,7 +27,12 @@ import {
 
 const destructiveMigration = "20260925120000_remove_finance_module";
 const taskStudyModuleMigration = "20260925121600_task_study_module";
+const paketSevenMigration = "20260926120500_document_pdf_extraction";
 const legacyUserId = "00000000-0000-4000-8000-000000000601";
+const legacyTextDocumentId = "00000000-0000-4000-8000-000000000608";
+const legacyPdfDocumentId = "00000000-0000-4000-8000-000000000609";
+const legacyTextStorageKey = "synthetischer-paket-3-text.txt";
+const legacyPdfStorageKey = "synthetischer-paket-3-skript.pdf";
 const legacyProjectId = "00000000-0000-4000-8000-000000000602";
 const financeTaskId = "00000000-0000-4000-8000-000000000603";
 const workTaskId = "00000000-0000-4000-8000-000000000604";
@@ -70,7 +75,10 @@ const tableCount = (databasePath: string, name: string) =>
   ).count;
 
 /** Stellt einen synthetischen Vor-Paket-3-Stand über die echten Migrationen her. */
-const prepareLegacyDatabase = async (directory: string) => {
+const prepareLegacyDatabase = async (
+  directory: string,
+  additionalExclusions: readonly string[] = [],
+) => {
   const legacyMigrations = path.join(directory, "legacy-migrations");
   await mkdir(legacyMigrations, { recursive: true });
   for (const entry of await readdir(sqliteMigrationsDirectory, {
@@ -79,7 +87,8 @@ const prepareLegacyDatabase = async (directory: string) => {
     if (
       !entry.isDirectory() ||
       entry.name === destructiveMigration ||
-      entry.name === taskStudyModuleMigration
+      entry.name === taskStudyModuleMigration ||
+      additionalExclusions.includes(entry.name)
     )
       continue;
     await cp(
@@ -400,4 +409,115 @@ test("weist einen fehlenden oder manipulierten Backup-Kontext ab", async (t) => 
     "finance",
   );
   assert.equal(tableCount(legacy.databasePath, "FinanceCategory"), 1);
+});
+
+test("übernimmt Bestandsdokumente datenerhaltend in den Extraktionszustand", async (t) => {
+  const directory = await createIsolatedDirectory(t, "lifeos-p7-legacy-");
+  const legacy = await prepareLegacyDatabase(directory, [paketSevenMigration]);
+  const backupDirectory = path.join(directory, "backups");
+
+  /** Bestand vor Paket 7: eine Textdatei mit Altextraktion, ein PDF ohne Text. */
+  const database = new BetterSqlite3(legacy.databasePath);
+  try {
+    database.exec(`
+      INSERT INTO "Document" ("id", "userId", "storageKey", "fileName", "mimeType", "byteSize", "sha256", "modifiedAt", "searchEnabled", "extractedText", "updatedAt")
+        VALUES ('${legacyTextDocumentId}', '${legacyUserId}', '${legacyTextStorageKey}', 'altext.txt', 'text/plain', 46, '${"1".repeat(64)}', CURRENT_TIMESTAMP, 1, 'Übernommener Text aus der Altextraktion.', '2032-09-05 10:00:00');
+      INSERT INTO "Document" ("id", "userId", "storageKey", "fileName", "mimeType", "byteSize", "sha256", "modifiedAt", "searchEnabled", "updatedAt")
+        VALUES ('${legacyPdfDocumentId}', '${legacyUserId}', '${legacyPdfStorageKey}', 'altskript.pdf', 'application/pdf', 1024, '${"2".repeat(64)}', CURRENT_TIMESTAMP, 1, '2032-09-06 10:00:00');
+    `);
+  } finally {
+    database.close();
+  }
+  await writeFile(
+    path.join(legacy.documentsDirectory, legacyUserId, legacyTextStorageKey),
+    "Übernommener Text aus der Altextraktion.\n",
+    { mode: 0o600 },
+  );
+  await writeFile(
+    path.join(legacy.documentsDirectory, legacyUserId, legacyPdfStorageKey),
+    "%PDF-1.4 synthetischer Altbestand\n",
+    { mode: 0o600 },
+  );
+
+  const result = await migrateSqliteDatabase(
+    legacy.databaseUrl,
+    sqliteMigrationsDirectory,
+    {
+      backupDirectory,
+      documentsDirectory: legacy.documentsDirectory,
+    },
+  );
+  assert.ok(result.appliedNow.includes(paketSevenMigration));
+
+  /** Altextraktionen bleiben erhalten und gelten als hashaktuelle Legacy-Extraktion. */
+  const textRow = readValue<Record<string, unknown>>(
+    legacy.databasePath,
+    'SELECT * FROM "Document" WHERE "id" = ?',
+    legacyTextDocumentId,
+  );
+  assert.equal(
+    textRow.extractedText,
+    "Übernommener Text aus der Altextraktion.",
+  );
+  assert.equal(textRow.extractionStatus, "available");
+  assert.equal(textRow.extractionVersion, "legacy-text-v1");
+  assert.equal(textRow.extractionSha256, "1".repeat(64));
+  assert.equal(textRow.extractedAt, "2032-09-05 10:00:00");
+  assert.equal(textRow.extractionPages, "[]");
+  assert.equal(textRow.extractionPageCount, null);
+  assert.equal(textRow.extractionTruncated, 0);
+
+  /** Ein Bestands-PDF bleibt bis zur Verarbeitung ausstehend und ohne Seite. */
+  const pdfRow = readValue<Record<string, unknown>>(
+    legacy.databasePath,
+    'SELECT * FROM "Document" WHERE "id" = ?',
+    legacyPdfDocumentId,
+  );
+  assert.equal(pdfRow.extractedText, null);
+  assert.equal(pdfRow.extractionStatus, "pending");
+  assert.equal(pdfRow.extractionVersion, null);
+  assert.equal(pdfRow.extractionSha256, null);
+  assert.equal(pdfRow.extractionErrorCode, null);
+  assert.equal(pdfRow.extractionPageCount, null);
+  assert.equal(pdfRow.extractionPages, "[]");
+  assert.equal(pdfRow.fileName, "altskript.pdf");
+  assert.equal(pdfRow.sha256, "2".repeat(64));
+
+  /** Die Datensätze sind nach der Migration weiter nutzbar und prüfbar. */
+  const migrated = new BetterSqlite3(legacy.databasePath);
+  try {
+    assert.throws(() =>
+      migrated
+        .prepare('UPDATE "Document" SET "extractionPages" = ? WHERE "id" = ?')
+        .run('{"page":1}', legacyPdfDocumentId),
+    );
+    assert.throws(() =>
+      migrated
+        .prepare('UPDATE "Document" SET "extractionStatus" = ? WHERE "id" = ?')
+        .run("unbekannt", legacyPdfDocumentId),
+    );
+    migrated
+      .prepare(
+        'UPDATE "Document" SET "extractionStatus" = ?, "extractionPages" = ?, "extractionPageCount" = ? WHERE "id" = ?',
+      )
+      .run(
+        "available",
+        '[{"page":3,"text":"Neu verarbeitet."}]',
+        1,
+        legacyPdfDocumentId,
+      );
+  } finally {
+    migrated.close();
+  }
+  const reprocessed = readValue<Record<string, unknown>>(
+    legacy.databasePath,
+    'SELECT * FROM "Document" WHERE "id" = ?',
+    legacyPdfDocumentId,
+  );
+  assert.equal(reprocessed.extractionStatus, "available");
+  assert.equal(reprocessed.extractionPageCount, 1);
+  assert.equal(
+    reprocessed.extractionPages,
+    '[{"page":3,"text":"Neu verarbeitet."}]',
+  );
 });

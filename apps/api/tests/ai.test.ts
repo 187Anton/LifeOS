@@ -55,6 +55,8 @@ const candidate = (
   metadata: "synthetisch",
   updatedAt: new Date("2033-04-01T12:00:00.000Z"),
   detailPath: `/knowledge/notes/${id}`,
+  studyModuleId: null,
+  pages: [],
 });
 
 const createService = (

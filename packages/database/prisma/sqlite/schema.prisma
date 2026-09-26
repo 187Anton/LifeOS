@@ -527,6 +527,15 @@ model NoteVersion {
   @@index([userId, noteId])
 }
 
+enum DocumentExtractionStatus {
+  pending
+  available
+  no_text
+  protected
+  unsupported
+  failed
+}
+
 model Document {
   id            String       @id @default(uuid())
   userId        String
@@ -540,6 +549,14 @@ model Document {
   modifiedAt    DateTime
   searchEnabled Boolean      @default(false)
   extractedText String?
+  extractionStatus    DocumentExtractionStatus @default(pending)
+  extractionVersion   String?
+  extractionSha256    String?
+  extractionErrorCode String?
+  extractionPageCount Int?
+  extractionTruncated Boolean                  @default(false)
+  extractionPages     Json                     @default("[]")
+  extractedAt         DateTime?
   archivedAt    DateTime?
   deletedAt     DateTime?
   createdAt     DateTime     @default(now())

@@ -216,6 +216,18 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       modifiedAt: new Date("2032-09-01T12:00:00.000Z"),
       searchEnabled: true,
       extractedText: "Synthetisch extrahierter Transfertext.",
+      /** Paket 7: dokumentgebundener Extraktionszustand inklusive Seiten. */
+      extractionStatus: "available",
+      extractionVersion: "pdfjs-6.3.289/text-v1",
+      extractionSha256: createHash("sha256")
+        .update("synthetisches Dokument\n")
+        .digest("hex"),
+      extractionErrorCode: null,
+      extractionPageCount: 1,
+      extractionPages: [
+        { page: 1, text: "Synthetisch extrahierter Transfertext." },
+      ],
+      extractedAt: new Date("2032-09-02T12:00:00.000Z"),
     },
   });
   // Paket 4: Der Studieneintrag verweist weiterhin auf dieselbe Aufgabe;
@@ -536,6 +548,25 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   assert.equal(
     importedUser.documents[0]?.extractedText,
     "Synthetisch extrahierter Transfertext.",
+  );
+  /** Paket 7: Status, Quellprüfsumme, Version, Fehlercode und Seiten überstehen den Import. */
+  assert.equal(importedUser.documents[0]?.extractionStatus, "available");
+  assert.equal(
+    importedUser.documents[0]?.extractionVersion,
+    "pdfjs-6.3.289/text-v1",
+  );
+  assert.equal(
+    importedUser.documents[0]?.extractionSha256,
+    importedUser.documents[0]?.sha256,
+  );
+  assert.equal(importedUser.documents[0]?.extractionErrorCode, null);
+  assert.equal(importedUser.documents[0]?.extractionPageCount, 1);
+  assert.deepEqual(importedUser.documents[0]?.extractionPages, [
+    { page: 1, text: "Synthetisch extrahierter Transfertext." },
+  ]);
+  assert.equal(
+    importedUser.documents[0]?.extractedAt?.toISOString(),
+    "2032-09-02T12:00:00.000Z",
   );
   assert.equal(importedUser.projects[0]?.searchEnabled, true);
   assert.equal(importedUser.studyModules[0]?.searchEnabled, true);
