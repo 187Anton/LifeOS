@@ -320,6 +320,71 @@ Paket-5-Branch, PR #125 ist gegen `develop` eröffnet, die Pflicht-CI dort ist
 grün und der Merge wurde nicht ausgeführt. Details stehen in
 [coherence-progress.md](coherence-progress.md).
 
+Paket 6 ist auf `f37524d` (`origin/develop`, PR #125) lokal umgesetzt und
+geprüft. Der Ablauf ist sequenziell: **6/1** Live-Prüfung des Vorgängers
+(Spitze von `origin/develop` ist `f37524d`, Ancestry bestätigt, beide
+Pflichtchecks für PR #125 `pass`, sauberer Hauptcheckout), **6/2** neue,
+abgegrenzte Moduldetail-Komponente
+`apps/web/src/components/StudyModuleDetail.tsx`, die von einer Modulkarte der
+bestehenden Studienübersicht aus Titel, Kürzel, Studienabschnitt samt Zeitraum,
+Status, Leistungspunkte, Note, Notizen, Suchfreigabe, Archivzustand und
+Dokumentverweise nachvollziehbar anzeigt, während die getrennte
+Studienübersicht unverändert erhalten bleibt, **6/3** Zusammenstellung der
+zugehörigen Objekte ausschließlich aus vorhandenen Besitzfiltern – aktive und
+archivierte Aufgaben über `Task.studyModuleId`, aktive und archivierte
+Studieneinträge über `StudyEntry.moduleId`, Notizen und Dokumente über ihre
+echte Modulbeziehung; die freien `studyModule.documentReferences` werden
+getrennt als unverbindliche Angaben dargestellt und nie als Datei-ID
+interpretiert, **6/4** Bearbeitung ausschließlich über die vorhandenen
+Facheditoren: Modul und Studieneintrag über die wiederverwendeten
+Studienformulare (die über die neue `formPanel`-Prop in die Detailansicht
+gegeben werden; `ModuleForm` und `EntryForm` wurden dafür von einem
+`onSave`-Union-Typ auf getrennte `onCreate`/`onUpdate`-Signaturen umgestellt),
+Aufgaben über den gemeinsamen `TaskForm`/`TaskWorkspace` und Notizen sowie
+Dokument-Metadaten über `KnowledgeWorkspace` mit einem neuen `DocumentEditor`,
+der ausschließlich vorhandene Metadaten- und Verknüpfungsfelder bearbeitet und
+keine Datei ersetzt, **6/5** vervollständigte Suchnavigation, bei der
+`study_module` das konkrete Modul, `study_entry` das Modul mit markiertem
+Eintrag (`source.id` ist die Modul-ID, `id` die Eintrags-ID), `note` die
+konkrete Notiz und `document` das konkrete Dokument öffnet, während archivierte,
+gelöschte oder nicht mehr auffindbare Ziele einen klaren Fehlerzustand statt
+eines fremden Objekts erzeugen, **6/6** konsistentes Nachladen der betroffenen
+Projektionen nach jeder bestätigten Änderung mit sicherem Umgang mit
+Auswahlzuständen (eine nicht mehr vorhandene Auswahl wird verworfen, die
+Modulauswahl bleibt für die Rückkehr aus dem Aufgaben- oder Wissenseditor
+erhalten) sowie **6/7** Unit-, API- und E2E-Nachweise einschließlich leerer
+Modulbereiche, archivierter Bezüge, sichtbarer API-Fehler und verschwundener
+Suchziele. Es entstanden keine Schemaänderung, keine Migration, keine neue
+API-Ressource, kein zweiter Dokumentenspeicher und keine Dateiextraktion;
+Paket 7 und Paket 8 bleiben dafür zuständig. Gemessener Endstand: 121/121
+API-, 76/76 Web-Unit- und 48/48 E2E-Tests (24 Tests in beiden
+Browserprojekten), dazu `typecheck`, `lint`, `format:check`, `build`,
+`repo:check` und `security:secrets` bestanden. Details stehen in
+[coherence-progress.md](coherence-progress.md).
+
+Paket 6 wurde nach der lokalen Prüfung um drei Befunde korrigiert (Stand
+25.09.2026, weiterhin ausschließlich Paket 6, kein Folgepaket): **K1** Ein
+bestehender Studieneintrag behält beim Bearbeiten seine gespeicherte Zeitzone
+und seinen Zeitpunkt; angezeigte Wandzeit und Schreibwert werden in genau einer
+Zeitzone gelesen und geschrieben (`record.timezone`, sonst Profilzeitzone), nur
+neue Einträge verwenden weiterhin die Profilzeitzone. Nachgewiesen durch einen
+Regressionstest mit abweichender Profil- und Eintragszeitzone, der Speichern
+ohne Zeitänderung prüft und gegen den vorherigen Stand nachweislich fehlschlägt.
+**K2** `README.md` und `LifeOS Leitfaden.docx` sind knapp um die
+Moduldetailansicht sowie die Bearbeitung verknüpfter Notizen und
+Dokumentmetadaten ergänzt; die Paketgrenzen bleiben unverändert, und der
+Leitfaden wurde erneut gerendert und die geänderten Seiten geprüft. **K3** Die
+Pflichtchecks `Repository checks` und `Local macOS release` sind für den Head
+dieser Runde live über PR #126 zu lesen und werden nur dann als bestanden
+gemeldet, wenn beide für genau diesen Head erfolgreich sind. Gemessener
+Endstand dieser Runde: 77/77 Web-Unit- (vorher 76, inklusive des neuen
+Regressionstests), 48/48 E2E- und 19/19 Repository-Tests, dazu `typecheck`,
+`lint`, `format:check`, `build`, `repo:check` und `security:secrets` bestanden;
+die API-Suite wurde nicht erneut ausgeführt, weil keine API-Datei geändert
+wurde. Keine Schemaänderung, keine Migration, keine neue API-Ressource, keine
+Änderung an Apple-/CalDAV-Verhalten und kein Merge. Details stehen in
+[coherence-progress.md](coherence-progress.md).
+
 | Paket | Umfang und Einstieg                                                           | Erforderliche Abnahme zusätzlich zur Pflicht-CI                                                                                                                                                     |
 | ----- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0     | Dieser Plan, Fortschritt, Startanleitung; README-/AGENTS-Verweis              | Inhalt konsistent, Format/Links/Diff geprüft; PR nach develop                                                                                                                                       |
@@ -463,3 +528,31 @@ des gespeicherten Zwischenstands fort; starte kein weiteres Paket.“
   `60d6697`, grün mit der Korrektur). Keine Schemaänderung, keine Migration,
   keine CalDAV-/Apple-Änderung, keine Änderung freier
   `TaskEventLink`-Beziehungen und kein neuer Schreibpfad.
+- 25.09.2026: Paket 6 nach lokalem Nachweis dokumentiert. Festgehalten sind die
+  eigene besitzgebundene Moduldetailansicht bei unverändert bestehender
+  Studienübersicht, die Zusammenstellung der zugehörigen Aufgaben,
+  Studieneinträge, Notizen und Dokumente ausschließlich aus vorhandenen
+  Besitzfiltern mit sichtbarer Trennung zwischen freien Dokumentverweisen und
+  echten Dateiverknüpfungen, die Bearbeitung ausschließlich über die
+  vorhandenen Facheditoren (Studienformulare, gemeinsamer
+  Aufgaben-Editor, Wissensansicht mit einem neuen reinen Metadaten-Editor für
+  Dokumente), die Suchnavigation auf das jeweils konkrete Objekt einschließlich
+  des markierten Studieneintrags, klare Fehlerzustände für archivierte,
+  gelöschte oder verschwundene Suchziele sowie das konsistente Nachladen der
+  betroffenen Projektionen mit sicherem Umgang mit Auswahlzuständen. Paket 5 ist
+  zuvor live als Spitze `f37524d` von `origin/develop` (PR #125, beide
+  Pflichtchecks `pass`) bestätigt worden. Keine Schemaänderung, keine Migration,
+  keine neue API-Ressource, kein zweiter Dokumentenspeicher, keine
+  Dateiextraktion, keine KI-Funktion und kein neuer Schreibpfad.
+- 25.09.2026: Korrekturrunde zu Paket 6 (drei Befunde, weiterhin nur Paket 6).
+  Festgehalten sind der Erhalt der gespeicherten Zeitzone und des Zeitpunkts
+  beim Bearbeiten eines bestehenden Studieneintrags samt Regressionstest mit
+  abweichender Profil- und Eintragszeitzone (nachweislich rot vor der
+  Korrektur), die knappe Ergänzung von `README.md` und
+  `LifeOS Leitfaden.docx` für die Moduldetailansicht sowie die Bearbeitung
+  verknüpfter Notizen und Dokumentmetadaten bei unveränderten Paketgrenzen und
+  die ausdrückliche Regel, die Pflichtchecks nur für den exakten Head des
+  jeweiligen Pakets und nur bei tatsächlich erfolgreichem Live-Ergebnis als
+  bestanden zu melden. Keine Schemaänderung, keine Migration, keine neue
+  API-Ressource, keine Änderung an Apple-/CalDAV-Verhalten, kein Merge und
+  keine Arbeit an Paket 7 oder späteren Paketen.

@@ -118,12 +118,18 @@ const installApi = async (
     additionalTasks = [],
     additionalEvents = [],
     additionalStudyEntries = [],
+    knowledgeNotes = [],
+    knowledgeDocuments = [],
   }: {
     studyPrograms?: Array<Record<string, unknown>>;
     studyModules?: Array<Record<string, unknown>>;
     additionalTasks?: Array<Record<string, unknown>>;
     additionalEvents?: Array<Record<string, unknown>>;
     additionalStudyEntries?: Array<Record<string, unknown>>;
+    /** Notizen der Wissensübersicht mit vorhandenem Modulbezug. */
+    knowledgeNotes?: Array<Record<string, unknown>>;
+    /** Dokumente der gemeinsamen lokalen Ablage. */
+    knowledgeDocuments?: Array<Record<string, unknown>>;
   } = {},
 ) => {
   const events: Array<Record<string, unknown>> = [
@@ -150,8 +156,12 @@ const installApi = async (
     history: [] as Array<Record<string, unknown>>,
   };
   const projects: Array<Record<string, unknown>> = [];
-  const notes: Array<Record<string, unknown>> = [];
-  const documents: Array<Record<string, unknown>> = [];
+  const notes: Array<Record<string, unknown>> = knowledgeNotes.map((entry) => ({
+    ...entry,
+  }));
+  const documents: Array<Record<string, unknown>> = knowledgeDocuments.map(
+    (entry) => ({ ...entry }),
+  );
   const projectItems = new Map<
     string,
     {
@@ -936,6 +946,42 @@ const installApi = async (
       await route.fulfill({ status: 201, json: created });
       return;
     }
+    const studyModuleMatch = path.match(/^\/api\/v1\/study\/modules\/([^/]+)$/);
+    if (studyModuleMatch && method === "PATCH") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const module = study.modules.find(
+        (value) => value.id === studyModuleMatch[1],
+      )!;
+      Object.assign(module, payload, {
+        archivedAt:
+          payload.archived === undefined
+            ? module.archivedAt
+            : payload.archived
+              ? "2032-01-02T00:00:00.000Z"
+              : null,
+        updatedAt: "2032-01-02T00:00:00.000Z",
+      });
+      await route.fulfill({ json: module });
+      return;
+    }
+    const studyEntryMatch = path.match(/^\/api\/v1\/study\/entries\/([^/]+)$/);
+    if (studyEntryMatch && method === "PATCH") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const entry = study.entries.find(
+        (value) => value.id === studyEntryMatch[1],
+      )!;
+      Object.assign(entry, payload, {
+        archivedAt:
+          payload.archived === undefined
+            ? entry.archivedAt
+            : payload.archived
+              ? "2032-01-02T00:00:00.000Z"
+              : null,
+        updatedAt: "2032-01-02T00:00:00.000Z",
+      });
+      await route.fulfill({ json: entry });
+      return;
+    }
     if (path === "/api/v1/calendars" && method === "GET") {
       await route.fulfill({ json: [calendar] });
       return;
@@ -951,26 +997,109 @@ const installApi = async (
     if (path === "/api/v1/search" && method === "GET") {
       const query = new URL(request.url()).searchParams.get("q") ?? "";
       const normalized = query.toLocaleLowerCase("de-DE");
-      const results = notes
+      /* Nur tatsächlich gespeicherte Zeichenketten werden verglichen. */
+      const asText = (value: unknown) =>
+        typeof value === "string" ? value : "";
+      const matches = (value: unknown) =>
+        String(value).toLocaleLowerCase("de-DE").includes(normalized);
+      /* Paket 6: Modul, Eintrag, Notiz und Dokument bleiben eigene Ziele. */
+      const moduleResults = study.modules
         .filter(
-          (note) =>
-            note.searchEnabled === true &&
-            `${String(note.title)} ${String(note.content)}`
-              .toLocaleLowerCase("de-DE")
-              .includes(normalized),
+          (module) =>
+            module.searchEnabled === true &&
+            (matches(module.title) || matches(module.notes ?? "")),
         )
-        .map((note) => ({
-          id: note.id,
-          title: note.title,
-          contentType: "note",
-          source: { type: "note", id: note.id, title: note.title },
-          updatedAt: note.updatedAt,
-          snippet: note.content,
-          matchReason: "content",
-          detailPath: `/knowledge/notes/${String(note.id)}`,
+        .flatMap((module) => [
+          {
+            id: module.id,
+            title: module.title,
+            contentType: "study_module",
+            source: {
+              type: "study_module",
+              id: module.id,
+              title: module.title,
+            },
+            updatedAt: module.updatedAt,
+            snippet: module.notes ?? "",
+            matchReason: "title",
+            detailPath: `/study/modules/${String(module.id)}`,
+            ownerId: profile.id,
+            searchEnabled: true,
+          },
+          ...study.entries
+            .filter(
+              (entry) =>
+                entry.moduleId === module.id &&
+                entry.archivedAt === null &&
+                matches(entry.title),
+            )
+            .map((entry) => ({
+              id: entry.id,
+              title: entry.title,
+              contentType: "study_entry",
+              source: {
+                type: "study_module",
+                id: module.id,
+                title: module.title,
+              },
+              updatedAt: entry.updatedAt,
+              snippet: asText(entry.notes),
+              matchReason: "title",
+              detailPath: `/study/modules/${String(module.id)}#entry-${String(entry.id)}`,
+              ownerId: profile.id,
+              searchEnabled: true,
+            })),
+        ]);
+      const documentResults = documents
+        .filter(
+          (document) =>
+            document.searchEnabled === true &&
+            document.archivedAt == null &&
+            matches(
+              `${asText(document.fileName)} ${asText(document.extractedText)}`,
+            ),
+        )
+        .map((document) => ({
+          id: document.id,
+          title: document.fileName,
+          contentType: "document",
+          source: {
+            type: "document",
+            id: document.id,
+            title: document.fileName,
+          },
+          updatedAt: document.updatedAt,
+          snippet: String(document.fileName),
+          matchReason: "title",
+          detailPath: `/knowledge/documents/${String(document.id)}`,
           ownerId: profile.id,
           searchEnabled: true,
         }));
+      const results = [
+        ...notes
+          .filter(
+            (note) =>
+              note.searchEnabled === true &&
+              note.archivedAt == null &&
+              `${String(note.title)} ${String(note.content)}`
+                .toLocaleLowerCase("de-DE")
+                .includes(normalized),
+          )
+          .map((note) => ({
+            id: note.id,
+            title: note.title,
+            contentType: "note",
+            source: { type: "note", id: note.id, title: note.title },
+            updatedAt: note.updatedAt,
+            snippet: note.content,
+            matchReason: "content",
+            detailPath: `/knowledge/notes/${String(note.id)}`,
+            ownerId: profile.id,
+            searchEnabled: true,
+          })),
+        ...documentResults,
+        ...moduleResults,
+      ];
       await route.fulfill({ json: { query, results } });
       return;
     }
@@ -1080,6 +1209,10 @@ const installApi = async (
     }
     if (path === "/api/v1/documents" && method === "POST") {
       const url = new URL(request.url());
+      const moduleId = url.searchParams.get("studyModuleId");
+      const module = moduleId
+        ? (study.modules.find((value) => value.id === moduleId) ?? null)
+        : null;
       const created = {
         id: `document-${documents.length + 1}`,
         ownerId: profile.id,
@@ -1089,9 +1222,9 @@ const installApi = async (
         byteSize: new TextEncoder().encode(request.postData() ?? "").byteLength,
         sha256: "a".repeat(64),
         modifiedAt: "2032-01-01T00:00:00.000Z",
-        searchEnabled: false,
+        searchEnabled: url.searchParams.get("searchEnabled") === "true",
         project: null,
-        studyModule: null,
+        studyModule: module ? { id: module.id, title: module.title } : null,
         archivedAt: null,
         createdAt: "2032-01-01T00:00:00.000Z",
         updatedAt: "2032-01-01T00:00:00.000Z",
@@ -1099,6 +1232,37 @@ const installApi = async (
       };
       documents.push(created);
       await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    const documentMatch = path.match(/^\/api\/v1\/documents\/([^/]+)$/);
+    if (documentMatch && method === "PATCH") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      const document = documents.find(
+        (value) => value.id === documentMatch[1],
+      )!;
+      const module =
+        payload.studyModuleId == null
+          ? null
+          : (study.modules.find(
+              (value) => value.id === payload.studyModuleId,
+            ) ?? null);
+      Object.assign(document, payload, {
+        studyModule:
+          payload.studyModuleId === undefined
+            ? document.studyModule
+            : module
+              ? { id: module.id, title: module.title }
+              : null,
+        project: payload.projectId === undefined ? document.project : null,
+        archivedAt:
+          payload.archived === undefined
+            ? document.archivedAt
+            : payload.archived
+              ? "2032-01-02T00:00:00.000Z"
+              : null,
+        updatedAt: "2032-01-02T00:00:00.000Z",
+      });
+      await route.fulfill({ json: document });
       return;
     }
     if (path === "/api/v1/projects" && method === "POST") {
@@ -2874,6 +3038,452 @@ test("verwaltet den optionalen Studienmodulbezug auf Desktop und Smartphone", as
       session: Object.keys(sessionStorage),
     })),
   ).toEqual({ local: [], session: [] });
+});
+
+/** Synthetische Detaildaten der Paket-6-Modulansicht. */
+const detailProgram = {
+  id: "study-program-detail",
+  ownerId: profile.id,
+  title: "Synthetischer Detailstudiengang",
+  institution: "Lokale Testhochschule",
+  periodLabel: "Sommersemester 2033",
+  status: "active",
+  notes: null,
+  archivedAt: null,
+  createdAt: "2032-01-01T00:00:00.000Z",
+  updatedAt: "2032-01-01T00:00:00.000Z",
+};
+
+const detailModule = {
+  id: "study-module-detail",
+  ownerId: profile.id,
+  programId: detailProgram.id,
+  title: "Synthetisches Detailmodul",
+  code: "DET-101",
+  status: "active",
+  credits: 6,
+  grade: null,
+  notes: "Synthetische Modulnotiz.",
+  documentReferences: ["Skript Kapitel 1"],
+  searchEnabled: true,
+  archivedAt: null,
+  createdAt: "2032-01-01T00:00:00.000Z",
+  updatedAt: "2032-01-01T00:00:00.000Z",
+};
+
+const detailEntry = {
+  id: "study-entry-detail",
+  ownerId: profile.id,
+  moduleId: detailModule.id,
+  kind: "exam",
+  title: "Synthetische Detailprüfung",
+  status: "planned",
+  dueDate: "2033-04-11",
+  startsAt: null,
+  endsAt: null,
+  timezone: null,
+  credits: null,
+  grade: null,
+  notes: null,
+  taskId: null,
+  calendarEventId: null,
+  calendarEventUid: null,
+  calendarEventCalendarId: null,
+  archivedAt: null,
+  createdAt: "2032-01-01T00:00:00.000Z",
+  updatedAt: "2032-01-01T00:00:00.000Z",
+};
+
+const detailTask = {
+  ...initialTask,
+  id: "aufgabe-modul-detail",
+  title: "Modulaufgabe mit Bezug",
+  studyModuleId: detailModule.id,
+};
+
+const detailNote = {
+  id: "note-modul-detail",
+  ownerId: profile.id,
+  title: "Synthetische Modulnotiz zur Prüfung",
+  content: "Synthetischer Notizinhalt",
+  format: "markdown",
+  category: "Test",
+  tags: ["lokal"],
+  version: 1,
+  searchEnabled: true,
+  project: null,
+  studyModule: { id: detailModule.id, title: detailModule.title },
+  archivedAt: null,
+  createdAt: "2032-01-01T00:00:00.000Z",
+  updatedAt: "2032-01-01T00:00:00.000Z",
+};
+
+const detailDocument = {
+  id: "document-modul-detail",
+  ownerId: profile.id,
+  fileName: "modul-skript.txt",
+  mimeType: "text/plain",
+  byteSize: 2048,
+  sha256: "a".repeat(64),
+  modifiedAt: "2032-01-01T00:00:00.000Z",
+  searchEnabled: false,
+  /* Vorhandener Extraktionstext; die Suche prüft Dateiname und Inhalt. */
+  extractedText: "Synthetischer Dokumenttext zur Modulprüfung",
+  project: null,
+  studyModule: { id: detailModule.id, title: detailModule.title },
+  archivedAt: null,
+  createdAt: "2032-01-01T00:00:00.000Z",
+  updatedAt: "2032-01-01T00:00:00.000Z",
+  contentUrl: "/api/v1/documents/document-modul-detail/content",
+};
+
+/** Wechselt über die sichtbare Hauptnavigation in eine Ansicht. */
+const showView = async (page: Page, name: string) => {
+  await page
+    .getByRole("button", { name, exact: true })
+    .filter({ visible: true })
+    .click();
+};
+
+/** Öffnet ein Modul aus der Studienübersicht über seine Karte. */
+const openModuleFromOverview = async (page: Page, title: string) => {
+  const backToOverview = page.getByRole("button", { name: "Zur Übersicht" });
+  if ((await backToOverview.count()) > 0) {
+    await backToOverview.click();
+  }
+  await showView(page, "Studium");
+  await page
+    .locator(".study-card")
+    .filter({ hasText: title })
+    .getByRole("button", { name: "Moduldetails öffnen" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: title, level: 1 }),
+  ).toBeVisible();
+};
+
+test("öffnet ein Studienmodul mit verknüpften Objekten und bearbeitet sie auf Desktop und Smartphone", async ({
+  page,
+}) => {
+  await installApi(page, {
+    studyPrograms: [detailProgram],
+    studyModules: [detailModule],
+    additionalStudyEntries: [detailEntry],
+    additionalTasks: [detailTask],
+    knowledgeNotes: [detailNote],
+    knowledgeDocuments: [detailDocument],
+  });
+  await page.goto("/");
+  await openModuleFromOverview(page, "Synthetisches Detailmodul");
+
+  /* Modulangaben und echte Verknüpfungen sind nachvollziehbar. */
+  const facts = page.getByRole("region", { name: "Modulangaben" });
+  await expect(facts.getByText("DET-101")).toBeVisible();
+  await expect(
+    facts.getByText("Synthetischer Detailstudiengang · Sommersemester 2033"),
+  ).toBeVisible();
+  await expect(
+    facts.getByText("Für die lokale Suche freigegeben"),
+  ).toBeVisible();
+  const tasksRegion = page.getByRole("region", { name: "Aufgaben" });
+  await expect(tasksRegion.getByText("Modulaufgabe mit Bezug")).toBeVisible();
+  await expect(tasksRegion.getByText("Roadmap prüfen")).toHaveCount(0);
+  const entriesRegion = page.getByRole("region", {
+    name: "Termine, Fristen und Lernzeiten",
+  });
+  await expect(
+    entriesRegion.getByText("Synthetische Detailprüfung"),
+  ).toBeVisible();
+  const notesRegion = page.getByRole("region", { name: "Notizen" });
+  await expect(
+    notesRegion.getByText("Synthetische Modulnotiz zur Prüfung"),
+  ).toBeVisible();
+  const documentsRegion = page.getByRole("region", { name: "Dokumente" });
+  await expect(documentsRegion.getByText("modul-skript.txt")).toBeVisible();
+  /* Freie Verweise sind keine verknüpften Dateien. */
+  await expect(documentsRegion.getByText("Skript Kapitel 1")).toBeVisible();
+  await expect(
+    documentsRegion.getByText(/keine verknüpften Dateien/),
+  ).toBeVisible();
+
+  /* Modul über das vorhandene Studienformular bearbeiten. */
+  await page.getByRole("button", { name: "Modul bearbeiten" }).click();
+  await page.getByLabel("Note (optional)").fill("2,0");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(facts.getByText("2,0")).toBeVisible();
+
+  /* Studieneintrag über das vorhandene Studienformular bearbeiten. */
+  await entriesRegion
+    .getByRole("button", { name: "Eintrag bearbeiten" })
+    .click();
+  await page.getByLabel("Bezeichnung").fill("Synthetische Detailprüfung neu");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(
+    entriesRegion.getByText("Synthetische Detailprüfung neu"),
+  ).toBeVisible();
+
+  /* Aufgabe über den gemeinsamen Aufgabeneditor. */
+  await tasksRegion.getByRole("button", { name: "Aufgabe öffnen" }).click();
+  const taskEditor = page.locator(".task-editor");
+  await expect(taskEditor.getByLabel("Titel")).toHaveValue(
+    "Modulaufgabe mit Bezug",
+  );
+  await expect(taskEditor.getByLabel("Studienmodul")).toHaveValue(
+    detailModule.id,
+  );
+
+  /* Notiz über die Wissensansicht; die Modulauswahl bleibt erhalten. */
+  await showView(page, "Studium");
+  await page.getByRole("button", { name: "Notiz öffnen" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Notiz bearbeiten" }),
+  ).toBeVisible();
+  await page.getByLabel("Titel").fill("Synthetische Modulnotiz neu");
+  await page.getByRole("button", { name: "Änderung speichern" }).click();
+  await expect(page.getByText("Die Notiz wurde aktualisiert.")).toBeVisible();
+
+  /* Dokument: nur Metadaten und Verknüpfungen, kein Dateiersatz. */
+  await showView(page, "Studium");
+  await page.getByRole("button", { name: "Dokument bearbeiten" }).click();
+  const documentEditor = page.locator(".document-editor");
+  await expect(
+    documentEditor.getByRole("heading", { name: "Dokument bearbeiten" }),
+  ).toBeVisible();
+  await expect(documentEditor.getByLabel("Studienmodul")).toHaveValue(
+    detailModule.id,
+  );
+  await documentEditor.getByLabel("Für lokale Suche freigeben").check();
+  await documentEditor
+    .getByRole("button", { name: "Änderung speichern" })
+    .click();
+  await expect(
+    page.getByText("Das Dokument wurde aktualisiert."),
+  ).toBeVisible();
+  await expect(
+    documentEditor.getByLabel("Für lokale Suche freigeben"),
+  ).toBeChecked();
+
+  /* Nach der Bearbeitung zeigt die Modulansicht den aktualisierten Stand. */
+  await showView(page, "Studium");
+  await expect(
+    page
+      .getByRole("region", { name: "Notizen" })
+      .getByText("Synthetische Modulnotiz neu"),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Dokumente" })
+      .getByText(/für die lokale Suche freigegeben/),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    })),
+  ).toEqual({ local: [], session: [] });
+});
+
+test("zeigt leere Modulbereiche, archivierte Bezüge und sichtbare API-Fehler", async ({
+  page,
+}) => {
+  await installApi(page, {
+    studyPrograms: [detailProgram],
+    studyModules: [
+      {
+        ...detailModule,
+        id: "study-module-empty",
+        title: "Synthetisches Leermodul",
+        code: "LEER-1",
+        grade: null,
+        documentReferences: [],
+        searchEnabled: false,
+      },
+      detailModule,
+    ],
+    additionalStudyEntries: [
+      detailEntry,
+      {
+        ...detailEntry,
+        id: "study-entry-archived",
+        title: "Archivierte Detailfrist",
+        archivedAt: "2032-03-01T00:00:00.000Z",
+      },
+    ],
+    additionalTasks: [
+      detailTask,
+      {
+        ...detailTask,
+        id: "aufgabe-modul-archiviert",
+        title: "Archivierte Modulaufgabe",
+        archivedAt: "2032-03-01T00:00:00.000Z",
+      },
+    ],
+    knowledgeNotes: [detailNote],
+    knowledgeDocuments: [detailDocument],
+  });
+  await page.goto("/");
+
+  /* Ein Modul ohne Bezüge bleibt verständlich. */
+  await openModuleFromOverview(page, "Synthetisches Leermodul");
+  await expect(
+    page.getByText("Noch keine Aufgabe mit diesem Modulbezug."),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Noch kein Termin, keine Frist und keine Lernzeit hinterlegt.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Noch keine Notiz mit diesem Modulbezug."),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Noch keine lokale Datei mit diesem Modul verknüpft."),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Keine Dokumentverweise hinterlegt."),
+  ).toBeVisible();
+
+  /* Ein sichtbarer API-Fehler bleibt verständlich. */
+  await page.route("**/api/v1/study/modules/**", async (route) => {
+    await route.fulfill({
+      status: 500,
+      json: {
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Synthetischer Modulfehler",
+        },
+      },
+    });
+  });
+  await page.getByRole("button", { name: "Modul bearbeiten" }).click();
+  await page.getByLabel("Note (optional)").fill("3,0");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Synthetischer Modulfehler",
+  );
+  await page.getByRole("button", { name: "Abbrechen" }).click();
+
+  /* Archivierte Bezüge bleiben sichtbar und gekennzeichnet. */
+  await openModuleFromOverview(page, "Synthetisches Detailmodul");
+  const tasksRegion = page.getByRole("region", { name: "Aufgaben" });
+  await expect(tasksRegion.getByText("Archivierte Modulaufgabe")).toBeVisible();
+  await expect(tasksRegion.getByText("Archiviert").first()).toBeVisible();
+  const entriesRegion = page.getByRole("region", {
+    name: "Termine, Fristen und Lernzeiten",
+  });
+  await expect(
+    entriesRegion.getByText("Archivierte Detailfrist"),
+  ).toBeVisible();
+  await expect(entriesRegion.getByText("Archiviert").first()).toBeVisible();
+  /* Nicht archivierte Verknüpfungen bleiben daneben sichtbar. */
+  await expect(tasksRegion.getByText("Modulaufgabe mit Bezug")).toBeVisible();
+  await expect(
+    entriesRegion.getByText("Synthetische Detailprüfung"),
+  ).toBeVisible();
+});
+
+test("öffnet Suchziele konkret und meldet verschwundene Ziele ohne fremdes Objekt", async ({
+  page,
+}) => {
+  await installApi(page, {
+    studyPrograms: [detailProgram],
+    studyModules: [detailModule],
+    additionalStudyEntries: [detailEntry],
+    additionalTasks: [detailTask],
+    knowledgeNotes: [detailNote],
+    knowledgeDocuments: [{ ...detailDocument, searchEnabled: true }],
+  });
+  await page.goto("/");
+  const openSearchResult = async (title: string) => {
+    await showView(page, "Wissen");
+    await page.getByLabel("Suchbegriff").fill("Synthetisch");
+    await page.getByRole("button", { name: "Suchen" }).click();
+    await page
+      .locator(".search-result")
+      .filter({ has: page.getByRole("heading", { name: title, exact: true }) })
+      .getByRole("link", { name: "Quelle öffnen" })
+      .click();
+  };
+
+  /* Das Studienmodul öffnet genau dieses Modul. */
+  await openSearchResult("Synthetisches Detailmodul");
+  await expect(
+    page.getByRole("heading", { name: "Synthetisches Detailmodul", level: 1 }),
+  ).toBeVisible();
+
+  /* Der Studieneintrag öffnet das Modul mit markiertem Eintrag. */
+  await openSearchResult("Synthetische Detailprüfung");
+  const highlighted = page.locator(".relation-card.search-target");
+  await expect(highlighted).toContainText("Synthetische Detailprüfung");
+  await expect(highlighted.getByText("Suchtreffer")).toBeVisible();
+
+  /* Die Notiz öffnet genau diese Notiz. */
+  await openSearchResult("Synthetische Modulnotiz zur Prüfung");
+  await expect(page.getByLabel("Titel")).toHaveValue(
+    "Synthetische Modulnotiz zur Prüfung",
+  );
+
+  /* Das Dokument öffnet genau seine Metadaten. */
+  await openSearchResult("modul-skript.txt");
+  await expect(
+    page.locator(".document-editor").getByLabel("Studienmodul"),
+  ).toHaveValue(detailModule.id);
+
+  /* Verschwundene Ziele zeigen einen Fehler statt eines fremden Objekts. */
+  await page.route("**/api/v1/search?*", async (route) => {
+    await route.fulfill({
+      json: {
+        query: "Synthetisch",
+        results: [
+          {
+            id: "modul-weg",
+            title: "Verschwundenes Studienmodul",
+            contentType: "study_module",
+            source: {
+              type: "study_module",
+              id: "modul-weg",
+              title: "Verschwundenes Studienmodul",
+            },
+            updatedAt: "2032-01-01T00:00:00.000Z",
+            snippet: "",
+            matchReason: "title",
+            detailPath: "/study/modules/modul-weg",
+            ownerId: profile.id,
+            searchEnabled: true,
+          },
+          {
+            id: "dokument-weg",
+            title: "Verschwundenes Dokument",
+            contentType: "document",
+            source: {
+              type: "document",
+              id: "dokument-weg",
+              title: "Verschwundenes Dokument",
+            },
+            updatedAt: "2032-01-01T00:00:00.000Z",
+            snippet: "",
+            matchReason: "title",
+            detailPath: "/knowledge/documents/dokument-weg",
+            ownerId: profile.id,
+            searchEnabled: true,
+          },
+        ],
+      },
+    });
+  });
+  await openSearchResult("Verschwundenes Studienmodul");
+  await expect(page.getByRole("alert")).toContainText(
+    "Das gesuchte Studienmodul ist nicht mehr verfügbar.",
+  );
+  await expect(
+    page.getByRole("heading", { name: "Synthetisches Detailmodul", level: 1 }),
+  ).toHaveCount(0);
+
+  await openSearchResult("Verschwundenes Dokument");
+  await expect(page.getByRole("alert")).toContainText(
+    "Das gesuchte Dokument ist nicht mehr verfügbar.",
+  );
+  await expect(page.locator(".document-editor")).toHaveCount(0);
 });
 
 test("verwaltet Praxisprojekt, Arbeitsaufgabe und getrennte Zeitwerte", async ({

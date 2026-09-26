@@ -244,3 +244,313 @@ test("verwaltet Studienobjekte unter /api/v1 mit Besitzprüfung und Audit", asyn
     ),
   );
 });
+
+test("liefert Moduldetail, Zeitformwechsel und Archivzustände besitzgebunden", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalId = `study-detail-owner-${suffix}`;
+  const otherExternalId = `study-detail-other-${suffix}`;
+  const password = `synthetisches-detailpasswort-${suffix}`;
+  const user = await database.user.create({
+    data: {
+      externalId,
+      displayName: "Synthetische Detailperson",
+      settings: { create: {} },
+      credential: { create: { passwordHash: await hashPassword(password) } },
+    },
+  });
+  const other = await database.user.create({
+    data: {
+      externalId: otherExternalId,
+      displayName: "Andere Detailperson",
+      settings: { create: {} },
+    },
+  });
+  const foreignProgram = await database.studyProgram.create({
+    data: {
+      userId: other.id,
+      title: "Fremder Detailstudiengang",
+      institution: "Fremde Einrichtung",
+      periodLabel: "Fremdabschnitt",
+    },
+  });
+  const foreignModule = await database.studyModule.create({
+    data: {
+      userId: other.id,
+      programId: foreignProgram.id,
+      title: "Fremdes Detailmodul",
+    },
+  });
+  const profileRepository = new PrismaProfileRepository(database, externalId);
+  const authentication = new AuthenticationService(profileRepository, 1);
+  const application = createApplication({
+    logger: new SilentLogger(),
+    readinessProbe: { check: async () => undefined },
+    webOrigin: "http://127.0.0.1:5173",
+    moduleRouters: [
+      createProfileRouter({
+        authentication,
+        profile: new ProfileService(profileRepository),
+        secureCookies: false,
+      }),
+      createStudyRouter({
+        authentication,
+        study: new StudyService(new PrismaStudyRepository(database)),
+      }),
+    ],
+  });
+  const server = createServer(application);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}/api/v1`;
+  t.after(async () => {
+    await close(server);
+    await database.user.deleteMany({
+      where: { externalId: { in: [externalId, otherExternalId] } },
+    });
+    await database.$disconnect();
+  });
+  const login = await fetch(`${base}/session`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  const cookie = (login.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+  const headers = { cookie, "content-type": "application/json" };
+  const program = (await (
+    await fetch(`${base}/study/programs`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        title: "Synthetische Detailinformatik",
+        institution: "Lokale Testhochschule",
+        periodLabel: "Sommersemester 2033",
+        status: "active",
+      }),
+    })
+  ).json()) as StudyProgramResponse;
+  const module = (await (
+    await fetch(`${base}/study/modules`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        programId: program.id,
+        title: "Synthetisches Detailmodul",
+        code: "DET-101",
+        credits: 5,
+      }),
+    })
+  ).json()) as StudyModuleResponse;
+
+  const detailed = await fetch(`${base}/study/modules/${module.id}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({
+      status: "completed",
+      credits: 6,
+      grade: "1,7",
+      notes: "Synthetische Modulnotiz.",
+      documentReferences: ["Skript Kapitel 1", "https://example.invalid/lokal"],
+      searchEnabled: true,
+    }),
+  });
+  assert.equal(detailed.status, 200);
+  const detailedModule = (await detailed.json()) as StudyModuleResponse;
+  assert.equal(detailedModule.status, "completed");
+  assert.equal(detailedModule.credits, 6);
+  assert.equal(detailedModule.grade, "1,7");
+  assert.equal(detailedModule.notes, "Synthetische Modulnotiz.");
+  assert.equal(detailedModule.searchEnabled, true);
+  /* Freie Verweise bleiben Zeichenketten und werden nicht als IDs aufgelöst. */
+  assert.deepEqual(detailedModule.documentReferences, [
+    "Skript Kapitel 1",
+    "https://example.invalid/lokal",
+  ]);
+  assert.equal(
+    (
+      await fetch(`${base}/study/modules/${module.id}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ programId: foreignProgram.id }),
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await fetch(`${base}/study/modules/${foreignModule.id}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ title: "Übernommenes Fremdmodul" }),
+      })
+    ).status,
+    404,
+  );
+
+  const task = await database.task.create({
+    data: {
+      userId: user.id,
+      title: "Synthetische Detailaufgabe",
+      area: "study",
+      studyModuleId: module.id,
+    },
+  });
+  const entry = (await (
+    await fetch(`${base}/study/entries`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        moduleId: module.id,
+        kind: "exam",
+        title: "Synthetische Detailprüfung",
+        dueDate: "2033-04-11",
+        taskId: task.id,
+      }),
+    })
+  ).json()) as StudyEntryResponse;
+  assert.equal(entry.dueDate, "2033-04-11");
+  assert.equal(entry.startsAt, null);
+  assert.equal(entry.timezone, null);
+
+  /* Wechsel von einem reinen Kalendertag auf einen vollständigen Zeitblock. */
+  const timedResponse = await fetch(`${base}/study/entries/${entry.id}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({
+      dueDate: null,
+      startsAt: "2033-04-12T08:00:00.000Z",
+      endsAt: "2033-04-12T09:30:00.000Z",
+      timezone: "Europe/Berlin",
+    }),
+  });
+  assert.equal(timedResponse.status, 200);
+  const timed = (await timedResponse.json()) as StudyEntryResponse;
+  assert.equal(timed.dueDate, null);
+  assert.equal(timed.startsAt, "2033-04-12T08:00:00.000Z");
+  assert.equal(timed.endsAt, "2033-04-12T09:30:00.000Z");
+  assert.equal(timed.timezone, "Europe/Berlin");
+  /* Ausgelassene Bezüge bleiben unverändert erhalten. */
+  assert.equal(timed.taskId, task.id);
+  assert.equal(timed.calendarEventId, null);
+
+  /* Und zurück auf einen reinen Kalendertag. */
+  const allDay = (await (
+    await fetch(`${base}/study/entries/${entry.id}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({
+        dueDate: "2033-04-13",
+        startsAt: null,
+        endsAt: null,
+        timezone: null,
+      }),
+    })
+  ).json()) as StudyEntryResponse;
+  assert.equal(allDay.dueDate, "2033-04-13");
+  assert.equal(allDay.startsAt, null);
+  assert.equal(allDay.endsAt, null);
+  assert.equal(allDay.timezone, null);
+  assert.equal(allDay.taskId, task.id);
+
+  /* Eine Lehrveranstaltung bleibt verpflichtend ein vollständiger Zeitblock. */
+  assert.equal(
+    (
+      await fetch(`${base}/study/entries/${entry.id}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({
+          kind: "lecture",
+          dueDate: "2033-04-14",
+          startsAt: null,
+          endsAt: null,
+          timezone: null,
+        }),
+      })
+    ).status,
+    400,
+  );
+
+  const foreignTask = await database.task.create({
+    data: {
+      userId: other.id,
+      title: "Fremde Detailaufgabe",
+      area: "study",
+    },
+  });
+  assert.equal(
+    (
+      await fetch(`${base}/study/entries/${entry.id}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ taskId: foreignTask.id }),
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await fetch(`${base}/study/entries/${entry.id}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ archived: true }),
+      })
+    ).status,
+    200,
+  );
+  const activeOverview = (await (
+    await fetch(`${base}/study`, { headers: { cookie } })
+  ).json()) as StudyOverviewResponse;
+  assert.equal(
+    activeOverview.entries.some((candidate) => candidate.id === entry.id),
+    false,
+  );
+  assert.equal(
+    activeOverview.modules.filter((candidate) => candidate.id === module.id)
+      .length,
+    1,
+  );
+  const archivedOverview = (await (
+    await fetch(`${base}/study?includeArchived=true`, { headers: { cookie } })
+  ).json()) as StudyOverviewResponse;
+  const archivedEntry = archivedOverview.entries.find(
+    (candidate) => candidate.id === entry.id,
+  );
+  assert.ok(archivedEntry?.archivedAt);
+  assert.equal(archivedEntry?.moduleId, module.id);
+
+  /* Ein archiviertes Modul bleibt lesbar, blockiert aber neue Bezugnahmen. */
+  assert.equal(
+    (
+      await fetch(`${base}/study/modules/${module.id}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ archived: true }),
+      })
+    ).status,
+    200,
+  );
+  const moduleArchivedOverview = (await (
+    await fetch(`${base}/study?includeArchived=true`, { headers: { cookie } })
+  ).json()) as StudyOverviewResponse;
+  const archivedModule = moduleArchivedOverview.modules.find(
+    (candidate) => candidate.id === module.id,
+  );
+  assert.ok(archivedModule?.archivedAt);
+  assert.equal(
+    moduleArchivedOverview.entries.filter(
+      (candidate) => candidate.moduleId === module.id,
+    ).length,
+    1,
+  );
+  assert.equal(
+    (
+      await fetch(`${base}/study/entries/${entry.id}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ title: "Bearbeitung im archivierten Modul" }),
+      })
+    ).status,
+    400,
+  );
+});

@@ -10,12 +10,16 @@ Finanzen, Integrationen unter Einstellungen und eng verbundene Aufgaben-,
 Kalender- und Studienansichten vor. Paket 0 mit dem verbindlichen Plan und Paket
 1 mit der Einordnung der vorhandenen Integrationen unter Einstellungen sind
 umgesetzt. Paket 2 hat die aktive Finanzoberfläche, Finanz-API und deren aktive
-Verträge entfernt und ist über PR #122 in `develop` integriert. Paket 3 entfernt
-die verbliebenen Finanzmodelle, das gespeicherte Währungsfeld und den
-Aufgabenbereich `finance` über neue versionierte Migrationen und sichert diesen
-Schritt über einen verpflichtenden Backup-Nachweis ab; es ist lokal geprüft,
-aber noch nicht in `develop` integriert. Die Pakete 4 bis 11 bleiben geplant und
-sind kein aktueller Funktionsnachweis.
+Verträge entfernt (PR #122). Paket 3 hat die verbliebenen Finanzmodelle, das
+gespeicherte Währungsfeld und den Aufgabenbereich `finance` über neue
+versionierte Migrationen entfernt und diesen Schritt über einen verpflichtenden
+Backup-Nachweis abgesichert (PR #123). Paket 4 hat den optionalen
+Studienmodulbezug der Aufgabe ergänzt (PR #124), Paket 5 die gemeinsamen
+Kalender- und Planungsansichten (PR #125). Die Pakete 0 bis 5 sind damit in
+`develop` integriert. Paket 6 mit der Moduldetailansicht und der gemeinsamen
+Dokument-/Notizbedienung ist lokal umgesetzt und geprüft, aber noch nicht in
+`develop` integriert. Die Pakete 7 bis 11 bleiben geplant und sind kein
+aktueller Funktionsnachweis.
 Studienmaterialien sollen lokal durchsuchbar werden; Apple
 Kalender auf Mac und iPhone soll Aufgabenplanung einschließlich Verschieben
 unterstützen. Umfang, Abnahme und Startauftrag stehen im
@@ -302,6 +306,23 @@ automatische Änderung des referenzierten Objekts aus.
 Offene Prüfungen, Abgaben und Lernzeiten erscheinen zusätzlich rein lesend im
 Organisations-Dashboard und im sichtbaren Zeitraum der Kalenderansicht.
 
+Die getrennte Studienübersicht bleibt unverändert bestehen; jede Modulkarte
+öffnet über „Moduldetails öffnen“ eine eigene, besitzgebundene Moduldetailansicht,
+und „Zur Übersicht“ führt zurück. Sie zeigt Titel, Kürzel, Studienabschnitt samt
+Zeitraum, Status, Leistungspunkte, Note, Notizen, Suchfreigabe, Archivzustand und
+die Dokumentverweise des Moduls. Die zugehörigen Objekte werden ausschließlich
+aus vorhandenen Besitzfiltern zusammengestellt: Aufgaben über
+`Task.studyModuleId` (aktive und archivierte), Studieneinträge über
+`StudyEntry.moduleId`, Notizen und Dokumente über ihre echte Modulbeziehung. Die
+freien Dokumentverweise eines Moduls erscheinen getrennt als unverbindliche
+Angaben und werden nie als Datei-ID interpretiert. Bearbeitet wird ausschließlich
+über die vorhandenen Facheditoren: Modul und Studieneintrag über die
+Studienformulare, Aufgaben über den gemeinsamen Aufgabeneditor, Notizen und
+Dokumentmetadaten über die Wissensansicht. Zeitgebundene Studieneinträge behalten
+beim Bearbeiten ihre gespeicherte IANA-Zeitzone und ihren Zeitpunkt; nur neue
+Einträge werden in der Profilzeitzone angelegt. Das ist der lokale Stand von
+Paket 6 (umgesetzt und geprüft, noch nicht in `develop` integriert).
+
 Die Einkaufsliste ist nach Anmeldung unter `/api/v1/shopping-lists` verfügbar.
 Die ersten beiden Lieferstufen umfassen genau eine aktive Liste pro Besitzer,
 archivierbare Listen, bestätigte atomare Mehrfacheingabe, zehn stabile
@@ -405,7 +426,11 @@ Studienmodulen verknüpft werden. Dokumente werden bis 25 MiB im absoluten
 `STORAGE_PATH` außerhalb des Repositorys gespeichert; die API verwendet nur
 interne, validierte Schlüssel. Archivierung ist reversibel, Löschen entfernt
 Dokumentmetadaten logisch und den lokalen Binärinhalt physisch. Die Option
-„Für lokale Suche freigeben“ ist standardmäßig aus. Die Mac-App verwendet
+„Für lokale Suche freigeben“ ist standardmäßig aus. Notizen und
+Dokumentmetadaten – einschließlich Projekt- und Studienmodulbezug sowie
+Suchfreigabe – lassen sich auch aus der Moduldetailansicht über dieselben
+Wissenseditoren ändern; der Dateiname bleibt dabei unverändert, und die Datei
+wird weder ersetzt noch neu angelegt. Die Mac-App verwendet
 automatisch ihr privates Anwendungs-Dokumentverzeichnis.
 
 Die lokale Suche im Bereich **Wissen** berücksichtigt nur eigene, aktive und

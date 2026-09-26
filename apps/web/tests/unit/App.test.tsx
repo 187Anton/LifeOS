@@ -92,7 +92,7 @@ const task = {
   studyModuleId: null as string | null,
   parentTaskId: null,
   completedAt: null,
-  archivedAt: null,
+  archivedAt: null as string | null,
   createdAt: "2026-07-22T08:00:00.000Z",
   updatedAt: "2026-07-22T08:00:00.000Z",
 };
@@ -102,6 +102,217 @@ const json = (body: unknown, status = 200) =>
     status,
     headers: { "content-type": "application/json" },
   });
+
+/** Studienabschnitt, Modul und Eintrag der Paket-6-Moduldetailansicht. */
+const studyProgram = {
+  id: "abschnitt-1",
+  ownerId: "nutzer-1",
+  title: "Synthetischer Studienabschnitt",
+  institution: "Lokale Testhochschule",
+  periodLabel: "Sommersemester 2033",
+  status: "active" as const,
+  notes: null,
+  archivedAt: null,
+  createdAt: "2026-08-09T10:00:00.000Z",
+  updatedAt: "2026-08-09T10:00:00.000Z",
+};
+
+const studyModule = {
+  id: "modul-detail",
+  ownerId: "nutzer-1",
+  programId: "abschnitt-1",
+  title: "Synthetisches Detailmodul",
+  code: "DET-101",
+  status: "active" as const,
+  credits: 6,
+  grade: "1,7",
+  notes: "Synthetische Modulnotiz.",
+  documentReferences: ["Skript Kapitel 1"],
+  searchEnabled: true,
+  archivedAt: null,
+  createdAt: "2026-08-09T10:00:00.000Z",
+  updatedAt: "2026-08-09T10:00:00.000Z",
+};
+
+const studyEntry = {
+  id: "eintrag-1",
+  ownerId: "nutzer-1",
+  moduleId: "modul-detail",
+  kind: "exam" as const,
+  title: "Synthetische Detailprüfung",
+  status: "planned" as const,
+  dueDate: "2033-04-11",
+  startsAt: null,
+  endsAt: null,
+  timezone: null,
+  credits: null,
+  grade: null,
+  notes: null,
+  taskId: "aufgabe-modul",
+  calendarEventId: null,
+  calendarEventUid: null,
+  calendarEventCalendarId: null,
+  archivedAt: null,
+  createdAt: "2026-08-09T10:00:00.000Z",
+  updatedAt: "2026-08-09T10:00:00.000Z",
+};
+
+/** Aufgabe mit Modulbezug; die Standardaufgabe bleibt bewusst ohne Bezug. */
+const moduleTask = {
+  ...task,
+  id: "aufgabe-modul",
+  title: "Modulaufgabe mit Bezug",
+  studyModuleId: "modul-detail",
+};
+
+const archivedModuleTask = {
+  ...task,
+  id: "aufgabe-modul-archiviert",
+  title: "Archivierte Modulaufgabe",
+  studyModuleId: "modul-detail",
+  archivedAt: "2032-03-01T00:00:00.000Z",
+};
+
+const moduleNote = {
+  id: "notiz-1",
+  ownerId: "nutzer-1",
+  title: "Synthetische Modulnotiz zur Prüfung",
+  content: "Synthetischer Notizinhalt",
+  format: "markdown" as const,
+  category: "Test",
+  tags: ["lokal"],
+  version: 1,
+  searchEnabled: true,
+  project: null,
+  studyModule: { id: "modul-detail", title: "Synthetisches Detailmodul" },
+  archivedAt: null,
+  createdAt: "2026-08-09T10:00:00.000Z",
+  updatedAt: "2026-08-09T10:00:00.000Z",
+};
+
+const moduleDocument = {
+  id: "dokument-1",
+  ownerId: "nutzer-1",
+  fileName: "modul-skript.txt",
+  mimeType: "text/plain",
+  byteSize: 2048,
+  sha256: "a".repeat(64),
+  modifiedAt: "2026-08-09T10:00:00.000Z",
+  searchEnabled: false,
+  project: null,
+  studyModule: { id: "modul-detail", title: "Synthetisches Detailmodul" },
+  archivedAt: null,
+  createdAt: "2026-08-09T10:00:00.000Z",
+  updatedAt: "2026-08-09T10:00:00.000Z",
+  contentUrl: "/api/v1/documents/dokument-1/content",
+};
+
+const moduleSource = {
+  id: "modul-detail",
+  type: "study_module" as const,
+  title: "Synthetisches Detailmodul",
+};
+
+/** Suchtreffer für Modul, Eintrag, Notiz, Dokument und Projekt. */
+const searchResultFixtures = {
+  module: {
+    id: "modul-detail",
+    ownerId: "nutzer-1",
+    title: "Synthetisches Detailmodul",
+    contentType: "study_module" as const,
+    source: moduleSource,
+    snippet: "Synthetische Modulnotiz.",
+    matchReason: "title" as const,
+    searchEnabled: true,
+    detailPath: "/study/modules/modul-detail",
+    updatedAt: "2026-08-09T10:00:00.000Z",
+  },
+  entry: {
+    id: "eintrag-1",
+    ownerId: "nutzer-1",
+    title: "Synthetische Detailprüfung",
+    contentType: "study_entry" as const,
+    source: moduleSource,
+    snippet: "Synthetisch",
+    matchReason: "content" as const,
+    searchEnabled: true,
+    detailPath: "/study/modules/modul-detail#entry-eintrag-1",
+    updatedAt: "2026-08-09T10:00:00.000Z",
+  },
+  note: {
+    id: "notiz-1",
+    ownerId: "nutzer-1",
+    title: "Synthetische Modulnotiz zur Prüfung",
+    contentType: "note" as const,
+    source: {
+      id: "notiz-1",
+      type: "note" as const,
+      title: "Synthetische Modulnotiz zur Prüfung",
+    },
+    snippet: "Synthetischer Notizinhalt",
+    matchReason: "title" as const,
+    searchEnabled: true,
+    detailPath: "/knowledge/notes/notiz-1",
+    updatedAt: "2026-08-09T10:00:00.000Z",
+  },
+  document: {
+    id: "dokument-1",
+    ownerId: "nutzer-1",
+    title: "modul-skript.txt",
+    contentType: "document" as const,
+    source: {
+      id: "dokument-1",
+      type: "document" as const,
+      title: "modul-skript.txt",
+    },
+    snippet: "Synthetisch",
+    matchReason: "title" as const,
+    searchEnabled: true,
+    detailPath: "/knowledge/documents/dokument-1",
+    updatedAt: "2026-08-09T10:00:00.000Z",
+  },
+  project: {
+    id: "projekt-suche",
+    ownerId: "nutzer-1",
+    title: "Synthetisches Suchprojekt",
+    contentType: "project" as const,
+    source: {
+      id: "projekt-suche",
+      type: "project" as const,
+      title: "Synthetisches Suchprojekt",
+    },
+    snippet: "Synthetisch",
+    matchReason: "title" as const,
+    searchEnabled: true,
+    detailPath: "/projects/projekt-suche",
+    updatedAt: "2026-08-09T10:00:00.000Z",
+  },
+};
+
+const searchProject = {
+  id: "projekt-suche",
+  ownerId: "nutzer-1",
+  title: "Synthetisches Suchprojekt",
+  description: null,
+  status: "active" as const,
+  risk: null,
+  dueDate: null,
+  searchEnabled: true,
+  archivedAt: null,
+  createdAt: "2026-08-09T10:00:00.000Z",
+  updatedAt: "2026-08-09T10:00:00.000Z",
+  progress: {
+    state: "no_data" as const,
+    percent: null,
+    completedItems: 0,
+    totalItems: 0,
+    breakdown: {
+      goals: { completed: 0, total: 0 },
+      milestones: { completed: 0, total: 0 },
+      tasks: { completed: 0, total: 0 },
+    },
+  },
+};
 
 const requestBody = (init?: RequestInit): Record<string, unknown> => {
   if (typeof init?.body !== "string") {
@@ -115,8 +326,13 @@ const installApi = ({
   events = [event],
   tasks = [task],
   links = [],
+  studyPrograms = [],
   studyModules = [],
   studyEntries = [],
+  knowledgeNotes = [],
+  knowledgeDocuments = [],
+  searchResults = [],
+  projects = [],
   planningItems,
   profileTimezone = profile.settings.timezone,
   deleteEventConflict = false,
@@ -126,8 +342,16 @@ const installApi = ({
   calendars?: (typeof calendar)[];
   events?: (typeof event)[];
   tasks?: (typeof task)[];
+  studyPrograms?: Array<Record<string, unknown>>;
   studyModules?: Array<Record<string, unknown>>;
   studyEntries?: Array<Record<string, unknown>>;
+  /** Notizen der Wissensübersicht; die Detailantwort wird daraus abgeleitet. */
+  knowledgeNotes?: Array<Record<string, unknown>>;
+  knowledgeDocuments?: Array<Record<string, unknown>>;
+  /** Vorgegebene Treffer der lokalen Suche. */
+  searchResults?: Array<Record<string, unknown>>;
+  /** Bereits vorhandene Projekte für die Suchnavigation. */
+  projects?: Array<Record<string, unknown>>;
   /** Ersetzt die Standardeinträge der Planungsantwort vollständig. */
   planningItems?: Array<Record<string, unknown>>;
   /** Profilzeitzone des Kontos; Standard ist Europe/Berlin. */
@@ -150,11 +374,15 @@ const installApi = ({
   const eventState = events.map((item) => ({ ...item }));
   const taskState = tasks.map((item) => ({ ...item }));
   const linkState = links.map((item) => structuredClone(item));
+  const noteState = knowledgeNotes.map((item) => ({ ...item }));
+  const documentState = knowledgeDocuments.map((item) => ({ ...item }));
   const studyState = {
-    programs: [] as Record<string, unknown>[],
+    programs: studyPrograms.map((program) => ({ ...program })),
     modules: studyModules.map((module) => ({ ...module })),
     entries: studyEntries.map((entry) => ({ ...entry })),
   };
+  /** Tatsächlich gesendete Schreibkörper der Studieneinträge. */
+  const studyEntryUpdates: Array<Record<string, unknown>> = [];
   const workState = {
     contexts: [] as Record<string, unknown>[],
     projects: [] as Record<string, unknown>[],
@@ -162,7 +390,9 @@ const installApi = ({
     timeEntries: [] as Record<string, unknown>[],
     history: [] as Record<string, unknown>[],
   };
-  const projectState: Array<Record<string, unknown>> = [];
+  const projectState: Array<Record<string, unknown>> = projects.map(
+    (project) => ({ ...project }),
+  );
   const projectDetails = new Map<
     string,
     {
@@ -170,6 +400,8 @@ const installApi = ({
       milestones: Array<Record<string, unknown>>;
     }
   >();
+  for (const project of projectState)
+    projectDetails.set(project.id as string, { goals: [], milestones: [] });
   const availabilityState: Record<string, unknown>[] = [];
   let conflictReturned = false;
   let setupIsRequired = setupRequired;
@@ -239,6 +471,53 @@ const installApi = ({
         });
       if (path.startsWith("/api/v1/study") && method === "GET")
         return json(studyState);
+      const studyModuleMatch = path.match(
+        /^\/api\/v1\/study\/modules\/([^/]+)$/,
+      );
+      if (studyModuleMatch && method === "PATCH") {
+        const module = studyState.modules.find(
+          (item) => item.id === studyModuleMatch[1],
+        );
+        if (!module)
+          return json(
+            { error: { code: "NOT_FOUND", message: "Nicht gefunden" } },
+            404,
+          );
+        const payload = requestBody(init);
+        Object.assign(module, payload, {
+          archivedAt:
+            payload.archived === undefined
+              ? module.archivedAt
+              : payload.archived
+                ? "2032-01-01T00:00:00.000Z"
+                : null,
+        });
+        return json(module);
+      }
+      const studyEntryMatch = path.match(
+        /^\/api\/v1\/study\/entries\/([^/]+)$/,
+      );
+      if (studyEntryMatch && method === "PATCH") {
+        const entry = studyState.entries.find(
+          (item) => item.id === studyEntryMatch[1],
+        );
+        if (!entry)
+          return json(
+            { error: { code: "NOT_FOUND", message: "Nicht gefunden" } },
+            404,
+          );
+        const payload = requestBody(init);
+        studyEntryUpdates.push(payload);
+        Object.assign(entry, payload, {
+          archivedAt:
+            payload.archived === undefined
+              ? entry.archivedAt
+              : payload.archived
+                ? "2032-01-01T00:00:00.000Z"
+                : null,
+        });
+        return json(entry);
+      }
       if (path.startsWith("/api/v1/work") && method === "GET")
         return json(workState);
       if (path.startsWith("/api/v1/planning?") && method === "GET") {
@@ -740,6 +1019,70 @@ const installApi = ({
         if (index >= 0) taskState.splice(index, 1);
         return new Response(null, { status: 204 });
       }
+      if (path.startsWith("/api/v1/knowledge") && method === "GET")
+        return json({ notes: noteState, documents: documentState });
+      const noteMatch = path.match(/^\/api\/v1\/notes\/([^/]+)$/);
+      if (noteMatch && method === "GET") {
+        const found = noteState.find((item) => item.id === noteMatch[1]);
+        return found
+          ? json({ ...found, versions: [] })
+          : json(
+              { error: { code: "NOT_FOUND", message: "Nicht gefunden" } },
+              404,
+            );
+      }
+      if (noteMatch && method === "PATCH") {
+        const found = noteState.find((item) => item.id === noteMatch[1]);
+        if (!found)
+          return json(
+            { error: { code: "NOT_FOUND", message: "Nicht gefunden" } },
+            404,
+          );
+        const payload = requestBody(init);
+        Object.assign(found, payload, {
+          archivedAt:
+            payload.archived === undefined
+              ? found.archivedAt
+              : payload.archived
+                ? "2032-01-01T00:00:00.000Z"
+                : null,
+        });
+        return json(found);
+      }
+      const documentMatch = path.match(/^\/api\/v1\/documents\/([^/]+)$/);
+      if (documentMatch && method === "PATCH") {
+        const found = documentState.find(
+          (item) => item.id === documentMatch[1],
+        );
+        if (!found)
+          return json(
+            { error: { code: "NOT_FOUND", message: "Nicht gefunden" } },
+            404,
+          );
+        const payload = requestBody(init);
+        Object.assign(found, payload, {
+          studyModule:
+            payload.studyModuleId === undefined
+              ? found.studyModule
+              : payload.studyModuleId === null
+                ? null
+                : { id: payload.studyModuleId, title: "Verknüpftes Modul" },
+          archivedAt:
+            payload.archived === undefined
+              ? found.archivedAt
+              : payload.archived
+                ? "2032-01-01T00:00:00.000Z"
+                : null,
+        });
+        return json(found);
+      }
+      if (path.startsWith("/api/v1/search?") && method === "GET") {
+        const url = new URL(path, "http://lifeos.local");
+        return json({
+          query: url.searchParams.get("q") ?? "",
+          results: searchResults,
+        });
+      }
       return json(
         { error: { code: "NOT_FOUND", message: "Nicht gefunden" } },
         404,
@@ -756,6 +1099,8 @@ const installApi = ({
     holdEvents,
     /** Gibt eine zurückgehaltene Ereignisantwort dieses Kalenders frei. */
     releaseEvents,
+    /** Gesendete Schreibkörper der Studieneinträge in Reihenfolge. */
+    studyEntryUpdates,
   };
 };
 
@@ -1970,5 +2315,542 @@ describe("LifeOS-Weboberfläche", () => {
     expect(screen.queryByText("Vorlesung mit gemeinsamer UID")).toBeNull();
     expect(screen.getByText("Verknüpfte Vorlesung Kalender 2")).toBeVisible();
     expect(screen.getByText("Verknüpfte Vorlesung Kalender 1")).toBeVisible();
+  });
+
+  /** Öffnet das synthetische Modul aus der Studienübersicht. */
+  const openModuleDetail = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getAllByRole("button", { name: "Studium" })[0]!);
+    await screen.findByRole("heading", {
+      name: "Lernen nachvollziehbar planen",
+    });
+    await user.click(
+      screen.getByRole("button", { name: "Moduldetails öffnen" }),
+    );
+    return screen.findByRole("heading", {
+      name: "Synthetisches Detailmodul",
+      level: 1,
+    });
+  };
+
+  it("zeigt in der Moduldetailsicht Angaben, Verweise und verknüpfte Objekte", async () => {
+    installApi({
+      studyPrograms: [studyProgram],
+      studyModules: [studyModule],
+      studyEntries: [studyEntry],
+      tasks: [
+        { ...task, id: "aufgabe-ohne-bezug" },
+        moduleTask,
+        archivedModuleTask,
+      ],
+      knowledgeNotes: [moduleNote],
+      knowledgeDocuments: [moduleDocument],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+
+    expect(await openModuleDetail(user)).toBeVisible();
+
+    const facts = screen.getByRole("region", { name: "Modulangaben" });
+    expect(within(facts).getByText("DET-101")).toBeVisible();
+    expect(
+      within(facts).getByText(
+        "Synthetischer Studienabschnitt · Sommersemester 2033",
+      ),
+    ).toBeVisible();
+    expect(within(facts).getByText("Aktiv")).toBeVisible();
+    expect(within(facts).getByText("6 LP")).toBeVisible();
+    expect(within(facts).getByText("1,7")).toBeVisible();
+    expect(
+      within(facts).getByText("Für die lokale Suche freigegeben"),
+    ).toBeVisible();
+    expect(within(facts).getByText("Synthetische Modulnotiz.")).toBeVisible();
+
+    /* Nur Aufgaben mit diesem Modulbezug, archivierte ausdrücklich markiert. */
+    const tasksRegion = screen.getByRole("region", { name: "Aufgaben" });
+    expect(
+      within(tasksRegion).getByText("Modulaufgabe mit Bezug"),
+    ).toBeVisible();
+    expect(
+      within(tasksRegion).getByText("Archivierte Modulaufgabe"),
+    ).toBeVisible();
+    expect(within(tasksRegion).getByText("Archiviert")).toBeVisible();
+    expect(within(tasksRegion).queryByText("Roadmap prüfen")).toBeNull();
+
+    const entriesRegion = screen.getByRole("region", {
+      name: "Termine, Fristen und Lernzeiten",
+    });
+    expect(
+      within(entriesRegion).getByText("Synthetische Detailprüfung"),
+    ).toBeVisible();
+    expect(
+      within(entriesRegion).getByText(/Prüfung · 2033-04-11/),
+    ).toBeVisible();
+    expect(
+      within(entriesRegion).getByText(
+        "Verknüpfte Aufgabe: Modulaufgabe mit Bezug",
+      ),
+    ).toBeVisible();
+    expect(
+      within(entriesRegion).queryByText(/Führender Kalendertermin/),
+    ).toBeNull();
+
+    const notesRegion = screen.getByRole("region", { name: "Notizen" });
+    expect(
+      within(notesRegion).getByText("Synthetische Modulnotiz zur Prüfung"),
+    ).toBeVisible();
+
+    const documentsRegion = screen.getByRole("region", { name: "Dokumente" });
+    expect(within(documentsRegion).getByText("modul-skript.txt")).toBeVisible();
+    /* Freie Verweise bleiben von echten Dokumentrelationen unterscheidbar. */
+    expect(within(documentsRegion).getByText("Skript Kapitel 1")).toBeVisible();
+    expect(
+      within(documentsRegion).getByText(/keine verknüpften Dateien/),
+    ).toBeVisible();
+    expect(
+      within(documentsRegion).getByText(/nicht freigegeben/),
+    ).toBeVisible();
+  });
+
+  it("zeigt leere Modulbereiche verständlich", async () => {
+    installApi({
+      studyPrograms: [studyProgram],
+      studyModules: [{ ...studyModule, grade: null, documentReferences: [] }],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+
+    await openModuleDetail(user);
+
+    expect(
+      screen.getByText("Noch keine Aufgabe mit diesem Modulbezug."),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Noch kein Termin, keine Frist und keine Lernzeit hinterlegt.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Noch keine Notiz mit diesem Modulbezug."),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Noch keine lokale Datei mit diesem Modul verknüpft."),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Keine Dokumentverweise hinterlegt."),
+    ).toBeVisible();
+    expect(screen.getByText("Ohne Note")).toBeVisible();
+  });
+
+  it("bearbeitet Modul, Eintrag, Aufgabe, Notiz und Dokument über die bestehenden Facheditoren", async () => {
+    installApi({
+      studyPrograms: [studyProgram],
+      studyModules: [studyModule],
+      studyEntries: [studyEntry],
+      tasks: [moduleTask],
+      knowledgeNotes: [moduleNote],
+      knowledgeDocuments: [moduleDocument],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await openModuleDetail(user);
+
+    /* Modul über das wiederverwendete Studienformular. */
+    await user.click(screen.getByRole("button", { name: "Modul bearbeiten" }));
+    const moduleForm = screen
+      .getByRole("heading", { name: "Modul bearbeiten" })
+      .closest("form");
+    expect(moduleForm).not.toBeNull();
+    expect(within(moduleForm!).getByLabelText("Modul oder Kurs")).toHaveValue(
+      "Synthetisches Detailmodul",
+    );
+    await user.clear(within(moduleForm!).getByLabelText("Note (optional)"));
+    await user.type(
+      within(moduleForm!).getByLabelText("Note (optional)"),
+      "2,0",
+    );
+    await user.click(
+      within(moduleForm!).getByRole("button", { name: "Speichern" }),
+    );
+
+    /* Das aktualisierte Objekt bleibt ausgewählt und zeigt den neuen Wert. */
+    expect(
+      await screen.findByRole("heading", {
+        name: "Synthetisches Detailmodul",
+        level: 1,
+      }),
+    ).toBeVisible();
+    expect(
+      within(screen.getByRole("region", { name: "Modulangaben" })).getByText(
+        "2,0",
+      ),
+    ).toBeVisible();
+
+    /* Studieneintrag über das wiederverwendete Studienformular. */
+    await user.click(
+      screen.getByRole("button", { name: "Eintrag bearbeiten" }),
+    );
+    const entryForm = screen
+      .getByRole("heading", { name: "Studieneintrag bearbeiten" })
+      .closest("form");
+    expect(entryForm).not.toBeNull();
+    await user.clear(within(entryForm!).getByLabelText("Bezeichnung"));
+    await user.type(
+      within(entryForm!).getByLabelText("Bezeichnung"),
+      "Synthetische Detailprüfung neu",
+    );
+    await user.click(
+      within(entryForm!).getByRole("button", { name: "Speichern" }),
+    );
+    expect(
+      await screen.findByText("Synthetische Detailprüfung neu"),
+    ).toBeVisible();
+
+    /* Aufgabe über den gemeinsamen Aufgabeneditor. */
+    await user.click(
+      within(screen.getByRole("region", { name: "Aufgaben" })).getByRole(
+        "button",
+        { name: "Aufgabe öffnen" },
+      ),
+    );
+    const taskEditor = await screen.findByRole("region", {
+      name: "Modulaufgabe mit Bezug",
+    });
+    expect(within(taskEditor).getByLabelText("Studienmodul")).toHaveValue(
+      "modul-detail",
+    );
+
+    /* Notiz über die Wissensansicht: die Modulauswahl bleibt bestehen. */
+    await user.click(screen.getAllByRole("button", { name: "Studium" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Notiz öffnen" }));
+    expect(
+      await screen.findByRole("heading", { name: "Notiz bearbeiten" }),
+    ).toBeVisible();
+    await user.clear(screen.getByLabelText("Titel"));
+    await user.type(
+      screen.getByLabelText("Titel"),
+      "Synthetische Modulnotiz neu",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Änderung speichern" }),
+    );
+    expect(
+      await screen.findByDisplayValue("Synthetische Modulnotiz neu"),
+    ).toBeVisible();
+
+    /* Dokument über die Wissensansicht; nur Metadaten und Verknüpfungen. */
+    await user.click(screen.getAllByRole("button", { name: "Studium" })[0]!);
+    await user.click(
+      screen.getByRole("button", { name: "Dokument bearbeiten" }),
+    );
+    const documentEditor = await screen.findByRole("heading", {
+      name: "Dokument bearbeiten",
+    });
+    expect(documentEditor).toBeVisible();
+    const documentForm = documentEditor.closest("form");
+    expect(documentForm).not.toBeNull();
+    expect(within(documentForm!).getByLabelText("Studienmodul")).toHaveValue(
+      "modul-detail",
+    );
+    expect(
+      within(documentForm!).getByText(/Datei bleibt unverändert/),
+    ).toBeVisible();
+    await user.click(
+      within(documentForm!).getByLabelText("Für lokale Suche freigeben"),
+    );
+    await user.click(
+      within(documentForm!).getByRole("button", { name: "Änderung speichern" }),
+    );
+    expect(
+      await screen.findByText("Das Dokument wurde aktualisiert."),
+    ).toBeVisible();
+    const reloadedDocument = screen
+      .getByRole("heading", { name: "Dokument bearbeiten" })
+      .closest("form");
+    expect(
+      within(reloadedDocument!).getByLabelText("Für lokale Suche freigeben"),
+    ).toBeChecked();
+  });
+
+  it("bewahrt beim Bearbeiten eines Studieneintrags die gespeicherte Zeitzone und den Zeitpunkt", async () => {
+    /**
+     * Zeitgebundener Eintrag in einer anderen Zeitzone als der Profilzeitzone.
+     * `startsAt`/`endsAt` sind feste Zeitpunkte; die sichtbare Wandzeit ergibt
+     * sich aus der gespeicherten Eintragszeitzone (America/New_York, UTC−4).
+     */
+    const timedEntry = {
+      ...studyEntry,
+      dueDate: null,
+      startsAt: "2033-04-11T06:30:00.000Z",
+      endsAt: "2033-04-11T08:00:00.000Z",
+      timezone: "America/New_York",
+    };
+    const { studyEntryUpdates } = installApi({
+      studyPrograms: [studyProgram],
+      studyModules: [studyModule],
+      studyEntries: [timedEntry],
+      profileTimezone: "Europe/Berlin",
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await openModuleDetail(user);
+
+    await user.click(
+      screen.getByRole("button", { name: "Eintrag bearbeiten" }),
+    );
+    const entryForm = screen
+      .getByRole("heading", { name: "Studieneintrag bearbeiten" })
+      .closest("form");
+    expect(entryForm).not.toBeNull();
+
+    /* Angezeigt wird die Wandzeit der gespeicherten Eintragszeitzone. */
+    expect(within(entryForm!).getByLabelText("Beginn")).toHaveValue(
+      "2033-04-11T02:30",
+    );
+    expect(within(entryForm!).getByLabelText("Ende")).toHaveValue(
+      "2033-04-11T04:00",
+    );
+
+    /* Speichern ohne Zeitänderung erhält Zeitpunkt und Zeitzone. */
+    await user.click(
+      within(entryForm!).getByRole("button", { name: "Speichern" }),
+    );
+    await waitFor(() => expect(studyEntryUpdates).toHaveLength(1));
+    const payload = studyEntryUpdates[0]!;
+    expect(payload.startsAt).toBe("2033-04-11T06:30:00.000Z");
+    expect(payload.endsAt).toBe("2033-04-11T08:00:00.000Z");
+    expect(payload.timezone).toBe("America/New_York");
+    expect(payload.dueDate).toBeNull();
+  });
+
+  it("öffnet Suchtreffer für Modul, Eintrag, Notiz, Dokument und Projekt konkret", async () => {
+    installApi({
+      studyPrograms: [studyProgram],
+      studyModules: [studyModule],
+      studyEntries: [studyEntry],
+      knowledgeNotes: [moduleNote],
+      knowledgeDocuments: [moduleDocument],
+      projects: [searchProject],
+      searchResults: [
+        searchResultFixtures.module,
+        searchResultFixtures.entry,
+        searchResultFixtures.note,
+        searchResultFixtures.document,
+        searchResultFixtures.project,
+      ],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Wissen" })[0]!);
+    await screen.findByRole("heading", { name: "Notizen & Dokumente" });
+
+    /** Führt die lokale Suche aus und öffnet den Treffer mit diesem Titel. */
+    const openResult = async (title: string) => {
+      const searchRegion = screen.getByRole("region", {
+        name: "Freigegebene Inhalte finden",
+      });
+      await user.clear(within(searchRegion).getByLabelText("Suchbegriff"));
+      await user.type(
+        within(searchRegion).getByLabelText("Suchbegriff"),
+        "Synthetisch",
+      );
+      await user.click(
+        within(searchRegion).getByRole("button", { name: "Suchen" }),
+      );
+      const card = (await within(searchRegion).findByText(title)).closest(
+        "article",
+      );
+      expect(card).not.toBeNull();
+      await user.click(
+        within(card!).getByRole("link", { name: "Quelle öffnen" }),
+      );
+    };
+
+    /* Das Studienmodul öffnet genau dieses Modul. */
+    await openResult("Synthetisches Detailmodul");
+    expect(
+      await screen.findByRole("heading", {
+        name: "Synthetisches Detailmodul",
+        level: 1,
+      }),
+    ).toBeVisible();
+
+    /* Der Studieneintrag öffnet das Modul mit markiertem Eintrag. */
+    await user.click(screen.getAllByRole("button", { name: "Wissen" })[0]!);
+    await openResult("Synthetische Detailprüfung");
+    expect(
+      await screen.findByRole("heading", {
+        name: "Synthetisches Detailmodul",
+        level: 1,
+      }),
+    ).toBeVisible();
+    const highlighted = screen
+      .getByText("Synthetische Detailprüfung")
+      .closest("article");
+    expect(highlighted).not.toBeNull();
+    expect(highlighted).toHaveAttribute("aria-current", "true");
+    expect(within(highlighted!).getByText("Suchtreffer")).toBeVisible();
+
+    /* Die Notiz öffnet genau diese Notiz. */
+    await user.click(screen.getAllByRole("button", { name: "Wissen" })[0]!);
+    await openResult("Synthetische Modulnotiz zur Prüfung");
+    expect(
+      await screen.findByDisplayValue("Synthetische Modulnotiz zur Prüfung"),
+    ).toBeVisible();
+
+    /* Das Dokument öffnet genau dieses Dokument über seine Metadaten. */
+    await user.click(screen.getAllByRole("button", { name: "Wissen" })[0]!);
+    await openResult("modul-skript.txt");
+    const documentForm = (
+      await screen.findByRole("heading", { name: "Dokument bearbeiten" })
+    ).closest("form");
+    expect(documentForm).not.toBeNull();
+    expect(within(documentForm!).getByLabelText("Studienmodul")).toHaveValue(
+      "modul-detail",
+    );
+
+    /* Das Projekt behält seinen bestehenden Navigationsweg. */
+    await user.click(screen.getAllByRole("button", { name: "Wissen" })[0]!);
+    await openResult("Synthetisches Suchprojekt");
+    expect(
+      await screen.findByRole("heading", { name: "Synthetisches Suchprojekt" }),
+    ).toBeVisible();
+  });
+
+  it("zeigt für nicht mehr auffindbare Suchziele einen Fehlerzustand ohne fremdes Objekt", async () => {
+    installApi({
+      studyPrograms: [studyProgram],
+      studyModules: [studyModule],
+      studyEntries: [studyEntry],
+      knowledgeNotes: [
+        moduleNote,
+        {
+          ...moduleNote,
+          id: "notiz-weg",
+          title: "Archivierte Suchnotiz",
+          archivedAt: "2032-03-01T00:00:00.000Z",
+        },
+      ],
+      knowledgeDocuments: [moduleDocument],
+      searchResults: [
+        {
+          ...searchResultFixtures.module,
+          id: "modul-weg",
+          source: { ...moduleSource, id: "modul-weg" },
+        },
+        /* Das Modul besteht weiter, der markierte Eintrag ist verschwunden. */
+        { ...searchResultFixtures.entry, id: "eintrag-weg" },
+        {
+          ...searchResultFixtures.note,
+          id: "notiz-weg",
+          source: { id: "notiz-weg", type: "note" as const, title: "Weg" },
+        },
+        {
+          ...searchResultFixtures.document,
+          id: "dokument-weg",
+          source: {
+            id: "dokument-weg",
+            type: "document" as const,
+            title: "Weg",
+          },
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Wissen" })[0]!);
+    await screen.findByRole("heading", { name: "Notizen & Dokumente" });
+    /** Liefert die Trefferkarte mit diesem Titel innerhalb der lokalen Suche. */
+    const searchCard = async (title: string) => {
+      const searchRegion = screen.getByRole("region", {
+        name: "Freigegebene Inhalte finden",
+      });
+      await user.clear(within(searchRegion).getByLabelText("Suchbegriff"));
+      await user.type(
+        within(searchRegion).getByLabelText("Suchbegriff"),
+        "Synthetisch",
+      );
+      await user.click(
+        within(searchRegion).getByRole("button", { name: "Suchen" }),
+      );
+      const card = (await within(searchRegion).findByText(title)).closest(
+        "article",
+      );
+      expect(card).not.toBeNull();
+      return card!;
+    };
+
+    /* Ein fehlendes Modul öffnet ausdrücklich kein anderes Modul. */
+    await user.click(
+      within(await searchCard("Synthetisches Detailmodul")).getByRole("link", {
+        name: "Quelle öffnen",
+      }),
+    );
+    expect(
+      await screen.findByText(
+        "Das gesuchte Studienmodul ist nicht mehr verfügbar. Es wurde kein anderes Modul geöffnet.",
+      ),
+    ).toBeVisible();
+    /* Die Studienübersicht bleibt erreichbar; kein anderes Modul wird geöffnet. */
+    expect(
+      await screen.findByRole("heading", {
+        name: "Lernen nachvollziehbar planen",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", {
+        name: "Synthetisches Detailmodul",
+        level: 1,
+      }),
+    ).toBeNull();
+    /* Ein fehlender Eintrag öffnet kein anderes Modul. */
+    await user.click(screen.getAllByRole("button", { name: "Wissen" })[0]!);
+    await user.click(
+      within(await searchCard("Synthetische Detailprüfung")).getByRole("link", {
+        name: "Quelle öffnen",
+      }),
+    );
+    expect(
+      await screen.findByText(
+        "Der gesuchte Studieneintrag ist nicht mehr verfügbar. Es wurde kein anderes Modul geöffnet.",
+      ),
+    ).toBeVisible();
+
+    /* Eine fehlende Notiz öffnet keine andere Notiz. */
+    await user.click(screen.getAllByRole("button", { name: "Wissen" })[0]!);
+    await user.click(
+      within(await searchCard("Synthetische Modulnotiz zur Prüfung")).getByRole(
+        "link",
+        { name: "Quelle öffnen" },
+      ),
+    );
+    expect(
+      await screen.findByText(
+        "Die gesuchte Notiz ist archiviert und wird nicht geöffnet. Es wurde keine andere Notiz geöffnet.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByDisplayValue("Synthetische Modulnotiz zur Prüfung"),
+    ).toBeNull();
+
+    /* Ein fehlendes Dokument öffnet kein anderes Dokument. */
+    await user.click(
+      within(await searchCard("modul-skript.txt")).getByRole("link", {
+        name: "Quelle öffnen",
+      }),
+    );
+    expect(
+      await screen.findByText(
+        "Das gesuchte Dokument ist nicht mehr verfügbar. Es wurde kein anderes Dokument geöffnet.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Dokument bearbeiten" }),
+    ).toBeNull();
   });
 });

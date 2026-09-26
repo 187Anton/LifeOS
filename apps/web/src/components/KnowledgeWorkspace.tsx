@@ -1,5 +1,6 @@
 import type {
   CreateNoteRequest,
+  DocumentResponse,
   KnowledgeOverviewResponse,
   NoteDetailResponse,
   ProjectResponse,
@@ -10,9 +11,9 @@ import type {
   UpdateDocumentRequest,
   UpdateNoteRequest,
 } from "@lifeos/contracts";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import { ArchiveIcon, ReopenIcon, TrashIcon } from "./Icons";
+import { ArchiveIcon, EditIcon, ReopenIcon, TrashIcon } from "./Icons";
 
 interface Props {
   overview: KnowledgeOverviewResponse | null;
@@ -23,6 +24,14 @@ interface Props {
   saving: boolean;
   error: string | null;
   success: string | null;
+  /**
+   * Aus der Suche oder der Moduldetailansicht geöffnetes Dokument. Es wird in
+   * den vorhandenen Metadaten- und Verknüpfungsfeldern bearbeitet; der
+   * Dateiinhalt bleibt unverändert.
+   */
+  selectedDocumentId: string | null;
+  onSelectDocument: (id: string) => void;
+  onCloseDocument: () => void;
   search: SearchResponse | null;
   searchLoading: boolean;
   searchError: string | null;
@@ -76,6 +85,14 @@ export const KnowledgeWorkspace = (props: Props) => {
   const [documentSearchEnabled, setDocumentSearchEnabled] = useState(false);
   const [query, setQuery] = useState("");
   const [aiQuery, setAiQuery] = useState("");
+  /**
+   * Gewähltes Dokument. Es wird ausschließlich aus der geladenen Übersicht
+   * aufgelöst; eine nicht mehr vorhandene Auswahl öffnet kein anderes Dokument.
+   */
+  const selectedDocument =
+    props.overview?.documents.find(
+      (document) => document.id === props.selectedDocumentId,
+    ) ?? null;
 
   const notePayload = (): CreateNoteRequest => ({
     title: note.title,
@@ -532,7 +549,14 @@ export const KnowledgeWorkspace = (props: Props) => {
         </form>
         <div className="document-list">
           {props.overview?.documents.map((document) => (
-            <article className="document-card" key={document.id}>
+            <article
+              className={
+                props.selectedDocumentId === document.id
+                  ? "document-card active"
+                  : "document-card"
+              }
+              key={document.id}
+            >
               <div>
                 <strong>{document.fileName}</strong>
                 <p>
@@ -544,10 +568,24 @@ export const KnowledgeWorkspace = (props: Props) => {
                 </p>
                 <small>
                   SHA-256: {document.sha256.slice(0, 12)}…
+                  {document.studyModule
+                    ? ` · Modul: ${document.studyModule.title}`
+                    : ""}
+                  {document.project
+                    ? ` · Projekt: ${document.project.title}`
+                    : ""}
+                  {document.searchEnabled ? " · Suchfreigabe" : ""}
                   {document.archivedAt ? " · archiviert" : ""}
                 </small>
               </div>
               <div className="form-actions">
+                <button
+                  className="secondary-button"
+                  disabled={props.saving}
+                  onClick={() => props.onSelectDocument(document.id)}
+                >
+                  <EditIcon /> Metadaten bearbeiten
+                </button>
                 <a className="secondary-button" href={document.contentUrl}>
                   Herunterladen
                 </a>
@@ -574,6 +612,24 @@ export const KnowledgeWorkspace = (props: Props) => {
             <p className="empty-state">Noch keine lokalen Dokumente.</p>
           ) : null}
         </div>
+        {props.selectedDocumentId && !selectedDocument ? (
+          <p className="empty-state" role="status">
+            Das gewählte Dokument ist nicht mehr verfügbar. Es wurde kein
+            anderes Dokument geöffnet.
+          </p>
+        ) : null}
+        {selectedDocument ? (
+          <DocumentEditor
+            key={selectedDocument.id}
+            document={selectedDocument}
+            projects={props.projects}
+            modules={props.modules}
+            saving={props.saving}
+            onClose={props.onCloseDocument}
+            onUpdate={props.onUpdateDocument}
+            onDelete={props.onDeleteDocument}
+          />
+        ) : null}
       </section>
     </main>
   );
@@ -594,6 +650,128 @@ const contentTypeLabel = (contentType: SearchResultResponse["contentType"]) =>
 const matchReasonLabel = (reason: SearchResultResponse["matchReason"]) =>
   ({ title: "Titel", content: "Inhalt", metadata: "Metadaten" })[reason];
 
+const DocumentEditor = ({
+  document,
+  projects,
+  modules,
+  saving,
+  onClose,
+  onUpdate,
+  onDelete,
+}: {
+  document: DocumentResponse;
+  projects: ProjectResponse[];
+  modules: StudyModuleResponse[];
+  saving: boolean;
+  onClose: () => void;
+  onUpdate: (id: string, value: UpdateDocumentRequest) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+}) => {
+  const region = useRef<HTMLFormElement>(null);
+  const [projectId, setProjectId] = useState(document.project?.id ?? "");
+  const [studyModuleId, setStudyModuleId] = useState(
+    document.studyModule?.id ?? "",
+  );
+  const [searchEnabled, setSearchEnabled] = useState(document.searchEnabled);
+  useEffect(() => {
+    /* Fokusführung: das geöffnete Objekt wird unmittelbar bedienbar. */
+    region.current?.focus();
+  }, []);
+  return (
+    <form
+      ref={region}
+      tabIndex={-1}
+      className="study-section document-editor"
+      aria-labelledby="document-editor-title"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void onUpdate(document.id, {
+          projectId: projectId || null,
+          studyModuleId: studyModuleId || null,
+          searchEnabled,
+        });
+      }}
+    >
+      <header>
+        <div>
+          <p className="eyebrow">Vorhandene Metadaten und Verknüpfungen</p>
+          <h2 id="document-editor-title">Dokument bearbeiten</h2>
+        </div>
+        <button type="button" className="text-button" onClick={onClose}>
+          Schließen
+        </button>
+      </header>
+      <p className="muted-copy">
+        {document.fileName} · {document.mimeType} ·{" "}
+        {(document.byteSize / 1024).toLocaleString("de-DE", {
+          maximumFractionDigits: 1,
+        })}{" "}
+        KiB
+      </p>
+      <div className="form-grid">
+        <LinkSelect
+          label="Projekt"
+          value={projectId}
+          onChange={setProjectId}
+          options={projects}
+        />
+        <LinkSelect
+          label="Studienmodul"
+          value={studyModuleId}
+          onChange={setStudyModuleId}
+          options={modules}
+        />
+      </div>
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          checked={searchEnabled}
+          onChange={(event) => setSearchEnabled(event.target.checked)}
+        />
+        Für lokale Suche freigeben
+      </label>
+      <p className="field-hint">
+        Hier werden nur Metadaten und Verknüpfungen geändert. Die abgelegte
+        Datei bleibt unverändert; ein neuer Inhalt entsteht ausschließlich über
+        die Ablage oben.
+      </p>
+      <div className="form-actions">
+        <button className="primary-button" disabled={saving}>
+          Änderung speichern
+        </button>
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={saving}
+          onClick={() =>
+            void onUpdate(document.id, { archived: !document.archivedAt })
+          }
+        >
+          {document.archivedAt ? <ReopenIcon /> : <ArchiveIcon />}
+          {document.archivedAt ? "Wiederherstellen" : "Archivieren"}
+        </button>
+        <button
+          type="button"
+          className="danger-button"
+          disabled={saving}
+          onClick={() => void onDelete(document.id)}
+        >
+          <TrashIcon /> Löschen
+        </button>
+        <a className="secondary-button" href={document.contentUrl}>
+          Herunterladen
+        </a>
+      </div>
+      {document.archivedAt ? (
+        <small role="status">
+          Dieses Dokument ist archiviert. Es bleibt lesbar und wird nicht
+          automatisch in die lokale Suche aufgenommen.
+        </small>
+      ) : null}
+    </form>
+  );
+};
+
 const LinkSelect = ({
   label,
   value,
@@ -604,18 +782,42 @@ const LinkSelect = ({
   value: string;
   onChange: (value: string) => void;
   options: Array<{ id: string; title: string }>;
-}) => (
-  <label>
-    {label}
-    <select value={value} onChange={(event) => onChange(event.target.value)}>
-      <option value="">Keine Verknüpfung</option>
-      {options
-        .filter((option) => !("archivedAt" in option) || !option.archivedAt)
-        .map((option) => (
+}) => {
+  const available = options.filter(
+    (option) => !("archivedAt" in option) || !option.archivedAt,
+  );
+  /**
+   * Ein archivierter Bestandsbezug bleibt wählbar und sichtbar; sonst würde
+   * ein unveränderter Wert beim Speichern stillschweigend verschwinden.
+   */
+  const archivedCurrent = options.find(
+    (option) =>
+      option.id === value && !available.some((entry) => entry.id === option.id),
+  );
+  /** Ein gänzlich unbekanntes Ziel bleibt sichtbar und ausdrücklich benannt. */
+  const unknown =
+    Boolean(value) &&
+    !archivedCurrent &&
+    !available.some((option) => option.id === value);
+  return (
+    <label>
+      {label}
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="">Keine Verknüpfung</option>
+        {archivedCurrent ? (
+          <option value={archivedCurrent.id}>
+            {archivedCurrent.title} (archiviert)
+          </option>
+        ) : null}
+        {unknown ? (
+          <option value={value}>Nicht mehr verfügbares Ziel</option>
+        ) : null}
+        {available.map((option) => (
           <option key={option.id} value={option.id}>
             {option.title}
           </option>
         ))}
-    </select>
-  </label>
-);
+      </select>
+    </label>
+  );
+};
