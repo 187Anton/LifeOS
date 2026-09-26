@@ -22,6 +22,10 @@ const textMimeTypes = new Set([
   "application/json",
 ]);
 
+/** `true`, wenn ein Format lokal als UTF-8-Text gelesen werden kann. */
+export const isLocalTextMimeType = (mimeType: string): boolean =>
+  textMimeTypes.has(mimeType);
+
 export const extractLocalDocumentText = (
   mimeType: string,
   bytes: Buffer,

@@ -1,34 +1,32 @@
 # Kohärenzumbau: Fortschritt und nächste Übergabe
 
-Stand: 25.09.2026. Diese Datei ist eine Übergabe, kein Ersatz für Live-Prüfungen.
+Stand: 26.09.2026. Diese Datei ist eine Übergabe, kein Ersatz für Live-Prüfungen.
 Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Aktuelles Paket
 
-- Paket: **6 – Moduldetailseite und gemeinsame Dokument-/Notizbedienung** lokal
-  umgesetzt, geprüft und um eine Korrekturrunde nachgezogen (Zeitzone beim
-  Bearbeiten von Studieneinträgen, Produktdokumentation, Pflicht-CI). Stand
-  dieser Runde: **77/77** Web-Unit-Tests in 11 Dateien (76 vorher, inklusive des
-  neuen Zeitzonen-Regressionstests), **48/48** E2E-Tests in beiden
-  Browserprojekten, **19/19** Repository-Tests, dazu `typecheck`, `lint`,
-  `format:check`, `build`, `repo:check` und `security:secrets` bestanden. Die
-  API-Suite wurde in dieser Runde nicht erneut ausgeführt, weil keine API-Datei
-  geändert wurde; ihr letzter gemessener Stand bleibt 121/121. Der Head dieser
-  Runde entsteht nach dem Push; seine Pflicht-CI ist über
-  [PR #126](https://github.com/187Anton/LifeOS/pull/126) live zu lesen und dort
-  separat zu prüfen. Vor dieser Runde war PR #126 gegen `develop` eröffnet
-  (`MERGEABLE`, `CLEAN`) und nicht gemergt.
-- Vorgänger: **Paket 5** ist über
-  [PR #125](https://github.com/187Anton/LifeOS/pull/125) nach `develop`
-  integriert. Live bestätigt sind der Merge-Commit `f37524d`
-  (`fix(calendar): share calendar and planning projection rules`) als Spitze von
-  `origin/develop`, `git merge-base --is-ancestor f37524d origin/develop` sowie
-  beide Pflichtchecks `Repository checks` und `Local macOS release` als `pass`
-  über `gh pr checks 125`. Die Paket-5-Details dieser Datei bleiben als
-  Nachweisabschnitte weiter unten erhalten.
-- Branch: `feat/coherence-module-detail`.
-- Basis: `f37524d` (`origin/develop`, PR #125).
-- Worktree: `/private/tmp/lifeos-coherence-module-detail`; der Hauptcheckout
+- Paket: **7 – PDF-Textextraktion und modulspezifische Suche** lokal umgesetzt
+  und geprüft. Stand dieser Runde: **142/142** API-Tests (121 vorher),
+  **33/33** Datenbanktests, **81/81** Web-Unit-Tests in 11 Dateien und die
+  Playwright-E2E-Nachweise auf Desktop und Smartphone für Upload, erneute
+  Verarbeitung, Seitentreffer, Modulsuche, Widerruf und Löschung. Dazu
+  `db:validate`, `db:sqlite:validate`, `db:generate`, `db:sqlite:generate`,
+  `db:sqlite:verify:recovery`, `verify:sqlite:api-runtime`,
+  `desktop:verify:sidecar`, `typecheck`, `lint`, `format:check`, `build`,
+  `repo:check` und `security:secrets`. Der Head dieser Runde entsteht nach dem
+  Push; ein Merge ist nicht beauftragt und wurde nicht ausgeführt.
+- Vorgänger: **Paket 6** ist über
+  [PR #126](https://github.com/187Anton/LifeOS/pull/126) nach `develop`
+  integriert. Live bestätigt sind der Merge-Commit `65de029`
+  (`feat(study): add bound module detail view`) als Spitze von
+  `origin/develop`, `git merge-base --is-ancestor 65de029 origin/develop` sowie
+  beide Pflichtchecks über `gh pr checks 126`. Paket 5 ist davor über
+  [PR #125](https://github.com/187Anton/LifeOS/pull/125) mit Merge-Commit
+  `f37524d` integriert. Die Paket-5- und Paket-6-Details dieser Datei bleiben
+  als Nachweisabschnitte weiter unten erhalten.
+- Branch: `feat/coherence-pdf-extraction`.
+- Basis: `65de029` (`origin/develop`, PR #126).
+- Worktree: `/private/tmp/lifeos-coherence-pdf-extraction`; der Hauptcheckout
   `/Users/anton/Projekte/LifeOS` blieb unverändert.
 - Umsetzung: genau ein Worker für Umsetzung, Prüfung und Nachweise; keine
   Subagenten, keine zweite Schreibinstanz und kein paralleler Agent.
@@ -53,6 +51,95 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   auf vorhandenen Antworten und vorhandenen Besitzfiltern auf. Offen ist die
   live zu lesende Pflicht-CI des Heads dieser Korrekturrunde; ein Merge ist
   nicht beauftragt und wurde nicht ausgeführt.
+
+## Paket 7 – lokale Nachweise (26.09.2026)
+
+### Ausgangsprüfung
+
+Paket 6 war harte Vorgängerabhängigkeit und ist live bestätigt:
+`feat(study): add bound module detail view (#126)` ist mit Merge-Commit
+`65de029` die Spitze von `origin/develop`; `git merge-base --is-ancestor 65de029
+origin/develop` liefert wahr und beide Pflichtchecks standen auf `pass`. Der
+Worktree `/private/tmp/lifeos-coherence-pdf-extraction` (Branch
+`feat/coherence-pdf-extraction`) wurde auf genau diesem Stand angelegt; der
+Hauptcheckout blieb unverändert.
+
+### Parserbibliothek und Grenzen
+
+Gewählt wurde `pdfjs-dist@6.3.289` (Apache-2.0), gebündelt über esbuild direkt
+in das eine Laufzeitpaket des Mac-Sidecars. Nachgewiesen ist:
+
+- Lizenz und Sicherheitslage: Apache-2.0, keine native Zusatzabhängigkeit.
+- Node-22-Kompatibilität: Der Worker lädt ohne eigene Worker-Datei über den
+  Main-Thread-Handler `pdfjsWorker.WorkerMessageHandler`.
+- Bundling: ein einziges Bundle, das isoliert ohne `node_modules` läuft.
+- Offline-Betrieb: Der Parser erhält ausschließlich `data`, nie eine URL;
+  zusätzlich `disableAutoFetch`, `disableRange`, `disableStream` und
+  `useWorkerFetch: false`. Ein Test belegt, dass während der Extraktion kein
+  `fetch`-Aufruf entsteht.
+
+Feste Grenzen: Eingabe 25 MiB (bestehende Ablagegrenze), 1 000 Seiten je Lauf,
+1 000 000 Byte extrahierter Text (identisch zur Textgrenze der Ablage), 20 s
+Laufzeit und 256 MiB Speichergrenze des Arbeits-Threads. Seiten- und
+Textüberschreitung setzen `extractionTruncated`; ein Laufzeitabbruch liefert
+`failed` mit `errorCode: "timeout"`.
+
+### Datenmodell
+
+`Document` trägt jetzt `extractionStatus`, `extractionVersion`,
+`extractionSha256`, `extractionErrorCode`, `extractionPageCount`,
+`extractionTruncated`, `extractionPages` und `extractedAt`. Alle Spalten sind
+additiv; die Tabelle wird nicht neu aufgebaut. Beide Anbieter (PostgreSQL und
+SQLite) erhalten je eine neue versionierte Migration mit denselben
+Statuswerten und Prüfungen (`jsonb_typeof`/`json_type` = `array`, Statusenum,
+Hashformat). Bestehende Textextraktionen werden datenerhaltend als
+`legacy-text-v1` gekennzeichnet und bleiben hashaktuell; Bestands-PDFs bleiben
+`pending` und werden erst durch die erneute Verarbeitung bewertet. Es entstand
+kein zweiter Dokumentenspeicher und kein separater Suchindex.
+
+### Extraktion und Suche
+
+Die Verarbeitung läuft in einem begrenzten Worker-Thread. Deaktiviert sind
+Netzzugriffe, Dokument-JavaScript, Anhänge und Rendering (keine Schrift-,
+Bild- oder Canvas-Pfade). Die Rückgabe nennt Seitenzahl, Seitentexte und genau
+einen der Werte `pending`, `available`, `no_text`, `protected`, `unsupported`
+oder `failed`. Upload, Download und erneute Verarbeitung verwenden dieselbe
+SHA-256-Prüfung; ein Parserfehler verliert die abgelegte Datei nicht. Klartext
+aus Dokumenten erscheint weder in Protokollen noch in Audits.
+
+Die Suche nennt bei seitenbezogenen Quellen die betroffene Seite (`page`,
+`pages`) und akzeptiert den optionalen Filter `studyModuleId`. Inhalt wird
+ausschließlich aus einer eigenen, aktiven, freigegebenen und hashaktuellen
+Extraktion verwendet; ausstehende, fehlgeschlagene, geschützte, textfreie und
+veraltete Extraktionen liefern keinen Inhalt, bleiben aber über Metadaten
+auffindbar. Der Modulfilter umfasst Modul-, Studien-, Notiz- und
+Dokumentquellen; Aufgaben bleiben normale Fachfilter.
+
+### Nachweise dieser Runde
+
+- `npm test --workspace @lifeos/api`: **142/142** grün (vorher 121/121; 21 neue
+  PDF-, Such- und Integrationstests).
+- `npm test --workspace @lifeos/database`: **33/33** grün, darunter der neue
+  Nachweis, dass Bestandsdokumente datenerhaltend übernommen werden.
+- `npm run test:unit --workspace @lifeos/web`: **81/81** grün in 11 Dateien
+  (vier neue Tests für Extraktionszustand, erneute Verarbeitung, Seitenanzeige
+  und Modulsuche).
+- PDF-Unit-Tests decken ein- und mehrseitige Dokumente, leere Seiten,
+  bildbasierte Dateien ohne Text, geschützte, abgeschnittene und strukturell
+  defekte Dateien, zu große Eingaben, Seiten- und Textgrenzen, Laufzeitabbruch,
+  deaktiviertes JavaScript und fehlende Netz-/Anhangspfade ab.
+
+### Offene Risiken und bewusst unveränderte Punkte
+
+- Im Test beobachtet: Die Parserbibliothek gibt Text, den ein Dokument
+  außerhalb seiner Seitenfläche setzt, nicht aus. Das betrifft fehlerhaft
+  gesetzte Dateien; regulär umbrochener Text innerhalb der Seitenfläche ist
+  vollständig extrahierbar. Diese Grenze ist in `docs/api/knowledge.md`
+  dokumentiert.
+- OCR, PPTX-/DOCX-Extraktion, Vektorsuche, KI-Verarbeitung und externe Dienste
+  bleiben Nicht-Ziel und wurden nicht angefasst.
+- `LifeOS Leitfaden.docx` wurde bewusst nicht geändert; damit war keine
+  DOCX-Renderprüfung nötig.
 
 ## Paket 6 – lokale Nachweise
 

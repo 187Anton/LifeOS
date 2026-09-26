@@ -544,6 +544,24 @@ des gespeicherten Zwischenstands fort; starte kein weiteres Paket.“
   Pflichtchecks `pass`) bestätigt worden. Keine Schemaänderung, keine Migration,
   keine neue API-Ressource, kein zweiter Dokumentenspeicher, keine
   Dateiextraktion, keine KI-Funktion und kein neuer Schreibpfad.
+- 26.09.2026: Paket 7 nach lokalem Nachweis dokumentiert (PDF-Textextraktion und
+  modulspezifische Suche). Festgehalten sind die lokale, seitenbezogene
+  Textextraktion aus PDF-Dokumenten mit dokumentgebundenem Status
+  (`pending`, `available`, `no_text`, `protected`, `unsupported`, `failed`),
+  Quellprüfsumme, Extraktionsversion, Fehlercode und Seitenfundstellen;
+  die datenerhaltende Kennzeichnung bestehender Textextraktionen als
+  `legacy-text-v1` bei ausstehenden Bestands-PDFs; der begrenzte lokale
+  Worker-Thread mit deaktivierten Netz-, JavaScript-, Anhang- und
+  Renderingpfaden; Upload, Download und besitzgebundene erneute Verarbeitung
+  über dieselbe SHA-256-Prüfung; die seitenbezogene Suche mit optionalem
+  `studyModuleId`-Filter ausschließlich aus eigenen, aktiven, freigegebenen und
+  hashaktuellen Extraktionen; die Modulsuche aus der Paket-6-Detailansicht; und
+  die sichtbare Darstellung von Extraktionsstatus, „Erneut verarbeiten“ und
+  „Seite …“ in der Wissensansicht. Paket 6 ist zuvor live als Spitze `65de029`
+  von `origin/develop` (PR #126, Merge bestätigt) geprüft worden. Zwei additive
+  versionierte Migrationen (PostgreSQL und SQLite), keine neue API-Ressource,
+  kein zweiter Dokumentenspeicher, kein separater Suchindex, kein Office-Parser,
+  keine OCR, keine Vektorsuche, keine KI-Verarbeitung und kein externer Dienst.
 - 25.09.2026: Korrekturrunde zu Paket 6 (drei Befunde, weiterhin nur Paket 6).
   Festgehalten sind der Erhalt der gespeicherten Zeitzone und des Zeitpunkts
   beim Bearbeiten eines bestehenden Studieneintrags samt Regressionstest mit

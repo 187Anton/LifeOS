@@ -501,3 +501,328 @@ test("liefert für jedes Suchziel die öffentliche Identität zum Öffnen", asyn
     !search.results.some((result) => result.title.includes("entfernt")),
   );
 });
+
+test("liefert Seitentreffer und Modulfilter nur aus eigenen, hashaktuellen Freigaben", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalId = `page-owner-${suffix}`;
+  const otherExternalId = `page-other-${suffix}`;
+  const password = `synthetisches-seitenpasswort-${suffix}`;
+  const owner = await database.user.create({
+    data: {
+      externalId,
+      displayName: "Synthetische Seitenperson",
+      settings: { create: {} },
+      credential: { create: { passwordHash: await hashPassword(password) } },
+    },
+  });
+  const other = await database.user.create({
+    data: {
+      externalId: otherExternalId,
+      displayName: "Andere Seitenperson",
+      settings: { create: {} },
+    },
+  });
+  const program = await database.studyProgram.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetisches Studienprogramm",
+      institution: "Synthetische Hochschule",
+      periodLabel: "2033",
+    },
+  });
+  const module = await database.studyModule.create({
+    data: {
+      userId: owner.id,
+      programId: program.id,
+      title: "Quantenplanung Modul",
+      searchEnabled: true,
+    },
+  });
+  const otherModule = await database.studyModule.create({
+    data: {
+      userId: owner.id,
+      programId: program.id,
+      title: "Quantenplanung Zweitmodul",
+      searchEnabled: true,
+    },
+  });
+  const moduleEntry = await database.studyEntry.create({
+    data: {
+      userId: owner.id,
+      moduleId: module.id,
+      kind: "lecture",
+      title: "Quantenplanung Eintrag",
+      notes: "Quantenplanung im Eintrag",
+      startsAt: new Date("2033-01-04T09:00:00.000Z"),
+      endsAt: new Date("2033-01-04T11:00:00.000Z"),
+      timezone: "Europe/Berlin",
+    },
+  });
+  const moduleNote = await database.note.create({
+    data: {
+      userId: owner.id,
+      title: "Quantenplanung Notiz",
+      content: "Quantenplanung im Fließtext der Notiz",
+      searchEnabled: true,
+      studyModuleId: module.id,
+    },
+  });
+  const moduleTask = await database.task.create({
+    data: {
+      userId: owner.id,
+      title: "Quantenplanung Aufgabe",
+      studyModuleId: module.id,
+    },
+  });
+
+  const pageText = [
+    { page: 1, text: "Einleitung ohne Suchbegriff." },
+    { page: 2, text: "Quantenplanung im Skript auf Seite zwei." },
+  ];
+  const documentSource = "a".repeat(64);
+  const scriptDocument = await database.document.create({
+    data: {
+      userId: owner.id,
+      storageKey: `${randomUUID()}.pdf`,
+      fileName: "quantenskript.pdf",
+      mimeType: "application/pdf",
+      byteSize: 1024,
+      sha256: documentSource,
+      modifiedAt: new Date("2033-01-03T12:00:00.000Z"),
+      searchEnabled: true,
+      studyModuleId: module.id,
+      extractionStatus: "available",
+      extractionSha256: documentSource,
+      extractionVersion: "pdfjs-6.3.289/text-v1",
+      extractedText: pageText.map((entry) => entry.text).join("\n"),
+      extractionPages: pageText,
+      extractionPageCount: 2,
+      extractedAt: new Date("2033-01-03T12:00:00.000Z"),
+    },
+  });
+  /** Veraltete Quellprüfsumme: Inhalt liegt vor, passt aber nicht zur Datei. */
+  const staleDocument = await database.document.create({
+    data: {
+      userId: owner.id,
+      storageKey: `${randomUUID()}.pdf`,
+      fileName: "veraltet.pdf",
+      mimeType: "application/pdf",
+      byteSize: 1024,
+      sha256: "b".repeat(64),
+      modifiedAt: new Date("2033-01-03T12:00:00.000Z"),
+      searchEnabled: true,
+      studyModuleId: module.id,
+      extractionStatus: "available",
+      extractionSha256: "c".repeat(64),
+      extractionVersion: "pdfjs-6.3.289/text-v1",
+      extractedText: "Quantenplanung aus einer veralteten Prüfsumme.",
+      extractionPages: [
+        { page: 1, text: "Quantenplanung aus einer veralteten Prüfsumme." },
+      ],
+      extractionPageCount: 1,
+      extractedAt: new Date("2033-01-03T12:00:00.000Z"),
+    },
+  });
+  /** Noch nicht verarbeitet: kein Inhalt, aber das Dokument bleibt auffindbar. */
+  const pendingDocument = await database.document.create({
+    data: {
+      userId: owner.id,
+      storageKey: `${randomUUID()}.pdf`,
+      fileName: "quanten-altbestand.pdf",
+      mimeType: "application/pdf",
+      byteSize: 1024,
+      sha256: "d".repeat(64),
+      modifiedAt: new Date("2033-01-03T12:00:00.000Z"),
+      searchEnabled: true,
+      studyModuleId: module.id,
+      extractionStatus: "pending",
+    },
+  });
+  const foreignNote = await database.note.create({
+    data: {
+      userId: other.id,
+      title: "Quantenplanung fremde Notiz",
+      content: "Quantenplanung einer fremden Person",
+      searchEnabled: true,
+    },
+  });
+
+  const application = createApplication({
+    logger: new SilentLogger(),
+    readinessProbe: { check: async () => undefined },
+    webOrigin: "http://127.0.0.1:5173",
+    moduleRouters: [
+      createProfileRouter({
+        authentication: new AuthenticationService(
+          new PrismaProfileRepository(database, externalId),
+          1,
+        ),
+        profile: new ProfileService(
+          new PrismaProfileRepository(database, externalId),
+        ),
+        secureCookies: false,
+      }),
+      createSearchRouter({
+        authentication: new AuthenticationService(
+          new PrismaProfileRepository(database, externalId),
+          1,
+        ),
+        search: new LocalSearchService(new PrismaSearchRepository(database)),
+      }),
+    ],
+  });
+  const server = createServer(application);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}/api/v1`;
+  t.after(async () => {
+    await close(server);
+    await database.user.deleteMany({
+      where: { externalId: { in: [externalId, otherExternalId] } },
+    });
+    await database.$disconnect();
+  });
+
+  const login = await fetch(`${base}/session`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  const cookie = (login.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+  const searchFor = async (query: string, studyModuleId?: string) =>
+    (await (
+      await fetch(
+        `${base}/search?q=${encodeURIComponent(query)}${
+          studyModuleId ? `&studyModuleId=${studyModuleId}` : ""
+        }`,
+        { headers: { cookie } },
+      )
+    ).json()) as SearchResponse;
+
+  const broad = await searchFor("Quantenplanung");
+  const scriptHit = broad.results.find(
+    (result) => result.id === scriptDocument.id,
+  );
+  /** Ein Seitentreffer nennt die betroffene Seite. */
+  assert.equal(scriptHit?.page, 2);
+  assert.deepEqual(scriptHit?.pages, [2]);
+  assert.equal(scriptHit?.matchReason, "content");
+  assert.match(scriptHit?.snippet ?? "", /Skript auf Seite zwei/);
+  assert.equal(
+    scriptHit?.detailPath,
+    `/knowledge/documents/${scriptDocument.id}`,
+  );
+
+  /**
+   * Ohne hashaktuelle Extraktion entsteht kein Inhaltstreffer: Das Dokument
+   * erscheint nur über seine eigenen Metadaten und ohne Seitenangabe.
+   */
+  const staleHit = broad.results.find(
+    (result) => result.id === staleDocument.id,
+  );
+  assert.equal(staleHit?.matchReason, "metadata");
+  assert.equal(staleHit?.page, null);
+  assert.deepEqual(staleHit?.pages, []);
+  /** Der Text der veralteten Extraktion erscheint in keinem Treffer. */
+  assert.equal((await searchFor("veralteten Prüfsumme")).results.length, 0);
+  /** Nur die hashaktuelle Quelle liefert Inhalt – hier Seite 1 des Skripts. */
+  const firstPageHit = await searchFor("Einleitung ohne Suchbegriff");
+  assert.equal(firstPageHit.results.length, 1);
+  assert.equal(firstPageHit.results[0]?.id, scriptDocument.id);
+  assert.equal(firstPageHit.results[0]?.page, 1);
+  /** Ohne Inhalt bleibt das Dokument über seine Metadaten auffindbar. */
+  const pendingByName = await searchFor("quanten-altbestand.pdf");
+  assert.equal(
+    pendingByName.results.some((result) => result.id === pendingDocument.id),
+    true,
+  );
+  assert.equal(
+    pendingByName.results.find((result) => result.id === pendingDocument.id)
+      ?.page,
+    null,
+  );
+  assert.equal((await searchFor("veralteten Prüfsumme")).results.length, 0);
+
+  /** Sobald Prüfsumme und Status passen, greift dieselbe Quelle sofort. */
+  await database.document.update({
+    where: { id: staleDocument.id },
+    data: { extractionSha256: "b".repeat(64) },
+  });
+  const currentStale = await searchFor("veralteten Prüfsumme");
+  assert.equal(currentStale.results.length, 1);
+  assert.equal(currentStale.results[0]?.id, staleDocument.id);
+  assert.equal(currentStale.results[0]?.page, 1);
+
+  /** Der Modulfilter greift nur auf freigegebene Modulquellen. */
+  const scoped = await searchFor("Quantenplanung", module.id);
+  assert.deepEqual(
+    scoped.results.map((result) => result.id).sort(),
+    [
+      module.id,
+      moduleEntry.id,
+      moduleNote.id,
+      scriptDocument.id,
+      staleDocument.id,
+      /* Ohne Text bleibt das Dokument über seine Modulmetadaten auffindbar. */
+      pendingDocument.id,
+    ].sort(),
+  );
+  assert.equal(
+    scoped.results.some((result) => result.id === module.id),
+    true,
+  );
+  assert.equal(
+    scoped.results.some((result) => result.id === moduleEntry.id),
+    true,
+  );
+  assert.equal(
+    scoped.results.some((result) => result.id === moduleNote.id),
+    true,
+  );
+  assert.equal(
+    scoped.results.some((result) => result.id === scriptDocument.id),
+    true,
+  );
+  /** Aufgaben bleiben Fachfilter und haben keine automatische Suchfreigabe. */
+  assert.equal(
+    scoped.results.some((result) => result.id === moduleTask.id),
+    false,
+  );
+  /** Fremde Module und fremde Freigaben bleiben ausgeschlossen. */
+  assert.equal(
+    scoped.results.some((result) => result.id === otherModule.id),
+    false,
+  );
+  assert.equal(
+    scoped.results.some((result) => result.id === foreignNote.id),
+    false,
+  );
+  assert.ok(scoped.results.every((result) => result.ownerId === owner.id));
+
+  /** Widerruf, Archivierung und Löschung schließen Treffer sofort aus. */
+  await database.document.update({
+    where: { id: scriptDocument.id },
+    data: { searchEnabled: false },
+  });
+  assert.equal((await searchFor("Skript auf Seite zwei")).results.length, 0);
+  await database.document.update({
+    where: { id: scriptDocument.id },
+    data: {
+      searchEnabled: true,
+      archivedAt: new Date("2033-02-01T12:00:00.000Z"),
+    },
+  });
+  assert.equal((await searchFor("Skript auf Seite zwei")).results.length, 0);
+  await database.document.update({
+    where: { id: scriptDocument.id },
+    data: { archivedAt: null, deletedAt: new Date("2033-02-02T12:00:00.000Z") },
+  });
+  assert.equal((await searchFor("Skript auf Seite zwei")).results.length, 0);
+  await database.note.update({
+    where: { id: moduleNote.id },
+    data: { searchEnabled: false },
+  });
+  assert.equal((await searchFor("Fließtext der Notiz")).results.length, 0);
+});

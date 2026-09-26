@@ -111,6 +111,8 @@ interface Props {
   onSelectModule: (moduleId: string) => void;
   /** Kehrt zur separaten Studienübersicht zurück. */
   onClearModuleSelection: () => void;
+  /** Paket 7: Öffnet die Suche beschränkt auf die Quellen dieses Moduls. */
+  onSearchInModule: (moduleId: string) => void;
   onCreateProgram: (value: CreateStudyProgramRequest) => Promise<void>;
   onCreateModule: (value: CreateStudyModuleRequest) => Promise<void>;
   onCreateEntry: (value: CreateStudyEntryRequest) => Promise<void>;
@@ -162,6 +164,7 @@ export const StudyWorkspace = ({
   onReload,
   onSelectModule,
   onClearModuleSelection,
+  onSearchInModule,
   onCreateProgram,
   onCreateModule,
   onCreateEntry,
@@ -258,6 +261,7 @@ export const StudyWorkspace = ({
           notes={notes}
           documents={documents}
           highlightedEntryId={selectedEntryId}
+          onSearchInModule={onSearchInModule}
           timezone={timezone}
           saving={saving}
           error={error}

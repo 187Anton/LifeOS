@@ -621,6 +621,7 @@ try {
     "20260921190000_grocery_lists",
     "20260925120000_remove_finance_module",
     "20260925121600_task_study_module",
+    "20260926120500_document_pdf_extraction",
   ]);
   assert.equal(
     database
@@ -831,7 +832,8 @@ try {
       (entry) =>
         entry.isDirectory() &&
         entry.name !== "20260925120000_remove_finance_module" &&
-        entry.name !== "20260925121600_task_study_module",
+        entry.name !== "20260925121600_task_study_module" &&
+        entry.name !== "20260926120500_document_pdf_extraction",
     )
     .map((entry) => entry.name)
     .sort();
@@ -964,6 +966,17 @@ try {
         .prepare('SELECT "timezone" FROM "UserSettings" WHERE "userId" = ?')
         .get(upgradeUserId).timezone,
       "Europe/Berlin",
+    );
+    // Paket 7: Der Paketpfad zieht den dokumentgebundenen Extraktionszustand
+    // additiv nach; Bestandsdokumente bleiben ohne Verarbeitung "pending".
+    assert.equal(
+      migratedDatabase
+        .prepare(
+          `SELECT COUNT(*) AS "count" FROM pragma_table_info('Document') WHERE "name" IN ('extractionStatus', 'extractionSha256', 'extractionPages')`,
+        )
+        .get().count,
+      3,
+      "Die Extraktionsspalten liegen nach der Aktualisierung vor",
     );
   } finally {
     migratedDatabase.close();

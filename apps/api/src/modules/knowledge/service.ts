@@ -7,24 +7,39 @@ import type {
 } from "@lifeos/contracts";
 
 import { ApiError } from "../../errors.js";
+import { extractPdfDocumentText } from "./pdf-extractor.js";
+import {
+  LOCAL_TEXT_EXTRACTION_VERSION,
+  PDF_EXTRACTION_VERSION,
+} from "./pdf-extraction-limits.js";
 import {
   KnowledgeRecordNotFoundError,
   KnowledgeReferenceNotFoundError,
   type DocumentChanges,
+  type DocumentExtractionValues,
   type KnowledgeRepository,
   type NoteChanges,
 } from "./repository.js";
 import {
+  extractLocalDocumentText,
+  isLocalTextMimeType,
+  MAX_EXTRACTED_TEXT_BYTES,
   StoredDocumentNotFoundError,
   UnsafeStoragePathError,
 } from "./storage.js";
 import type { LocalDocumentStorage } from "./storage.js";
-import { extractLocalDocumentText } from "./storage.js";
+
+const PDF_MIME_TYPE = "application/pdf";
 
 const normalizedTags = (tags: string[] = []) => [
   ...new Set(tags.map((tag) => tag.trim()).filter(Boolean)),
 ];
 
+/**
+ * Ein gespeichertes Dokument bleibt auch dann auffindbar und herunterladbar,
+ * wenn die Extraktion scheitert. Ein Parserfehler führt deshalb zu einem
+ * klaren Fehlerzustand am Dokument und nie zum Verlust der Datei.
+ */
 export class KnowledgeService {
   constructor(
     private readonly repository: KnowledgeRepository,
@@ -91,6 +106,11 @@ export class KnowledgeService {
       this.storage.store(userId, input.fileName, input.bytes),
     );
     try {
+      const extraction = await this.extractDocumentText(
+        input.mimeType,
+        input.bytes,
+        stored.sha256,
+      );
       return await this.handle(() =>
         this.repository.createDocument(userId, {
           ...stored,
@@ -99,7 +119,7 @@ export class KnowledgeService {
           projectId: input.projectId ?? null,
           studyModuleId: input.studyModuleId ?? null,
           searchEnabled: input.searchEnabled ?? false,
-          extractedText: extractLocalDocumentText(input.mimeType, input.bytes),
+          extraction,
         }),
       );
     } catch (error) {
@@ -117,15 +137,31 @@ export class KnowledgeService {
     const bytes = await this.handle(() =>
       this.storage.read(userId, record.storageKey),
     );
-    const checksum = createHash("sha256").update(bytes).digest("hex");
-    if (bytes.byteLength !== record.byteSize || checksum !== record.sha256) {
-      throw new ApiError(
-        409,
-        "CONFLICT",
-        "Das lokale Dokument hat die Integritätsprüfung nicht bestanden.",
-      );
-    }
+    this.verifyIntegrity(record, bytes);
     return { record, bytes };
+  }
+
+  /**
+   * Verarbeitet ein bereits abgelegtes, freigegebenes Dokument erneut. Der
+   * Besitzer wird über den Repository-Zugriff erzwungen; vor dem Speichern
+   * läuft dieselbe SHA-256-Prüfung wie beim Herunterladen.
+   */
+  async reprocessDocument(userId: string, documentId: string) {
+    const record = await this.handle(() =>
+      this.repository.getDocumentRecord(userId, documentId),
+    );
+    const bytes = await this.handle(() =>
+      this.storage.read(userId, record.storageKey),
+    );
+    this.verifyIntegrity(record, bytes);
+    const extraction = await this.extractDocumentText(
+      record.mimeType,
+      bytes,
+      record.sha256,
+    );
+    return this.handle(() =>
+      this.repository.replaceDocumentExtraction(userId, documentId, extraction),
+    );
   }
 
   updateDocument(
@@ -154,6 +190,104 @@ export class KnowledgeService {
       this.repository.markDocumentDeleted(userId, documentId, this.now()),
     );
     await this.handle(() => this.storage.delete(userId, record.storageKey));
+  }
+
+  private verifyIntegrity(
+    record: { byteSize: number; sha256: string },
+    bytes: Buffer,
+  ) {
+    const checksum = createHash("sha256").update(bytes).digest("hex");
+    if (bytes.byteLength !== record.byteSize || checksum !== record.sha256) {
+      throw new ApiError(
+        409,
+        "CONFLICT",
+        "Das lokale Dokument hat die Integritätsprüfung nicht bestanden.",
+      );
+    }
+  }
+
+  /**
+   * Führt die lokale Extraktion aus und beschreibt ihr Ergebnis als
+   * dokumentgebundene Werte. Die Prüfsumme bindet das Ergebnis an genau die
+   * Datei, aus der es entstanden ist. Es wird nie Dokumentklartext
+   * protokolliert.
+   */
+  private async extractDocumentText(
+    mimeType: string,
+    bytes: Buffer,
+    sourceSha256: string,
+  ): Promise<DocumentExtractionValues> {
+    const extractedAt = this.now();
+    const base = {
+      sourceSha256,
+      extractedAt,
+      pageCount: null,
+      truncated: false,
+      pages: null,
+    } satisfies Partial<DocumentExtractionValues>;
+
+    if (mimeType === PDF_MIME_TYPE) {
+      const outcome = await extractPdfDocumentText(bytes);
+      const available = outcome.status === "available";
+      return {
+        ...base,
+        status: outcome.status,
+        version: PDF_EXTRACTION_VERSION,
+        errorCode: outcome.errorCode,
+        pageCount: outcome.pageCount,
+        truncated: outcome.truncated,
+        pages: available ? outcome.pages : null,
+        /**
+         * Der zusammengeführte Text bleibt als einheitliche Grundlage für
+         * bestehende Verbraucher erhalten; die seitenbezogenen Fundstellen
+         * kommen zusätzlich aus denselben Seiten und bilden keinen eigenen
+         * Index.
+         */
+        extractedText: available
+          ? outcome.pages.map((page) => page.text).join("\n")
+          : null,
+      };
+    }
+
+    if (isLocalTextMimeType(mimeType)) {
+      if (bytes.byteLength > MAX_EXTRACTED_TEXT_BYTES)
+        return {
+          ...base,
+          status: "failed",
+          version: LOCAL_TEXT_EXTRACTION_VERSION,
+          errorCode: "text_limit_exceeded",
+          extractedText: null,
+        };
+      const text = extractLocalDocumentText(mimeType, bytes);
+      if (text === null)
+        return {
+          ...base,
+          status: "failed",
+          version: LOCAL_TEXT_EXTRACTION_VERSION,
+          errorCode: "text_decode_failed",
+          extractedText: null,
+        };
+      return {
+        ...base,
+        status: "available",
+        version: LOCAL_TEXT_EXTRACTION_VERSION,
+        errorCode: null,
+        extractedText: text,
+      };
+    }
+
+    /**
+     * Für Formate ohne lokalen Extraktor bleibt allein die Datei erhalten. Das
+     * Dokument bleibt auffindbar und herunterladbar, liefert aber bewusst
+     * keinen Inhalt für Suche oder KI-Grundlage.
+     */
+    return {
+      ...base,
+      status: "unsupported",
+      version: null,
+      errorCode: null,
+      extractedText: null,
+    };
   }
 
   private async handle<T>(operation: () => Promise<T>): Promise<T> {

@@ -404,6 +404,31 @@ export interface NoteDetailResponse extends NoteResponse {
   versions: NoteVersionResponse[];
 }
 
+export type DocumentExtractionStatus =
+  "pending" | "available" | "no_text" | "protected" | "unsupported" | "failed";
+
+/**
+ * Dokumentgebundener Extraktionszustand. Er beschreibt ausschließlich die lokal
+ * berechnete Textgrundlage des Dokuments selbst; es entsteht kein zweiter
+ * Speicher und kein eigener Suchindex.
+ */
+export interface DocumentExtractionResponse {
+  status: DocumentExtractionStatus;
+  /** Version der lokalen Extraktionsstufe, `null` solange ausstehend. */
+  version: string | null;
+  /** Quellprüfsumme, auf die sich die Extraktion bezieht. */
+  sourceSha256: string | null;
+  /** `true`, wenn die Extraktion zur aktuellen Dateiprüfsumme passt. */
+  current: boolean;
+  errorCode: string | null;
+  /** Vom Parser gemeldete Gesamtseitenzahl, `null` außerhalb seitenbasierter Formate. */
+  pageCount: number | null;
+  /** Anzahl der Seiten mit veröffentlichtem Text. */
+  storedPages: number;
+  truncated: boolean;
+  extractedAt: string | null;
+}
+
 export interface DocumentResponse {
   id: string;
   ownerId: string;
@@ -419,6 +444,7 @@ export interface DocumentResponse {
   createdAt: string;
   updatedAt: string;
   contentUrl: string;
+  extraction: DocumentExtractionResponse;
 }
 
 export interface KnowledgeOverviewResponse {
@@ -714,6 +740,13 @@ export interface SearchResultResponse {
   detailPath: string;
   ownerId: string;
   searchEnabled: true;
+  /**
+   * Erste Seite mit vollständigem Treffer. Seitengebundene Formate nennen damit
+   * die betroffene Stelle; `null` bei Formaten ohne Seitenangabe.
+   */
+  page: number | null;
+  /** Alle Seiten mit vollständigem Treffer, aufsteigend und begrenzt. */
+  pages: number[];
 }
 
 export interface SearchResponse {

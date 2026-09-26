@@ -205,6 +205,18 @@ const moduleDocument = {
   createdAt: "2026-08-09T10:00:00.000Z",
   updatedAt: "2026-08-09T10:00:00.000Z",
   contentUrl: "/api/v1/documents/dokument-1/content",
+  /** Paket 7: dokumentgebundener Extraktionszustand. */
+  extraction: {
+    status: "available",
+    version: "pdfjs-6.3.289/text-v1",
+    sourceSha256: "a".repeat(64),
+    current: true,
+    errorCode: null,
+    pageCount: 3,
+    storedPages: 2,
+    truncated: false,
+    extractedAt: "2026-08-09T11:00:00.000Z",
+  },
 };
 
 const moduleSource = {
@@ -226,6 +238,8 @@ const searchResultFixtures = {
     searchEnabled: true,
     detailPath: "/study/modules/modul-detail",
     updatedAt: "2026-08-09T10:00:00.000Z",
+    page: null,
+    pages: [],
   },
   entry: {
     id: "eintrag-1",
@@ -238,6 +252,8 @@ const searchResultFixtures = {
     searchEnabled: true,
     detailPath: "/study/modules/modul-detail#entry-eintrag-1",
     updatedAt: "2026-08-09T10:00:00.000Z",
+    page: null,
+    pages: [],
   },
   note: {
     id: "notiz-1",
@@ -254,6 +270,8 @@ const searchResultFixtures = {
     searchEnabled: true,
     detailPath: "/knowledge/notes/notiz-1",
     updatedAt: "2026-08-09T10:00:00.000Z",
+    page: null,
+    pages: [],
   },
   document: {
     id: "dokument-1",
@@ -270,6 +288,8 @@ const searchResultFixtures = {
     searchEnabled: true,
     detailPath: "/knowledge/documents/dokument-1",
     updatedAt: "2026-08-09T10:00:00.000Z",
+    page: null,
+    pages: [],
   },
   project: {
     id: "projekt-suche",
@@ -286,7 +306,19 @@ const searchResultFixtures = {
     searchEnabled: true,
     detailPath: "/projects/projekt-suche",
     updatedAt: "2026-08-09T10:00:00.000Z",
+    page: null,
+    pages: [],
   },
+};
+
+/** Treffer mit Seitenbezug
+ * (Paket 7): Das Skript enthält den Suchbegriff auf Seite 2. */
+const searchResultWithPage = {
+  ...searchResultFixtures.document,
+  snippet: "Quantenplanung im Skript auf Seite zwei.",
+  matchReason: "content" as const,
+  page: 2,
+  pages: [2],
 };
 
 const searchProject = {
@@ -1047,6 +1079,31 @@ const installApi = ({
                 ? "2032-01-01T00:00:00.000Z"
                 : null,
         });
+        return json(found);
+      }
+      const extractionMatch = path.match(
+        /^\/api\/v1\/documents\/([^/]+)\/extraction$/,
+      );
+      if (extractionMatch && method === "POST") {
+        const found = documentState.find(
+          (item) => item.id === extractionMatch[1],
+        );
+        if (!found)
+          return json(
+            { error: { code: "NOT_FOUND", message: "Nicht gefunden" } },
+            404,
+          );
+        found.extraction = {
+          status: "available",
+          version: "pdfjs-6.3.289/text-v1",
+          sourceSha256: found.sha256,
+          current: true,
+          errorCode: null,
+          pageCount: 3,
+          storedPages: 2,
+          truncated: false,
+          extractedAt: "2032-04-01T00:00:00.000Z",
+        };
         return json(found);
       }
       const documentMatch = path.match(/^\/api\/v1\/documents\/([^/]+)$/);
@@ -2852,5 +2909,150 @@ describe("LifeOS-Weboberfläche", () => {
     expect(
       screen.queryByRole("heading", { name: "Dokument bearbeiten" }),
     ).toBeNull();
+  });
+  /** Öffnet den Wissensbereich. */
+  const openKnowledge = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getAllByRole("button", { name: "Wissen" })[0]!);
+    return screen.findByRole("heading", { name: "Notizen & Dokumente" });
+  };
+
+  /** Führt die lokale Suche im Wissensbereich aus. */
+  const runSearchFor = async (
+    user: ReturnType<typeof userEvent.setup>,
+    term: string,
+  ) => {
+    const region = screen.getByRole("region", {
+      name: "Freigegebene Inhalte finden",
+    });
+    await user.clear(within(region).getByLabelText("Suchbegriff"));
+    await user.type(within(region).getByLabelText("Suchbegriff"), term);
+    await user.click(within(region).getByRole("button", { name: "Suchen" }));
+  };
+
+  it("zeigt den Extraktionszustand und verarbeitet ein Dokument erneut", async () => {
+    const { fetchMock } = installApi({
+      knowledgeDocuments: [moduleDocument],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await openKnowledge(user);
+
+    const documentsRegion = (
+      await screen.findByRole("heading", { name: "Sichere lokale Ablage" })
+    ).closest("section");
+    expect(documentsRegion).not.toBeNull();
+    /** Der Zustand wird benannt, nicht als erfolgreicher Text ausgegeben. */
+    expect(
+      within(documentsRegion!).getByText(/Text lokal extrahiert/),
+    ).toBeVisible();
+
+    await user.click(
+      within(documentsRegion!).getByRole("button", {
+        name: "Erneut verarbeiten",
+      }),
+    );
+    expect(
+      await screen.findByText("Das Dokument wurde erneut lokal verarbeitet."),
+    ).toBeVisible();
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, init]) =>
+          typeof url === "string" &&
+          url.includes("/api/v1/documents/dokument-1/extraction") &&
+          init?.method === "POST",
+      ),
+    ).toBe(true);
+  });
+
+  it("benennt einen noch nicht verarbeiteten Dokumentbestand ausdrücklich", async () => {
+    installApi({
+      knowledgeDocuments: [
+        {
+          ...moduleDocument,
+          extraction: {
+            status: "pending",
+            version: null,
+            sourceSha256: null,
+            current: false,
+            errorCode: null,
+            pageCount: null,
+            storedPages: 0,
+            truncated: false,
+            extractedAt: null,
+          },
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await openKnowledge(user);
+
+    const documentsRegion = (
+      await screen.findByRole("heading", { name: "Sichere lokale Ablage" })
+    ).closest("section");
+    expect(documentsRegion).not.toBeNull();
+    expect(
+      within(documentsRegion!).getByText(/Noch nicht verarbeitet/),
+    ).toBeVisible();
+  });
+
+  it("nennt bei Seitentreffern die betroffene Seite und öffnet die Quelle", async () => {
+    installApi({
+      knowledgeDocuments: [moduleDocument],
+      searchResults: [searchResultWithPage],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await openKnowledge(user);
+    await runSearchFor(user, "Quantenplanung");
+
+    const snippet = await screen.findByText(/Skript auf Seite zwei/);
+    const card = snippet.closest("article");
+    expect(card).not.toBeNull();
+    expect(within(card!).getByText(/Seite 2/)).toBeVisible();
+    /** Der Treffer führt weiterhin zum konkreten Objekt. */
+    expect(
+      within(card!).getByRole("link", { name: "Quelle öffnen" }),
+    ).toHaveAttribute("href", "/knowledge/documents/dokument-1");
+  });
+
+  it("öffnet die Modulsuche aus der Moduldetailansicht und filtert die Anfrage", async () => {
+    const { fetchMock } = installApi({
+      studyPrograms: [studyProgram],
+      studyModules: [studyModule],
+      studyEntries: [studyEntry],
+      knowledgeNotes: [moduleNote],
+      knowledgeDocuments: [moduleDocument],
+      searchResults: [searchResultFixtures.note],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await openModuleDetail(user);
+
+    await user.click(screen.getByRole("button", { name: "Im Modul suchen" }));
+    const region = await screen.findByRole("region", {
+      name: "Freigegebene Inhalte finden",
+    });
+    expect(
+      within(region).getByText(/Modulsuche aktiv: Synthetisches Detailmodul/),
+    ).toBeVisible();
+
+    await runSearchFor(user, "Synthetisch");
+    expect(
+      fetchMock.mock.calls.some(
+        ([url]) =>
+          typeof url === "string" && url.includes("studyModuleId=modul-detail"),
+      ),
+    ).toBe(true);
+
+    /** Der Filter lässt sich wieder aufheben. */
+    await user.click(
+      within(region).getByRole("button", { name: "Filter aufheben" }),
+    );
+    expect(within(region).queryByText(/Modulsuche aktiv/)).toBeNull();
   });
 });

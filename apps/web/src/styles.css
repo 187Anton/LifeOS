@@ -2565,6 +2565,29 @@ input[readonly] {
 .search-results {
   margin-top: 1rem;
 }
+/* Paket 7: aktiver Modulfilter und Extraktionszustand bleiben sichtbar. */
+.module-search-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--muted);
+}
+.document-extraction {
+  color: var(--muted);
+}
+/* Eigene Aktionszeile der Moduldetailsicht: verändert die Kopfzeile nicht. */
+.module-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
 .search-result {
   display: grid;
   gap: 0.55rem;

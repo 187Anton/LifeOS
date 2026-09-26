@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -29,6 +29,12 @@ import {
   AuthenticationService,
   ProfileService,
 } from "../src/modules/profile/service.js";
+import {
+  encryptedPdf,
+  imageOnlyPdf,
+  multiPagePdf,
+  truncatedPdf,
+} from "./pdf-fixtures.js";
 
 class SilentLogger implements Logger {
   debug(): void {}
@@ -523,4 +529,272 @@ test("öffnet Dokumente über Besitzgrenzen, Modulbezug und Archivzustand", asyn
     ).status,
     404,
   );
+});
+
+test("verarbeitet lokale PDFs seitenbezogen, erneut und ohne Klartext in Protokollen", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalId = `pdf-owner-${suffix}`;
+  const otherExternalId = `pdf-other-${suffix}`;
+  const password = `synthetisches-pdfpasswort-${suffix}`;
+  const storageRoot = await mkdtemp(path.join(os.tmpdir(), "lifeos-pdf-"));
+  const owner = await database.user.create({
+    data: {
+      externalId,
+      displayName: "Synthetische PDF-Person",
+      settings: { create: {} },
+      credential: { create: { passwordHash: await hashPassword(password) } },
+    },
+  });
+  const other = await database.user.create({
+    data: {
+      externalId: otherExternalId,
+      displayName: "Andere PDF-Person",
+      settings: { create: {} },
+    },
+  });
+  const storage = new LocalDocumentStorage(storageRoot);
+  const logged: string[] = [];
+  const logger: Logger = {
+    debug: (...values: unknown[]) => logged.push(String(values.join(" "))),
+    info: (...values: unknown[]) => logged.push(String(values.join(" "))),
+    warn: (...values: unknown[]) => logged.push(String(values.join(" "))),
+    error: (...values: unknown[]) => logged.push(String(values.join(" "))),
+  };
+  const knowledge = new KnowledgeService(
+    new PrismaKnowledgeRepository(database),
+    storage,
+    () => new Date("2033-03-01T12:00:00.000Z"),
+  );
+  const profileRepository = new PrismaProfileRepository(database, externalId);
+  const authentication = new AuthenticationService(profileRepository, 1);
+  const application = createApplication({
+    logger,
+    readinessProbe: { check: async () => undefined },
+    webOrigin: "http://127.0.0.1:5173",
+    rawModuleRouters: [
+      createDocumentUploadRouter({ authentication, knowledge }),
+    ],
+    moduleRouters: [
+      createProfileRouter({
+        authentication,
+        profile: new ProfileService(profileRepository),
+        secureCookies: false,
+      }),
+      createKnowledgeRouter({ authentication, knowledge }),
+    ],
+  });
+  const server = createServer(application);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}/api/v1`;
+  const origin = base.slice(0, -"/api/v1".length);
+  t.after(async () => {
+    await close(server);
+    await database.user.deleteMany({
+      where: { externalId: { in: [externalId, otherExternalId] } },
+    });
+    await database.$disconnect();
+    await rm(storageRoot, { recursive: true, force: true });
+  });
+
+  const login = await fetch(`${base}/session`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  const cookie = (login.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+  const upload = async (fileName: string, bytes: Buffer) =>
+    fetch(`${base}/documents?fileName=${encodeURIComponent(fileName)}`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/pdf" },
+      body: new Uint8Array(bytes),
+    });
+
+  /** Ein mehrseitiges PDF mit Text auf zwei von drei Seiten. */
+  const documentBytes = multiPagePdf([
+    "Synthetische Vorlesungsnotiz zur Extraktion,",
+    "",
+    "Zweite Textseite der Vorlesung.",
+  ]);
+  const textUpload = await upload("vorlesung.pdf", documentBytes);
+  assert.equal(textUpload.status, 201);
+  const textDocument = (await textUpload.json()) as DocumentResponse;
+  assert.equal(textDocument.extraction.status, "available");
+  assert.equal(textDocument.extraction.errorCode, null);
+  assert.equal(textDocument.extraction.truncated, false);
+  assert.equal(textDocument.extraction.pageCount, 3);
+  assert.equal(textDocument.sha256.length, 64);
+  assert.equal(textDocument.extraction.sourceSha256, textDocument.sha256);
+  assert.equal(textDocument.extraction.current, true);
+  assert.match(
+    textDocument.extraction.version ?? "",
+    /^pdfjs-\d+\.\d+\.\d+\/text-v1$/,
+  );
+  assert.equal(textDocument.extraction.storedPages, 2);
+  const storedText = await database.document.findUniqueOrThrow({
+    where: { id: textDocument.id },
+  });
+  assert.equal(storedText.extractionStatus, "available");
+  assert.equal(storedText.extractionSha256, storedText.sha256);
+  const storedPages = storedText.extractionPages as Array<{
+    page: number;
+    text: string;
+  }>;
+  assert.deepEqual(
+    storedPages.map((page) => page.page),
+    [1, 3],
+  );
+  assert.match(storedPages[0]!.text, /Vorlesungsnotiz zur Extraktion/);
+  assert.match(storedText.extractedText ?? "", /Zweite Textseite/);
+
+  /** Die Datei bleibt unverändert abrufbar: Extraktion ersetzt keinen Inhalt. */
+  const download = await fetch(`${origin}${textDocument.contentUrl}`, {
+    headers: { cookie },
+  });
+  assert.equal(download.status, 200);
+  assert.deepEqual(Buffer.from(await download.arrayBuffer()), documentBytes);
+
+  /** Bildseiten ohne Text, geschützte und defekte Dateien. */
+  const imageUpload = await upload("scan.pdf", imageOnlyPdf(2));
+  const imageDocument = (await imageUpload.json()) as DocumentResponse;
+  assert.equal(imageDocument.extraction.status, "no_text");
+  assert.equal(imageDocument.extraction.pageCount, 2);
+  assert.equal(imageDocument.extraction.storedPages, 0);
+
+  const protectedUpload = await upload(
+    "geschuetzt.pdf",
+    encryptedPdf("Vertraulicher Inhalt", "nutzer", "besitzer"),
+  );
+  const protectedDocument = (await protectedUpload.json()) as DocumentResponse;
+  assert.equal(protectedDocument.extraction.status, "protected");
+  assert.equal(protectedDocument.extraction.pageCount, null);
+  assert.equal(protectedDocument.extraction.storedPages, 0);
+  const protectedStored = await database.document.findUniqueOrThrow({
+    where: { id: protectedDocument.id },
+  });
+  assert.equal(protectedStored.extractedText, null);
+
+  const damagedBytes = truncatedPdf();
+  const damagedUpload = await upload("defekt.pdf", damagedBytes);
+  const damagedDocument = (await damagedUpload.json()) as DocumentResponse;
+  assert.equal(damagedDocument.extraction.status, "failed");
+  assert.equal(damagedDocument.extraction.errorCode, "invalid_pdf");
+  /** Ein Parserfehler darf die Datei nicht verlieren. */
+  const damagedDownload = await fetch(
+    `${origin}${damagedDocument.contentUrl}`,
+    { headers: { cookie } },
+  );
+  assert.equal(damagedDownload.status, 200);
+  assert.deepEqual(
+    Buffer.from(await damagedDownload.arrayBuffer()),
+    damagedBytes,
+  );
+
+  /** Erneute Verarbeitung: besitzgebunden, widerrufbar, idempotent. */
+  assert.equal(
+    (
+      await fetch(`${base}/documents/${textDocument.id}/extraction`, {
+        method: "POST",
+        headers: { cookie },
+      })
+    ).status,
+    200,
+  );
+  const foreignDocument = await database.document.create({
+    data: {
+      userId: other.id,
+      storageKey: `${randomUUID()}.pdf`,
+      fileName: "fremd.pdf",
+      mimeType: "application/pdf",
+      byteSize: damagedBytes.byteLength,
+      sha256: "c".repeat(64),
+      modifiedAt: new Date("2033-03-01T12:00:00.000Z"),
+    },
+  });
+  assert.equal(
+    (
+      await fetch(`${base}/documents/${foreignDocument.id}/extraction`, {
+        method: "POST",
+        headers: { cookie },
+      })
+    ).status,
+    404,
+  );
+
+  /** Altextraktion: datenerhaltend als Legacy markiert und neu verarbeitbar. */
+  const legacyDocument = await database.document.create({
+    data: {
+      userId: owner.id,
+      storageKey: `${randomUUID()}.pdf`,
+      fileName: "altbestand.pdf",
+      mimeType: "application/pdf",
+      byteSize: documentBytes.byteLength,
+      sha256: createHash("sha256").update(documentBytes).digest("hex"),
+      modifiedAt: new Date("2033-03-01T12:00:00.000Z"),
+      extractionStatus: "available",
+      extractionVersion: "legacy-text-v1",
+      extractedText: "Übernommener Altext ohne Seitenbezug.",
+      extractedAt: new Date("2033-03-01T12:00:00.000Z"),
+    },
+  });
+  await mkdir(path.join(storageRoot, owner.id), {
+    recursive: true,
+    mode: 0o700,
+  });
+  await writeFile(
+    path.join(storageRoot, owner.id, legacyDocument.storageKey),
+    documentBytes,
+  );
+  const legacyOverview = (await (
+    await fetch(`${base}/knowledge`, { headers: { cookie } })
+  ).json()) as { documents: DocumentResponse[] };
+  const legacyView = legacyOverview.documents.find(
+    (entry) => entry.id === legacyDocument.id,
+  );
+  assert.equal(legacyView?.extraction.version, "legacy-text-v1");
+  assert.equal(legacyView?.extraction.storedPages, 0);
+
+  const reprocessed = await fetch(
+    `${base}/documents/${legacyDocument.id}/extraction`,
+    { method: "POST", headers: { cookie } },
+  );
+  assert.equal(reprocessed.status, 200);
+  const reprocessedDocument = (await reprocessed.json()) as DocumentResponse;
+  assert.equal(reprocessedDocument.extraction.status, "available");
+  assert.match(
+    reprocessedDocument.extraction.version ?? "",
+    /^pdfjs-\d+\.\d+\.\d+\/text-v1$/,
+  );
+  assert.equal(reprocessedDocument.extraction.storedPages, 2);
+
+  /** Eine veraltete Prüfsumme erzeugt keinen stillen Treffer. */
+  await writeFile(
+    path.join(storageRoot, owner.id, legacyDocument.storageKey),
+    multiPagePdf(["Manipulierte Seite"]),
+  );
+  assert.equal(
+    (
+      await fetch(`${base}/documents/${legacyDocument.id}/extraction`, {
+        method: "POST",
+        headers: { cookie },
+      })
+    ).status,
+    409,
+  );
+  const afterTampering = await database.document.findUniqueOrThrow({
+    where: { id: legacyDocument.id },
+  });
+  assert.equal(afterTampering.extractionSha256, legacyDocument.sha256);
+  assert.equal((afterTampering.extractionPages as Array<unknown>).length, 2);
+
+  /** Kein Dokumentklartext in Protokollen. */
+  assert.equal(logged.length > 0, true);
+  for (const line of logged) {
+    assert.equal(line.includes("Vorlesungsnotiz zur Extraktion"), false);
+    assert.equal(line.includes("Zweite Textseite"), false);
+    assert.equal(line.includes("Vertraulicher Inhalt"), false);
+    assert.equal(line.includes("Übernommener Altext"), false);
+  }
 });

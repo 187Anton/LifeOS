@@ -208,7 +208,12 @@ PostgreSQL und SQLite. Ergebnisse werden nicht als eigener Index persistiert.
 Projektziele, Meilensteine und Studieneinträge erben die Freigabe ihrer
 führenden Quelle; das Aufheben der Freigabe wirkt deshalb unmittelbar. Kleine,
 ausdrücklich unterstützte Textdokumente erhalten beim lokalen Upload einen
-begrenzt extrahierten UTF-8-Text. Binärformate werden nicht interpretiert.
+begrenzt extrahierten UTF-8-Text. PDF-Dokumente werden zusätzlich lokal und
+seitenbezogen ausgelesen; Status, Quellprüfsumme, Extraktionsversion,
+Fehlercode und Seitenfundstellen bleiben am Dokument gespeichert und bilden
+keinen zweiten Speicher und keinen eigenen Index. Die Extraktion läuft in einem
+begrenzten Worker ohne Netzzugriff, Dokument-JavaScript, Anhänge oder
+Rendering. Andere Binärformate werden weiterhin nicht interpretiert.
 
 ## Quellengestützte KI-Grundlage
 
