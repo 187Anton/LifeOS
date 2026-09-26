@@ -19,11 +19,20 @@ import { MAX_EXTRACTED_TEXT_BYTES } from "./storage.js";
  *   einem eigenen begrenzten Worker statt; bei Überschreitung wird er beendet.
  * - Speicher: `PDF_EXTRACTION_MEMORY_LIMIT_MB` als harte V8-Obergrenze genau
  *   dieses Workers.
+ * - Gleichzeitigkeit: höchstens `MAX_PDF_CONCURRENT_EXTRACTIONS` Verarbeitungen
+ *   laufen je Prozess gleichzeitig; zusätzliche Anfragen warten in einer auf
+ *   `MAX_PDF_QUEUED_EXTRACTIONS` begrenzten Warteschlange. Ist auch diese
+ *   belegt, wird die Anfrage sofort mit `429 RATE_LIMITED` abgewiesen, statt
+ *   weitere Worker oder Wartende aufzubauen. Die Begrenzung gilt prozessweit
+ *   für alle Besitzer und beide Einstiegspfade (Upload und erneute
+ *   Verarbeitung).
  */
 export const MAX_PDF_PAGES = 1_000;
 export const MAX_PDF_TEXT_BYTES = MAX_EXTRACTED_TEXT_BYTES;
 export const PDF_EXTRACTION_TIMEOUT_MS = 20_000;
 export const PDF_EXTRACTION_MEMORY_LIMIT_MB = 256;
+export const MAX_PDF_CONCURRENT_EXTRACTIONS = 2;
+export const MAX_PDF_QUEUED_EXTRACTIONS = 4;
 
 /**
  * Extraktionsversionen. Sie sind bewusst als feste Zeichenketten hinterlegt und

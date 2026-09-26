@@ -40,22 +40,40 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   eigenen Port mit eigener, nur synthetisch befüllter Datenbank; Migrationen und
   Tests liefen ausschließlich gegen synthetische Werte. Die installierte App
   wurde nicht angefasst.
-- Geänderter Umfang: neue, abgegrenzte Moduldetail-Komponente
-  `apps/web/src/components/StudyModuleDetail.tsx`, `StudyWorkspace.tsx`,
-  `KnowledgeWorkspace.tsx`, `App.tsx`, zugehörige Styles in
-  `apps/web/src/styles.css` sowie die betroffenen API-, Web-Unit- und
-  E2E-Nachweise.
-- Nicht geändert: Prisma-Schema, Migrationen, CalDAV-Server, Apple-Integration,
-  KI-Funktionen, Finanzmodule, zweiter Dokumentenspeicher, Dateiextraktion, OCR
-  und Vektorsuche; es entstand keine neue API-Ressource. `README.md` und
-  `LifeOS Leitfaden.docx` blieben zunächst unverändert und sind in der
-  Korrekturrunde knapp für die Moduldetailansicht sowie die Bearbeitung
-  verknüpfter Notizen und Dokumentmetadaten ergänzt worden.
-- Offene Blocker: keiner in der Fachlogik. Ein neuer Schreibpfad oder eine
-  Datenmodelländerung war nicht nötig; die Paket-6-Regeln bauen ausschließlich
-  auf vorhandenen Antworten und vorhandenen Besitzfiltern auf. Offen ist die
-  live zu lesende Pflicht-CI des Heads dieser Korrekturrunde; ein Merge ist
-  nicht beauftragt und wurde nicht ausgeführt.
+- Geänderter Umfang: Datenmodell und Migrationen für den dokumentgebundenen
+  Extraktionszustand, der lokale PDF-Extractor mit begrenztem Worker und
+  prozessweiter Begrenzung, der Upload- und Reprocess-Pfad in
+  `apps/api/src/modules/knowledge/`, die seitenbezogene Suche mit optionalem
+  `studyModuleId`-Filter in `apps/api/src/modules/search/`, der
+  Dokument- und Suchvertrag in `packages/contracts/src/api.ts`, der
+  SQLite-Importpfad in `packages/database/src/sqlite-import.ts`, die
+  Wissens- und Modulansicht in `apps/web/src/` sowie die zugehörigen
+  API-, Datenbank-, Web-Unit- und E2E-Nachweise.
+- Datenmodell und Migrationen: `Document` trägt zusätzlich `extractionStatus`,
+  `extractionVersion`, `extractionSha256`, `extractionErrorCode`,
+  `extractionPageCount`, `extractionTruncated`, `extractionPages` und
+  `extractedAt`. Beide Prisma-Provider (PostgreSQL und SQLite) erhielten je
+  eine additive, versionierte Migration mit Statusprüfung und
+  JSON-Array-Prüfung für die Seitenfundstellen; die Tabellen wurden nicht neu
+  aufgebaut. Bestehende Textextraktionen bleiben datenerhaltend erhalten und
+  werden als `legacy-text-v1` geführt; bereits vorhandene PDFs bleiben bis zur
+  Verarbeitung `pending`.
+- Extraktionsbereich: lokaler Parserlauf in einem begrenzten Worker-Thread mit
+  den dokumentierten Grenzen (25 MiB Eingabe, 1 000 Seiten, 1 000 000 Byte
+  Text, 20 s Laufzeit, 256 MiB Speicher) und ohne Netzzugriff,
+  Dokument-JavaScript, Anhänge oder Rendering. Je Prozess laufen höchstens zwei
+  Verarbeitungen gleichzeitig; zusätzliche Anfragen warten in einer auf vier
+  Plätze begrenzten Warteschlange, jeder Überlauf wird sofort mit
+  `429 RATE_LIMITED` abgewiesen. Upload und erneute Verarbeitung teilen sich
+  dieselbe Begrenzung; ein Platz wird nach Erfolg, Fehler und Zeitüberschreitung
+  freigegeben.
+- Nicht geändert: CalDAV-Server, Apple-Integration, KI-Funktionen, Fixture- und
+  Seed-Bestände, ein zweiter Dokumentenspeicher, ein persistierter Suchindex,
+  OCR, Vektorsuche sowie PPTX-/DOCX-Extraktion (Paket 8). `LifeOS
+Leitfaden.docx` blieb unverändert; damit war keine DOCX-Renderprüfung nötig.
+- Offene Blocker: keiner in der Fachlogik. Offen ist allein die live zu lesende
+  Pflicht-CI des Heads dieser Korrekturrunde; ein Merge ist nicht beauftragt und
+  wurde nicht ausgeführt.
 
 ## Paket 7 – lokale Nachweise (26.09.2026)
 
@@ -112,6 +130,17 @@ oder `failed`. Upload, Download und erneute Verarbeitung verwenden dieselbe
 SHA-256-Prüfung; ein Parserfehler verliert die abgelegte Datei nicht. Klartext
 aus Dokumenten erscheint weder in Protokollen noch in Audits.
 
+Die Zahl der Verarbeitungen ist zusätzlich prozessweit begrenzt: Je Prozess
+laufen höchstens zwei PDF-Extraktionen gleichzeitig, weitere Anfragen warten in
+einer auf vier Plätze begrenzten Warteschlange. Ein Überlauf wird sofort mit
+`429 RATE_LIMITED` abgewiesen, statt weitere Worker oder unbegrenzt Wartende
+aufzubauen. Upload und erneute Verarbeitung teilen sich dieselbe Begrenzung; ein
+Platz wird nach Erfolg, nach einem Fehler und nach einer Zeitüberschreitung
+freigegeben. Eine abgewiesene Upload-Anfrage entfernt die bereits geschriebene
+Datei wieder und legt keinen Datensatz an, eine abgewiesene erneute Verarbeitung
+lässt den bestehenden Extraktionszustand unverändert. Die Besitzprüfung greift
+weiterhin vor der Begrenzung.
+
 Die Suche nennt bei seitenbezogenen Quellen die betroffene Seite (`page`,
 `pages`) und akzeptiert den optionalen Filter `studyModuleId`. Inhalt wird
 ausschließlich aus einer eigenen, aktiven, freigegebenen und hashaktuellen
@@ -122,8 +151,8 @@ Dokumentquellen; Aufgaben bleiben normale Fachfilter.
 
 ### Nachweise dieser Runde
 
-- `npm test --workspace @lifeos/api`: **142/142** grün (vorher 121/121; 21 neue
-  PDF-, Such- und Integrationstests).
+- `npm test --workspace @lifeos/api`: **150/150** grün (Ausgangsstand 121/121;
+  29 neue PDF-, Begrenzungs-, Such- und Integrationstests).
 - `npm test --workspace @lifeos/database`: **33/33** grün, darunter der neue
   Nachweis, dass Bestandsdokumente datenerhaltend übernommen werden.
 - `npm run test:unit --workspace @lifeos/web`: **81/81** grün in 11 Dateien
@@ -133,6 +162,26 @@ Dokumentquellen; Aufgaben bleiben normale Fachfilter.
   bildbasierte Dateien ohne Text, geschützte, abgeschnittene und strukturell
   defekte Dateien, zu große Eingaben, Seiten- und Textgrenzen, Laufzeitabbruch,
   deaktiviertes JavaScript und fehlende Netz-/Anhangspfade ab.
+- Begrenzungstests decken die festen Grenzen selbst ab (gleichzeitige Läufe,
+  Eingangsreihenfolge, feste Warteschlange, Überlaufabweisung ohne Platzverlust)
+  sowie die Freigabe eines Arbeitsplatzes nach Erfolg, nach Fehler und nach
+  einer echten Zeitüberschreitung des Workers. Der Integrationstest belegt am
+  laufenden HTTP-Server den Überlauf (`429 RATE_LIMITED`), dass eine abgewiesene
+  Anfrage weder Datensatz noch verwaiste Datei hinterlässt, dass Upload und
+  erneute Verarbeitung dieselbe Begrenzung teilen, dass der bestehende
+  Extraktionszustand unverändert bleibt und dass die Besitzprüfung mit `401`
+  weiterhin vor der Begrenzung greift.
+
+### Abnahmerunde der Paket-7-Korrekturen (26.09.2026)
+
+Der Abnahmebefund zur fehlenden Ressourcenbegrenzung ist behoben:
+`apps/api/src/modules/knowledge/pdf-extraction-concurrency.ts` hält fest, wie
+viele PDF-Verarbeitungen je Prozess gleichzeitig laufen dürfen, und begrenzt
+zusätzlich die Wartenden. Die festen Werte stehen neben den übrigen Grenzen in
+`pdf-extraction-limits.ts`; die Begrenzung selbst sitzt in der Anwendungsschicht
+und gilt für alle Besitzer und beide Einstiegspfade. Die bestehende
+Besitzprüfung sowie Seiten-, Text-, Laufzeit- und Speichergrenze bleiben
+unverändert wirksam.
 
 ### Offene Risiken und bewusst unveränderte Punkte
 

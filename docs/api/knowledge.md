@@ -73,6 +73,7 @@ separater Suchindex.
 | Extrahierten Text            | 1 000 000 Byte UTF-8 (identisch zur Textgrenze der Ablage) |
 | Laufzeit                     | 20 s, danach `failed` mit `errorCode: "timeout"`           |
 | Speicher des Arbeits-Threads | 256 MiB                                                    |
+| Gleichzeitige Verarbeitungen | 2 je Prozess, dazu 4 feste Warteplätze                     |
 
 - `no_text` gilt für Seiten ohne Text, typischerweise reine Scan-PDFs. Es
   entsteht nie erfundener Text.
@@ -102,3 +103,21 @@ Dokument außerhalb seiner Seitenfläche setzt, wird nicht ausgegeben. Das
 betrifft fehlerhaft gesetzte Dateien; regulär umbrochener Text innerhalb der
 Seitenfläche ist vollständig extrahierbar. Das Feld `truncated` meldet
 zusätzlich jede Erreichung der Seiten- oder Textgrenze.
+
+### Gleichzeitigkeit und Überlast
+
+Die Begrenzung gilt prozessweit für alle Besitzer und für beide Einstiegspfade
+(`POST /documents` und `POST /documents/:id/extraction`): Es laufen höchstens
+zwei Verarbeitungen gleichzeitig, weitere Anfragen warten in einer auf vier
+Plätze begrenzten Warteschlange. Ist auch diese belegt, antwortet die API
+sofort mit `429 RATE_LIMITED` und der Meldung, dass die lokale
+PDF-Verarbeitung ausgelastet ist; der Client entscheidet selbst über einen
+erneuten Versuch. So entstehen weder beliebig viele Worker-Threads noch eine
+unbegrenzte Warteschlange.
+
+Eine abgewiesene Anfrage ist folgenlos: Beim Upload wird die bereits
+geschriebene Datei wieder entfernt, es entsteht kein Dokumentdatensatz, und
+eine erneute Verarbeitung lässt den bestehenden Extraktionszustand unverändert.
+Ein Arbeitsplatz wird nach Erfolg, nach einem Fehler und nach einer
+Zeitüberschreitung wieder freigegeben; die Besitzprüfung greift weiterhin vor
+der Begrenzung, eine fehlende Sitzung antwortet mit `401`.

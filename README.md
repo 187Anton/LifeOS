@@ -450,6 +450,10 @@ Extraktion; geschützte, beschädigte, textfreie oder veraltete Extraktionen
 liefern keinen Inhalt, bleiben aber über ihre Metadaten auffindbar. Die
 Extraktion läuft in einem begrenzten lokalen Worker ohne Netzzugriff,
 Dokument-JavaScript, Anhänge oder Rendering und ohne zusätzliche Installation.
+Je Prozess laufen höchstens zwei PDF-Verarbeitungen gleichzeitig; weitere
+Anfragen warten in einer fest begrenzten Warteschlange, und ein Überlauf wird
+sofort mit `429 RATE_LIMITED` abgewiesen, ohne eine Datei oder einen Datensatz
+zu hinterlassen.
 Suchanfragen, Suchergebnisse und kombinierbare Aufgaben-, Arbeitsbereichs-,
 Status- und Zeitraumfilter bleiben flüchtiger UI-Zustand. Details und Grenzen
 stehen im [Suchvertrag](docs/api/search.md) und im

@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 import { createDatabaseClient } from "@lifeos/database";
 import type {
+  ApiErrorResponse,
   DocumentResponse,
   NoteDetailResponse,
   NoteResponse,
@@ -15,6 +16,7 @@ import type {
 
 import { createApplication } from "../src/application.js";
 import type { Logger } from "../src/logger.js";
+import { PdfExtractionLimiter } from "../src/modules/knowledge/pdf-extraction-concurrency.js";
 import { PrismaKnowledgeRepository } from "../src/modules/knowledge/repository.js";
 import {
   createDocumentUploadRouter,
@@ -46,6 +48,28 @@ const close = (server: Server) =>
   new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
   );
+
+/** Ein Vorgang, der erst auf ausdrückliche Freigabe antwortet. */
+const deferred = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>((succeed) => {
+    resolve = succeed;
+  });
+  return { promise, resolve };
+};
+
+/** Wartet begrenzt auf eine beobachtbare Bedingung. */
+const waitFor = async (
+  condition: () => boolean,
+  description: string,
+  timeoutMs = 15_000,
+) => {
+  const deadline = Date.now() + timeoutMs;
+  while (!condition()) {
+    if (Date.now() > deadline) assert.fail(`Nicht erreicht: ${description}`);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+};
 
 test("verwaltet lokale Notizen und Dokumente besitzgebunden, versioniert und ohne Klartext-Audit", async (t) => {
   const database = createDatabaseClient();
@@ -797,4 +821,215 @@ test("verarbeitet lokale PDFs seitenbezogen, erneut und ohne Klartext in Protoko
     assert.equal(line.includes("Vertraulicher Inhalt"), false);
     assert.equal(line.includes("Übernommener Altext"), false);
   }
+});
+
+test("begrenzt gleichzeitige PDF-Verarbeitungen prozessweit und weist Überlauf ab", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalId = `pdf-limit-owner-${suffix}`;
+  const password = `synthetisches-grenzpasswort-${suffix}`;
+  const storageRoot = await mkdtemp(
+    path.join(os.tmpdir(), "lifeos-pdf-limit-"),
+  );
+  const owner = await database.user.create({
+    data: {
+      externalId,
+      displayName: "Synthetische Grenzperson",
+      settings: { create: {} },
+      credential: { create: { passwordHash: await hashPassword(password) } },
+    },
+  });
+  const storage = new LocalDocumentStorage(storageRoot);
+  /**
+   * Eine enge, aber in der Bauform identische Begrenzung macht den Überlauf
+   * deterministisch prüfbar: ein laufender Platz und drei Warteplätze.
+   */
+  const limiter = new PdfExtractionLimiter({
+    maxConcurrent: 1,
+    maxQueued: 3,
+  });
+  const knowledge = new KnowledgeService(
+    new PrismaKnowledgeRepository(database),
+    storage,
+    () => new Date("2033-03-01T12:00:00.000Z"),
+    limiter,
+  );
+  const profileRepository = new PrismaProfileRepository(database, externalId);
+  const authentication = new AuthenticationService(profileRepository, 1);
+  const application = createApplication({
+    logger: new SilentLogger(),
+    readinessProbe: { check: async () => undefined },
+    webOrigin: "http://127.0.0.1:5173",
+    rawModuleRouters: [
+      createDocumentUploadRouter({ authentication, knowledge }),
+    ],
+    moduleRouters: [
+      createProfileRouter({
+        authentication,
+        profile: new ProfileService(profileRepository),
+        secureCookies: false,
+      }),
+      createKnowledgeRouter({ authentication, knowledge }),
+    ],
+  });
+  const server = createServer(application);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}/api/v1`;
+  const storageUserDirectory = path.join(storageRoot, owner.id);
+  t.after(async () => {
+    await close(server);
+    await database.user.deleteMany({ where: { externalId } });
+    await database.$disconnect();
+    await rm(storageRoot, { recursive: true, force: true });
+  });
+
+  const login = await fetch(`${base}/session`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  const cookie = (login.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+  const upload = (fileName: string, bytes: Buffer) =>
+    fetch(`${base}/documents?fileName=${encodeURIComponent(fileName)}`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/pdf" },
+      body: new Uint8Array(bytes),
+    });
+  const reprocess = (documentId: string) =>
+    fetch(`${base}/documents/${documentId}/extraction`, {
+      method: "POST",
+      headers: { cookie },
+    });
+  const documentsOfOwner = () =>
+    database.document.count({ where: { userId: owner.id, deletedAt: null } });
+  const storedFiles = async () =>
+    readdir(storageUserDirectory).catch(() => [] as string[]);
+
+  /** 1. Der einzige Arbeitsplatz wird deterministisch belegt. */
+  const gate = deferred();
+  const held = limiter.run(async () => {
+    await gate.promise;
+    return "gehalten";
+  });
+  await waitFor(() => limiter.activeCount === 1, "belegter Arbeitsplatz");
+
+  /** 2. Drei gleichzeitige Uploads warten in der begrenzten Warteschlange. */
+  const waiting = ["warte-eins.pdf", "warte-zwei.pdf", "warte-drei.pdf"].map(
+    (fileName) =>
+      upload(fileName, multiPagePdf([`Wartende Seite ${fileName}`])),
+  );
+  await waitFor(
+    () => limiter.queuedCount === 3,
+    "drei wartende PDF-Verarbeitungen",
+  );
+  assert.equal(limiter.activeCount, 1);
+  assert.equal(limiter.queuedCount, limiter.queueLimit);
+
+  /** 3. Der Überlauf wird sofort und sichtbar abgewiesen. */
+  const overflow = await upload("ueberlauf.pdf", multiPagePdf(["Überlauf"]));
+  assert.equal(overflow.status, 429);
+  const overflowError = (await overflow.json()) as ApiErrorResponse;
+  assert.equal(overflowError.error.code, "RATE_LIMITED");
+  assert.match(overflowError.error.message, /ausgelastet/);
+  /** Eine abgewiesene Anfrage erzeugt weder Wartenden noch Datensatz. */
+  assert.equal(limiter.activeCount, 1);
+  assert.equal(limiter.queuedCount, 3);
+  assert.equal(
+    await database.document.count({
+      where: { userId: owner.id, fileName: "ueberlauf.pdf" },
+    }),
+    0,
+  );
+
+  /** 4. Besitzprüfung bleibt vor der Begrenzung wirksam. */
+  const anonymous = await fetch(`${base}/documents?fileName=anonym.pdf`, {
+    method: "POST",
+    headers: { "content-type": "application/pdf" },
+  });
+  assert.equal(anonymous.status, 401);
+
+  /**
+   * 5. Beide Einstiegspfade teilen sich dieselbe Begrenzung: Auch die erneute
+   * Verarbeitung eines vorhandenen Dokuments wird abgewiesen, und ihr
+   * bestehender Zustand bleibt unverändert.
+   */
+  const existingBytes = multiPagePdf(["Bestandsseite für die Begrenzung"]);
+  const existing = await database.document.create({
+    data: {
+      userId: owner.id,
+      storageKey: `${randomUUID()}.pdf`,
+      fileName: "bestand.pdf",
+      mimeType: "application/pdf",
+      byteSize: existingBytes.byteLength,
+      sha256: createHash("sha256").update(existingBytes).digest("hex"),
+      modifiedAt: new Date("2033-03-01T12:00:00.000Z"),
+      extractionStatus: "available",
+      extractionVersion: "legacy-text-v1",
+      extractedText: "Übernommener Altext der Begrenzung.",
+      extractedAt: new Date("2033-03-01T12:00:00.000Z"),
+    },
+  });
+  await mkdir(storageUserDirectory, { recursive: true, mode: 0o700 });
+  await writeFile(
+    path.join(storageUserDirectory, existing.storageKey),
+    existingBytes,
+  );
+  const rejectedReprocess = await reprocess(existing.id);
+  assert.equal(rejectedReprocess.status, 429);
+  assert.equal(
+    ((await rejectedReprocess.json()) as ApiErrorResponse).error.code,
+    "RATE_LIMITED",
+  );
+  const untouched = await database.document.findUniqueOrThrow({
+    where: { id: existing.id },
+  });
+  assert.equal(untouched.extractionVersion, "legacy-text-v1");
+  assert.equal(untouched.extractedText, "Übernommener Altext der Begrenzung.");
+  assert.equal(untouched.extractionSha256, null);
+
+  /** 6. Nach der Freigabe laufen alle wartenden Verarbeitungen durch. */
+  gate.resolve();
+  assert.equal(await held, "gehalten");
+  const finished = await Promise.all(waiting);
+  for (const response of finished) {
+    assert.equal(response.status, 201);
+    const document = (await response.json()) as DocumentResponse;
+    assert.equal(document.extraction.status, "available");
+    assert.equal(document.extraction.storedPages, 1);
+  }
+  assert.equal(limiter.activeCount, 0);
+  assert.equal(limiter.queuedCount, 0);
+
+  /** 7. Nach Erfolg und nach Fehler ist der Platz wieder frei. */
+  const damaged = await upload("defekt.pdf", truncatedPdf());
+  assert.equal(damaged.status, 201);
+  assert.equal(
+    ((await damaged.json()) as DocumentResponse).extraction.status,
+    "failed",
+  );
+  assert.equal(limiter.activeCount, 0);
+  assert.equal(limiter.queuedCount, 0);
+
+  const afterFailure = await upload("danach.pdf", multiPagePdf(["Danach"]));
+  assert.equal(afterFailure.status, 201);
+  assert.equal(
+    ((await afterFailure.json()) as DocumentResponse).extraction.status,
+    "available",
+  );
+  /** Auch die erneute Verarbeitung läuft nach dem Fehler wieder. */
+  const acceptedReprocess = await reprocess(existing.id);
+  assert.equal(acceptedReprocess.status, 200);
+  const reprocessed = (await acceptedReprocess.json()) as DocumentResponse;
+  assert.equal(reprocessed.extraction.status, "available");
+  assert.equal(reprocessed.extraction.storedPages, 1);
+  assert.equal(limiter.activeCount, 0);
+  assert.equal(limiter.queuedCount, 0);
+
+  /**
+   * 8. Es bleibt keine Spur zurück: je abgelegtem Dokument genau eine Datei
+   * und keine verwaiste Datei der abgewiesenen Anfrage.
+   */
+  assert.equal((await storedFiles()).length, await documentsOfOwner());
 });

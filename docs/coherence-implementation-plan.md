@@ -544,6 +544,26 @@ des gespeicherten Zwischenstands fort; starte kein weiteres Paket.“
   Pflichtchecks `pass`) bestätigt worden. Keine Schemaänderung, keine Migration,
   keine neue API-Ressource, kein zweiter Dokumentenspeicher, keine
   Dateiextraktion, keine KI-Funktion und kein neuer Schreibpfad.
+- 26.09.2026: Korrekturrunde zu Paket 7 nach Abnahmebefund, weiterhin
+  ausschließlich Paket 7 und kein Folgepaket. **K1** Die lokale
+  PDF-Verarbeitung ist jetzt prozessweit begrenzt: Je Prozess laufen höchstens
+  zwei Extraktionen gleichzeitig, weitere Anfragen warten in einer auf vier
+  Plätze begrenzten Warteschlange, und ein Überlauf wird sofort mit
+  `429 RATE_LIMITED` abgewiesen. Damit entstehen weder beliebig viele
+  Worker-Threads noch eine unbegrenzte Warteschlange. Die Begrenzung gilt für
+  alle Besitzer und für beide Einstiegspfade (Upload und erneute Verarbeitung);
+  Besitzprüfung sowie Seiten-, Text-, Laufzeit- und Speichergrenze bleiben
+  unverändert wirksam. **K2** Neue Tests belegen gleichzeitige Anfragen, die
+  Überlastabweisung sowie die Freigabe eines Arbeitsplatzes nach Erfolg, Fehler
+  und echter Zeitüberschreitung; der Integrationstest prüft den Überlauf am
+  laufenden HTTP-Server und dass eine abgewiesene Anfrage weder Datensatz noch
+  verwaiste Datei hinterlässt. **K3** Die veraltete Zusammenfassung unter
+  „Aktuelles Paket“ in [coherence-progress.md](coherence-progress.md)
+  beschreibt jetzt Paket 7 sowie die tatsächlich geänderten Datenmodell-,
+  Migrations- und Extraktionsbereiche; historische Paketabschnitte bleiben
+  unverändert. Gemessener Stand: 150/150 API-Tests (vorher 142), dazu
+  Formatprüfung, Linting, Typecheck und Build bestanden. Keine Schemaänderung,
+  keine neue Migration, keine neue API-Ressource und kein Merge.
 - 26.09.2026: Paket 7 nach lokalem Nachweis dokumentiert (PDF-Textextraktion und
   modulspezifische Suche). Festgehalten sind die lokale, seitenbezogene
   Textextraktion aus PDF-Dokumenten mit dokumentgebundenem Status

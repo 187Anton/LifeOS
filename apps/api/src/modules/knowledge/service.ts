@@ -7,6 +7,10 @@ import type {
 } from "@lifeos/contracts";
 
 import { ApiError } from "../../errors.js";
+import {
+  pdfExtractionLimiter,
+  type PdfExtractionLimiter,
+} from "./pdf-extraction-concurrency.js";
 import { extractPdfDocumentText } from "./pdf-extractor.js";
 import {
   LOCAL_TEXT_EXTRACTION_VERSION,
@@ -45,6 +49,12 @@ export class KnowledgeService {
     private readonly repository: KnowledgeRepository,
     private readonly storage: LocalDocumentStorage,
     private readonly now: () => Date = () => new Date(),
+    /**
+     * Prozessweite Begrenzung der PDF-Verarbeitung. Im Betrieb ist das die
+     * gemeinsame Instanz aller Anfragen; Tests können eine eigene, engere
+     * Begrenzung übergeben.
+     */
+    private readonly pdfExtraction: PdfExtractionLimiter = pdfExtractionLimiter,
   ) {}
 
   getOverview(userId: string, includeArchived = false) {
@@ -227,7 +237,15 @@ export class KnowledgeService {
     } satisfies Partial<DocumentExtractionValues>;
 
     if (mimeType === PDF_MIME_TYPE) {
-      const outcome = await extractPdfDocumentText(bytes);
+      /**
+       * Der Parserlauf ist der einzige Pfad, der einen Worker-Thread mit eigener
+       * Speichergrenze startet, und läuft deshalb innerhalb der prozessweiten
+       * Begrenzung. Eine abgewiesene Anfrage wird vor dem Start abgewiesen; sie
+       * hinterlässt weder einen Worker noch eine Wartemarke.
+       */
+      const outcome = await this.pdfExtraction.run(() =>
+        extractPdfDocumentText(bytes),
+      );
       const available = outcome.status === "available";
       return {
         ...base,
