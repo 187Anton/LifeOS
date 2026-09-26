@@ -16,13 +16,17 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   `repo:check` und `security:secrets`. Der Branch ist gepusht und PR #127 offen;
   ein Merge ist nicht beauftragt und wurde nicht ausgeführt.
 - Übergabe: [PR #127](https://github.com/187Anton/LifeOS/pull/127) gegen
-  `develop`, offen. Inhaltlicher Head ist `d72a082`
-  (`fix(knowledge): bound concurrent PDF extractions per process`); die
-  Pflichtprüfungen `Repository checks` und `Local macOS release` sind für genau
-  diesen Head live geprüft und beide `SUCCESS` (Workflow-Lauf `36251372179`,
-  `.headSha` = `d72a082`). Der Übergabecommit dieser Runde ändert ausschließlich
-  diese Fortschrittsdatei und enthält keinen Anwendungs-, Migrations- oder
-  Testcode; ein Merge ist nicht beauftragt und wurde nicht ausgeführt.
+  `develop`, offen. Inhaltlicher Head (Anwendungscode, Migrationen, Tests) ist
+  `d72a082` (`fix(knowledge): bound concurrent PDF extractions per process`);
+  alle Commits darüber sind reine Dokumentationscommits, die ausschließlich
+  diese Fortschrittsdatei ändern und keinen Anwendungs-, Migrations- oder
+  Testcode enthalten.
+- Pflichtchecks je Head, jeweils live geprüft über `gh pr checks` mit
+  übereinstimmendem `.headSha` des Workflow-Laufs: `d72a082` beide `SUCCESS`
+  (Lauf `36251372179`), aktueller PR-Head `3d83a5e` ebenfalls beide `SUCCESS`
+  (Lauf `36262379435`). Jeder weitere Dokumentationscommit erzeugt einen neuen
+  Head, für den `Repository checks` und `Local macOS release` erneut zu prüfen
+  sind; ein Merge ist nicht beauftragt und wurde nicht ausgeführt.
 - Vorgänger: **Paket 6** ist über
   [PR #126](https://github.com/187Anton/LifeOS/pull/126) nach `develop`
   integriert. Live bestätigt sind der Merge-Commit `65de029`
