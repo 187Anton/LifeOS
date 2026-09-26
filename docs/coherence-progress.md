@@ -6,20 +6,23 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 ## Aktuelles Paket
 
 - Paket: **7 – PDF-Textextraktion und modulspezifische Suche** lokal umgesetzt
-  und geprüft. Stand dieser Runde: **142/142** API-Tests (121 vorher),
-  **33/33** Datenbanktests, **81/81** Web-Unit-Tests in 11 Dateien und die
-  Playwright-E2E-Nachweise auf Desktop und Smartphone für Upload, erneute
-  Verarbeitung, Seitentreffer, Modulsuche, Widerruf und Löschung. Dazu
+  und geprüft. Stand dieser Runde: **150/150** API-Tests (121 vorher),
+  **33/33** Datenbanktests, **81/81** Web-Unit-Tests in 11 Dateien und
+  **50/50** Playwright-E2E-Abläufe auf Desktop und Smartphone für Upload,
+  erneute Verarbeitung, Seitentreffer, Modulsuche, Widerruf und Löschung. Dazu
   `db:validate`, `db:sqlite:validate`, `db:generate`, `db:sqlite:generate`,
   `db:sqlite:verify:recovery`, `verify:sqlite:api-runtime`,
   `desktop:verify:sidecar`, `typecheck`, `lint`, `format:check`, `build`,
-  `repo:check` und `security:secrets`. Der Head dieser Runde entsteht nach dem
-  Push; ein Merge ist nicht beauftragt und wurde nicht ausgeführt.
+  `repo:check` und `security:secrets`. Der Branch ist gepusht und PR #127 offen;
+  ein Merge ist nicht beauftragt und wurde nicht ausgeführt.
 - Übergabe: [PR #127](https://github.com/187Anton/LifeOS/pull/127) gegen
-  `develop`. Die Pflichtprüfungen `Repository checks` und
-  `Local macOS release` sind für den inhaltlichen Head `2f46246`
-  (`feat(knowledge): add local PDF text extraction and module-scoped search`)
-  beide `SUCCESS`. Ein Merge ist nicht beauftragt und wurde nicht ausgeführt.
+  `develop`, offen. Inhaltlicher Head ist `d72a082`
+  (`fix(knowledge): bound concurrent PDF extractions per process`); die
+  Pflichtprüfungen `Repository checks` und `Local macOS release` sind für genau
+  diesen Head live geprüft und beide `SUCCESS` (Workflow-Lauf `36251372179`,
+  `.headSha` = `d72a082`). Der Übergabecommit dieser Runde ändert ausschließlich
+  diese Fortschrittsdatei und enthält keinen Anwendungs-, Migrations- oder
+  Testcode; ein Merge ist nicht beauftragt und wurde nicht ausgeführt.
 - Vorgänger: **Paket 6** ist über
   [PR #126](https://github.com/187Anton/LifeOS/pull/126) nach `develop`
   integriert. Live bestätigt sind der Merge-Commit `65de029`
@@ -71,9 +74,8 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   Seed-Bestände, ein zweiter Dokumentenspeicher, ein persistierter Suchindex,
   OCR, Vektorsuche sowie PPTX-/DOCX-Extraktion (Paket 8). `LifeOS
 Leitfaden.docx` blieb unverändert; damit war keine DOCX-Renderprüfung nötig.
-- Offene Blocker: keiner in der Fachlogik. Offen ist allein die live zu lesende
-  Pflicht-CI des Heads dieser Korrekturrunde; ein Merge ist nicht beauftragt und
-  wurde nicht ausgeführt.
+- Offene Blocker: keiner. Die Pflicht-CI ist für den inhaltlichen Head `d72a082`
+  live bestätigt; ein Merge ist nicht beauftragt und wurde nicht ausgeführt.
 
 ## Paket 7 – lokale Nachweise (26.09.2026)
 
@@ -158,6 +160,10 @@ Dokumentquellen; Aufgaben bleiben normale Fachfilter.
 - `npm run test:unit --workspace @lifeos/web`: **81/81** grün in 11 Dateien
   (vier neue Tests für Extraktionszustand, erneute Verarbeitung, Seitenanzeige
   und Modulsuche).
+- `npm run test:e2e --workspace @lifeos/web`: **50/50** grün (25 Fälle in beiden
+  Browserprojekten), darunter der neue Ablauf „verarbeitet PDFs seitenbezogen
+  und sucht im Modul auf Desktop und Smartphone“ mit Statusanzeige, erneuter
+  Verarbeitung, `Seite …`-Treffern, Modulsuche, Widerruf und Löschung.
 - PDF-Unit-Tests decken ein- und mehrseitige Dokumente, leere Seiten,
   bildbasierte Dateien ohne Text, geschützte, abgeschnittene und strukturell
   defekte Dateien, zu große Eingaben, Seiten- und Textgrenzen, Laufzeitabbruch,
