@@ -4250,11 +4250,13 @@ test("verarbeitet PDFs seitenbezogen und sucht im Modul auf Desktop und Smartpho
   ).toBeVisible();
 
   /** Löschung entfernt das Dokument sofort aus der Ablage. */
-  await page
+  const oldPdfCard = page
     .locator(".document-card")
-    .filter({ hasText: "altes-skript.pdf" })
-    .getByRole("button", { name: "Löschen" })
-    .click();
+    .filter({ hasText: "altes-skript.pdf" });
+  await clickAtVisibleCenter(
+    page,
+    oldPdfCard.getByRole("button", { name: "Löschen" }),
+  );
   await expect(
     page.locator(".document-card").filter({ hasText: "altes-skript.pdf" }),
   ).toHaveCount(0);

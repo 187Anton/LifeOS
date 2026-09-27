@@ -307,13 +307,19 @@ Navigation getroffen.
 Der Test scrollt das Steuerelement nun mittig ins Bild, prüft mit
 `elementFromPoint`, dass der Mittelpunkt tatsächlich das Kontrollkästchen
 trifft, und klickt anschließend mit echten Mauskoordinaten. Danach wird der
-geänderte Checkbox-Status geprüft. Auf dieser Fassung bestanden der mobile
-Ablauf **8/8** Mal mit zwei Workern, die vollständige Desktop-/Mobil-E2E-Suite
-**50/50**, Web-Lint, Web-Typecheck und `npm run format:check`. Ein zusätzlicher
-20-facher Stresstest wurde nach 19 abgeschlossenen Fällen unterbrochen, weil
-der letzte Chrome-Prozess nicht startete; ein Assertion-Fehler lag bis dahin
-nicht vor. Der aktuelle Checkbox-Fix ist noch uncommitted und braucht nach
-Commit und Push beide Pflichtchecks auf dem exakten PR-Head.
+geänderte Checkbox-Status geprüft. Lauf #213 auf Head `707e11a` bestand diesen
+Schritt, scheiterte anschließend beim Löschen des alten PDF: `locator.click`
+traf beim automatischen Scrollen den Download-Link statt des Löschknopfs. Der
+E2E-Helfer scrollt und prüft nun auch den Löschknopf und klickt anschließend
+seinen tatsächlichen Mittelpunkt mit der Maus.
+
+Auf der aktuellen lokalen Fassung bestanden der mobile Ablauf **8/8** Mal mit
+zwei Workern, die vollständige Desktop-/Mobil-E2E-Suite **50/50**, Web-Lint,
+Web-Typecheck und `npm run format:check`. Ein zusätzlicher 20-facher
+Stresstest wurde nach 19 abgeschlossenen Fällen unterbrochen, weil der letzte
+Chrome-Prozess nicht startete; bis dahin gab es keinen Assertion-Fehler. Diese
+Löschknopf-Korrektur ist noch uncommitted und benötigt nach Commit und Push
+beide Pflichtchecks auf dem exakten PR-Head.
 
 ## Paket 7 – Übergabe (26.09.2026)
 
