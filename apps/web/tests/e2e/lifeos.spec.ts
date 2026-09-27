@@ -3415,7 +3415,11 @@ const clickAtVisibleCenter = async (page: Page, target: Locator) => {
     };
   });
   expect(point.hittable).toBe(true);
-  await page.mouse.click(point.x, point.y);
+  if ((page.viewportSize()?.width ?? Number.MAX_SAFE_INTEGER) <= 720) {
+    await page.touchscreen.tap(point.x, point.y);
+  } else {
+    await page.mouse.click(point.x, point.y);
+  }
 };
 
 /** Öffnet ein Modul aus der Studienübersicht über seine Karte. */
@@ -4253,10 +4257,22 @@ test("verarbeitet PDFs seitenbezogen und sucht im Modul auf Desktop und Smartpho
   const oldPdfCard = page
     .locator(".document-card")
     .filter({ hasText: "altes-skript.pdf" });
+  const deleteResponse = page.waitForResponse((response) => {
+    const request = response.request();
+    return (
+      request.method() === "DELETE" &&
+      new URL(response.url()).pathname ===
+        "/api/v1/documents/document-pdf-altbestand"
+    );
+  });
   await clickAtVisibleCenter(
     page,
     oldPdfCard.getByRole("button", { name: "Löschen" }),
   );
+  expect((await deleteResponse).status()).toBe(204);
+  await expect(
+    page.getByText("Das Dokument wurde sicher gelöscht."),
+  ).toBeVisible();
   await expect(
     page.locator(".document-card").filter({ hasText: "altes-skript.pdf" }),
   ).toHaveCount(0);
