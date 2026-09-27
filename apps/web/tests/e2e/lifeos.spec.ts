@@ -3399,6 +3399,12 @@ const showView = async (page: Page, name: string) => {
 
 /** Scrollt ein Steuerelement mittig ins Bild und klickt seinen geprüften Trefferpunkt. */
 const clickAtVisibleCenter = async (page: Page, target: Locator) => {
+  if ((page.viewportSize()?.width ?? Number.MAX_SAFE_INTEGER) <= 720) {
+    await page.evaluate(() => {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement) active.blur();
+    });
+  }
   const point = await target.evaluate(async (element) => {
     element.scrollIntoView({ block: "center", inline: "nearest" });
     await new Promise<void>((resolve) =>
@@ -4257,14 +4263,17 @@ test("verarbeitet PDFs seitenbezogen und sucht im Modul auf Desktop und Smartpho
   const oldPdfCard = page
     .locator(".document-card")
     .filter({ hasText: "altes-skript.pdf" });
-  const deleteResponse = page.waitForResponse((response) => {
-    const request = response.request();
-    return (
-      request.method() === "DELETE" &&
-      new URL(response.url()).pathname ===
-        "/api/v1/documents/document-pdf-altbestand"
-    );
-  });
+  const deleteResponse = page.waitForResponse(
+    (response) => {
+      const request = response.request();
+      return (
+        request.method() === "DELETE" &&
+        new URL(response.url()).pathname ===
+          "/api/v1/documents/document-pdf-altbestand"
+      );
+    },
+    { timeout: 5_000 },
+  );
   await clickAtVisibleCenter(
     page,
     oldPdfCard.getByRole("button", { name: "Löschen" }),

@@ -317,14 +317,16 @@ Lauf #214 auf `82e24cc` bestand den macOS-Release-Check, scheiterte im
 Repository-Test aber erneut am Ende des Mobile-Ablaufs: Das alte PDF blieb in
 der Liste. Die Wiederholung des fehlgeschlagenen Jobs zeigte denselben Fehler;
 der CI-Trace wurde nicht als Workflow-Artefakt veröffentlicht. Lokal bestanden
-8/8 gezielte Durchläufe mit Maus-Klick. Daher wechselt der E2E-Helfer im
-Touch-Profil auf einen echten Touch-Tap; der Löschschritt wartet zusätzlich auf
-die erfolgreiche DELETE-Antwort und Statusmeldung. Nach dieser Änderung
-bestanden lokal weitere **8/8** gezielte Mobile-Durchläufe sowie
-`npm run format:check`, Web-Lint und `git diff --check`. Diese Diagnosekorrektur
-ist uncommitted; der nächste Schritt ist Commit/Push und erneute Pflichtchecks
-auf dem exakten PR-Head. Der CI-Nachweis für Touch-Tap und DELETE-Antwort steht
-noch aus.
+8/8 gezielte Durchläufe mit Maus-Klick. Lauf #215 auf `85c399f` zeigte, dass
+auch ein Touch-Tap keinen DELETE-Request auslöste; der Test wartete auf die
+Antwort, der Löschhandler/API wurde nicht erreicht. Der mobile E2E-Helfer löst
+vor dem Scrollen nun den aktiven Fokus und bestimmt die Zielposition danach neu.
+Der Löschschritt wartet mit kurzer Frist auf die erfolgreiche DELETE-Antwort
+und anschließend auf die Bestätigung in der Oberfläche. Lokal bestanden danach
+erneut **8/8** gezielte Mobile-Durchläufe und die vollständige Desktop-/Mobil-
+E2E-Suite **50/50**; Format, Web-Lint, Typecheck und `git diff --check` sind
+ebenfalls grün. Die letzte Fokuskorrektur ist noch uncommitted; der
+CI-Nachweis auf dem exakten neuen PR-Head steht aus.
 
 ## Paket 7 – Übergabe (26.09.2026)
 
