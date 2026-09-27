@@ -332,12 +332,14 @@ Fokuslösen allein behebt den mobilen Klick nicht. Die Ereignisspur aus Lauf #21
 bestätigte die Ursache: Der Android-Visual-Viewport war um 35 Pixel versetzt;
 die Eingabe landete im umgebenden `ARTICLE` unterhalb des Knopfs, obwohl die
 vorherige Trefferprüfung den Knopf meldete. Der Klickhelfer rechnet die
-`visualViewport`-Offsets nun von der Zielposition ab, bevor er Trefferpunkt und
-Touch-Tap bestimmt. Danach bestanden lokal **8/8** gezielte Mobile-Läufe und die
-vollständige Desktop-/Mobil-E2E-Suite **50/50**; Format, Web-Lint, Typecheck und
-`git diff --check` sind grün. Die Korrektur ist noch uncommitted; der nächste
-Schritt ist Commit/Push und CI-Prüfung des exakten Heads. API-/Backendänderungen
-sind nicht angezeigt.
+`visualViewport`-Offsets für die tatsächliche Touch-Eingabe ab. Lauf #218 zeigte,
+dass diese Umrechnung nicht für `elementFromPoint` gilt: dessen DOM-Prüfung muss
+den unverschobenen Mittelpunkt verwenden. Der Helfer trennt nun die rohe
+DOM-Trefferprüfung vom offsetkorrigierten Touch-Punkt. Danach bestanden lokal
+**8/8** gezielte Mobile-Läufe und die vollständige Desktop-/Mobil-E2E-Suite
+**50/50**; Format, Web-Lint, Typecheck und `git diff --check` sind grün. Die
+Korrektur ist noch uncommitted; der nächste Schritt ist Commit/Push und
+CI-Prüfung des exakten Heads. API-/Backendänderungen sind nicht angezeigt.
 
 ## Paket 7 – Übergabe (26.09.2026)
 
