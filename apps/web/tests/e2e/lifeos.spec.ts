@@ -3347,12 +3347,45 @@ const showView = async (page: Page, name: string) => {
   const target = page
     .getByRole("button", { name, exact: true })
     .filter({ visible: true });
-  await target.evaluate((element) => {
+  const visibleAndClickable = await target.evaluate(async (element) => {
     /* Mobile-Tabs liegen in einem horizontal scrollbaren Container. */
-    if (element.closest(".mobile-navigation")) {
-      element.scrollIntoView({ block: "nearest", inline: "center" });
-    }
+    const navigation = element.closest(
+      ".mobile-navigation",
+    ) as HTMLElement | null;
+    if (!navigation) return true;
+
+    const navigationRect = navigation.getBoundingClientRect();
+    const targetRect = element.getBoundingClientRect();
+    const centeredScrollLeft =
+      navigation.scrollLeft +
+      targetRect.left -
+      navigationRect.left -
+      (navigation.clientWidth - targetRect.width) / 2;
+    navigation.scrollLeft = Math.max(
+      0,
+      Math.min(
+        navigation.scrollWidth - navigation.clientWidth,
+        centeredScrollLeft,
+      ),
+    );
+
+    /* Warte auf die sichtbare Scrollposition, bevor Playwright klickt. */
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
+    const visibleRect = element.getBoundingClientRect();
+    const navigationBounds = navigation.getBoundingClientRect();
+    const hitTarget = document.elementFromPoint(
+      visibleRect.left + visibleRect.width / 2,
+      visibleRect.top + visibleRect.height / 2,
+    );
+    return (
+      visibleRect.left >= navigationBounds.left &&
+      visibleRect.right <= navigationBounds.right &&
+      navigation.contains(hitTarget)
+    );
   });
+  expect(visibleAndClickable).toBe(true);
   await target.click();
 };
 

@@ -279,9 +279,15 @@ den sichtbaren Bereich des mobilen Menüs.
 
 Nach dieser Korrektur bestanden der betroffene mobile Test **10/10** Mal, die
 vollständige Desktop-/Mobil-E2E-Suite **50/50** und `npm run format:check`.
-Diese noch nicht veröffentlichte Testkorrektur benötigt einen neuen Commit und
-einen vollständigen Lauf der Pflichtchecks auf dem daraus entstehenden exakten
-PR-Head.
+Der erste Testhelfer-Ansatz mit `scrollIntoView` allein reichte im zweiten CI-
+Lauf #209 dennoch nicht aus: derselbe Klick scheiterte erneut auf Head
+`491e048`. Die präzisere Korrektur setzt `scrollLeft` des mobilen Menüs anhand
+der realen Elementposition, wartet zwei Bildframes und prüft vor dem Klick,
+dass der Tab sichtbar ist und sein Mittelpunkt tatsächlich vom Menü getroffen
+wird. Dafür stehen lokal bereits **20/20** mobile Wiederholungen mit vier
+Workern, die vollständige Desktop-/Mobil-E2E-Suite **50/50** und
+`npm run format:check`. Diese letzte Korrektur ist noch nicht gepusht; danach
+braucht der PR einen neuen Pflichtlauf auf dem exakt gepushten Head.
 
 ## Paket 7 – Übergabe (26.09.2026)
 
