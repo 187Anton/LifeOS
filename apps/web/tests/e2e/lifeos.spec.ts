@@ -3347,10 +3347,10 @@ const showView = async (page: Page, name: string) => {
   const target = page
     .getByRole("button", { name, exact: true })
     .filter({ visible: true });
-  const visibleAndClickable = await target.evaluate(async (element) => {
+  const mobileClickPoint = await target.evaluate(async (element) => {
     /* Mobile-Tabs liegen in einem horizontal scrollbaren Container. */
     const navigation = element.closest(".mobile-navigation");
-    if (!navigation) return true;
+    if (!navigation) return null;
 
     const navigationRect = navigation.getBoundingClientRect();
     const targetRect = element.getBoundingClientRect();
@@ -3377,14 +3377,24 @@ const showView = async (page: Page, name: string) => {
       visibleRect.left + visibleRect.width / 2,
       visibleRect.top + visibleRect.height / 2,
     );
-    return (
-      visibleRect.left >= navigationBounds.left &&
-      visibleRect.right <= navigationBounds.right &&
-      navigation.contains(hitTarget)
-    );
+    return {
+      x: visibleRect.left + visibleRect.width / 2,
+      y: visibleRect.top + visibleRect.height / 2,
+      clickable:
+        visibleRect.left >= navigationBounds.left &&
+        visibleRect.right <= navigationBounds.right &&
+        visibleRect.top >= navigationBounds.top &&
+        visibleRect.bottom <= navigationBounds.bottom &&
+        (hitTarget === element || element.contains(hitTarget)),
+    };
   });
-  expect(visibleAndClickable).toBe(true);
-  await target.click();
+  if (mobileClickPoint) {
+    expect(mobileClickPoint.clickable).toBe(true);
+    /* Die geprüfte Position direkt klicken, ohne Locator-Autoscroll. */
+    await page.mouse.click(mobileClickPoint.x, mobileClickPoint.y);
+  } else {
+    await target.click();
+  }
 };
 
 /** Öffnet ein Modul aus der Studienübersicht über seine Karte. */

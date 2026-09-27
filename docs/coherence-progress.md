@@ -289,9 +289,18 @@ Workern, die vollständige Desktop-/Mobil-E2E-Suite **50/50** und
 `npm run format:check`. Pflichtlauf #210 stoppte auf diesem Zwischenstand
 bereits beim Lint: ESLint beanstandete einen überflüssigen `HTMLElement`-
 Typzusatz. Er wurde entfernt; Web-Lint, Web-Typecheck und Formatprüfung sind
-lokal grün. Das ist eine reine Typkorrektur ohne Laufzeitänderung; der
-vollständige E2E-Lauf auf der vorherigen Fassung bestand 50/50. Der nächste
-Push muss wieder beide Pflichtchecks auf seinem exakten Head bestehen.
+lokal grün. Lauf #211 warf danach trotz sichtbarem, per `elementFromPoint`
+geprüftem Tab noch denselben Fehler: `locator.click` führte ein zweites
+automatisches Scrollen aus und traf erneut den Suchinhalt. Der E2E-Helfer klickt
+nun nach Scrollen und Trefferprüfung mit echten Mauskoordinaten genau den
+geprüften Mittelpunkt, ohne Locator-Autoscroll. Das ist weiterhin ein realer
+Pointer-Klick und kein erzwungener DOM-Klick.
+
+Nach dieser Korrektur bestehen lokal der mobile Test **20/20** Mal mit vier
+Workern, die vollständige Desktop-/Mobil-E2E-Suite **50/50**, Web-Lint,
+Web-Typecheck und `npm run format:check`. Diese Korrektur ist noch nicht
+gepusht; beide Pflichtchecks sind auf dem daraus entstehenden exakten PR-Head
+erneut abzuwarten.
 
 ## Paket 7 – Übergabe (26.09.2026)
 
