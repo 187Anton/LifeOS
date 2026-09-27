@@ -296,11 +296,24 @@ nun nach Scrollen und Trefferprüfung mit echten Mauskoordinaten genau den
 geprüften Mittelpunkt, ohne Locator-Autoscroll. Das ist weiterhin ein realer
 Pointer-Klick und kein erzwungener DOM-Klick.
 
-Nach dieser Korrektur bestehen lokal der mobile Test **20/20** Mal mit vier
-Workern, die vollständige Desktop-/Mobil-E2E-Suite **50/50**, Web-Lint,
-Web-Typecheck und `npm run format:check`. Diese Korrektur ist noch nicht
-gepusht; beide Pflichtchecks sind auf dem daraus entstehenden exakten PR-Head
-erneut abzuwarten.
+Mit dem Nav-Fix auf Head `6782dd8` bestanden lokal der mobile Test **20/20** Mal
+mit vier Workern, die vollständige Desktop-/Mobil-E2E-Suite **50/50**, Web-Lint,
+Web-Typecheck und `npm run format:check`. Lauf #212 kam im mobilen Test weiter
+und scheiterte dann beim Widerruf der Dokument-Suchfreigabe: Das
+Suchfreigabe-Kontrollkästchen im Metadateneditor wurde beim automatischen
+Scrollen abwechselnd von einem `select`, dem Formular und der fixierten
+Navigation getroffen.
+
+Der Test scrollt das Steuerelement nun mittig ins Bild, prüft mit
+`elementFromPoint`, dass der Mittelpunkt tatsächlich das Kontrollkästchen
+trifft, und klickt anschließend mit echten Mauskoordinaten. Danach wird der
+geänderte Checkbox-Status geprüft. Auf dieser Fassung bestanden der mobile
+Ablauf **8/8** Mal mit zwei Workern, die vollständige Desktop-/Mobil-E2E-Suite
+**50/50**, Web-Lint, Web-Typecheck und `npm run format:check`. Ein zusätzlicher
+20-facher Stresstest wurde nach 19 abgeschlossenen Fällen unterbrochen, weil
+der letzte Chrome-Prozess nicht startete; ein Assertion-Fehler lag bis dahin
+nicht vor. Der aktuelle Checkbox-Fix ist noch uncommitted und braucht nach
+Commit und Push beide Pflichtchecks auf dem exakten PR-Head.
 
 ## Paket 7 – Übergabe (26.09.2026)
 

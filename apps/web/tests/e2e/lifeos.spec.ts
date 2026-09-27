@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const profile = {
   id: "nutzer-1",
@@ -3397,6 +3397,27 @@ const showView = async (page: Page, name: string) => {
   }
 };
 
+/** Scrollt ein Steuerelement mittig ins Bild und klickt seinen geprüften Trefferpunkt. */
+const clickAtVisibleCenter = async (page: Page, target: Locator) => {
+  const point = await target.evaluate(async (element) => {
+    element.scrollIntoView({ block: "center", inline: "nearest" });
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
+    const bounds = element.getBoundingClientRect();
+    const x = bounds.left + bounds.width / 2;
+    const y = bounds.top + bounds.height / 2;
+    const hitTarget = document.elementFromPoint(x, y);
+    return {
+      x,
+      y,
+      hittable: hitTarget === element || element.contains(hitTarget),
+    };
+  });
+  expect(point.hittable).toBe(true);
+  await page.mouse.click(point.x, point.y);
+};
+
 /** Öffnet ein Modul aus der Studienübersicht über seine Karte. */
 const openModuleFromOverview = async (page: Page, title: string) => {
   const backToOverview = page.getByRole("button", { name: "Zur Übersicht" });
@@ -4210,7 +4231,12 @@ test("verarbeitet PDFs seitenbezogen und sucht im Modul auf Desktop und Smartpho
   const documentEditor = page.locator(
     '[aria-labelledby="document-editor-title"]',
   );
-  await documentEditor.getByLabel("Für lokale Suche freigeben").uncheck();
+  const searchPermission = documentEditor.getByLabel(
+    "Für lokale Suche freigeben",
+  );
+  await expect(searchPermission).toBeChecked();
+  await clickAtVisibleCenter(page, searchPermission);
+  await expect(searchPermission).not.toBeChecked();
   await documentEditor
     .getByRole("button", { name: "Änderung speichern" })
     .click();
