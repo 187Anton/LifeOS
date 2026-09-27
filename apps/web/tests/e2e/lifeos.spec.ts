@@ -3344,10 +3344,16 @@ const detailDocument = {
 
 /** Wechselt über die sichtbare Hauptnavigation in eine Ansicht. */
 const showView = async (page: Page, name: string) => {
-  await page
+  const target = page
     .getByRole("button", { name, exact: true })
-    .filter({ visible: true })
-    .click();
+    .filter({ visible: true });
+  await target.evaluate((element) => {
+    /* Mobile-Tabs liegen in einem horizontal scrollbaren Container. */
+    if (element.closest(".mobile-navigation")) {
+      element.scrollIntoView({ block: "nearest", inline: "center" });
+    }
+  });
+  await target.click();
 };
 
 /** Öffnet ein Modul aus der Studienübersicht über seine Karte. */

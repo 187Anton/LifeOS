@@ -83,7 +83,8 @@ installieren (`engines: >=22 <23`), sonst ist derselbe Vorbefund zu erwarten.
 
 ### Offene Punkte und Entscheidungen dieser Runde
 
-- Kein PR und kein Push: nicht beauftragt.
+- Beim ursprünglichen Umsetzungssnapshot waren PR und Push nicht beauftragt;
+  danach wurde PR #128 auf ausdrücklichen Nutzerauftrag eröffnet.
 - `LifeOS Leitfaden.docx` wurde bewusst nicht geändert. Die Produktbeschreibung
   in Abschnitt 5.10 nennt bereits „Dokumente und Anhänge“ und „Volltextsuche“;
   PPTX und DOCX sind Dokumente und fügen keine neue Funktionskategorie hinzu.
@@ -263,6 +264,24 @@ Prüfung und der vollständige E2E-Lauf nach der gezielten Korrektur sind die
 aussagekräftigen lokalen Nachweise. Die neue CI hat danach einen globalen
 Navigationsklick-Fehler gezeigt; deshalb ist die Korrektur auf den Upload-CTA
 eingegrenzt und muss erneut auf dem aktuellen PR-Head geprüft werden.
+
+### Zweite Pflichtlaufdiagnose (27.09.2026)
+
+`Repository checks` in Lauf #208 auf Head `1dc90ff` scheiterte nach 49/50
+E2E-Abläufen beim erneuten Wechsel von „Wissen“ nach „Studium“. Der Locator
+fand den Tab, Playwright meldete aber ein Suchergebnis als Trefferziel. Eine
+lokale Geometriemessung zeigte die Ursache: Der horizontale Mobile-Menüstreifen
+war nach dem vorherigen Wechsel zu „Wissen“ nach rechts gescrollt; der
+Studium-Tab lag bei `x=-215` außerhalb des sichtbaren Ausschnitts. Das ist kein
+Extraktionsfehler und verlangt keine Änderung am Produktverhalten. Der
+gemeinsame E2E-Navigationshelfer scrollt den Ziel-Tab vor dem Klick explizit in
+den sichtbaren Bereich des mobilen Menüs.
+
+Nach dieser Korrektur bestanden der betroffene mobile Test **10/10** Mal, die
+vollständige Desktop-/Mobil-E2E-Suite **50/50** und `npm run format:check`.
+Diese noch nicht veröffentlichte Testkorrektur benötigt einen neuen Commit und
+einen vollständigen Lauf der Pflichtchecks auf dem daraus entstehenden exakten
+PR-Head.
 
 ## Paket 7 – Übergabe (26.09.2026)
 
