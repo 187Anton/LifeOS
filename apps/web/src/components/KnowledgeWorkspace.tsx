@@ -46,6 +46,15 @@ interface Props {
   onUploadDocument: (file: File, links: UpdateDocumentRequest) => Promise<void>;
   onUpdateDocument: (id: string, value: UpdateDocumentRequest) => Promise<void>;
   onDeleteDocument: (id: string) => Promise<void>;
+  /**
+   * Paket 7: Erneute lokale Verarbeitung eines abgelegten Dokuments. Der
+   * Dateiinhalt bleibt unverändert; nur der Extraktionszustand wird neu
+   * berechnet.
+   */
+  onReprocessDocument: (id: string) => Promise<void>;
+  /** Aktiver Modulfilter der Suche, `null` für die bereichsübergreifende Suche. */
+  searchModuleFilter: { id: string; title: string } | null;
+  onClearSearchModule: () => void;
   onSearch: (query: string) => Promise<void>;
   onOpenSearchResult: (result: SearchResultResponse) => void;
   onPrepareAiSources: (query: string) => Promise<void>;
@@ -185,6 +194,18 @@ export const KnowledgeWorkspace = (props: Props) => {
             {props.searchLoading ? "Suche läuft …" : "Suchen"}
           </button>
         </form>
+        {props.searchModuleFilter ? (
+          <p className="module-search-filter" role="status">
+            Modulsuche aktiv: {props.searchModuleFilter.title}
+            <button
+              className="text-button"
+              type="button"
+              onClick={props.onClearSearchModule}
+            >
+              Filter aufheben
+            </button>
+          </p>
+        ) : null}
         {props.searchError ? (
           <p className="error-banner" role="alert">
             {props.searchError}
@@ -218,6 +239,9 @@ export const KnowledgeWorkspace = (props: Props) => {
                   Quelle: {result.source.title} · Treffer in{" "}
                   {matchReasonLabel(result.matchReason)} · Eigener,
                   freigegebener Inhalt
+                  {searchPageLabel(result.pages)
+                    ? ` · ${searchPageLabel(result.pages)}`
+                    : ""}
                 </small>
                 <a
                   href={result.detailPath}
@@ -577,6 +601,21 @@ export const KnowledgeWorkspace = (props: Props) => {
                   {document.searchEnabled ? " · Suchfreigabe" : ""}
                   {document.archivedAt ? " · archiviert" : ""}
                 </small>
+                <small className="document-extraction">
+                  Extraktion:{" "}
+                  {extractionStatusLabels[document.extraction.status]}
+                  {document.extraction.pageCount !== null
+                    ? ` · ${document.extraction.pageCount} Seiten`
+                    : ""}
+                  {document.extraction.storedPages
+                    ? ` · ${document.extraction.storedPages} Seiten mit Text`
+                    : ""}
+                  {document.extraction.truncated ? " · gekürzt" : ""}
+                  {document.extraction.current ? "" : " · Prüfsumme veraltet"}
+                  {document.extraction.errorCode
+                    ? ` · Fehler: ${document.extraction.errorCode}`
+                    : ""}
+                </small>
               </div>
               <div className="form-actions">
                 <button
@@ -585,6 +624,13 @@ export const KnowledgeWorkspace = (props: Props) => {
                   onClick={() => props.onSelectDocument(document.id)}
                 >
                   <EditIcon /> Metadaten bearbeiten
+                </button>
+                <button
+                  className="secondary-button"
+                  disabled={props.saving}
+                  onClick={() => void props.onReprocessDocument(document.id)}
+                >
+                  Erneut verarbeiten
                 </button>
                 <a className="secondary-button" href={document.contentUrl}>
                   Herunterladen
@@ -649,6 +695,34 @@ const contentTypeLabel = (contentType: SearchResultResponse["contentType"]) =>
 
 const matchReasonLabel = (reason: SearchResultResponse["matchReason"]) =>
   ({ title: "Titel", content: "Inhalt", metadata: "Metadaten" })[reason];
+
+/**
+ * Der Extraktionszustand wird sichtbar benannt. Geschützte, textfreie und
+ * fehlgeschlagene Verarbeitungen erscheinen nie als erfolgreicher Text.
+ */
+const extractionStatusLabels: Record<
+  DocumentResponse["extraction"]["status"],
+  string
+> = {
+  pending: "Noch nicht verarbeitet",
+  available: "Text lokal extrahiert",
+  no_text: "Kein Text enthalten",
+  protected: "Geschützt – kein Zugriff",
+  unsupported: "Format nicht unterstützt",
+  failed: "Verarbeitung fehlgeschlagen",
+};
+
+/**
+ * Seitenangabe eines Suchtreffers; leere Liste oder fehlende Angabe bei
+ * Formaten ohne Seiten. Eine fehlende Angabe wird tolerant behandelt, damit
+ * eine ältere oder unvollständige Antwort die Ansicht nicht bricht.
+ */
+const searchPageLabel = (pages: number[] | null | undefined) => {
+  if (!pages?.length) return null;
+  return pages.length === 1
+    ? `Seite ${pages[0]}`
+    : `Seiten ${pages.join(", ")}`;
+};
 
 const DocumentEditor = ({
   document,

@@ -6,7 +6,15 @@ import { createRequireAuthentication } from "../profile/router.js";
 import type { AuthenticationService } from "../profile/service.js";
 import type { LocalSearchService } from "./service.js";
 
-const query = z.strictObject({ q: z.string().max(200).default("") });
+const query = z.strictObject({
+  q: z.string().max(200).default(""),
+  /**
+   * Optionaler Modulfilter der Modulsuche. Er beschränkt die Suche auf Objekte
+   * mit diesem Studienmodulbezug; ohne Angabe bleibt die Suche unverändert
+   * bereichsübergreifend.
+   */
+  studyModuleId: z.uuid().optional(),
+});
 
 export const createSearchRouter = ({
   authentication,
@@ -20,13 +28,14 @@ export const createSearchRouter = ({
   router.get(
     "/search",
     validateRequest({ query }),
-    async (_request, response: Response) =>
-      response.json(
-        await search.search(
-          String(response.locals.userId),
-          response.locals.validated.query.q,
-        ),
-      ),
+    async (_request, response: Response) => {
+      const { q, studyModuleId } = response.locals.validated.query;
+      return response.json(
+        await search.search(String(response.locals.userId), q, {
+          studyModuleId: studyModuleId ?? null,
+        }),
+      );
+    },
   );
   return router;
 };

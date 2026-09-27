@@ -178,6 +178,11 @@ export const App = () => {
   const [knowledgeSuccess, setKnowledgeSuccess] = useState<string | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  /** Aktiver Modulfilter der Suche; `null` für die bereichsübergreifende Suche. */
+  const [searchModuleFilter, setSearchModuleFilter] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -380,19 +385,45 @@ export const App = () => {
     }
   }, []);
 
-  const runSearch = useCallback(async (query: string) => {
-    setSearchLoading(true);
-    setSearchError(null);
-    try {
-      setSearch(await api.search(query));
-    } catch (error) {
-      if (error instanceof ApiClientError && error.status === 401)
-        setSession("anonymous");
-      else setSearchError(errorMessage(error));
+  const runSearch = useCallback(
+    async (query: string) => {
+      setSearchLoading(true);
+      setSearchError(null);
+      try {
+        setSearch(await api.search(query, searchModuleFilter?.id ?? null));
+      } catch (error) {
+        if (error instanceof ApiClientError && error.status === 401)
+          setSession("anonymous");
+        else setSearchError(errorMessage(error));
+        setSearch(null);
+      } finally {
+        setSearchLoading(false);
+      }
+    },
+    [searchModuleFilter],
+  );
+
+  /**
+   * Öffnet die Modulsuche aus der Moduldetailansicht. Der Filter beschränkt
+   * die Suche auf die freigegebenen Quellen dieses Moduls; Suchbegriffe und
+   * Treffer bleiben ausschließlich im Speicher.
+   */
+  const searchInModule = useCallback(
+    (moduleId: string) => {
+      const module =
+        study?.modules.find((entry) => entry.id === moduleId) ?? null;
+      if (!module) return;
+      setSearchModuleFilter({ id: moduleId, title: module.title });
       setSearch(null);
-    } finally {
-      setSearchLoading(false);
-    }
+      setSearchError(null);
+      setView("knowledge");
+    },
+    [study],
+  );
+
+  const clearSearchModule = useCallback(() => {
+    setSearchModuleFilter(null);
+    setSearch(null);
   }, []);
 
   /**
@@ -1174,6 +1205,7 @@ export const App = () => {
           onReload={() => void loadStudy()}
           onSelectModule={selectStudyModule}
           onClearModuleSelection={clearStudyModuleSelection}
+          onSearchInModule={searchInModule}
           onOpenTask={openTaskEditor}
           onOpenNote={(noteId: string) => void openNoteTarget(noteId)}
           onOpenDocument={(documentId: string) =>
@@ -1476,6 +1508,14 @@ export const App = () => {
               "Das Dokument wurde sicher gelöscht.",
             )
           }
+          onReprocessDocument={(id: string) =>
+            changeKnowledge(
+              () => api.reprocessDocument(id),
+              "Das Dokument wurde erneut lokal verarbeitet.",
+            )
+          }
+          searchModuleFilter={searchModuleFilter}
+          onClearSearchModule={clearSearchModule}
         />
       ) : (
         <CalendarWorkspace

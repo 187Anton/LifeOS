@@ -74,6 +74,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
     "20260921190000_grocery_lists",
     "20260925120000_remove_finance_module",
     "20260925121600_task_study_module",
+    "20260926120500_document_pdf_extraction",
   ]);
 
   const database = createSqliteDatabaseClient(databaseUrl);
@@ -82,7 +83,7 @@ test("erstellt SQLite nur über versionierte Migrationen und bleibt wiederholbar
   const migrationRows = await database.$queryRawUnsafe<
     Array<{ name: string; checksum: string }>
   >('SELECT "name", "checksum" FROM "_lifeos_migrations"');
-  assert.equal(migrationRows.length, 13);
+  assert.equal(migrationRows.length, 14);
   assert.equal(migrationRows[0]?.name, "20260809190000_sqlite_foundation");
   assert.match(migrationRows[0]?.checksum ?? "", /^[0-9a-f]{64}$/);
   assert.equal(migrationRows[1]?.name, "20260809203000_product_modules");

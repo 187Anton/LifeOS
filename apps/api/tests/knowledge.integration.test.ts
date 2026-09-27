@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 import { createDatabaseClient } from "@lifeos/database";
 import type {
+  ApiErrorResponse,
   DocumentResponse,
   NoteDetailResponse,
   NoteResponse,
@@ -15,6 +16,7 @@ import type {
 
 import { createApplication } from "../src/application.js";
 import type { Logger } from "../src/logger.js";
+import { PdfExtractionLimiter } from "../src/modules/knowledge/pdf-extraction-concurrency.js";
 import { PrismaKnowledgeRepository } from "../src/modules/knowledge/repository.js";
 import {
   createDocumentUploadRouter,
@@ -29,6 +31,12 @@ import {
   AuthenticationService,
   ProfileService,
 } from "../src/modules/profile/service.js";
+import {
+  encryptedPdf,
+  imageOnlyPdf,
+  multiPagePdf,
+  truncatedPdf,
+} from "./pdf-fixtures.js";
 
 class SilentLogger implements Logger {
   debug(): void {}
@@ -40,6 +48,28 @@ const close = (server: Server) =>
   new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
   );
+
+/** Ein Vorgang, der erst auf ausdrückliche Freigabe antwortet. */
+const deferred = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>((succeed) => {
+    resolve = succeed;
+  });
+  return { promise, resolve };
+};
+
+/** Wartet begrenzt auf eine beobachtbare Bedingung. */
+const waitFor = async (
+  condition: () => boolean,
+  description: string,
+  timeoutMs = 15_000,
+) => {
+  const deadline = Date.now() + timeoutMs;
+  while (!condition()) {
+    if (Date.now() > deadline) assert.fail(`Nicht erreicht: ${description}`);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+};
 
 test("verwaltet lokale Notizen und Dokumente besitzgebunden, versioniert und ohne Klartext-Audit", async (t) => {
   const database = createDatabaseClient();
@@ -523,4 +553,483 @@ test("öffnet Dokumente über Besitzgrenzen, Modulbezug und Archivzustand", asyn
     ).status,
     404,
   );
+});
+
+test("verarbeitet lokale PDFs seitenbezogen, erneut und ohne Klartext in Protokollen", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalId = `pdf-owner-${suffix}`;
+  const otherExternalId = `pdf-other-${suffix}`;
+  const password = `synthetisches-pdfpasswort-${suffix}`;
+  const storageRoot = await mkdtemp(path.join(os.tmpdir(), "lifeos-pdf-"));
+  const owner = await database.user.create({
+    data: {
+      externalId,
+      displayName: "Synthetische PDF-Person",
+      settings: { create: {} },
+      credential: { create: { passwordHash: await hashPassword(password) } },
+    },
+  });
+  const other = await database.user.create({
+    data: {
+      externalId: otherExternalId,
+      displayName: "Andere PDF-Person",
+      settings: { create: {} },
+    },
+  });
+  const storage = new LocalDocumentStorage(storageRoot);
+  const logged: string[] = [];
+  const logger: Logger = {
+    debug: (...values: unknown[]) => logged.push(String(values.join(" "))),
+    info: (...values: unknown[]) => logged.push(String(values.join(" "))),
+    warn: (...values: unknown[]) => logged.push(String(values.join(" "))),
+    error: (...values: unknown[]) => logged.push(String(values.join(" "))),
+  };
+  const knowledge = new KnowledgeService(
+    new PrismaKnowledgeRepository(database),
+    storage,
+    () => new Date("2033-03-01T12:00:00.000Z"),
+  );
+  const profileRepository = new PrismaProfileRepository(database, externalId);
+  const authentication = new AuthenticationService(profileRepository, 1);
+  const application = createApplication({
+    logger,
+    readinessProbe: { check: async () => undefined },
+    webOrigin: "http://127.0.0.1:5173",
+    rawModuleRouters: [
+      createDocumentUploadRouter({ authentication, knowledge }),
+    ],
+    moduleRouters: [
+      createProfileRouter({
+        authentication,
+        profile: new ProfileService(profileRepository),
+        secureCookies: false,
+      }),
+      createKnowledgeRouter({ authentication, knowledge }),
+    ],
+  });
+  const server = createServer(application);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}/api/v1`;
+  const origin = base.slice(0, -"/api/v1".length);
+  t.after(async () => {
+    await close(server);
+    await database.user.deleteMany({
+      where: { externalId: { in: [externalId, otherExternalId] } },
+    });
+    await database.$disconnect();
+    await rm(storageRoot, { recursive: true, force: true });
+  });
+
+  const login = await fetch(`${base}/session`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  const cookie = (login.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+  const upload = async (fileName: string, bytes: Buffer) =>
+    fetch(`${base}/documents?fileName=${encodeURIComponent(fileName)}`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/pdf" },
+      body: new Uint8Array(bytes),
+    });
+
+  /** Ein mehrseitiges PDF mit Text auf zwei von drei Seiten. */
+  const documentBytes = multiPagePdf([
+    "Synthetische Vorlesungsnotiz zur Extraktion,",
+    "",
+    "Zweite Textseite der Vorlesung.",
+  ]);
+  const textUpload = await upload("vorlesung.pdf", documentBytes);
+  assert.equal(textUpload.status, 201);
+  const textDocument = (await textUpload.json()) as DocumentResponse;
+  assert.equal(textDocument.extraction.status, "available");
+  assert.equal(textDocument.extraction.errorCode, null);
+  assert.equal(textDocument.extraction.truncated, false);
+  assert.equal(textDocument.extraction.pageCount, 3);
+  assert.equal(textDocument.sha256.length, 64);
+  assert.equal(textDocument.extraction.sourceSha256, textDocument.sha256);
+  assert.equal(textDocument.extraction.current, true);
+  assert.match(
+    textDocument.extraction.version ?? "",
+    /^pdfjs-\d+\.\d+\.\d+\/text-v1$/,
+  );
+  assert.equal(textDocument.extraction.storedPages, 2);
+  const storedText = await database.document.findUniqueOrThrow({
+    where: { id: textDocument.id },
+  });
+  assert.equal(storedText.extractionStatus, "available");
+  assert.equal(storedText.extractionSha256, storedText.sha256);
+  const storedPages = storedText.extractionPages as Array<{
+    page: number;
+    text: string;
+  }>;
+  assert.deepEqual(
+    storedPages.map((page) => page.page),
+    [1, 3],
+  );
+  assert.match(storedPages[0]!.text, /Vorlesungsnotiz zur Extraktion/);
+  assert.match(storedText.extractedText ?? "", /Zweite Textseite/);
+
+  /** Die Datei bleibt unverändert abrufbar: Extraktion ersetzt keinen Inhalt. */
+  const download = await fetch(`${origin}${textDocument.contentUrl}`, {
+    headers: { cookie },
+  });
+  assert.equal(download.status, 200);
+  assert.deepEqual(Buffer.from(await download.arrayBuffer()), documentBytes);
+
+  /** Bildseiten ohne Text, geschützte und defekte Dateien. */
+  const imageUpload = await upload("scan.pdf", imageOnlyPdf(2));
+  const imageDocument = (await imageUpload.json()) as DocumentResponse;
+  assert.equal(imageDocument.extraction.status, "no_text");
+  assert.equal(imageDocument.extraction.pageCount, 2);
+  assert.equal(imageDocument.extraction.storedPages, 0);
+
+  const protectedUpload = await upload(
+    "geschuetzt.pdf",
+    encryptedPdf("Vertraulicher Inhalt", "nutzer", "besitzer"),
+  );
+  const protectedDocument = (await protectedUpload.json()) as DocumentResponse;
+  assert.equal(protectedDocument.extraction.status, "protected");
+  assert.equal(protectedDocument.extraction.pageCount, null);
+  assert.equal(protectedDocument.extraction.storedPages, 0);
+  const protectedStored = await database.document.findUniqueOrThrow({
+    where: { id: protectedDocument.id },
+  });
+  assert.equal(protectedStored.extractedText, null);
+
+  const damagedBytes = truncatedPdf();
+  const damagedUpload = await upload("defekt.pdf", damagedBytes);
+  const damagedDocument = (await damagedUpload.json()) as DocumentResponse;
+  assert.equal(damagedDocument.extraction.status, "failed");
+  assert.equal(damagedDocument.extraction.errorCode, "invalid_pdf");
+  /** Ein Parserfehler darf die Datei nicht verlieren. */
+  const damagedDownload = await fetch(
+    `${origin}${damagedDocument.contentUrl}`,
+    { headers: { cookie } },
+  );
+  assert.equal(damagedDownload.status, 200);
+  assert.deepEqual(
+    Buffer.from(await damagedDownload.arrayBuffer()),
+    damagedBytes,
+  );
+
+  /** Erneute Verarbeitung: besitzgebunden, widerrufbar, idempotent. */
+  assert.equal(
+    (
+      await fetch(`${base}/documents/${textDocument.id}/extraction`, {
+        method: "POST",
+        headers: { cookie },
+      })
+    ).status,
+    200,
+  );
+  const foreignDocument = await database.document.create({
+    data: {
+      userId: other.id,
+      storageKey: `${randomUUID()}.pdf`,
+      fileName: "fremd.pdf",
+      mimeType: "application/pdf",
+      byteSize: damagedBytes.byteLength,
+      sha256: "c".repeat(64),
+      modifiedAt: new Date("2033-03-01T12:00:00.000Z"),
+    },
+  });
+  assert.equal(
+    (
+      await fetch(`${base}/documents/${foreignDocument.id}/extraction`, {
+        method: "POST",
+        headers: { cookie },
+      })
+    ).status,
+    404,
+  );
+
+  /** Altextraktion: datenerhaltend als Legacy markiert und neu verarbeitbar. */
+  const legacyDocument = await database.document.create({
+    data: {
+      userId: owner.id,
+      storageKey: `${randomUUID()}.pdf`,
+      fileName: "altbestand.pdf",
+      mimeType: "application/pdf",
+      byteSize: documentBytes.byteLength,
+      sha256: createHash("sha256").update(documentBytes).digest("hex"),
+      modifiedAt: new Date("2033-03-01T12:00:00.000Z"),
+      extractionStatus: "available",
+      extractionVersion: "legacy-text-v1",
+      extractedText: "Übernommener Altext ohne Seitenbezug.",
+      extractedAt: new Date("2033-03-01T12:00:00.000Z"),
+    },
+  });
+  await mkdir(path.join(storageRoot, owner.id), {
+    recursive: true,
+    mode: 0o700,
+  });
+  await writeFile(
+    path.join(storageRoot, owner.id, legacyDocument.storageKey),
+    documentBytes,
+  );
+  const legacyOverview = (await (
+    await fetch(`${base}/knowledge`, { headers: { cookie } })
+  ).json()) as { documents: DocumentResponse[] };
+  const legacyView = legacyOverview.documents.find(
+    (entry) => entry.id === legacyDocument.id,
+  );
+  assert.equal(legacyView?.extraction.version, "legacy-text-v1");
+  assert.equal(legacyView?.extraction.storedPages, 0);
+
+  const reprocessed = await fetch(
+    `${base}/documents/${legacyDocument.id}/extraction`,
+    { method: "POST", headers: { cookie } },
+  );
+  assert.equal(reprocessed.status, 200);
+  const reprocessedDocument = (await reprocessed.json()) as DocumentResponse;
+  assert.equal(reprocessedDocument.extraction.status, "available");
+  assert.match(
+    reprocessedDocument.extraction.version ?? "",
+    /^pdfjs-\d+\.\d+\.\d+\/text-v1$/,
+  );
+  assert.equal(reprocessedDocument.extraction.storedPages, 2);
+
+  /** Eine veraltete Prüfsumme erzeugt keinen stillen Treffer. */
+  await writeFile(
+    path.join(storageRoot, owner.id, legacyDocument.storageKey),
+    multiPagePdf(["Manipulierte Seite"]),
+  );
+  assert.equal(
+    (
+      await fetch(`${base}/documents/${legacyDocument.id}/extraction`, {
+        method: "POST",
+        headers: { cookie },
+      })
+    ).status,
+    409,
+  );
+  const afterTampering = await database.document.findUniqueOrThrow({
+    where: { id: legacyDocument.id },
+  });
+  assert.equal(afterTampering.extractionSha256, legacyDocument.sha256);
+  assert.equal((afterTampering.extractionPages as Array<unknown>).length, 2);
+
+  /** Kein Dokumentklartext in Protokollen. */
+  assert.equal(logged.length > 0, true);
+  for (const line of logged) {
+    assert.equal(line.includes("Vorlesungsnotiz zur Extraktion"), false);
+    assert.equal(line.includes("Zweite Textseite"), false);
+    assert.equal(line.includes("Vertraulicher Inhalt"), false);
+    assert.equal(line.includes("Übernommener Altext"), false);
+  }
+});
+
+test("begrenzt gleichzeitige PDF-Verarbeitungen prozessweit und weist Überlauf ab", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalId = `pdf-limit-owner-${suffix}`;
+  const password = `synthetisches-grenzpasswort-${suffix}`;
+  const storageRoot = await mkdtemp(
+    path.join(os.tmpdir(), "lifeos-pdf-limit-"),
+  );
+  const owner = await database.user.create({
+    data: {
+      externalId,
+      displayName: "Synthetische Grenzperson",
+      settings: { create: {} },
+      credential: { create: { passwordHash: await hashPassword(password) } },
+    },
+  });
+  const storage = new LocalDocumentStorage(storageRoot);
+  /**
+   * Eine enge, aber in der Bauform identische Begrenzung macht den Überlauf
+   * deterministisch prüfbar: ein laufender Platz und drei Warteplätze.
+   */
+  const limiter = new PdfExtractionLimiter({
+    maxConcurrent: 1,
+    maxQueued: 3,
+  });
+  const knowledge = new KnowledgeService(
+    new PrismaKnowledgeRepository(database),
+    storage,
+    () => new Date("2033-03-01T12:00:00.000Z"),
+    limiter,
+  );
+  const profileRepository = new PrismaProfileRepository(database, externalId);
+  const authentication = new AuthenticationService(profileRepository, 1);
+  const application = createApplication({
+    logger: new SilentLogger(),
+    readinessProbe: { check: async () => undefined },
+    webOrigin: "http://127.0.0.1:5173",
+    rawModuleRouters: [
+      createDocumentUploadRouter({ authentication, knowledge }),
+    ],
+    moduleRouters: [
+      createProfileRouter({
+        authentication,
+        profile: new ProfileService(profileRepository),
+        secureCookies: false,
+      }),
+      createKnowledgeRouter({ authentication, knowledge }),
+    ],
+  });
+  const server = createServer(application);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}/api/v1`;
+  const storageUserDirectory = path.join(storageRoot, owner.id);
+  t.after(async () => {
+    await close(server);
+    await database.user.deleteMany({ where: { externalId } });
+    await database.$disconnect();
+    await rm(storageRoot, { recursive: true, force: true });
+  });
+
+  const login = await fetch(`${base}/session`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  const cookie = (login.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+  const upload = (fileName: string, bytes: Buffer) =>
+    fetch(`${base}/documents?fileName=${encodeURIComponent(fileName)}`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/pdf" },
+      body: new Uint8Array(bytes),
+    });
+  const reprocess = (documentId: string) =>
+    fetch(`${base}/documents/${documentId}/extraction`, {
+      method: "POST",
+      headers: { cookie },
+    });
+  const documentsOfOwner = () =>
+    database.document.count({ where: { userId: owner.id, deletedAt: null } });
+  const storedFiles = async () =>
+    readdir(storageUserDirectory).catch(() => [] as string[]);
+
+  /** 1. Der einzige Arbeitsplatz wird deterministisch belegt. */
+  const gate = deferred();
+  const held = limiter.run(async () => {
+    await gate.promise;
+    return "gehalten";
+  });
+  await waitFor(() => limiter.activeCount === 1, "belegter Arbeitsplatz");
+
+  /** 2. Drei gleichzeitige Uploads warten in der begrenzten Warteschlange. */
+  const waiting = ["warte-eins.pdf", "warte-zwei.pdf", "warte-drei.pdf"].map(
+    (fileName) =>
+      upload(fileName, multiPagePdf([`Wartende Seite ${fileName}`])),
+  );
+  await waitFor(
+    () => limiter.queuedCount === 3,
+    "drei wartende PDF-Verarbeitungen",
+  );
+  assert.equal(limiter.activeCount, 1);
+  assert.equal(limiter.queuedCount, limiter.queueLimit);
+
+  /** 3. Der Überlauf wird sofort und sichtbar abgewiesen. */
+  const overflow = await upload("ueberlauf.pdf", multiPagePdf(["Überlauf"]));
+  assert.equal(overflow.status, 429);
+  const overflowError = (await overflow.json()) as ApiErrorResponse;
+  assert.equal(overflowError.error.code, "RATE_LIMITED");
+  assert.match(overflowError.error.message, /ausgelastet/);
+  /** Eine abgewiesene Anfrage erzeugt weder Wartenden noch Datensatz. */
+  assert.equal(limiter.activeCount, 1);
+  assert.equal(limiter.queuedCount, 3);
+  assert.equal(
+    await database.document.count({
+      where: { userId: owner.id, fileName: "ueberlauf.pdf" },
+    }),
+    0,
+  );
+
+  /** 4. Besitzprüfung bleibt vor der Begrenzung wirksam. */
+  const anonymous = await fetch(`${base}/documents?fileName=anonym.pdf`, {
+    method: "POST",
+    headers: { "content-type": "application/pdf" },
+  });
+  assert.equal(anonymous.status, 401);
+
+  /**
+   * 5. Beide Einstiegspfade teilen sich dieselbe Begrenzung: Auch die erneute
+   * Verarbeitung eines vorhandenen Dokuments wird abgewiesen, und ihr
+   * bestehender Zustand bleibt unverändert.
+   */
+  const existingBytes = multiPagePdf(["Bestandsseite für die Begrenzung"]);
+  const existing = await database.document.create({
+    data: {
+      userId: owner.id,
+      storageKey: `${randomUUID()}.pdf`,
+      fileName: "bestand.pdf",
+      mimeType: "application/pdf",
+      byteSize: existingBytes.byteLength,
+      sha256: createHash("sha256").update(existingBytes).digest("hex"),
+      modifiedAt: new Date("2033-03-01T12:00:00.000Z"),
+      extractionStatus: "available",
+      extractionVersion: "legacy-text-v1",
+      extractedText: "Übernommener Altext der Begrenzung.",
+      extractedAt: new Date("2033-03-01T12:00:00.000Z"),
+    },
+  });
+  await mkdir(storageUserDirectory, { recursive: true, mode: 0o700 });
+  await writeFile(
+    path.join(storageUserDirectory, existing.storageKey),
+    existingBytes,
+  );
+  const rejectedReprocess = await reprocess(existing.id);
+  assert.equal(rejectedReprocess.status, 429);
+  assert.equal(
+    ((await rejectedReprocess.json()) as ApiErrorResponse).error.code,
+    "RATE_LIMITED",
+  );
+  const untouched = await database.document.findUniqueOrThrow({
+    where: { id: existing.id },
+  });
+  assert.equal(untouched.extractionVersion, "legacy-text-v1");
+  assert.equal(untouched.extractedText, "Übernommener Altext der Begrenzung.");
+  assert.equal(untouched.extractionSha256, null);
+
+  /** 6. Nach der Freigabe laufen alle wartenden Verarbeitungen durch. */
+  gate.resolve();
+  assert.equal(await held, "gehalten");
+  const finished = await Promise.all(waiting);
+  for (const response of finished) {
+    assert.equal(response.status, 201);
+    const document = (await response.json()) as DocumentResponse;
+    assert.equal(document.extraction.status, "available");
+    assert.equal(document.extraction.storedPages, 1);
+  }
+  assert.equal(limiter.activeCount, 0);
+  assert.equal(limiter.queuedCount, 0);
+
+  /** 7. Nach Erfolg und nach Fehler ist der Platz wieder frei. */
+  const damaged = await upload("defekt.pdf", truncatedPdf());
+  assert.equal(damaged.status, 201);
+  assert.equal(
+    ((await damaged.json()) as DocumentResponse).extraction.status,
+    "failed",
+  );
+  assert.equal(limiter.activeCount, 0);
+  assert.equal(limiter.queuedCount, 0);
+
+  const afterFailure = await upload("danach.pdf", multiPagePdf(["Danach"]));
+  assert.equal(afterFailure.status, 201);
+  assert.equal(
+    ((await afterFailure.json()) as DocumentResponse).extraction.status,
+    "available",
+  );
+  /** Auch die erneute Verarbeitung läuft nach dem Fehler wieder. */
+  const acceptedReprocess = await reprocess(existing.id);
+  assert.equal(acceptedReprocess.status, 200);
+  const reprocessed = (await acceptedReprocess.json()) as DocumentResponse;
+  assert.equal(reprocessed.extraction.status, "available");
+  assert.equal(reprocessed.extraction.storedPages, 1);
+  assert.equal(limiter.activeCount, 0);
+  assert.equal(limiter.queuedCount, 0);
+
+  /**
+   * 8. Es bleibt keine Spur zurück: je abgelegtem Dokument genau eine Datei
+   * und keine verwaiste Datei der abgewiesenen Anfrage.
+   */
+  assert.equal((await storedFiles()).length, await documentsOfOwner());
 });

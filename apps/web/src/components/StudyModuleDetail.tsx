@@ -96,6 +96,11 @@ interface Props {
   onEditTask: (taskId: string) => void;
   onOpenNote: (noteId: string) => void;
   onOpenDocument: (documentId: string) => void;
+  /**
+   * Paket 7: Öffnet die Modulsuche aus dieser Detailansicht. Die Suche bleibt
+   * auf die freigegebenen Quellen dieses Moduls beschränkt.
+   */
+  onSearchInModule: (moduleId: string) => void;
 }
 
 const documentSize = (byteSize: number) =>
@@ -130,6 +135,7 @@ export const StudyModuleDetail = ({
   onEditTask,
   onOpenNote,
   onOpenDocument,
+  onSearchInModule,
 }: Props) => {
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -197,6 +203,16 @@ export const StudyModuleDetail = ({
           </button>
         </div>
       </header>
+
+      <div className="module-detail-actions">
+        <button
+          className="secondary-button"
+          onClick={() => onSearchInModule(module.id)}
+          disabled={saving}
+        >
+          Im Modul suchen
+        </button>
+      </div>
 
       {error ? (
         <div className="message error" role="alert">
