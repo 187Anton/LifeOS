@@ -247,9 +247,10 @@ Rand fixierte mobile Navigation. API-, Unit- und Datenbanktests waren grün;
 `Local macOS release` war ebenfalls erfolgreich. Es war kein Extraktionsfehler;
 der Upload-Klick kam nicht bis zum Handler.
 
-Die mobile Ansicht erhält deshalb `scroll-padding-block-end` für die Höhe der
-fixierten Navigation einschließlich `safe-area-inset-bottom`. So scrollen
-automatische Zielausrichtungen oberhalb der Navigation ein. Diese Korrektur
+Der mobile Upload-CTA erhält deshalb `scroll-margin-block-end` für die Höhe der
+fixierten Navigation einschließlich `safe-area-inset-bottom`. Nur dieses
+Scrollziel wird oberhalb der Navigation ausgerichtet; Klicks auf die mobile
+Navigation behalten ihr bisheriges Scrollverhalten. Diese gezielte Korrektur
 wurde im Worktree bereits vor diesem Eintrag geprüft:
 
 - der vorhandene mobile PDF-/PPTX-/DOCX-Ablauf: **8/8** Durchläufe mit zwei
@@ -257,10 +258,11 @@ wurde im Worktree bereits vor diesem Eintrag geprüft:
 - vollständige Desktop-/Mobil-E2E-Suite: **50/50** bestanden;
 - `git diff --check`: bestanden.
 
-Der lokale Einzelaufruf vor der Korrektur war zwar grün; die wiederholte Prüfung
-und der vollständige E2E-Lauf nach der Korrektur sind die aussagekräftigen
-lokalen Nachweise. Diese Ergebnisse ersetzen nicht die Pflichtchecks für den
-aktualisierten PR-Head; sie werden nach dem Korrekturcommit erneut abgewartet.
+Der lokale Einzelaufruf vor der ersten Korrektur war zwar grün; die wiederholte
+Prüfung und der vollständige E2E-Lauf nach der gezielten Korrektur sind die
+aussagekräftigen lokalen Nachweise. Die neue CI hat danach einen globalen
+Navigationsklick-Fehler gezeigt; deshalb ist die Korrektur auf den Upload-CTA
+eingegrenzt und muss erneut auf dem aktuellen PR-Head geprüft werden.
 
 ## Paket 7 – Übergabe (26.09.2026)
 
