@@ -5,21 +5,23 @@ import {
 } from "./pdf-extraction-limits.js";
 
 /**
- * Prozessweite Begrenzung gleichzeitiger PDF-Verarbeitungen.
+ * Prozessweite Begrenzung gleichzeitiger lokaler Dokumentverarbeitungen.
  *
  * Jede Verarbeitung startet einen eigenen Worker-Thread mit eigener
- * Speichergrenze. Ohne Begrenzung könnten parallele Uploads oder erneute
- * Verarbeitungen beliebig viele dieser Threads erzeugen. Diese Klasse hält die
- * Zahl gleichzeitig laufender Verarbeitungen hart fest und lässt zusätzliche
- * Anfragen nur in eine kleine, feste Warteschlange. Ist auch die Warteschlange
- * belegt, wird die Anfrage sofort mit einem klaren API-Fehler abgewiesen, statt
- * unbegrenzt zu warten – der Aufrufer entscheidet dann selbst über einen
- * erneuten Versuch.
+ * Speichergrenze – sowohl PDF als auch die OOXML-Formate PPTX und DOCX. Ohne
+ * Begrenzung könnten parallele Uploads oder
+ * erneute Verarbeitungen beliebig viele Worker-Threads erzeugen. Diese Klasse
+ * hält die Zahl gleichzeitig laufender Verarbeitungen hart fest und lässt
+ * zusätzliche Anfragen nur in eine kleine, feste Warteschlange. Ist auch die
+ * Warteschlange belegt, wird die Anfrage sofort mit einem klaren API-Fehler
+ * abgewiesen, statt unbegrenzt zu warten – der Aufrufer entscheidet dann selbst
+ * über einen erneuten Versuch.
  *
  * Die Begrenzung sitzt in derselben Anwendungsschicht wie die Verarbeitung und
- * gilt für alle Besitzer sowie für beide Einstiegspfade (Upload und erneute
- * Verarbeitung). Sie ersetzt keine der bestehenden Grenzen: Seiten-, Text-,
- * Laufzeit- und Speichergrenze bleiben unverändert wirksam.
+ * gilt für alle Besitzer, beide Einstiegspfade (Upload und erneute
+ * Verarbeitung) und alle lokalen Extraktoren. Sie ersetzt keine der bestehenden
+ * Grenzen: Seiten-, Folien-, Absatz-, Text-, Laufzeit-, Größen- und
+ * Speichergrenze bleiben unverändert wirksam.
  *
  * Ein Platz wird in jedem Ausgang freigegeben – nach Erfolg, nach einem Fehler
  * und nach einem abgebrochenen Lauf (Zeit- oder Speichergrenze). Deshalb kann
@@ -106,7 +108,7 @@ export class PdfExtractionLimiter {
       throw new ApiError(
         429,
         "RATE_LIMITED",
-        "Die lokale PDF-Verarbeitung ist ausgelastet. Bitte versuche es in wenigen Sekunden erneut.",
+        "Die lokale Dokumentverarbeitung ist ausgelastet. Bitte versuche es in wenigen Sekunden erneut.",
       );
     }
     return new Promise<void>((resolve) => {

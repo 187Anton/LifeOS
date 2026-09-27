@@ -1027,6 +1027,11 @@ const installApi = async (
             searchEnabled: true,
             page: null,
             pages: [],
+            slide: null,
+            slides: [],
+            paragraph: null,
+            paragraphs: [],
+            section: null,
             moduleId: module.id,
           },
           ...study.entries
@@ -1053,33 +1058,63 @@ const installApi = async (
               searchEnabled: true,
               page: null,
               pages: [],
+              slide: null,
+              slides: [],
+              paragraph: null,
+              paragraphs: [],
+              section: null,
               moduleId: module.id,
             })),
         ]);
-      /** Paket 7: Seitenfundstellen kommen aus der Extraktion des Dokuments. */
-      const documentPages = (document: Record<string, unknown>) => {
+      /**
+       * Paket 7/8: Fundstellen kommen aus der Extraktion des Dokuments – Seiten,
+       * Folien oder Absätze. Die Einheit bleibt erhalten; es wird nichts
+       * umgedeutet.
+       */
+      const documentLocators = (document: Record<string, unknown>) => {
         const extraction = document.extraction as
           Record<string, unknown> | undefined;
         if (extraction?.status !== "available") return [];
         if (extraction.sourceSha256 !== document.sha256) return [];
-        /* Die seitenbezogenen Fundstellen hängen am Dokument, nicht am Extraktionsstatus. */
+        /* Die Fundstellen hängen am Dokument, nicht am Extraktionsstatus. */
         const stored = document.extractionPages;
         return Array.isArray(stored)
-          ? (stored as Array<{ page: number; text: string }>)
+          ? (stored as Array<Record<string, unknown>>)
           : [];
       };
+      const unitsOf = (
+        document: Record<string, unknown>,
+        kind: "page" | "slide" | "paragraph",
+      ) =>
+        documentLocators(document)
+          .filter((entry) => typeof entry[kind] === "number")
+          .map((entry) => entry[kind] as number);
       const documentResults = documents
         .filter(
           (document) =>
             document.searchEnabled === true &&
             document.archivedAt == null &&
             (matches(document.fileName) ||
-              documentPages(document).some((entry) => matches(entry.text))),
+              documentLocators(document).some((entry) => matches(entry.text))),
         )
         .map((document) => {
-          const pages = documentPages(document)
-            .filter((entry) => matches(entry.text))
-            .map((entry) => entry.page);
+          const hits = documentLocators(document).filter((entry) =>
+            matches(entry.text),
+          );
+          const pages = unitsOf(document, "page").filter((unit) =>
+            hits.some((entry) => entry.page === unit),
+          );
+          const slides = unitsOf(document, "slide").filter((unit) =>
+            hits.some((entry) => entry.slide === unit),
+          );
+          const paragraphs = unitsOf(document, "paragraph").filter((unit) =>
+            hits.some((entry) => entry.paragraph === unit),
+          );
+          const firstParagraphHit = hits.find(
+            (entry) => typeof entry.paragraph === "number",
+          );
+          const hitCount = pages.length + slides.length + paragraphs.length;
+          const firstHitText = hits[0]?.text;
           return {
             id: document.id,
             title: document.fileName,
@@ -1090,19 +1125,24 @@ const installApi = async (
               title: document.fileName,
             },
             updatedAt: document.updatedAt,
-            snippet: pages.length
-              ? String(
-                  documentPages(document).find(
-                    (entry) => entry.page === pages[0],
-                  )?.text ?? "",
-                )
-              : String(document.fileName),
-            matchReason: pages.length ? "content" : "title",
+            snippet:
+              hitCount && typeof firstHitText === "string"
+                ? firstHitText
+                : String(document.fileName),
+            matchReason: hitCount ? "content" : "title",
             detailPath: `/knowledge/documents/${String(document.id)}`,
             ownerId: profile.id,
             searchEnabled: true,
             page: pages[0] ?? null,
             pages,
+            slide: slides[0] ?? null,
+            slides,
+            paragraph: paragraphs[0] ?? null,
+            paragraphs,
+            section:
+              typeof firstParagraphHit?.section === "string"
+                ? firstParagraphHit.section
+                : null,
             moduleId:
               (document.studyModule as { id?: string } | null)?.id ?? null,
           };
@@ -1130,6 +1170,11 @@ const installApi = async (
             searchEnabled: true,
             page: null,
             pages: [],
+            slide: null,
+            slides: [],
+            paragraph: null,
+            paragraphs: [],
+            section: null,
             moduleId: (note.studyModule as { id?: string } | null)?.id ?? null,
           })),
         ...documentResults,
@@ -1261,6 +1306,12 @@ const installApi = async (
       const uploadedMimeType =
         request.headers()["content-type"] ?? "application/octet-stream";
       const uploadedIsPdf = uploadedMimeType === "application/pdf";
+      const uploadedIsPptx =
+        uploadedMimeType ===
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+      const uploadedIsDocx =
+        uploadedMimeType ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
       const created = {
         id: `document-${documents.length + 1}`,
         ownerId: profile.id,
@@ -1276,21 +1327,58 @@ const installApi = async (
         createdAt: "2032-01-01T00:00:00.000Z",
         updatedAt: "2032-01-01T00:00:00.000Z",
         contentUrl: `/api/v1/documents/document-${documents.length + 1}/content`,
-        /** Paket 7: Der Upload liefert den dokumentgebundenen Extraktionszustand. */
+        /** Paket 7/8: Der Upload liefert den dokumentgebundenen Extraktionszustand. */
         extraction: {
-          status: uploadedIsPdf ? "available" : "no_text",
-          version: uploadedIsPdf ? "pdfjs-6.3.289/text-v1" : null,
-          sourceSha256: uploadedIsPdf ? "a".repeat(64) : null,
-          current: uploadedIsPdf,
+          status:
+            uploadedIsPdf || uploadedIsPptx || uploadedIsDocx
+              ? "available"
+              : "no_text",
+          version: uploadedIsPdf
+            ? "pdfjs-6.3.289/text-v1"
+            : uploadedIsPptx
+              ? "ooxml-zip-v1/pptx-slides-v1"
+              : uploadedIsDocx
+                ? "ooxml-zip-v1/docx-paragraphs-v1"
+                : null,
+          sourceSha256:
+            uploadedIsPdf || uploadedIsPptx || uploadedIsDocx
+              ? "a".repeat(64)
+              : null,
+          current: uploadedIsPdf || uploadedIsPptx || uploadedIsDocx,
           errorCode: null,
           pageCount: uploadedIsPdf ? 2 : null,
-          storedPages: uploadedIsPdf ? 1 : 0,
+          storedPages:
+            uploadedIsPdf || uploadedIsPptx || uploadedIsDocx ? 1 : 0,
+          locatorKind: uploadedIsPdf
+            ? "page"
+            : uploadedIsPptx
+              ? "slide"
+              : uploadedIsDocx
+                ? "paragraph"
+                : null,
+          locatorCount: uploadedIsPdf
+            ? 2
+            : uploadedIsPptx
+              ? 4
+              : uploadedIsDocx
+                ? 20
+                : null,
           truncated: false,
           extractedAt: "2032-01-01T00:30:00.000Z",
         },
         extractionPages: uploadedIsPdf
           ? [{ page: 2, text: "Synthetische PDF-Seite zwei." }]
-          : [],
+          : uploadedIsPptx
+            ? [{ slide: 3, text: "Synthetische Folie drei." }]
+            : uploadedIsDocx
+              ? [
+                  {
+                    paragraph: 11,
+                    section: "Methodik",
+                    text: "Synthetischer Absatz elf.",
+                  },
+                ]
+              : [],
       };
       documents.push(created);
       await route.fulfill({ status: 201, json: created });
@@ -1316,6 +1404,8 @@ const installApi = async (
         errorCode: null,
         pageCount: 3,
         storedPages: 2,
+        locatorKind: "page",
+        locatorCount: 3,
         truncated: false,
         extractedAt: "2032-04-01T00:00:00.000Z",
       };
@@ -3236,7 +3326,7 @@ const detailDocument = {
     { page: 1, text: "Synthetische Einleitung ohne Suchbegriff." },
     { page: 3, text: "Synthetische Quantenplanung im Skript." },
   ],
-  /** Paket 7: dokumentgebundener Extraktionszustand mit Seitenangabe. */
+  /** Paket 7/8: dokumentgebundener Extraktionszustand mit Einheitenangabe. */
   extraction: {
     status: "available",
     version: "pdfjs-6.3.289/text-v1",
@@ -3245,6 +3335,8 @@ const detailDocument = {
     errorCode: null,
     pageCount: 3,
     storedPages: 1,
+    locatorKind: "page",
+    locatorCount: 3,
     truncated: false,
     extractedAt: "2032-01-01T01:00:00.000Z",
   },
@@ -3565,6 +3657,11 @@ test("öffnet Suchziele konkret und meldet verschwundene Ziele ohne fremdes Obje
             searchEnabled: true,
             page: null,
             pages: [],
+            slide: null,
+            slides: [],
+            paragraph: null,
+            paragraphs: [],
+            section: null,
           },
           {
             id: "dokument-weg",
@@ -3583,6 +3680,11 @@ test("öffnet Suchziele konkret und meldet verschwundene Ziele ohne fremdes Obje
             searchEnabled: true,
             page: null,
             pages: [],
+            slide: null,
+            slides: [],
+            paragraph: null,
+            paragraphs: [],
+            section: null,
           },
         ],
       },
@@ -3904,6 +4006,8 @@ test("verarbeitet PDFs seitenbezogen und sucht im Modul auf Desktop und Smartpho
       errorCode: null,
       pageCount: null,
       storedPages: 0,
+      locatorKind: null,
+      locatorCount: null,
       truncated: false,
       extractedAt: null,
     },
@@ -3956,6 +4060,68 @@ test("verarbeitet PDFs seitenbezogen und sucht im Modul auf Desktop und Smartpho
     page.getByText("Das Dokument wurde erneut lokal verarbeitet."),
   ).toBeVisible();
   await expect(pendingCard).toContainText("Text lokal extrahiert");
+
+  /** Ein Foliensatz und eine Textdatei werden lokal abgelegt (Paket 8). */
+  await page
+    .locator("form.document-upload")
+    .getByLabel("Für lokale Suche freigeben")
+    .check();
+  await page.getByLabel("Datei").evaluate((element) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(
+      new File(["synthetisches pptx"], "synthetische-folien.pptx", {
+        type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      }),
+    );
+    (element as HTMLInputElement).files = transfer.files;
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.getByRole("button", { name: "Lokal ablegen" }).click();
+  const slideCard = page
+    .locator(".document-card")
+    .filter({ hasText: "synthetische-folien.pptx" });
+  await expect(slideCard).toBeVisible();
+  /** Die Folienangabe bleibt eine Folienangabe und wird nie zur Seite. */
+  await expect(slideCard).toContainText("4 Folien");
+  await expect(slideCard).toContainText("Text lokal extrahiert");
+  await expect(slideCard).not.toContainText("Seiten");
+
+  await page.getByLabel("Datei").evaluate((element) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(
+      new File(["synthetische docx"], "synthetische-hausarbeit.docx", {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      }),
+    );
+    (element as HTMLInputElement).files = transfer.files;
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.getByRole("button", { name: "Lokal ablegen" }).click();
+  const paragraphCard = page
+    .locator(".document-card")
+    .filter({ hasText: "synthetische-hausarbeit.docx" });
+  await expect(paragraphCard).toBeVisible();
+  /** Absätze werden gezählt, aber nie in Seiten umgedeutet. */
+  await expect(paragraphCard).toContainText("20 Absätze");
+  await expect(paragraphCard).not.toContainText("Seite");
+  await expect(paragraphCard).not.toContainText("Folie");
+
+  /** Ein Foliensatz- und ein Absatztreffer nennen ihre eigene Einheit. */
+  await page.getByLabel("Suchbegriff").fill("Synthetische");
+  await page.getByRole("button", { name: "Suchen" }).click();
+  const slideHit = page
+    .locator(".search-result")
+    .filter({ hasText: "synthetische-folien.pptx" })
+    .first();
+  await expect(slideHit).toContainText("Folie 3");
+  await expect(slideHit).not.toContainText("Seite");
+  const paragraphHit = page
+    .locator(".search-result")
+    .filter({ hasText: "synthetische-hausarbeit.docx" })
+    .first();
+  await expect(paragraphHit).toContainText("Absatz 11 · Abschnitt Methodik");
+  await expect(paragraphHit).not.toContainText("Seite");
+  await expect(paragraphHit).not.toContainText("Folie");
 
   /** Ein Seitentreffer nennt die betroffene Seite und führt zum Objekt. */
   await page.getByLabel("Suchbegriff").fill("Quantenplanung");

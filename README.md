@@ -19,8 +19,10 @@ Kalender- und Planungsansichten (PR #125). Die Pakete 0 bis 5 sind damit in
 `develop` integriert. Paket 6 mit der Moduldetailansicht und der gemeinsamen
 Dokument-/Notizbedienung ist als Vorgänger lokal umgesetzt und geprüft. Paket 7
 mit der lokalen, seitenbezogenen PDF-Textextraktion und der modulspezifischen
-Suche ist lokal umgesetzt und geprüft, aber noch nicht in `develop` integriert.
-Die Pakete 8 bis 11 bleiben geplant und sind kein aktueller Funktionsnachweis.
+Suche ist über PR #127 (Merge-Commit `d4dc091`) in `develop` integriert; Paket 8
+ergänzt dazu die lokal geprüfte PPTX- und DOCX-Extraktion mit Folien- und
+Absatzfundstellen und ist noch nicht in `develop` integriert.
+Die Pakete 9 bis 11 bleiben geplant und sind kein aktueller Funktionsnachweis.
 Studienmaterialien sollen lokal durchsuchbar werden; Apple
 Kalender auf Mac und iPhone soll Aufgabenplanung einschließlich Verschieben
 unterstützen. Umfang, Abnahme und Startauftrag stehen im
@@ -322,8 +324,9 @@ Studienformulare, Aufgaben über den gemeinsamen Aufgabeneditor, Notizen und
 Dokumentmetadaten über die Wissensansicht. Zeitgebundene Studieneinträge behalten
 beim Bearbeiten ihre gespeicherte IANA-Zeitzone und ihren Zeitpunkt; nur neue
 Einträge werden in der Profilzeitzone angelegt. Das ist der lokale Stand von
-Paket 6 als Vorgänger und Paket 7 mit der Lokalsuche (beide lokal umgesetzt und
-geprüft, Paket 7 noch nicht in `develop` integriert).
+Paket 6 als Vorgänger, Paket 7 mit der Lokalsuche (in `develop` integriert) und
+Paket 8 mit der PPTX-/DOCX-Extraktion (lokal umgesetzt und geprüft, noch nicht
+in `develop` integriert).
 
 Die Einkaufsliste ist nach Anmeldung unter `/api/v1/shopping-lists` verfügbar.
 Die ersten beiden Lieferstufen umfassen genau eine aktive Liste pro Besitzer,
@@ -442,18 +445,31 @@ Studienmodule, Studieneinträge und Arbeitsprojekte. Treffer zeigen Quelle,
 CSV- und JSON-Dokumente werden beim Upload lokal als UTF-8-Text extrahiert.
 PDF-Dokumente werden zusätzlich seitenbezogen lokal ausgelesen; ein PDF-Treffer
 nennt deshalb die betroffene Seite („Seite 3“) und führt weiterhin zum konkreten
-Objekt. Der optionale Filter `studyModuleId` beschränkt die Suche auf die
+Objekt. PowerPoint-Foliensätze (`.pptx`) werden folienbezogen gelesen und nennen
+die betroffene Folie („Folie 7“); Word-Dokumente (`.docx`) werden absatzbezogen
+gelesen und nennen den betroffenen Absatz samt erkannter Abschnittsüberschrift
+(„Absatz 18 im Abschnitt Methodik“). Eine Folie oder ein Absatz wird nie als
+Seite ausgegeben, und für DOCX wird ohne Layout-Rendering keine Seitenzahl
+ermittelt. Der optionale Filter `studyModuleId` beschränkt die Suche auf die
 freigegebenen Quellen eines Studienmoduls und wird aus der Moduldetailansicht
 über **Im Modul suchen** geöffnet. Dokumentinhalte stammen ausschließlich aus
 eigener, aktiver, freigegebener und zur aktuellen Dateiprüfsumme passender
 Extraktion; geschützte, beschädigte, textfreie oder veraltete Extraktionen
-liefern keinen Inhalt, bleiben aber über ihre Metadaten auffindbar. Die
-Extraktion läuft in einem begrenzten lokalen Worker ohne Netzzugriff,
-Dokument-JavaScript, Anhänge oder Rendering und ohne zusätzliche Installation.
-Je Prozess laufen höchstens zwei PDF-Verarbeitungen gleichzeitig; weitere
-Anfragen warten in einer fest begrenzten Warteschlange, und ein Überlauf wird
-sofort mit `429 RATE_LIMITED` abgewiesen, ohne eine Datei oder einen Datensatz
-zu hinterlassen.
+liefern keinen Inhalt, bleiben aber über ihre Metadaten auffindbar. Makrofähige
+Office-Formate (`.pptm`, `.docm`), Makroprojekte, DTD-/Entity-Angaben in OOXML
+und externe Beziehungen werden nie ausgeführt und nie abgerufen. Die Extraktion
+läuft in einem begrenzten lokalen Worker ohne Netzzugriff, Dokument-JavaScript,
+Anhänge oder Rendering; PPTX und DOCX werden ausschließlich lokal mit einem
+eigenen, streng validierenden ZIP-Leser gelesen, dessen Größen-, Eintrags-,
+Kompressions- und Laufzeitgrenzen vor dem Entpacken greifen – ohne zusätzliche
+Systeminstallation. Entpacken und Parsen blockieren den API-Prozess nicht: Jede
+Dokumentverarbeitung läuft in einem eigenen Thread mit harter Speichergrenze,
+und die Frist von 20 Sekunden setzt der aufrufende Prozess durch, indem er den
+Thread beendet und `failed` mit `timeout` meldet (PPTX/DOCX 512 MiB, PDF
+256 MiB). Je Prozess laufen höchstens zwei Dokumentverarbeitungen
+gleichzeitig; weitere Anfragen warten in einer fest begrenzten Warteschlange,
+und ein Überlauf wird sofort mit `429 RATE_LIMITED` abgewiesen, ohne eine Datei
+oder einen Datensatz zu hinterlassen.
 Suchanfragen, Suchergebnisse und kombinierbare Aufgaben-, Arbeitsbereichs-,
 Status- und Zeitraumfilter bleiben flüchtiger UI-Zustand. Details und Grenzen
 stehen im [Suchvertrag](docs/api/search.md) und im

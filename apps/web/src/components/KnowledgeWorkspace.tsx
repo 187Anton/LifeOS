@@ -239,8 +239,8 @@ export const KnowledgeWorkspace = (props: Props) => {
                   Quelle: {result.source.title} · Treffer in{" "}
                   {matchReasonLabel(result.matchReason)} · Eigener,
                   freigegebener Inhalt
-                  {searchPageLabel(result.pages)
-                    ? ` · ${searchPageLabel(result.pages)}`
+                  {searchLocatorLabel(result)
+                    ? ` · ${searchLocatorLabel(result)}`
                     : ""}
                 </small>
                 <a
@@ -604,11 +604,11 @@ export const KnowledgeWorkspace = (props: Props) => {
                 <small className="document-extraction">
                   Extraktion:{" "}
                   {extractionStatusLabels[document.extraction.status]}
-                  {document.extraction.pageCount !== null
-                    ? ` · ${document.extraction.pageCount} Seiten`
+                  {typeof document.extraction.locatorCount === "number"
+                    ? ` · ${document.extraction.locatorCount} ${locatorUnitLabel(document.extraction.locatorKind, document.extraction.locatorCount)}`
                     : ""}
                   {document.extraction.storedPages
-                    ? ` · ${document.extraction.storedPages} Seiten mit Text`
+                    ? ` · ${document.extraction.storedPages} ${locatorUnitLabel(document.extraction.locatorKind, document.extraction.storedPages)} mit Text`
                     : ""}
                   {document.extraction.truncated ? " · gekürzt" : ""}
                   {document.extraction.current ? "" : " · Prüfsumme veraltet"}
@@ -713,15 +713,44 @@ const extractionStatusLabels: Record<
 };
 
 /**
- * Seitenangabe eines Suchtreffers; leere Liste oder fehlende Angabe bei
- * Formaten ohne Seiten. Eine fehlende Angabe wird tolerant behandelt, damit
- * eine ältere oder unvollständige Antwort die Ansicht nicht bricht.
+ * Einheitenbezeichnung einer Fundstelle. Die Einheit ist Teil der Bedeutung:
+ * eine Folie oder ein Absatz wird nie als Seite benannt. Fehlt die Angabe
+ * (ältere Antwort), bleibt die seitenbasierte Bezeichnung aus Paket 7 erhalten.
  */
-const searchPageLabel = (pages: number[] | null | undefined) => {
-  if (!pages?.length) return null;
-  return pages.length === 1
-    ? `Seite ${pages[0]}`
-    : `Seiten ${pages.join(", ")}`;
+const locatorUnitLabel = (
+  kind: DocumentResponse["extraction"]["locatorKind"] | undefined,
+  count: number,
+) => {
+  if (kind === "slide") return count === 1 ? "Folie" : "Folien";
+  if (kind === "paragraph") return count === 1 ? "Absatz" : "Absätze";
+  return count === 1 ? "Seite" : "Seiten";
+};
+
+/**
+ * Fundstellenangabe eines Suchtreffers. Absätze nennen zusätzlich den
+ * erkennbaren Abschnitt; fehlt eine Angabe, wird nichts erfunden. Eine fehlende
+ * oder unvollständige Antwort wird tolerant behandelt, damit die Ansicht nicht
+ * bricht.
+ */
+const searchLocatorLabel = (result: SearchResultResponse) => {
+  const unit = (
+    values: number[] | null | undefined,
+    singular: string,
+    plural: string,
+  ) => {
+    if (!values?.length) return null;
+    return values.length === 1
+      ? `${singular} ${values[0]}`
+      : `${plural} ${values.join(", ")}`;
+  };
+  const paragraphs = unit(result.paragraphs, "Absatz", "Absätze");
+  if (paragraphs)
+    return result.section
+      ? `${paragraphs} · Abschnitt ${result.section}`
+      : paragraphs;
+  const slides = unit(result.slides, "Folie", "Folien");
+  if (slides) return slides;
+  return unit(result.pages, "Seite", "Seiten");
 };
 
 const DocumentEditor = ({

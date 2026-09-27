@@ -1,7 +1,14 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/server.ts"],
+  /**
+   * Der Server ist der Haupteinstieg. Die OOXML-Workerdatei ist ein eigener
+   * Einstiegspunkt, weil sie zur Laufzeit über einen Pfad und nicht über einen
+   * Import geladen wird: Sie wird dadurch als eigene Datei unter
+   * `modules/knowledge/` ausgegeben und ist im gebündelten Laufzeitpaket
+   * vorhanden. Genau diesen Ort erwartet `ooxml-extractor-worker.ts`.
+   */
+  entry: ["src/server.ts", "src/modules/knowledge/ooxml-extractor-thread.ts"],
   format: ["esm"],
   platform: "node",
   target: "node22",

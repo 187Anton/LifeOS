@@ -3,12 +3,16 @@ import type { Prisma } from "@lifeos/database";
 import type {
   DocumentExtractionResponse,
   DocumentExtractionStatus,
+  DocumentLocator,
+  DocumentLocatorKind,
   DocumentResponse,
   KnowledgeOverviewResponse,
   NoteDetailResponse,
   NoteResponse,
   UpdateDocumentRequest,
 } from "@lifeos/contracts";
+import { locatorKindForMimeType } from "./ooxml-extraction-limits.js";
+import { readStoredLocators } from "./document-locators.js";
 
 export class KnowledgeRecordNotFoundError extends Error {}
 export class KnowledgeReferenceNotFoundError extends Error {}
@@ -27,12 +31,6 @@ export type NoteChanges = Partial<NoteValues> & {
   archivedAt?: Date | null;
 };
 
-/** Eine Seite mit lokal extrahiertem Text. */
-export interface ExtractedDocumentPage {
-  page: number;
-  text: string;
-}
-
 /**
  * Ergebnis einer lokalen Extraktion. `sourceSha256` bindet die Extraktion an
  * genau die Dateiprüfsumme, aus der sie entstanden ist.
@@ -42,9 +40,15 @@ export interface DocumentExtractionValues {
   version: string | null;
   sourceSha256: string | null;
   errorCode: string | null;
-  pageCount: number | null;
+  /**
+   * Gesamtzahl der Einheiten des Formats (Seiten, Folien oder Absätze). Sie
+   * liegt – ohne Schemaänderung – in der bestehenden Spalte
+   * `extractionPageCount`; die Bedeutung wird über `locatorKind` des
+   * MIME-Typs benannt.
+   */
+  locatorCount: number | null;
   truncated: boolean;
-  pages: ExtractedDocumentPage[] | null;
+  locators: DocumentLocator[] | null;
   extractedAt: Date | null;
   extractedText: string | null;
 }
@@ -134,40 +138,29 @@ const mapNote = (record: NoteRecord): NoteResponse => ({
 });
 
 /**
- * Liest die gespeicherten Seitenfundstellen aus dem JSON-Feld. Es werden nur
- * wohlgeformte Einträge übernommen; ein unerwarteter Wert führt zu keiner
- * stillen Falschzuordnung, sondern zu einer leeren Seitenliste.
+ * Bildet den gespeicherten Extraktionszustand auf die Antwort ab.
+ *
+ * `pageCount` bleibt ausschließlich seitenbasierten Formaten vorbehalten.
+ * Folienzahl und Absatzzahl erscheinen getrennt in `locatorCount`, damit eine
+ * Absatznummer nie als Seitenzahl gelesen werden kann. `storedPages` bleibt als
+ * abwärtskompatibles Feld erhalten und zählt die veröffentlichten Fundstellen
+ * der jeweiligen Einheit.
  */
-const storedPages = (value: Prisma.JsonValue): ExtractedDocumentPage[] => {
-  if (!Array.isArray(value)) return [];
-  const pages: ExtractedDocumentPage[] = [];
-  for (const entry of value) {
-    if (typeof entry !== "object" || entry === null || Array.isArray(entry))
-      continue;
-    const candidate = entry as { page?: unknown; text?: unknown };
-    if (
-      typeof candidate.page !== "number" ||
-      !Number.isInteger(candidate.page) ||
-      candidate.page < 1 ||
-      typeof candidate.text !== "string" ||
-      !candidate.text
-    )
-      continue;
-    pages.push({ page: candidate.page, text: candidate.text });
-  }
-  return pages;
-};
-
 const mapExtraction = (record: DocumentRecord): DocumentExtractionResponse => {
-  const pages = storedPages(record.extractionPages);
+  const locators = readStoredLocators(record.extractionPages);
+  const locatorKind: DocumentLocatorKind | null = locatorKindForMimeType(
+    record.mimeType,
+  );
   return {
     status: record.extractionStatus,
     version: record.extractionVersion,
     sourceSha256: record.extractionSha256,
     current: record.extractionSha256 === record.sha256,
     errorCode: record.extractionErrorCode,
-    pageCount: record.extractionPageCount,
-    storedPages: pages.length,
+    pageCount: locatorKind === "page" ? record.extractionPageCount : null,
+    storedPages: locators.length,
+    locatorKind,
+    locatorCount: record.extractionPageCount,
     truncated: record.extractionTruncated,
     extractedAt: record.extractedAt?.toISOString() ?? null,
   };
@@ -193,9 +186,15 @@ const extractionColumns = (values: DocumentExtractionValues) => ({
   extractionVersion: values.version,
   extractionSha256: values.sourceSha256,
   extractionErrorCode: values.errorCode,
-  extractionPageCount: values.pageCount,
+  /**
+   * Die bestehende Spalte nimmt die Gesamtzahl der Einheiten des Formats auf
+   * (Seiten, Folien oder Absätze). Das Schema und die Migration aus Paket 7
+   * bleiben unverändert; die Bedeutung wird über `locatorKind` des MIME-Typs
+   * benannt und geprüft.
+   */
+  extractionPageCount: values.locatorCount,
   extractionTruncated: values.truncated,
-  extractionPages: (values.pages ?? []) as unknown as Prisma.InputJsonValue,
+  extractionPages: (values.locators ?? []) as unknown as Prisma.InputJsonValue,
   extractedAt: values.extractedAt,
 });
 

@@ -40,7 +40,17 @@ Jeder Treffer enthält:
 - `detailPath` zum Fachobjekt;
 - `page` und `pages` mit den betroffenen Seiten eines seitenbezogenen
   Dokuments; `null` beziehungsweise `[]` bei Formaten ohne Seitenangabe;
+- `slide` und `slides` mit den betroffenen Folien eines Foliensatzes (`.pptx`);
+  `null` beziehungsweise `[]` bei allen anderen Formaten;
+- `paragraph`, `paragraphs` und optional `section` mit den betroffenen Absätzen
+  und der erkannten Abschnittsüberschrift eines Fließtextformats (`.docx`);
+  `null` beziehungsweise `[]` bei allen anderen Formaten;
 - `ownerId` und den bestätigten Freigabestatus `searchEnabled: true`.
+
+Die drei Fundstellengruppen sind additiv und werden nie ineinander umgedeutet:
+Ein Foliensatz erhält keine Seitenangabe und ein DOCX-Dokument keine
+Seitenzahl. Bei Formaten ohne Einheiten, etwa `text/plain`, bleiben alle drei
+Gruppen leer.
 
 Die Oberfläche hält Anfrage und Treffer nur im React-Zustand. Sie schreibt
 keine persönlichen Suchdaten in `localStorage`, `sessionStorage` oder den
@@ -59,14 +69,16 @@ Die erste Ausbaustufe verwendet bewusst keinen externen Dienst und keinen
 persistierten Schattenindex. Dadurch sind Freigabe- und Löschänderungen sofort
 wirksam und beide Datenbankanbieter liefern fachlich vergleichbare Ergebnisse.
 
-## Seitentreffer
+## Seiten-, Folien- und Absatztreffer
 
-Enthält ein Dokument seitenbezogene Fundstellen, muss ein Suchbegriff auf einer
-einzigen Seite vollständig vorkommen. Treffer, deren Wörter über mehrere Seiten
-verteilt sind, ergeben keinen Seitentreffer. Der Ausschnitt stammt aus genau der
-zuerst genannten Seite, und die Liste der Seiten ist auf 20 Einträge begrenzt.
-Damit nennt jeder PDF-Treffer die betroffene Seite, ohne einen zusätzlichen
-Index aufzubauen.
+Enthält ein Dokument Fundstellen, muss ein Suchbegriff in einer einzigen
+Fundstelle vollständig vorkommen. Treffer, deren Wörter über mehrere Einheiten
+verteilt sind, ergeben keinen Einheitentreffer. Der Ausschnitt stammt aus genau
+der zuerst genannten Einheit, und die Liste ist auf 20 Einträge begrenzt. Damit
+nennt jeder Treffer die betroffene Seite beziehungsweise Folie oder den
+betroffenen Absatz, ohne einen zusätzlichen Index aufzubauen. Die Oberfläche
+beschriftet die Einheit ausdrücklich: „Seite 3“, „Folie 7“ oder „Absatz 18 im
+Abschnitt Methodik“.
 
 ## Lokale Dokumenttextextraktion
 
@@ -76,12 +88,13 @@ Million Zeichen begrenzt. Binärformate, größere Inhalte, ungültiges UTF-8 un
 Text mit Nullbytes werden nicht interpretiert; ihre freigegebenen Metadaten
 bleiben suchbar. Es findet keine externe Übertragung statt.
 
-PDF-Dokumente werden lokal seitenbezogen verarbeitet (siehe
-[`Wissens-API`](knowledge.md)). Für die Suche gilt dabei eine bewusst strenge
-Regel: Dokumentinhalte werden ausschließlich aus einer eigenen, aktiven,
-freigegebenen und zur aktuellen Dateiprüfsumme passenden Extraktion verwendet.
-Eine ausstehende, fehlgeschlagene, geschützte, textfreie oder veraltete
-Extraktion liefert keinen Inhalt – auch keinen zwischengespeicherten. Das
+PDF-Dokumente werden lokal seitenbezogen verarbeitet, `.pptx` folienbezogen und
+`.docx` absatzbezogen (siehe [`Wissens-API`](knowledge.md)). Für die Suche gilt
+dabei eine bewusst strenge Regel: Dokumentinhalte werden ausschließlich aus
+einer eigenen, aktiven, freigegebenen und zur aktuellen Dateiprüfsumme
+passenden Extraktion verwendet. Eine ausstehende, fehlgeschlagene, geschützte,
+textfreie oder veraltete Extraktion liefert keinen Inhalt – auch keinen
+zwischengespeicherten. Makrofähige Office-Formate liefern nie Inhalt. Das
 Dokument bleibt über seine Metadaten auffindbar, damit der Altbestand nach der
 Migration nicht verschwindet. Der Text einer veralteten Extraktion erzeugt
 dadurch nie einen stillen Falschtreffer.
@@ -89,7 +102,11 @@ dadurch nie einen stillen Falschtreffer.
 ## Bewusste Grenzen
 
 Die Suche besitzt noch keine Wortstammbildung, Synonyme, Tippfehlertoleranz,
-OCR oder Extraktion aus Office-Dateien. Suchtreffer sind
+OCR oder Bilderkennung. Gelesen werden ausschließlich PDF, `.pptx` und `.docx`
+sowie die genannten Textformate; Excel-, Audio- und Makrodateien liefern keinen
+Inhalt. Für DOCX wird ohne Layout-Rendering keine Seitenzahl ermittelt; der
+Umfang bleibt auf Haupttext-Absätze und erkennbare Abschnitte begrenzt. Für
+PPTX werden ausschließlich sichtbare Folientexte gelesen. Suchtreffer sind
 keine automatisch verwendeten KI-Quellen. Die
 [`quellengestützte KI-Grundlage`](ai.md) prüft Freigabe und Eignung nochmals,
 weist Quellen sichtbar aus und bleibt standardmäßig deaktiviert.

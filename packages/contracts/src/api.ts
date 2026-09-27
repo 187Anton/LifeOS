@@ -408,6 +408,43 @@ export type DocumentExtractionStatus =
   "pending" | "available" | "no_text" | "protected" | "unsupported" | "failed";
 
 /**
+ * Art der Fundstelle einer lokalen Dokumentextraktion.
+ *
+ * `page` gilt für seitenbasierte Formate (PDF), `slide` für Foliensätze
+ * (PPTX) und `paragraph` für Fließtextformate ohne stabil bestimmbare
+ * Seitenzahl (DOCX). Die Einheit ist Teil der Fundstellenbedeutung: eine
+ * Absatznummer ist nie eine Seitenzahl.
+ */
+export type DocumentLocatorKind = "page" | "slide" | "paragraph";
+
+/** Eine Seitenfundstelle mit dem lokal extrahierten Seitentext. */
+export interface DocumentPageLocator {
+  page: number;
+  text: string;
+}
+
+/** Eine Folienfundstelle mit dem lokal extrahierten Folientext. */
+export interface DocumentSlideLocator {
+  slide: number;
+  text: string;
+}
+
+/**
+ * Eine Absatzfundstelle mit dem lokal extrahierten Absatztext und der
+ * optionalen Überschrift des erkennbaren Abschnitts. Absätze sind stabil über
+ * die Dokumentreihenfolge nummeriert; es wird nie eine Seitenzahl abgeleitet.
+ */
+export interface DocumentParagraphLocator {
+  paragraph: number;
+  section: string | null;
+  text: string;
+}
+
+/** Eine Fundstelle aus einer lokalen Dokumentextraktion. */
+export type DocumentLocator =
+  DocumentPageLocator | DocumentSlideLocator | DocumentParagraphLocator;
+
+/**
  * Dokumentgebundener Extraktionszustand. Er beschreibt ausschließlich die lokal
  * berechnete Textgrundlage des Dokuments selbst; es entsteht kein zweiter
  * Speicher und kein eigener Suchindex.
@@ -425,6 +462,17 @@ export interface DocumentExtractionResponse {
   pageCount: number | null;
   /** Anzahl der Seiten mit veröffentlichtem Text. */
   storedPages: number;
+  /**
+   * Art der Fundstellen des Formats. Read-only abgeleitet aus dem MIME-Typ;
+   * `null`, solange das Format keine lokale Textgrundlage besitzt.
+   */
+  locatorKind: DocumentLocatorKind | null;
+  /**
+   * Gesamtzahl der Einheiten des Formats – Seiten, Folien oder Absätze.
+   * Getrennt von `pageCount`, damit eine Absatznummer nie als Seitenzahl
+   * erscheint. `null`, solange keine Zählung vorliegt.
+   */
+  locatorCount: number | null;
   truncated: boolean;
   extractedAt: string | null;
 }
@@ -747,6 +795,26 @@ export interface SearchResultResponse {
   page: number | null;
   /** Alle Seiten mit vollständigem Treffer, aufsteigend und begrenzt. */
   pages: number[];
+  /**
+   * Erste Folie mit vollständigem Treffer. Foliensätze nennen damit die
+   * betroffene Stelle; `null` außerhalb von Foliensätzen.
+   */
+  slide: number | null;
+  /** Alle Folien mit vollständigem Treffer, aufsteigend und begrenzt. */
+  slides: number[];
+  /**
+   * Erste Absatznummer mit vollständigem Treffer. Fließtextformate nennen damit
+   * die betroffene Stelle; `null` außerhalb solcher Formate. Eine Absatznummer
+   * ist nie eine Seitenzahl.
+   */
+  paragraph: number | null;
+  /** Alle Absatznummern mit vollständigem Treffer, aufsteigend und begrenzt. */
+  paragraphs: number[];
+  /**
+   * Überschrift des erkennbaren Abschnitts der ersten betroffenen
+   * Absatzfundstelle; `null`, wenn keine Überschrift erkennbar ist.
+   */
+  section: string | null;
 }
 
 export interface SearchResponse {

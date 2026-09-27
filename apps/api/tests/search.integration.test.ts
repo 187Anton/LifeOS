@@ -826,3 +826,289 @@ test("liefert Seitentreffer und Modulfilter nur aus eigenen, hashaktuellen Freig
   });
   assert.equal((await searchFor("Fließtext der Notiz")).results.length, 0);
 });
+
+/**
+ * Paket 8: Folien- und Absatzfundstellen werden in der Suche mit ihrer eigenen
+ * Einheit benannt. Ein Foliensatz nennt Folien, ein Fließtextdokument Absätze
+ * samt Abschnitt; keine der beiden Angaben wird je als Seite ausgegeben.
+ */
+test("nennt Folien- und Absatzfundstellen mit ihrer eigenen Einheit", async (t) => {
+  const database = createDatabaseClient();
+  const suffix = randomUUID();
+  const externalId = `search-office-owner-${suffix}`;
+  const otherExternalId = `search-office-other-${suffix}`;
+  const password = `synthetisches-officepasswort-${suffix}`;
+  const owner = await database.user.create({
+    data: {
+      externalId,
+      displayName: "Synthetische Officeperson",
+      settings: { create: {} },
+      credential: { create: { passwordHash: await hashPassword(password) } },
+    },
+  });
+  const other = await database.user.create({
+    data: {
+      externalId: otherExternalId,
+      displayName: "Andere Officeperson",
+      settings: { create: {} },
+    },
+  });
+  const program = await database.studyProgram.create({
+    data: {
+      userId: owner.id,
+      title: "Synthetischer Office-Studiengang",
+      institution: "Synthetische Hochschule",
+      periodLabel: "2033",
+    },
+  });
+  const module = await database.studyModule.create({
+    data: {
+      userId: owner.id,
+      programId: program.id,
+      title: "Officeplanung Modul",
+      searchEnabled: true,
+    },
+  });
+  const otherProgram = await database.studyProgram.create({
+    data: {
+      userId: other.id,
+      title: "Fremder Office-Studiengang",
+      institution: "Fremde Hochschule",
+      periodLabel: "2033",
+    },
+  });
+  const foreignModule = await database.studyModule.create({
+    data: {
+      userId: other.id,
+      programId: otherProgram.id,
+      title: "Fremdes Officeplanung Modul",
+      searchEnabled: true,
+    },
+  });
+
+  const slideSource = "e".repeat(64);
+  const slideDocument = await database.document.create({
+    data: {
+      userId: owner.id,
+      storageKey: `${randomUUID()}.pptx`,
+      fileName: "quantenfolien.pptx",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      byteSize: 4096,
+      sha256: slideSource,
+      modifiedAt: new Date("2033-05-01T12:00:00.000Z"),
+      searchEnabled: true,
+      studyModuleId: module.id,
+      extractionStatus: "available",
+      extractionSha256: slideSource,
+      extractionVersion: "ooxml-zip-v1/pptx-slides-v1",
+      extractedText:
+        "Einleitung ohne Suchbegriff.\nQuantenplanung auf Folie drei und Folie sieben.",
+      extractionPages: [
+        { slide: 1, text: "Einleitung ohne Suchbegriff." },
+        { slide: 3, text: "Quantenplanung auf Folie drei." },
+        { slide: 7, text: "Quantenplanung auch auf Folie sieben." },
+      ],
+      extractionPageCount: 3,
+      extractedAt: new Date("2033-05-01T12:00:00.000Z"),
+    },
+  });
+
+  const paragraphSource = "f".repeat(64);
+  const paragraphDocument = await database.document.create({
+    data: {
+      userId: owner.id,
+      storageKey: `${randomUUID()}.docx`,
+      fileName: "quantenhausarbeit.docx",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      byteSize: 8192,
+      sha256: paragraphSource,
+      modifiedAt: new Date("2033-05-02T12:00:00.000Z"),
+      searchEnabled: true,
+      studyModuleId: module.id,
+      extractionStatus: "available",
+      extractionSha256: paragraphSource,
+      extractionVersion: "ooxml-zip-v1/docx-paragraphs-v1",
+      extractedText:
+        "Einleitung ohne Suchbegriff.\nQuantenplanung in der Methodik.",
+      extractionPages: [
+        {
+          paragraph: 4,
+          section: "Einleitung",
+          text: "Einleitung ohne Suchbegriff.",
+        },
+        {
+          paragraph: 18,
+          section: "Methodik",
+          text: "Quantenplanung in der Methodik.",
+        },
+      ],
+      extractionPageCount: 2,
+      extractedAt: new Date("2033-05-02T12:00:00.000Z"),
+    },
+  });
+
+  /** Eine veraltete Quellprüfsumme liefert weiterhin keinen Inhalt. */
+  const staleParagraphDocument = await database.document.create({
+    data: {
+      userId: owner.id,
+      storageKey: `${randomUUID()}.docx`,
+      fileName: "veraltete-hausarbeit.docx",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      byteSize: 8192,
+      sha256: "1".repeat(64),
+      modifiedAt: new Date("2033-05-03T12:00:00.000Z"),
+      searchEnabled: true,
+      studyModuleId: module.id,
+      extractionStatus: "available",
+      extractionSha256: "2".repeat(64),
+      extractionVersion: "ooxml-zip-v1/docx-paragraphs-v1",
+      extractedText: "Quantenplanung aus einem veralteten Foliensatz.",
+      extractionPages: [
+        { paragraph: 1, text: "Quantenplanung aus einer veralteten Datei." },
+      ],
+      extractionPageCount: 1,
+      extractedAt: new Date("2033-05-03T12:00:00.000Z"),
+    },
+  });
+
+  const foreignSlideDocument = await database.document.create({
+    data: {
+      userId: other.id,
+      storageKey: `${randomUUID()}.pptx`,
+      fileName: "fremde-folien.pptx",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      byteSize: 2048,
+      sha256: "3".repeat(64),
+      modifiedAt: new Date("2033-05-04T12:00:00.000Z"),
+      searchEnabled: true,
+      studyModuleId: foreignModule.id,
+      extractionStatus: "available",
+      extractionSha256: "3".repeat(64),
+      extractionVersion: "ooxml-zip-v1/pptx-slides-v1",
+      extractedText: "Quantenplanung in einem fremden Foliensatz.",
+      extractionPages: [
+        { slide: 2, text: "Quantenplanung in einem fremden Foliensatz." },
+      ],
+      extractionPageCount: 1,
+      extractedAt: new Date("2033-05-04T12:00:00.000Z"),
+    },
+  });
+
+  const application = createApplication({
+    logger: new SilentLogger(),
+    readinessProbe: { check: async () => undefined },
+    webOrigin: "http://127.0.0.1:5173",
+    moduleRouters: [
+      createProfileRouter({
+        authentication: new AuthenticationService(
+          new PrismaProfileRepository(database, externalId),
+          1,
+        ),
+        profile: new ProfileService(
+          new PrismaProfileRepository(database, externalId),
+        ),
+        secureCookies: false,
+      }),
+      createSearchRouter({
+        authentication: new AuthenticationService(
+          new PrismaProfileRepository(database, externalId),
+          1,
+        ),
+        search: new LocalSearchService(new PrismaSearchRepository(database)),
+      }),
+    ],
+  });
+  const server = createServer(application);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}/api/v1`;
+  t.after(async () => {
+    await close(server);
+    await database.user.deleteMany({
+      where: { externalId: { in: [externalId, otherExternalId] } },
+    });
+    await database.$disconnect();
+  });
+
+  const login = await fetch(`${base}/session`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  const cookie = (login.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+  const searchFor = async (query: string, studyModuleId?: string) =>
+    (await (
+      await fetch(
+        `${base}/search?q=${encodeURIComponent(query)}${
+          studyModuleId ? `&studyModuleId=${studyModuleId}` : ""
+        }`,
+        { headers: { cookie } },
+      )
+    ).json()) as SearchResponse;
+
+  const broad = await searchFor("Quantenplanung");
+  const slideHit = broad.results.find(
+    (result) => result.id === slideDocument.id,
+  );
+  /** Ein Foliensatz nennt Folien – und niemals eine Seite. */
+  assert.deepEqual(slideHit?.slides, [3, 7]);
+  assert.equal(slideHit?.slide, 3);
+  assert.equal(slideHit?.page, null);
+  assert.deepEqual(slideHit?.pages, []);
+  assert.equal(slideHit?.matchReason, "content");
+
+  const paragraphHit = broad.results.find(
+    (result) => result.id === paragraphDocument.id,
+  );
+  /** Ein Absatztreffer nennt Absatz und Abschnitt – und keine Seite. */
+  assert.deepEqual(paragraphHit?.paragraphs, [18]);
+  assert.equal(paragraphHit?.paragraph, 18);
+  assert.equal(paragraphHit?.section, "Methodik");
+  assert.equal(paragraphHit?.page, null);
+  assert.deepEqual(paragraphHit?.pages, []);
+  assert.deepEqual(paragraphHit?.slides, []);
+  assert.equal(paragraphHit?.matchReason, "content");
+
+  /** Nur die hashaktuelle Quelle liefert Inhalt, hier Folie 3. */
+  const singleSlideHit = await searchFor("auf Folie drei");
+  assert.equal(singleSlideHit.results.length, 1);
+  assert.deepEqual(singleSlideHit.results[0]?.slides, [3]);
+
+  /** Der Modulfilter greift unverändert auf dieselben Quellen. */
+  const scoped = await searchFor("Quantenplanung", module.id);
+  assert.equal(
+    scoped.results.some((result) => result.id === slideDocument.id),
+    true,
+  );
+  assert.equal(
+    scoped.results.some((result) => result.id === paragraphDocument.id),
+    true,
+  );
+  assert.equal(
+    scoped.results.some((result) => result.id === foreignSlideDocument.id),
+    false,
+  );
+  assert.equal(
+    scoped.results.some((result) => result.id === staleParagraphDocument.id),
+    false,
+  );
+
+  /** Der Widerruf der Freigabe schließt den Inhalt sofort aus. */
+  await database.document.update({
+    where: { id: slideDocument.id },
+    data: { searchEnabled: false },
+  });
+  const afterRevoke = await searchFor("auf Folie drei");
+  assert.equal(afterRevoke.results.length, 0);
+  /** Die Datei bleibt vorhanden: Widerruf entfernt keinen Inhalt. */
+  assert.ok(
+    await database.document.findUniqueOrThrow({
+      where: { id: slideDocument.id },
+    }),
+  );
+});

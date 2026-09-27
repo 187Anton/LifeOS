@@ -1,9 +1,246 @@
 # Kohärenzumbau: Fortschritt und nächste Übergabe
 
-Stand: 26.09.2026. Diese Datei ist eine Übergabe, kein Ersatz für Live-Prüfungen.
+Stand: 27.09.2026. Diese Datei ist eine Übergabe, kein Ersatz für Live-Prüfungen.
 Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Aktuelles Paket
+
+- Paket: **8 – PPTX- und DOCX-Extraktion** lokal umgesetzt, geprüft und um die
+  Abnahmekorrektur ergänzt (begrenzter Workerlauf mit harter Frist). Stand dieser
+  Runde: **217/217** API-Tests (211 vor der Korrektur, 150 vor Paket 8),
+  **33/33** Datenbanktests, **19/19** Repo-Tests, **85/85** Web-Unit-Tests in
+  11 Dateien und **50/50** Playwright-E2E-Abläufe auf Desktop und Smartphone für
+  Upload, erneute Verarbeitung, Folien- und Absatzfundstellen, Modulsuche,
+  Widerruf und Löschung. Dazu `typecheck`, `lint`, `format:check`, `build`,
+  `repo:check`, `security:secrets` und `desktop:verify:sidecar`. Branch ist
+  `feat/coherence-office-extraction`; ein PR und ein Merge sind nicht
+  beauftragt und wurden nicht ausgeführt. Befund, Korrektur und Messwerte
+  stehen unter „Abnahmebefund und Korrektur“.
+- Vorbedingung Paket 7: live geprüft. `gh pr view 127` meldet **MERGED** mit
+  Merge-Commit `d4dc091` (`feat(knowledge): add local PDF text extraction`) als
+  Spitze von `origin/develop`; beide Pflichtchecks des Merge-Commits sind
+  `SUCCESS`, weitere Paket-PRs sind offen nicht vorhanden. Der Branch dieser
+  Runde ist auf genau dieser Basis `d4dc091` angelegt.
+- Umsetzung: genau ein Worker für Umsetzung, Prüfung und Nachweise; keine
+  Subagenten, keine zweite Schreibinstanz und kein paralleler Agent.
+- Worktree: `/private/tmp/lifeos-coherence-office-extraction`; der Hauptcheckout
+  `/Users/anton/Projekte/LifeOS` blieb unverändert.
+- Persönliche Daten: Antons Entwicklungsdatenbank blieb unberührt. Der lokale
+  Compose-Container dieses Worktrees band PostgreSQL an `127.0.0.1` auf einem
+  eigenen Port (`5437`) mit eigener, nur synthetisch befüllter Datenbank;
+  Migrationen und Tests liefen ausschließlich gegen synthetische Werte. Die
+  installierte App wurde nicht angefasst.
+- Keine neue Abhängigkeit: `apps/api/package.json` und `package-lock.json`
+  blieben unverändert. Der ZIP-Leser ist selbst geschrieben und nutzt
+  ausschließlich `node:zlib` (`inflateRawSync`, `crc32`); XML wird mit dem
+  bereits vorhandenen `fast-xml-parser` gelesen. Damit entsteht weder ein
+  natives Zusatzruntime noch ein Lizenz- oder Sidecar-Konflikt.
+- Keine Migration und keine Schemaänderung: Die Paket-7-Spalten
+  `extractionPages` (JSON) und `extractionPageCount` bleiben unverändert und
+  wurden additiv verallgemeinert. `extractionPages` nimmt jetzt auch
+  `{slide,text}` und `{paragraph,section,text}` auf; `extractionPageCount` zählt
+  die Einheiten des Formats (Seiten, Folien oder Absätze). Der Vertrag benennt
+  die Bedeutung über `locatorKind`/`locatorCount`, während `pageCount`
+  ausschließlich für seitenbasierte Formate gefüllt wird. Für PPTX und DOCX ist
+  `pageCount` deshalb `null`; eine Folie oder ein Absatz wird nie als Seite
+  ausgegeben.
+- Geänderter Umfang: der lokale OOXML-Extractor (`ooxml-extraction-limits.ts`,
+  `ooxml-zip.ts`, `ooxml-extractor.ts`), der begrenzte Workerlauf
+  (`ooxml-extractor-thread.ts`, `ooxml-extractor-worker.ts`, die beiden
+  Quelldateien `ooxml-source-loader.mjs`/`ooxml-source-resolver.mjs` und die
+  Workerdatei als eigener Einstiegspunkt in `tsup.config.ts` und
+  `tsup.desktop.config.ts`), der tolerante, rückwärtskompatible
+  Locator-Leser (`document-locators.ts`), der Upload- und Reprocess-Pfad in
+  `apps/api/src/modules/knowledge/`, die folien- und absatzbezogene Suche in
+  `apps/api/src/modules/search/`, die Fundstellenverträge in
+  `packages/contracts/src/api.ts`, die Fundstellenbeschriftung in
+  `apps/web/src/components/KnowledgeWorkspace.tsx` sowie die zugehörigen
+  API-, Web-Unit- und E2E-Nachweise.
+- Nicht geändert: CalDAV-Server, Apple-Integration, KI-Funktionen, Fixture- und
+  Seed-Bestände, ein zweiter Dokumentenspeicher, ein persistierter Suchindex,
+  OCR, Bilderkennung, Audio-, Excel- und Makroverarbeitung sowie alle
+  Paket-9+-Arbeiten. `LifeOS Leitfaden.docx` blieb unverändert; damit war keine
+  DOCX-Renderprüfung nötig (siehe „Offene Punkte“).
+- Offene Blocker: keiner.
+
+### Umgebungsbefund dieser Runde (nicht Paket 8)
+
+`npm run desktop:verify:sidecar` scheiterte zunächst mit
+`ERR_DLOPEN_FAILED`: Die native Erweiterung `better_sqlite3.node` lag mit
+`NODE_MODULE_VERSION 147` vor, während die gebündelte Node-Laufzeit `v22.23.2`
+`NODE_MODULE_VERSION 127` verlangt. Ursache war die Installation dieses
+Worktrees: Das `npm ci` dieser Runde lief unter **Node v26.10.0** (das Protokoll
+enthält dazu die `EBADENGINE`-Warnung `required: { node: '>=22 <23' },
+current: { node: 'v26.10.0' }`), sodass `prebuild-install` eine
+ABI-147-Vorübersetzung einspielte. Die ausgelieferte Sidecar-Laufzeit ist
+dagegen Node 22. Damit ist der Befund ein Ablauf- und Umgebungsfehler dieser
+Runde und keine Eigenschaft des Repositorys. Nach lokalem
+`npm rebuild better-sqlite3` unter Node 22 lief der Nachweis vollständig durch.
+Vorbedingung für jede Wiederholung: Abhängigkeiten ausschließlich mit Node 22
+installieren (`engines: >=22 <23`), sonst ist derselbe Vorbefund zu erwarten.
+
+### Offene Punkte und Entscheidungen dieser Runde
+
+- Kein PR und kein Push: nicht beauftragt.
+- `LifeOS Leitfaden.docx` wurde bewusst nicht geändert. Die Produktbeschreibung
+  in Abschnitt 5.10 nennt bereits „Dokumente und Anhänge“ und „Volltextsuche“;
+  PPTX und DOCX sind Dokumente und fügen keine neue Funktionskategorie hinzu.
+  Der dortige Absatz „Umsetzungsstand“ ist ausdrücklich datiert und
+  paketbenannt und wurde bereits von Paket 7 nicht fortgeschrieben.
+- Dieses Umfeld besitzt keinen Renderer für DOCX (kein LibreOffice, kein
+  pandoc) und kein Bildwerkzeug; eine geänderte DOCX-Datei hätte daher nicht
+  „vollständig visuell geprüft“ werden können. Deshalb wurde die Änderung nicht
+  vorgenommen, statt eine nicht prüfbare Fassung abzugeben. Soll die
+  Produktbeschreibung dennoch fortgeschrieben werden, ist das auf einem
+  Rechner mit Renderer nachzuholen.
+
+## Paket 8 – lokale Nachweise (27.09.2026)
+
+### Ausgangsprüfung
+
+Paket 7 war harte Vorgängerabhängigkeit und ist live bestätigt: PR #127 ist
+`MERGED`, der Merge-Commit `d4dc091` ist Spitze von `origin/develop`, und beide
+Pflichtchecks sind `SUCCESS`. Ein fehlender Extraktions- oder Fundstellenpfad
+hätte zum Abbruch geführt; er lag vor, deshalb wurde umgesetzt.
+
+### Sicherheitsgrenzen der ZIP-Verarbeitung
+
+Alle Grenzen greifen aus dem zentralen Verzeichnis, also **bevor** ein Eintrag
+entpackt wird: 4 000 Einträge, 25 MiB komprimiert, 128 MiB je Eintrag entpackt,
+256 MiB gesamt entpackt, ein Kompressionsverhältnis von höchstens 1 000, 16 MiB
+je geparstem XML-Teil, 32 MiB XML gesamt, 1 000 veröffentlichte Fundstellen,
+1 000 000 Byte Text, 512 MiB harte Speichergrenze des Workers und 20 s Laufzeit
+(hart durchgesetzt, siehe Korrektur unten). Abgewiesen werden Pfadtraversal,
+absolute Pfade, doppelte Einträge, Symlinks, verschlüsselte Einträge,
+beschädigte Archive und Pakete ohne `[Content_Types].xml`.
+
+### Fundstellen
+
+PPTX wird über die Beziehungsreihenfolge der Präsentation nummeriert; ein
+`slide10.xml` vor `slide2.xml` ändert die Nummerierung nicht. Gelesen wird nur
+sichtbarer Folientext. DOCX wird in Dokumentreihenfolge gelesen; die
+Absatznummer ist stabil, zählt leere Absätze mit und trägt die erkennbare
+Überschrift als Abschnitt. Header, Footer, Fußnoten und Kommentare wurden nicht
+stillschweigend ergänzt. Für DOCX wird keine Seitenzahl ermittelt.
+
+### Abwehr von Makros und externen Zielen
+
+`.pptm`, `.docm`, `vbaProject.bin` und ein Inhaltstypdatensatz, der Makroinhalte
+ankündigt, führen zu `unsupported` mit `errorCode: "macro_present"`, ohne dass
+ein Archivteil gelesen wird. DTD- und Entity-Angaben werden abgelehnt.
+Externe Beziehungen werden ignoriert; es findet kein Netzwerkzugriff statt.
+
+### Nachweise
+
+| Nachweis                              | Ergebnis | Vorher |
+| ------------------------------------- | -------- | ------ |
+| `npm test` (Repo + alle Workspaces)   | grün     | grün   |
+| API-Tests (`tests/*.test.ts`)         | 217      | 211    |
+| Datenbanktests                        | 33       | 33     |
+| Repo-Tests                            | 19       | 19     |
+| Web-Unit-Tests (11 Dateien)           | 85       | 85     |
+| Playwright-E2E (Desktop + Smartphone) | 50       | 50     |
+| `npm run typecheck`                   | grün     | grün   |
+| `npm run lint`                        | grün     | grün   |
+| `npm run format:check`                | grün     | grün   |
+| `npm run build`                       | grün     | grün   |
+| `npm run repo:check`                  | grün     | grün   |
+| `npm run security:secrets`            | grün     | grün   |
+| `npm run desktop:verify:sidecar`      | grün     | grün   |
+
+### Abnahmebefund und Korrektur (27.09.2026)
+
+**Befund:** Die PPTX-/DOCX-Extraktion lief synchron im API-Prozess. Der
+vorhandene Begrenzer verschob synchrone Arbeit nicht in einen Worker;
+ZIP-Entpacken und XML-Parsing konnten deshalb den Event-Loop blockieren, und die
+kooperative 20-Sekunden-Frist konnte diese Arbeit nicht hart abbrechen. Der
+Befund ist zutreffend: Die Frist wurde zwischen Arbeitsschritten geprüft, eine
+einzelne blockierende Operation war damit nicht abbruchfähig, und der
+Archivleser samt XML-Parser lief im Prozess, der auch Anfragen bedient.
+
+**Korrektur:** Die Verarbeitung läuft jetzt in einem eigenen, begrenzten
+Worker-Thread (`ooxml-extractor-thread.ts`), der ausschließlich Text liest und
+keinen Netzwerk-, Makro- oder Renderpfad enthält. Die begrenzende Schicht
+(`ooxml-extractor-worker.ts`) startet ihn mit harter V8-Speichergrenze, setzt
+die Frist **im aufrufenden Prozess** durch, beendet den Thread bei Ablauf und
+meldet erst danach `failed` mit `errorCode: "timeout"`. Der gemeinsame
+Begrenzer bleibt unverändert zuständig; ein Platz wird erst nach dem
+tatsächlichen Threadende freigegeben, beobachtbar über den Zähler
+`ooxmlExtractorThreadsInUse()`.
+
+Einzelheiten der Korrektur:
+
+- **Harte Frist statt kooperativer Prüfung:** Der Thread wird bei Ablauf beendet
+  und seine Beendigung abgewartet; erst dann entsteht das Ergebnis und erst dann
+  wird der Begrenzungsplatz freigegeben. Timer, Thread und Platz werden in jedem
+  Ausgang – Ergebnis, Fehler, Abbruch, Zeitüberschreitung – freigegeben.
+- **Speicher:** Der OOXML-Worker erhält 512 MiB als harte V8-Obergrenze (der
+  PDF-Worker bleibt bei 256 MiB). Grund: Im Thread liegen zusätzlich zu den
+  geparsten XML-Objektbäumen die entpackten Teile und ein Entpackpuffer; ein
+  einzelner Teil von 16 MiB wächst beim Parsen deutlich über seine Bytegröße
+  hinaus. Die Archivgrenzen greifen vor jedem Entpacken und begrenzen den
+  Spitzenbedarf nach oben. Wird die Grenze erreicht, endet genau dieser Lauf als
+  `failed`/`memory_limit`; der API-Prozess bleibt arbeitsfähig.
+- **Vertrag unverändert:** Der Fehlerzustand `timeout` bleibt derselbe wie im
+  Vertrag beschrieben (`failed`, `errorCode: "timeout"`, keine Fundstellen).
+  Hinzu kommen ausschließlich zwei benannte Fehlercodes derselben Form:
+  `memory_limit` und `worker_unavailable`. Keine Schemaänderung, keine
+  Migration, keine Vertragsänderung an Fundstellen oder Suchfreigaben.
+- **Laufzeitpaket:** Die Workerdatei ist ein eigener Einstiegspunkt des Builds
+  (`tsup.config.ts`, `tsup.desktop.config.ts`) und liegt im gebündelten Paket
+  unter `modules/knowledge/ooxml-extractor-thread.js`. Ein fehlendes Paket führt
+  zu einem sichtbaren `failed`/`worker_unavailable` statt zu stiller
+  Verarbeitung im API-Prozess.
+- **Quellbetrieb:** Worker-Threads erben die Auflösung des Entwicklungsstarters
+  nicht, und Node leitet aus `.js`-Spezifizierern keine `.ts`-Dateien ab. Im
+  Quellbetrieb startet der Worker deshalb mit `--experimental-transform-types`
+  und einem kleinen Resolver (`ooxml-source-loader.mjs`,
+  `ooxml-source-resolver.mjs`); im gebündelten Laufzeitpaket entfällt beides.
+
+**Tatsächliche Ergebnisse der Korrektur:**
+
+| Prüfung                                                     | Ergebnis                                                                                                                                                           |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Worker-Unit-Tests (`tests/ooxml-extraction-worker.test.ts`) | 5/5 grün                                                                                                                                                           |
+| API-Tests gesamt (`tests/*.test.ts`)                        | 217/217 grün (211 vor der Korrektur)                                                                                                                               |
+| Office-Integrationstest (PPTX/DOCX, Fundstellen, Grenzen)   | 3/3 grün (2 vor der Korrektur)                                                                                                                                     |
+| Parallele API-Anfrage während eines echten Uploads          | grün: `GET /knowledge` antwortet mit `200`, während der Worker läuft und der Upload noch offen ist                                                                 |
+| Zeitüberschreitung                                          | grün: aus der gemessenen Arbeit abgeleitete Frist (mindestens 25 ms, hier rund 50 ms) gegen ~500 ms Arbeit → `failed`/`timeout`, danach 0 Threads und freier Platz |
+| Speichergrenze                                              | grün: 16 MiB Grenze → `failed`/`memory_limit`, Prozess und Platz bleiben nutzbar                                                                                   |
+| Ablehnung ohne ZIP-Kennung                                  | grün: `invalid_zip` ohne Threadstart                                                                                                                               |
+| Beschädigtes Archiv im Worker                               | grün: `damaged_zip`, Platz danach frei                                                                                                                             |
+| Gebündelte Workerdatei                                      | im Build-Ausgabe `dist/modules/knowledge/ooxml-extractor-thread.js` vorhanden und direkt ladbar; Ergebnis identisch zum Kern                                       |
+
+**Verbleibende Risiken:**
+
+- **PDF-Workerdatei fehlt im Build (Paket 7, nicht Teil dieses Auftrags):**
+  `resolvePdfExtractorWorkerFile()` erwartet eine Datei, die kein
+  Build-Einstiegspunkt erzeugt. Im Ausgabeordner existiert keiner der drei
+  Kandidaten; ein PDF-Upload im gebündelten Laufzeitpaket endet dadurch als
+  `failed`/`worker_unavailable`, während er im Quellbetrieb funktioniert. Der
+  Fehler ist nicht Teil von Paket 8 und wurde hier nicht geändert; die Korrektur
+  wäre derselbe eine Eintrag in beiden Build-Konfigurationen. Belegt ist die
+  Abwesenheit der Datei und der Auflösungsfehler im Quelltext, nicht ein
+  Laufzeitversuch im Paket.
+- **`--experimental-transform-types`** betrifft nur den Quellbetrieb. Ändert
+  Node das Flag, bricht der Workerlauf im Quellbetrieb sichtbar als
+  `worker_unavailable` ab; Tests würden das sofort zeigen.
+- **Frist und Speichergrenze sind Prozessgrenzen, keine Zeitgarantie:** Eine
+  Zeitüberschreitung beendet den Thread hart, sie verkürzt aber nicht die
+  Laufzeit anderer, bereits laufender Verarbeitungen. Zwei gleichzeitige
+  Verarbeitungen bleiben möglich und sind gewollt begrenzt.
+- **Messen statt annehmen:** Die Überlappungsnachweise beruhen auf einer
+  bewusst großen Vorlage (120 000 Absätze, ~500 ms Arbeit). Auf deutlich
+  schnellerer Hardware bleibt der Abstand zwischen Antwortzeit und Arbeit groß
+  genug, weil die Zusicherung auf der Reihenfolge beruht, nicht auf einer
+  festen Millisekundengrenze.
+
+## Paket 7 – Übergabe (26.09.2026)
+
+**Abnahme (27.09.2026 live geprüft):** PR #127 ist `MERGED`, Merge-Commit
+`d4dc091` als Spitze von `origin/develop`, beide Pflichtchecks `SUCCESS`. Die
+folgende Übergabe beschreibt den Stand vor der Abnahme und bleibt als Nachweis
+erhalten.
 
 - Paket: **7 – PDF-Textextraktion und modulspezifische Suche** lokal umgesetzt
   und geprüft. Stand dieser Runde: **150/150** API-Tests (121 vorher),

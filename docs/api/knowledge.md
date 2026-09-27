@@ -33,7 +33,7 @@ symbolische Links, fremde Referenzen und fremde Besitzer werden abgelehnt.
 Audit-Ereignisse enthalten nur geänderte Feldnamen, keinen Notiz- oder
 Dokumentklartext.
 
-## Lokale PDF-Textextraktion (Paket 7)
+## Lokale Textextraktion (Paket 7 und 8)
 
 Die Wissensansicht zeigt je Dokument den dokumentgebundenen Extraktionszustand
 und bietet „Erneut verarbeiten“ an. Der Zustand ist eine Eigenschaft des
@@ -50,6 +50,8 @@ separater Suchindex.
     "errorCode": null,
     "pageCount": 3,
     "storedPages": 2,
+    "locatorKind": "page",
+    "locatorCount": 3,
     "truncated": false,
     "extractedAt": "2033-03-01T12:00:00.000Z"
   }
@@ -61,8 +63,15 @@ separater Suchindex.
 - `sourceSha256` bindet die Extraktion an genau die Datei, aus der sie
   entstanden ist. `current` ist nur dann `true`, wenn diese Prüfsumme zur
   aktuellen Dateiprüfsumme passt.
-- `storedPages` zählt die Seiten mit veröffentlichtem Text; die Fundstellen
+- `storedPages` zählt die Einheiten mit veröffentlichtem Text; die Fundstellen
   selbst bleiben am Dokument gespeichert und werden über die Suche ausgegeben.
+- `locatorKind` benennt die Einheit der Fundstellen: `page` für
+  seitenbasierte Formate, `slide` für Foliensätze und `paragraph` für
+  Fließtextformate. `locatorCount` zählt die Einheiten des Formats.
+- `pageCount` bleibt ausschließlich seitenbasierten Formaten vorbehalten. Für
+  PPTX und DOCX ist es `null`: Eine Folie oder ein Absatz wird nie als Seite
+  ausgegeben und eine Seitenzahl nie erfunden. Beide Felder sind additiv; eine
+  Antwort ohne `locatorKind`/`locatorCount` bleibt weiterhin gültig.
 
 ### Grenzen und Zustände
 
@@ -111,9 +120,10 @@ Die Begrenzung gilt prozessweit für alle Besitzer und für beide Einstiegspfade
 zwei Verarbeitungen gleichzeitig, weitere Anfragen warten in einer auf vier
 Plätze begrenzten Warteschlange. Ist auch diese belegt, antwortet die API
 sofort mit `429 RATE_LIMITED` und der Meldung, dass die lokale
-PDF-Verarbeitung ausgelastet ist; der Client entscheidet selbst über einen
+Dokumentverarbeitung ausgelastet ist; der Client entscheidet selbst über einen
 erneuten Versuch. So entstehen weder beliebig viele Worker-Threads noch eine
-unbegrenzte Warteschlange.
+unbegrenzte Warteschlange. Dieselbe Begrenzung gilt für PDF, PPTX und DOCX;
+beide Formate laufen in einem eigenen begrenzten Worker-Thread.
 
 Eine abgewiesene Anfrage ist folgenlos: Beim Upload wird die bereits
 geschriebene Datei wieder entfernt, es entsteht kein Dokumentdatensatz, und
@@ -121,3 +131,103 @@ eine erneute Verarbeitung lässt den bestehenden Extraktionszustand unverändert
 Ein Arbeitsplatz wird nach Erfolg, nach einem Fehler und nach einer
 Zeitüberschreitung wieder freigegeben; die Besitzprüfung greift weiterhin vor
 der Begrenzung, eine fehlende Sitzung antwortet mit `401`.
+
+## Lokale OOXML-Textextraktion für PPTX und DOCX (Paket 8)
+
+Zusätzlich zu PDF, `text/plain`, `text/markdown`, `text/csv` und
+`application/json` werden zwei OOXML-Formate rein lokal gelesen:
+
+| Format | MIME-Typ                                                                    | Fundstellen           |
+| ------ | --------------------------------------------------------------------------- | --------------------- |
+| PPTX   | `application/vnd.openxmlformats-officedocument.presentationml.presentation` | Folien (`slide`)      |
+| DOCX   | `application/vnd.openxmlformats-officedocument.wordprocessingml.document`   | Absätze (`paragraph`) |
+
+`version` lautet für PPTX `ooxml-zip-v1/pptx-slides-v1` und für DOCX
+`ooxml-zip-v1/docx-paragraphs-v1`. Beide Formate bleiben in derselben
+dokumentgebundenen Ablage wie Paket 7: Es entsteht kein zweiter Speicher, kein
+Schattenindex und keine neue Datenbankstruktur. `POST /documents`,
+`POST /documents/:id/extraction`, Suchfreigabe, Archivierung, Löschung,
+Modulfilter und die Prüfsummenbindung gelten unverändert.
+
+### Fundstellen
+
+- **PPTX:** Nummeriert wird über die Beziehungsreihenfolge der Präsentation
+  (`ppt/_rels/presentation.xml.rels`), nicht über Dateinamen – ein
+  `slide10.xml` vor `slide2.xml` ändert die Nummerierung nicht. Gelesen wird
+  ausschließlich sichtbarer Folientext innerhalb der Folienfläche. Notizfolien,
+  Kommentare und ausgeblendete Teile werden nicht als Folientext ausgegeben.
+- **DOCX:** Gelesen wird der Haupttext in Dokumentreihenfolge. Die Absatznummer
+  ist stabil und zählt auch leere Absätze mit; Absätze ohne Text liefern keinen
+  Inhalt, bleiben aber in der Zählung. Erkennbare Überschriften werden als
+  Abschnittsangabe übernommen.
+- **Keine erfundenen Seitenzahlen:** Für DOCX und PPTX ist `pageCount` `null`
+  und die Suche gibt weder `page` noch `pages` aus. Header, Footer, Fußnoten
+  und Kommentare werden nicht stillschweigend ergänzt.
+
+### Archivgrenzen vor dem Entpacken
+
+OOXML-Dateien sind ZIP-Archive. Alle Grenzen greifen gestaffelt und **bevor**
+entpackt wird:
+
+| Grenze                            | Wert                               |
+| --------------------------------- | ---------------------------------- |
+| Eingabegröße je Dokument          | 25 MiB (bestehende Ablagegrenze)   |
+| ZIP-Einträge                      | 4 000                              |
+| Archiv komprimiert                | 25 MiB                             |
+| Einzelner Eintrag entpackt        | 128 MiB                            |
+| Alle Einträge zusammen entpackt   | 256 MiB                            |
+| Kompressionsverhältnis            | 1 000                              |
+| Einzelner geparster XML-Teil      | 16 MiB                             |
+| Alle geparsten XML-Teile zusammen | 32 MiB                             |
+| Veröffentlichte Fundstellen       | 1 000 (`truncated: true` bei mehr) |
+| Veröffentlichter Text             | 1 000 000 Byte UTF-8               |
+| Abschnittsüberschrift             | 300 Zeichen                        |
+| Speicher des Workers              | 512 MiB (harte V8-Obergrenze)      |
+| Laufzeit                          | 20 s, danach `failed`/`timeout`    |
+
+Abgelehnt werden: Pfadtraversal, absolute Pfade, doppelte Einträge, Symlinks,
+verschlüsselte Einträge, beschädigte Archive, unerwartete Inhalte ohne
+`[Content_Types].xml` sowie jede Überschreitung der genannten Grenzen. Makros
+und externe Beziehungen werden nie ausgeführt und nie abgerufen.
+
+### Begrenzter Workerlauf und harte Frist
+
+Entpacken und Parsen sind blockierend. PPTX und DOCX laufen deshalb nicht im
+API-Prozess, sondern in einem eigenen Worker-Thread mit harter V8-Obergrenze
+(512 MiB; die Grenze des PDF-Workers bleibt bei 256 MiB). Die höhere Grenze
+trägt dem zusätzlichen Bedarf von OOXML Rechnung: Im Thread liegen neben dem
+Eingabepuffer die entpackten XML-Teile und deren Objektbäume, und ein einzelner
+Teil von 16 MiB wächst beim Parsen deutlich über seine Bytegröße hinaus. Die
+Archivgrenzen greifen vor jedem Entpacken, sodass der Spitzenbedarf nach oben
+begrenzt bleibt.
+
+Die 20-Sekunden-Frist wird **im aufrufenden Prozess** durchgesetzt, nicht im
+Thread: Läuft sie ab, beendet der Aufrufer den Thread und meldet `failed` mit
+`errorCode: "timeout"`. Eine blockierende Einzeloperation kann sich dieser Frist
+deshalb nicht entziehen. Fehler, Abbruch und Zeitüberschreitung beenden den
+Thread in jedem Ausgang und geben den Arbeitsplatz der gemeinsamen Begrenzung
+erst nach dem tatsächlichen Threadende frei.
+
+Zwei Folgezustände sind ausdrücklich benannt: Erreicht ein Lauf die
+Speichergrenze des Threads, endet genau dieser Lauf als `failed` mit
+`errorCode: "memory_limit"`, während der API-Prozess arbeitsfähig bleibt. Fehlt
+im gebündelten Laufzeitpaket die Workerdatei, meldet der Upload
+`failed`/`worker_unavailable`, statt still im API-Prozess zu verarbeiten.
+
+### Grenzen und Zustände
+
+- `.pptm`, `.docm`, jede Datei mit `vbaProject.bin` und jede Datei, deren
+  Inhaltstypdatensatz Makroinhalte ankündigt, werden als `unsupported` mit
+  `errorCode: "macro_present"` geführt. Die Datei bleibt gespeichert und
+  herunterladbar, liefert aber keinen Inhalt. Der Makropfad wird erkannt, bevor
+  ein Archivteil gelesen wird.
+- `no_text` gilt für Pakete ohne sichtbaren Text, etwa leere Foliensätze.
+- `failed` gilt für beschädigte oder unlesbare Pakete mit `damaged_zip`,
+  `invalid_zip`, `invalid_xml`, `dtd_rejected`, `zip_size_limit`,
+  `unexpected_content` oder `parser_error`; die abgelegte Datei bleibt erhalten.
+- DTD- und Entity-Angaben in OOXML-XML werden abgelehnt. Der Parser arbeitet
+  ausschließlich lokal auf bereits gelesenen Bytes und führt keine
+  Netzwerkzugriffe aus; externe Beziehungen werden ignoriert.
+- `.docx` und `.pptx` benötigen keine zusätzliche Systeminstallation und keine
+  native Zusatzabhängigkeit; die Mac-Sidecar-App bleibt unverändert
+  installierbar.

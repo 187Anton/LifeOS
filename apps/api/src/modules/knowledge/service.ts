@@ -13,6 +13,13 @@ import {
 } from "./pdf-extraction-concurrency.js";
 import { extractPdfDocumentText } from "./pdf-extractor.js";
 import {
+  DOCX_EXTRACTION_VERSION,
+  isMacroEnabledOoxmlMimeType,
+  ooxmlKindForMimeType,
+  PPTX_EXTRACTION_VERSION,
+} from "./ooxml-extraction-limits.js";
+import { extractOoxmlDocumentTextInWorker } from "./ooxml-extractor-worker.js";
+import {
   LOCAL_TEXT_EXTRACTION_VERSION,
   PDF_EXTRACTION_VERSION,
 } from "./pdf-extraction-limits.js";
@@ -221,6 +228,10 @@ export class KnowledgeService {
    * dokumentgebundene Werte. Die Prüfsumme bindet das Ergebnis an genau die
    * Datei, aus der es entstanden ist. Es wird nie Dokumentklartext
    * protokolliert.
+   *
+   * Jede Textart nutzt dieselbe dokumentgebundene Ablage: Status, Version,
+   * Quellprüfsumme und Fundstellen hängen am Dokument selbst. Es entsteht kein
+   * zweiter Speicher und kein eigener Suchindex.
    */
   private async extractDocumentText(
     mimeType: string,
@@ -231,9 +242,9 @@ export class KnowledgeService {
     const base = {
       sourceSha256,
       extractedAt,
-      pageCount: null,
+      locatorCount: null,
       truncated: false,
-      pages: null,
+      locators: null,
     } satisfies Partial<DocumentExtractionValues>;
 
     if (mimeType === PDF_MIME_TYPE) {
@@ -252,9 +263,9 @@ export class KnowledgeService {
         status: outcome.status,
         version: PDF_EXTRACTION_VERSION,
         errorCode: outcome.errorCode,
-        pageCount: outcome.pageCount,
+        locatorCount: outcome.pageCount,
         truncated: outcome.truncated,
-        pages: available ? outcome.pages : null,
+        locators: available ? outcome.pages : null,
         /**
          * Der zusammengeführte Text bleibt als einheitliche Grundlage für
          * bestehende Verbraucher erhalten; die seitenbezogenen Fundstellen
@@ -264,6 +275,51 @@ export class KnowledgeService {
         extractedText: available
           ? outcome.pages.map((page) => page.text).join("\n")
           : null,
+      };
+    }
+
+    /**
+     * PPTX und DOCX werden ebenfalls rein lokal gelesen, aber in einem eigenen
+     * begrenzten Worker-Thread. Das ist für die Frist entscheidend: Die
+     * Archivgrenzen greifen zwar vor dem Entpacken, doch ZIP-Entpacken und
+     * XML-Parsing selbst sind blockierend. Nur ein eigener Thread lässt sich
+     * bei Ablauf hart beenden, ohne den API-Prozess oder seinen Event-Loop zu
+     * blockieren. Der Lauf nimmt denselben Platz derselben prozessweiten
+     * Begrenzung ein wie ein PDF-Lauf.
+     */
+    const kind = ooxmlKindForMimeType(mimeType);
+    if (kind) {
+      const outcome = await this.pdfExtraction.run(() =>
+        extractOoxmlDocumentTextInWorker(kind, bytes),
+      );
+      const available = outcome.status === "available";
+      return {
+        ...base,
+        status: outcome.status,
+        version:
+          kind === "pptx" ? PPTX_EXTRACTION_VERSION : DOCX_EXTRACTION_VERSION,
+        errorCode: outcome.errorCode,
+        locatorCount: outcome.locatorCount,
+        truncated: outcome.truncated,
+        locators: available ? outcome.locators : null,
+        extractedText: available
+          ? outcome.locators.map((locator) => locator.text).join("\n")
+          : null,
+      };
+    }
+
+    /**
+     * Makrofähige Office-Formate werden weder entpackt noch ausgeführt. Das
+     * Dokument bleibt gespeichert, herunterladbar und auffindbar; es liefert
+     * aber bewusst keinen Inhalt.
+     */
+    if (isMacroEnabledOoxmlMimeType(mimeType)) {
+      return {
+        ...base,
+        status: "unsupported",
+        version: null,
+        errorCode: "macro_present",
+        extractedText: null,
       };
     }
 

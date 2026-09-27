@@ -1,14 +1,11 @@
 import type { DatabaseClient } from "@lifeos/database";
 import type {
+  DocumentLocator,
   SearchContentType,
   SearchSourceResponse,
 } from "@lifeos/contracts";
 
-/** Eine seitenbezogene Fundstelle aus einer lokalen Extraktion. */
-export interface SearchCandidatePage {
-  page: number;
-  text: string;
-}
+import { readStoredLocators } from "../knowledge/document-locators.js";
 
 export interface SearchCandidate {
   id: string;
@@ -26,10 +23,11 @@ export interface SearchCandidate {
    */
   studyModuleId: string | null;
   /**
-   * Seitenbezogene Fundstellen. Außerhalb seitenbasierter Formate leer; es
-   * entsteht kein eigener Index, die Seiten hängen am Dokument selbst.
+   * Fundstellen aus der lokalen Extraktion des Dokuments – Seiten, Folien oder
+   * Absätze. Außerhalb extrahierbarer Formate leer; es entsteht kein eigener
+   * Index, die Fundstellen hängen am Dokument selbst.
    */
-  pages: SearchCandidatePage[];
+  locators: DocumentLocator[];
 }
 
 export interface SearchRepository {
@@ -38,30 +36,6 @@ export interface SearchRepository {
 
 const text = (...values: Array<string | null | undefined>) =>
   values.filter((value): value is string => Boolean(value)).join("\n");
-
-/**
- * Liest die gespeicherten Seitenfundstellen aus dem JSON-Feld des Dokuments und
- * übernimmt nur wohlgeformte Einträge.
- */
-const storedPages = (value: unknown): SearchCandidatePage[] => {
-  if (!Array.isArray(value)) return [];
-  const pages: SearchCandidatePage[] = [];
-  for (const entry of value) {
-    if (typeof entry !== "object" || entry === null || Array.isArray(entry))
-      continue;
-    const candidate = entry as { page?: unknown; text?: unknown };
-    if (
-      typeof candidate.page !== "number" ||
-      !Number.isInteger(candidate.page) ||
-      candidate.page < 1 ||
-      typeof candidate.text !== "string" ||
-      !candidate.text
-    )
-      continue;
-    pages.push({ page: candidate.page, text: candidate.text });
-  }
-  return pages.sort((left, right) => left.page - right.page);
-};
 
 export class PrismaSearchRepository implements SearchRepository {
   constructor(private readonly database: DatabaseClient) {}
@@ -162,7 +136,7 @@ export class PrismaSearchRepository implements SearchRepository {
         updatedAt: project.updatedAt,
         detailPath: `/projects/${project.id}`,
         studyModuleId: null,
-        pages: [],
+        locators: [],
       });
       for (const goal of project.goals) {
         candidates.push({
@@ -176,7 +150,7 @@ export class PrismaSearchRepository implements SearchRepository {
           updatedAt: goal.updatedAt,
           detailPath: `/projects/${project.id}#goal-${goal.id}`,
           studyModuleId: null,
-          pages: [],
+          locators: [],
         });
       }
       for (const milestone of project.milestones) {
@@ -194,7 +168,7 @@ export class PrismaSearchRepository implements SearchRepository {
           updatedAt: milestone.updatedAt,
           detailPath: `/projects/${project.id}#milestone-${milestone.id}`,
           studyModuleId: null,
-          pages: [],
+          locators: [],
         });
       }
     }
@@ -210,7 +184,7 @@ export class PrismaSearchRepository implements SearchRepository {
         updatedAt: note.updatedAt,
         detailPath: `/knowledge/notes/${note.id}`,
         studyModuleId: note.studyModuleId,
-        pages: [],
+        locators: [],
       });
     }
     for (const document of documents) {
@@ -226,7 +200,9 @@ export class PrismaSearchRepository implements SearchRepository {
         document.extractionStatus === "available" &&
         document.extractionSha256 !== null &&
         document.extractionSha256 === document.sha256;
-      const pages = released ? storedPages(document.extractionPages) : [];
+      const locators = released
+        ? readStoredLocators(document.extractionPages)
+        : [];
       candidates.push({
         id: document.id,
         ownerId: document.userId,
@@ -238,8 +214,8 @@ export class PrismaSearchRepository implements SearchRepository {
           title: document.fileName,
         },
         content: released
-          ? pages.length
-            ? pages.map((page) => page.text).join("\n")
+          ? locators.length
+            ? locators.map((locator) => locator.text).join("\n")
             : (document.extractedText ?? "")
           : "",
         metadata: text(
@@ -250,7 +226,7 @@ export class PrismaSearchRepository implements SearchRepository {
         updatedAt: document.updatedAt,
         detailPath: `/knowledge/documents/${document.id}`,
         studyModuleId: document.studyModuleId,
-        pages,
+        locators,
       });
     }
     for (const module of studyModules) {
@@ -270,7 +246,7 @@ export class PrismaSearchRepository implements SearchRepository {
         updatedAt: module.updatedAt,
         detailPath: `/study/modules/${module.id}`,
         studyModuleId: module.id,
-        pages: [],
+        locators: [],
       });
       for (const entry of module.entries) {
         candidates.push({
@@ -284,7 +260,7 @@ export class PrismaSearchRepository implements SearchRepository {
           updatedAt: entry.updatedAt,
           detailPath: `/study/modules/${module.id}#entry-${entry.id}`,
           studyModuleId: module.id,
-          pages: [],
+          locators: [],
         });
       }
     }
@@ -304,7 +280,7 @@ export class PrismaSearchRepository implements SearchRepository {
         updatedAt: project.updatedAt,
         detailPath: `/work/projects/${project.id}`,
         studyModuleId: null,
-        pages: [],
+        locators: [],
       });
     }
     return candidates;

@@ -205,7 +205,7 @@ const moduleDocument = {
   createdAt: "2026-08-09T10:00:00.000Z",
   updatedAt: "2026-08-09T10:00:00.000Z",
   contentUrl: "/api/v1/documents/dokument-1/content",
-  /** Paket 7: dokumentgebundener Extraktionszustand. */
+  /** Paket 7/8: dokumentgebundener Extraktionszustand. */
   extraction: {
     status: "available",
     version: "pdfjs-6.3.289/text-v1",
@@ -214,6 +214,8 @@ const moduleDocument = {
     errorCode: null,
     pageCount: 3,
     storedPages: 2,
+    locatorKind: "page",
+    locatorCount: 3,
     truncated: false,
     extractedAt: "2026-08-09T11:00:00.000Z",
   },
@@ -240,6 +242,11 @@ const searchResultFixtures = {
     updatedAt: "2026-08-09T10:00:00.000Z",
     page: null,
     pages: [],
+    slide: null,
+    slides: [],
+    paragraph: null,
+    paragraphs: [],
+    section: null,
   },
   entry: {
     id: "eintrag-1",
@@ -254,6 +261,11 @@ const searchResultFixtures = {
     updatedAt: "2026-08-09T10:00:00.000Z",
     page: null,
     pages: [],
+    slide: null,
+    slides: [],
+    paragraph: null,
+    paragraphs: [],
+    section: null,
   },
   note: {
     id: "notiz-1",
@@ -272,6 +284,11 @@ const searchResultFixtures = {
     updatedAt: "2026-08-09T10:00:00.000Z",
     page: null,
     pages: [],
+    slide: null,
+    slides: [],
+    paragraph: null,
+    paragraphs: [],
+    section: null,
   },
   document: {
     id: "dokument-1",
@@ -290,6 +307,11 @@ const searchResultFixtures = {
     updatedAt: "2026-08-09T10:00:00.000Z",
     page: null,
     pages: [],
+    slide: null,
+    slides: [],
+    paragraph: null,
+    paragraphs: [],
+    section: null,
   },
   project: {
     id: "projekt-suche",
@@ -308,6 +330,11 @@ const searchResultFixtures = {
     updatedAt: "2026-08-09T10:00:00.000Z",
     page: null,
     pages: [],
+    slide: null,
+    slides: [],
+    paragraph: null,
+    paragraphs: [],
+    section: null,
   },
 };
 
@@ -319,6 +346,31 @@ const searchResultWithPage = {
   matchReason: "content" as const,
   page: 2,
   pages: [2],
+};
+
+/** Treffer mit Folienbezug
+ * (Paket 8): Der Foliensatz enthält den Suchbegriff auf Folie 7. */
+const searchResultWithSlide = {
+  ...searchResultFixtures.document,
+  id: "dokument-folien",
+  title: "vorlesung-folien.pptx",
+  snippet: "Quantenplanung auf dieser Folie.",
+  matchReason: "content" as const,
+  slide: 7,
+  slides: [7, 12],
+};
+
+/** Treffer mit Absatzbezug
+ * (Paket 8): Die Hausarbeit nennt den Suchbegriff in Absatz 18. */
+const searchResultWithParagraph = {
+  ...searchResultFixtures.document,
+  id: "dokument-hausarbeit",
+  title: "hausarbeit.docx",
+  snippet: "Quantenplanung im Haupttext.",
+  matchReason: "content" as const,
+  paragraph: 18,
+  paragraphs: [18, 24],
+  section: "Methodik",
 };
 
 const searchProject = {
@@ -1101,6 +1153,8 @@ const installApi = ({
           errorCode: null,
           pageCount: 3,
           storedPages: 2,
+          locatorKind: "page",
+          locatorCount: 3,
           truncated: false,
           extractedAt: "2032-04-01T00:00:00.000Z",
         };
@@ -2978,6 +3032,8 @@ describe("LifeOS-Weboberfläche", () => {
             errorCode: null,
             pageCount: null,
             storedPages: 0,
+            locatorKind: null,
+            locatorCount: null,
             truncated: false,
             extractedAt: null,
           },
@@ -3017,6 +3073,124 @@ describe("LifeOS-Weboberfläche", () => {
     expect(
       within(card!).getByRole("link", { name: "Quelle öffnen" }),
     ).toHaveAttribute("href", "/knowledge/documents/dokument-1");
+  });
+
+  it("nennt bei Foliensätzen die betroffene Folie und nie eine Seite", async () => {
+    installApi({
+      knowledgeDocuments: [moduleDocument],
+      searchResults: [searchResultWithSlide],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await openKnowledge(user);
+    await runSearchFor(user, "Quantenplanung");
+
+    const snippet = await screen.findByText(/auf dieser Folie/);
+    const card = snippet.closest("article");
+    expect(card).not.toBeNull();
+    expect(within(card!).getByText(/Folien 7, 12/)).toBeVisible();
+    /** Eine Folie wird nie als Seite benannt. */
+    expect(within(card!).queryByText(/\bSeite\b/)).toBeNull();
+  });
+
+  it("nennt bei Fließtextformaten Absatz und Abschnitt, aber keine Seite", async () => {
+    installApi({
+      knowledgeDocuments: [moduleDocument],
+      searchResults: [searchResultWithParagraph],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await openKnowledge(user);
+    await runSearchFor(user, "Quantenplanung");
+
+    const snippet = await screen.findByText(/im Haupttext/);
+    const card = snippet.closest("article");
+    expect(card).not.toBeNull();
+    expect(
+      within(card!).getByText(/Absätze 18, 24 · Abschnitt Methodik/),
+    ).toBeVisible();
+    /** Ein Absatz wird nie als Seite benannt. */
+    expect(within(card!).queryByText(/\bSeite/)).toBeNull();
+    expect(within(card!).queryByText(/\bFolie/)).toBeNull();
+  });
+
+  it("benennt den Extraktionszustand eines Foliensatzes in Folien", async () => {
+    installApi({
+      knowledgeDocuments: [
+        {
+          ...moduleDocument,
+          fileName: "vorlesung.pptx",
+          mimeType:
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+          extraction: {
+            status: "available",
+            version: "ooxml-zip-v1/pptx-slides-v1",
+            sourceSha256: "b".repeat(64),
+            current: true,
+            errorCode: null,
+            pageCount: null,
+            storedPages: 4,
+            locatorKind: "slide",
+            locatorCount: 6,
+            truncated: false,
+            extractedAt: "2026-08-09T11:00:00.000Z",
+          },
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await openKnowledge(user);
+
+    const region = (
+      await screen.findByRole("heading", { name: "Sichere lokale Ablage" })
+    ).closest("section");
+    expect(region).not.toBeNull();
+    expect(within(region!).getByText(/6 Folien/)).toBeVisible();
+    expect(within(region!).getByText(/4 Folien mit Text/)).toBeVisible();
+    expect(within(region!).queryByText(/\bSeiten mit Text\b/)).toBeNull();
+  });
+
+  it("benennt den Extraktionszustand einer DOCX in Absätzen", async () => {
+    installApi({
+      knowledgeDocuments: [
+        {
+          ...moduleDocument,
+          fileName: "hausarbeit.docx",
+          mimeType:
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          extraction: {
+            status: "available",
+            version: "ooxml-zip-v1/docx-paragraphs-v1",
+            sourceSha256: "c".repeat(64),
+            current: true,
+            errorCode: null,
+            pageCount: null,
+            storedPages: 12,
+            locatorKind: "paragraph",
+            locatorCount: 40,
+            truncated: false,
+            extractedAt: "2026-08-09T11:00:00.000Z",
+          },
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await openKnowledge(user);
+
+    const region = (
+      await screen.findByRole("heading", { name: "Sichere lokale Ablage" })
+    ).closest("section");
+    expect(region).not.toBeNull();
+    expect(within(region!).getByText(/40 Absätze/)).toBeVisible();
+    expect(within(region!).getByText(/12 Absätze mit Text/)).toBeVisible();
+    /** Für DOCX wird nie eine Seitenzahl genannt. */
+    expect(within(region!).queryByText(/\bSeiten\b/)).toBeNull();
   });
 
   it("öffnet die Modulsuche aus der Moduldetailansicht und filtert die Anfrage", async () => {
