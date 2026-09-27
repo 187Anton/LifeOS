@@ -286,8 +286,12 @@ der realen Elementposition, wartet zwei Bildframes und prüft vor dem Klick,
 dass der Tab sichtbar ist und sein Mittelpunkt tatsächlich vom Menü getroffen
 wird. Dafür stehen lokal bereits **20/20** mobile Wiederholungen mit vier
 Workern, die vollständige Desktop-/Mobil-E2E-Suite **50/50** und
-`npm run format:check`. Diese letzte Korrektur ist noch nicht gepusht; danach
-braucht der PR einen neuen Pflichtlauf auf dem exakt gepushten Head.
+`npm run format:check`. Pflichtlauf #210 stoppte auf diesem Zwischenstand
+bereits beim Lint: ESLint beanstandete einen überflüssigen `HTMLElement`-
+Typzusatz. Er wurde entfernt; Web-Lint, Web-Typecheck und Formatprüfung sind
+lokal grün. Das ist eine reine Typkorrektur ohne Laufzeitänderung; der
+vollständige E2E-Lauf auf der vorherigen Fassung bestand 50/50. Der nächste
+Push muss wieder beide Pflichtchecks auf seinem exakten Head bestehen.
 
 ## Paket 7 – Übergabe (26.09.2026)
 

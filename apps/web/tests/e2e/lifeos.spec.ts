@@ -3349,9 +3349,7 @@ const showView = async (page: Page, name: string) => {
     .filter({ visible: true });
   const visibleAndClickable = await target.evaluate(async (element) => {
     /* Mobile-Tabs liegen in einem horizontal scrollbaren Container. */
-    const navigation = element.closest(
-      ".mobile-navigation",
-    ) as HTMLElement | null;
+    const navigation = element.closest(".mobile-navigation");
     if (!navigation) return true;
 
     const navigationRect = navigation.getBoundingClientRect();
