@@ -3411,8 +3411,10 @@ const clickAtVisibleCenter = async (page: Page, target: Locator) => {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
     );
     const bounds = element.getBoundingClientRect();
-    const x = bounds.left + bounds.width / 2;
-    const y = bounds.top + bounds.height / 2;
+    const x =
+      bounds.left + bounds.width / 2 - (window.visualViewport?.offsetLeft ?? 0);
+    const y =
+      bounds.top + bounds.height / 2 - (window.visualViewport?.offsetTop ?? 0);
     const hitTarget = document.elementFromPoint(x, y);
     return {
       x,

@@ -328,10 +328,16 @@ E2E-Suite **50/50**; Format, Web-Lint, Typecheck und `git diff --check` sind
 ebenfalls grün. Die letzte Fokuskorrektur ist noch uncommitted; der
 CI-Nachweis auf dem exakten neuen PR-Head steht aus. Lauf #216 auf `0cb9a09`
 scheiterte erneut, weil nach dem Touch-Tap kein DELETE-Request eintraf; das
-Fokuslösen allein behebt den mobilen Klick nicht. Der nächste E2E-Schritt
-zeichnet deshalb Pointer-, Touch- und Click-Ereignisse samt tatsächlichem
-Trefferziel/Viewport auf und gibt sie im Fehlerfall aus. API-/Backendänderungen
-bleiben außerhalb dieses Befunds.
+Fokuslösen allein behebt den mobilen Klick nicht. Die Ereignisspur aus Lauf #217
+bestätigte die Ursache: Der Android-Visual-Viewport war um 35 Pixel versetzt;
+die Eingabe landete im umgebenden `ARTICLE` unterhalb des Knopfs, obwohl die
+vorherige Trefferprüfung den Knopf meldete. Der Klickhelfer rechnet die
+`visualViewport`-Offsets nun von der Zielposition ab, bevor er Trefferpunkt und
+Touch-Tap bestimmt. Danach bestanden lokal **8/8** gezielte Mobile-Läufe und die
+vollständige Desktop-/Mobil-E2E-Suite **50/50**; Format, Web-Lint, Typecheck und
+`git diff --check` sind grün. Die Korrektur ist noch uncommitted; der nächste
+Schritt ist Commit/Push und CI-Prüfung des exakten Heads. API-/Backendänderungen
+sind nicht angezeigt.
 
 ## Paket 7 – Übergabe (26.09.2026)
 
