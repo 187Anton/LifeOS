@@ -326,7 +326,12 @@ und anschließend auf die Bestätigung in der Oberfläche. Lokal bestanden danac
 erneut **8/8** gezielte Mobile-Durchläufe und die vollständige Desktop-/Mobil-
 E2E-Suite **50/50**; Format, Web-Lint, Typecheck und `git diff --check` sind
 ebenfalls grün. Die letzte Fokuskorrektur ist noch uncommitted; der
-CI-Nachweis auf dem exakten neuen PR-Head steht aus.
+CI-Nachweis auf dem exakten neuen PR-Head steht aus. Lauf #216 auf `0cb9a09`
+scheiterte erneut, weil nach dem Touch-Tap kein DELETE-Request eintraf; das
+Fokuslösen allein behebt den mobilen Klick nicht. Der nächste E2E-Schritt
+zeichnet deshalb Pointer-, Touch- und Click-Ereignisse samt tatsächlichem
+Trefferziel/Viewport auf und gibt sie im Fehlerfall aus. API-/Backendänderungen
+bleiben außerhalb dieses Befunds.
 
 ## Paket 7 – Übergabe (26.09.2026)
 

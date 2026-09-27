@@ -4263,6 +4263,43 @@ test("verarbeitet PDFs seitenbezogen und sucht im Modul auf Desktop und Smartpho
   const oldPdfCard = page
     .locator(".document-card")
     .filter({ hasText: "altes-skript.pdf" });
+  const deleteButton = oldPdfCard.getByRole("button", { name: "Löschen" });
+  await page.evaluate(() => {
+    type InputProbeWindow = Window & { __deleteInputEvents?: string[] };
+    (window as InputProbeWindow).__deleteInputEvents = [];
+    const eventTypes = [
+      "pointerdown",
+      "pointerup",
+      "mousedown",
+      "mouseup",
+      "touchstart",
+      "touchend",
+      "click",
+    ];
+    for (const eventType of eventTypes) {
+      document.addEventListener(
+        eventType,
+        (event) => {
+          const target = event.target;
+          const button =
+            target instanceof Element ? target.closest("button") : null;
+          const label =
+            button?.textContent?.trim().replace(/\s+/g, " ") ??
+            (target instanceof Element ? target.tagName : "unknown");
+          const coordinates =
+            event instanceof MouseEvent
+              ? `${event.clientX},${event.clientY}`
+              : event instanceof TouchEvent && event.changedTouches[0]
+                ? `${event.changedTouches[0].clientX},${event.changedTouches[0].clientY}`
+                : "";
+          (window as InputProbeWindow).__deleteInputEvents?.push(
+            `${event.type}:${label}:${coordinates}`,
+          );
+        },
+        true,
+      );
+    }
+  });
   const deleteResponse = page.waitForResponse(
     (response) => {
       const request = response.request();
@@ -4274,11 +4311,54 @@ test("verarbeitet PDFs seitenbezogen und sucht im Modul auf Desktop und Smartpho
     },
     { timeout: 5_000 },
   );
-  await clickAtVisibleCenter(
-    page,
-    oldPdfCard.getByRole("button", { name: "Löschen" }),
-  );
-  expect((await deleteResponse).status()).toBe(204);
+  await clickAtVisibleCenter(page, deleteButton);
+  const response = await deleteResponse.catch(async (error: unknown) => {
+    const diagnostics = await page.evaluate(() => {
+      type InputProbeWindow = Window & { __deleteInputEvents?: string[] };
+      const card = [...document.querySelectorAll(".document-card")].find(
+        (candidate) => candidate.textContent?.includes("altes-skript.pdf"),
+      );
+      const button = [...(card?.querySelectorAll("button") ?? [])].find(
+        (candidate) => candidate.textContent?.includes("Löschen"),
+      );
+      const bounds = button?.getBoundingClientRect();
+      const x = bounds ? bounds.left + bounds.width / 2 : null;
+      const y = bounds ? bounds.top + bounds.height / 2 : null;
+      const hit =
+        x === null || y === null ? null : document.elementFromPoint(x, y);
+      return {
+        events: (window as InputProbeWindow).__deleteInputEvents ?? [],
+        activeElement: document.activeElement?.tagName ?? null,
+        viewport: {
+          width: window.innerWidth,
+          height: window.innerHeight,
+          visualHeight: window.visualViewport?.height ?? null,
+          offsetTop: window.visualViewport?.offsetTop ?? null,
+        },
+        button: button
+          ? {
+              disabled: button.disabled,
+              bounds: bounds
+                ? {
+                    x: bounds.x,
+                    y: bounds.y,
+                    width: bounds.width,
+                    height: bounds.height,
+                  }
+                : null,
+              hit:
+                hit?.closest("button")?.textContent?.trim() ??
+                hit?.tagName ??
+                null,
+            }
+          : null,
+      };
+    });
+    throw new Error(
+      `${String(error)}; mobile delete-click diagnostics: ${JSON.stringify(diagnostics)}`,
+    );
+  });
+  expect(response.status()).toBe(204);
   await expect(
     page.getByText("Das Dokument wurde sicher gelöscht."),
   ).toBeVisible();
