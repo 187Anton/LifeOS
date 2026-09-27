@@ -1,6 +1,6 @@
 # Kohärenzumbau: Fortschritt und nächste Übergabe
 
-Stand: 27.09.2026. Diese Datei ist eine Übergabe, kein Ersatz für Live-Prüfungen.
+Stand: 27.09.2026 (Übergabe-Snapshot vor dem Merge von PR #128). Diese Datei ist eine Übergabe, kein Ersatz für Live-Prüfungen.
 Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Aktuelles Paket
@@ -12,10 +12,12 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   11 Dateien und **50/50** Playwright-E2E-Abläufe auf Desktop und Smartphone für
   Upload, erneute Verarbeitung, Folien- und Absatzfundstellen, Modulsuche,
   Widerruf und Löschung. Dazu `typecheck`, `lint`, `format:check`, `build`,
-  `repo:check`, `security:secrets` und `desktop:verify:sidecar`. Branch ist
-  `feat/coherence-office-extraction`; ein PR und ein Merge sind nicht
-  beauftragt und wurden nicht ausgeführt. Befund, Korrektur und Messwerte
-  stehen unter „Abnahmebefund und Korrektur“.
+  `repo:check`, `security:secrets` und `desktop:verify:sidecar`. PR #128 ist zum
+  Zeitpunkt dieses Snapshots gegen `develop` offen; der erste Pflichtlauf auf
+  Head `2204b6d` bestand `Local macOS release`, aber `Repository checks` scheiterte
+  im mobilen PDF-/DOCX-E2E-Klick auf „Lokal ablegen“. Die CI-Korrektur und ihre
+  lokalen Nachweise stehen im folgenden Abschnitt. Ein Merge war zu diesem
+  Snapshot noch nicht erfolgt.
 - Vorbedingung Paket 7: live geprüft. `gh pr view 127` meldet **MERGED** mit
   Merge-Commit `d4dc091` (`feat(knowledge): add local PDF text extraction`) als
   Spitze von `origin/develop`; beide Pflichtchecks des Merge-Commits sind
@@ -234,6 +236,31 @@ Einzelheiten der Korrektur:
   schnellerer Hardware bleibt der Abstand zwischen Antwortzeit und Arbeit groß
   genug, weil die Zusicherung auf der Reihenfolge beruht, nicht auf einer
   festen Millisekundengrenze.
+
+## Paket 8 – CI-Korrektur (27.09.2026; Übergabe-Snapshot vor Commit)
+
+Der erste Pflichtlauf von PR #128 auf Head `2204b6d` scheiterte im einzigen
+roten Test: `mobile-chrome` überschritt bei `apps/web/tests/e2e/lifeos.spec.ts`
+beim Klick auf den DOCX-Upload-Button das 30-Sekunden-Limit. Der GitHub-Trace
+zeigte wechselnde Trefferziele: erst das Upload-Formular, dann die am unteren
+Rand fixierte mobile Navigation. API-, Unit- und Datenbanktests waren grün;
+`Local macOS release` war ebenfalls erfolgreich. Es war kein Extraktionsfehler;
+der Upload-Klick kam nicht bis zum Handler.
+
+Die mobile Ansicht erhält deshalb `scroll-padding-block-end` für die Höhe der
+fixierten Navigation einschließlich `safe-area-inset-bottom`. So scrollen
+automatische Zielausrichtungen oberhalb der Navigation ein. Diese Korrektur
+wurde im Worktree bereits vor diesem Eintrag geprüft:
+
+- der vorhandene mobile PDF-/PPTX-/DOCX-Ablauf: **8/8** Durchläufe mit zwei
+  parallelen Playwright-Workern;
+- vollständige Desktop-/Mobil-E2E-Suite: **50/50** bestanden;
+- `git diff --check`: bestanden.
+
+Der lokale Einzelaufruf vor der Korrektur war zwar grün; die wiederholte Prüfung
+und der vollständige E2E-Lauf nach der Korrektur sind die aussagekräftigen
+lokalen Nachweise. Diese Ergebnisse ersetzen nicht die Pflichtchecks für den
+aktualisierten PR-Head; sie werden nach dem Korrekturcommit erneut abgewartet.
 
 ## Paket 7 – Übergabe (26.09.2026)
 
