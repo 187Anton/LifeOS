@@ -1,7 +1,12 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/server.ts"],
+  /**
+   * Wie im Server-Build ist die OOXML-Workerdatei ein eigener Einstiegspunkt,
+   * damit sie im Sidecar-Paket als Datei vorliegt: Der Worker wird zur Laufzeit
+   * über einen Pfad geladen, nicht über einen Import.
+   */
+  entry: ["src/server.ts", "src/modules/knowledge/ooxml-extractor-thread.ts"],
   format: ["esm"],
   platform: "node",
   target: "node22",

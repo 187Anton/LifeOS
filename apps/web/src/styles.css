@@ -2863,6 +2863,11 @@ input[readonly] {
 }
 
 @media (max-width: 780px) {
+  /* Der Upload-CTA bleibt oberhalb der fixierten unteren Navigation klickbar. */
+  .document-upload > .primary-button {
+    scroll-margin-block-end: calc(72px + env(safe-area-inset-bottom));
+  }
+
   .login-page {
     grid-template-columns: 1fr;
   }

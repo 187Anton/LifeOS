@@ -1,13 +1,19 @@
 import type {
+  DocumentLocator,
+  DocumentLocatorKind,
   SearchContentType,
   SearchResponse,
   SearchResultResponse,
 } from "@lifeos/contracts";
 
+import { locatorUnit } from "../knowledge/document-locators.js";
 import type { SearchCandidate, SearchRepository } from "./repository.js";
 
-/** Höchstzahl gleichzeitig genannter Fundstellenseiten je Treffer. */
-export const MAX_RESULT_PAGES = 20;
+/**
+ * Höchstzahl gleichzeitig genannter Fundstelleneinheiten je Treffer – Seiten,
+ * Folien und Absätze werden jeweils einzeln begrenzt.
+ */
+export const MAX_RESULT_UNITS = 20;
 
 /**
  * Quellarten der Modulsuche. Es sind genau die bereits freigegebenen Modul-,
@@ -48,11 +54,32 @@ const snippet = (value: string, tokens: string[]) => {
 };
 
 /**
- * Bewertet einen Kandidaten. Bei seitenbasierten Formaten muss der vollständige
- * Treffer auf einer einzelnen Seite liegen; nur dann lässt sich die betroffene
- * Seite verlässlich benennen. Formate ohne Seitenangabe werden weiterhin über
- * ihren gesamten Inhalt bewertet.
+ * Bewertet einen Kandidaten. Fundstellen werden formatabhängig benannt: Seiten
+ * bei seitenbasierten Formaten, Folien bei Foliensätzen und Absätze samt
+ * Abschnitt bei Fließtextformaten. Bei fundstellenbasierten Formaten muss der
+ * vollständige Treffer auf einer einzelnen Fundstelle liegen; nur dann lässt
+ * sich die betroffene Stelle verlässlich benennen. Formate ohne Fundstellen
+ * werden weiterhin über ihren gesamten Inhalt bewertet.
  */
+const unitsOf = (
+  hits: readonly DocumentLocator[],
+  kind: DocumentLocatorKind,
+): number[] => {
+  const numbers: number[] = [];
+  for (const locator of hits) {
+    const unit = locatorUnit(locator);
+    if (unit.kind === kind) numbers.push(unit.number);
+  }
+  return numbers.sort((left, right) => left - right).slice(0, MAX_RESULT_UNITS);
+};
+
+const sectionOf = (hits: readonly DocumentLocator[]): string | null => {
+  for (const locator of hits) {
+    if ("paragraph" in locator && locator.section) return locator.section;
+  }
+  return null;
+};
+
 const matchCandidate = (
   candidate: SearchCandidate,
   query: string,
@@ -60,14 +87,13 @@ const matchCandidate = (
 ): (SearchResultResponse & { score: number }) | null => {
   const title = normalize(candidate.title);
   const metadata = normalize(candidate.metadata);
-  const pageHits = candidate.pages.filter((page) => {
-    const pageText = normalize(page.text);
-    return tokens.every((token) => pageText.includes(token));
+  const hits = candidate.locators.filter((locator) => {
+    const locatorText = normalize(locator.text);
+    return tokens.every((token) => locatorText.includes(token));
   });
-  const pages = pageHits.map((page) => page.page).slice(0, MAX_RESULT_PAGES);
-  const primaryPageText = pageHits[0]?.text ?? "";
-  const contentSource = candidate.pages.length
-    ? primaryPageText
+  const primaryText = hits[0]?.text ?? "";
+  const contentSource = candidate.locators.length
+    ? primaryText
     : candidate.content;
   const content = normalize(contentSource);
   const combined = `${title} ${content} ${metadata}`;
@@ -85,6 +111,9 @@ const matchCandidate = (
     : contentMatches
       ? "content"
       : "metadata";
+  const pages = unitsOf(hits, "page");
+  const slides = unitsOf(hits, "slide");
+  const paragraphs = unitsOf(hits, "paragraph");
   return {
     id: candidate.id,
     title: candidate.title,
@@ -105,6 +134,11 @@ const matchCandidate = (
     searchEnabled: true,
     page: pages[0] ?? null,
     pages,
+    slide: slides[0] ?? null,
+    slides,
+    paragraph: paragraphs[0] ?? null,
+    paragraphs,
+    section: sectionOf(hits),
     score:
       titleMatches * 12 +
       contentMatches * 4 +
@@ -173,6 +207,11 @@ function withoutScore({
   searchEnabled,
   page,
   pages,
+  slide,
+  slides,
+  paragraph,
+  paragraphs,
+  section,
 }: SearchResultResponse & { score: number }): SearchResultResponse {
   return {
     id,
@@ -187,5 +226,10 @@ function withoutScore({
     searchEnabled,
     page,
     pages,
+    slide,
+    slides,
+    paragraph,
+    paragraphs,
+    section,
   };
 }
