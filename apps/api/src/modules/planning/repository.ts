@@ -3,6 +3,7 @@ import type {
   CalendarEventModel,
   DatabaseClient,
   StudyEntryModel,
+  TaskCalendarBindingModel,
   TaskModel,
   UserSettingsModel,
   WorkProjectModel,
@@ -28,11 +29,31 @@ export type PlanningStudyEntrySource = StudyEntryModel & {
   calendarEvent: { uid: string; calendarId: string } | null;
 };
 
+/**
+ * Verwaltete Abbildung als Projektionsquelle (Paket 9). Gelesen wird
+ * ausschließlich, was die gemeinsame Duplikatregel braucht: Besitzer, Aufgabe,
+ * Abbildungsart und die öffentliche Identität des führenden Ereignisses
+ * `(calendarId, uid)` samt dessen Löschzustand. Eine reine UID-Prüfung über
+ * mehrere Kalender hinweg findet nicht statt.
+ */
+export type PlanningBindingSource = TaskCalendarBindingModel & {
+  calendarEvent: {
+    uid: string;
+    calendarId: string;
+    deletedAt: Date | null;
+  } | null;
+};
+
 export interface PlanningSourceData {
   settings: UserSettingsModel | null;
   events: CalendarEventModel[];
   tasks: TaskModel[];
   studyEntries: PlanningStudyEntrySource[];
+  /**
+   * Verwaltete Abbildungen der Aufgaben. Quellen ohne Abbildungen – etwa
+   * schlanke Testdaten – liefern schlicht keine Duplikatregel.
+   */
+  bindings?: PlanningBindingSource[];
   workProjects: WorkProjectModel[];
   workTimeEntries: WorkTimeEntryModel[];
   availabilityWindows: AvailabilityWindowModel[];
@@ -75,6 +96,7 @@ export class PrismaPlanningRepository implements PlanningRepository {
       events,
       tasks,
       studyEntries,
+      bindings,
       workProjects,
       workTimeEntries,
       availabilityWindows,
@@ -102,6 +124,19 @@ export class PrismaPlanningRepository implements PlanningRepository {
          */
         include: { calendarEvent: { select: { uid: true, calendarId: true } } },
       }),
+      /**
+       * Paket 9: verwaltete Abbildungen der Aufgaben. Nur die öffentliche
+       * Identität des Ereignisses wird mitgelesen, damit die Projektion eine
+       * doppelte Darstellung derselben fachlichen Bedeutung erkennt.
+       */
+      this.database.taskCalendarBinding.findMany({
+        where: { userId },
+        include: {
+          calendarEvent: {
+            select: { uid: true, calendarId: true, deletedAt: true },
+          },
+        },
+      }),
       this.database.workProject.findMany({
         where: { userId, archivedAt: null },
         orderBy: { deadlineDate: { sort: "asc", nulls: "last" } },
@@ -120,6 +155,7 @@ export class PrismaPlanningRepository implements PlanningRepository {
       events,
       tasks,
       studyEntries,
+      bindings,
       workProjects,
       workTimeEntries,
       availabilityWindows,

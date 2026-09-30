@@ -120,6 +120,8 @@ const installApi = async (
     additionalStudyEntries = [],
     knowledgeNotes = [],
     knowledgeDocuments = [],
+    managedBindings = [],
+    recordedWrites,
   }: {
     studyPrograms?: Array<Record<string, unknown>>;
     studyModules?: Array<Record<string, unknown>>;
@@ -130,6 +132,16 @@ const installApi = async (
     knowledgeNotes?: Array<Record<string, unknown>>;
     /** Dokumente der gemeinsamen lokalen Ablage. */
     knowledgeDocuments?: Array<Record<string, unknown>>;
+    /**
+     * Verwaltete Aufgaben-Kalender-Abbildungen. Sie bleiben getrennt von den
+     * freien Verknüpfungen und werden eigens angezeigt.
+     */
+    managedBindings?: Array<Record<string, unknown>>;
+    /**
+     * Protokoll aller schreibenden API-Aufrufe (`method !== "GET"`). Es belegt
+     * im Test, welche Nutzdaten tatsächlich gesendet wurden.
+     */
+    recordedWrites?: Array<{ method: string; path: string; body: unknown }>;
   } = {},
 ) => {
   const events: Array<Record<string, unknown>> = [
@@ -141,6 +153,9 @@ const installApi = async (
     ...additionalTasks.map((entry) => ({ ...entry })),
   ];
   const links: Array<Record<string, unknown>> = [];
+  const bindings: Array<Record<string, unknown>> = managedBindings.map(
+    (entry) => ({ ...entry }),
+  );
   const study = {
     programs: studyPrograms.map((entry) => ({ ...entry })),
     modules: studyModules.map((entry) => ({ ...entry })),
@@ -228,6 +243,18 @@ const installApi = async (
     const request = route.request();
     const path = new URL(request.url()).pathname;
     const method = request.method();
+    /**
+     * Schreibende Aufrufe werden auf Wunsch mitgeschrieben. Ein Test kann damit
+     * belegen, dass ein unverändertes Speichern keine Dauer erzeugt und kein
+     * Kalenderereignis angefasst wird.
+     */
+    if (recordedWrites && method !== "GET") {
+      recordedWrites.push({
+        method,
+        path,
+        body: request.postDataJSON?.() ?? null,
+      });
+    }
 
     if (path === "/api/v1/setup" && method === "GET") {
       await route.fulfill({ json: { required: false } });
@@ -1607,6 +1634,26 @@ const installApi = async (
       await route.fulfill({ json: links });
       return;
     }
+    if (path === "/api/v1/task-calendar-bindings" && method === "GET") {
+      await route.fulfill({ json: bindings });
+      return;
+    }
+    if (
+      path === "/api/v1/task-calendar-bindings/reconcile" &&
+      method === "POST"
+    ) {
+      await route.fulfill({
+        json: {
+          checkedEvents: bindings.length,
+          reconnected: 0,
+          repaired: 0,
+          alreadyLinked: bindings.length,
+          skippedUnrelated: 0,
+          ambiguous: [],
+        },
+      });
+      return;
+    }
     if (path === "/api/v1/task-event-links" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, string>;
       const linkedTask = tasks.find((task) => task.id === payload.taskId)!;
@@ -2383,6 +2430,377 @@ test("plant einen Studienabschnitt mit Modul und Prüfung", async ({ page }) => 
   await expect(studyDeadline.first()).toBeVisible();
   await expect(studyDeadline.first().getByText("Frist")).toBeVisible();
   await expect(studyDeadline.first().getByText("Studium")).toBeVisible();
+});
+
+/**
+ * Paket 9: Verwaltete Abbildungen werden aus den Aufgabenfeldern geführt und
+ * getrennt von den freien Verknüpfungen angezeigt. Konflikte und fehlende
+ * Zuordnungen bleiben ausdrücklich benannt.
+ */
+const managedDueBinding = {
+  id: "bindung-1",
+  task: { id: "aufgabe-1", title: "Roadmap prüfen", available: true },
+  kind: "due",
+  label: "Frist",
+  event: {
+    calendarId: calendar.id,
+    uid: "aufgabe-1.frist@tasks.lifeos.local",
+    title: "Frist: Roadmap prüfen",
+    etag: '"etag-frist"',
+    available: true,
+  },
+  status: "active",
+  eventKind: "all_day",
+  lastKnownEtag: '"etag-frist"',
+  createdAt: "2026-07-29T13:00:00.000Z",
+  updatedAt: "2026-07-29T13:00:00.000Z",
+};
+
+test("zeigt bei aktiver verwalteter Abbildung genau eine Darstellung je fachlicher Bedeutung", async ({
+  page,
+}) => {
+  const dueUid = "aufgabe-verwaltet.frist@tasks.lifeos.local";
+  const blockUid = "aufgabe-verwaltet.zeitblock@tasks.lifeos.local";
+  const blockStart = `${today}T09:00:00.000Z`;
+  const blockEnd = `${today}T10:30:00.000Z`;
+  await installApi(page, {
+    additionalEvents: [
+      {
+        ...initialEvent,
+        uid: dueUid,
+        title: "Frist: Abgabe und Block",
+        description: null,
+        location: null,
+        isAllDay: true,
+        startsAt: null,
+        endsAt: null,
+        startDate: today,
+        endDate: berlinDate(new Date(`${today}T22:00:00.000Z`)),
+        reminderMinutes: [],
+        etag: '"etag-verwaltete-frist"',
+      },
+      {
+        ...initialEvent,
+        uid: blockUid,
+        title: "Zeitblock: Abgabe und Block",
+        description: null,
+        location: null,
+        startsAt: blockStart,
+        endsAt: blockEnd,
+        startDate: null,
+        endDate: null,
+        reminderMinutes: [],
+        etag: '"etag-verwalteter-block"',
+      },
+    ],
+    additionalTasks: [
+      {
+        ...initialTask,
+        id: "aufgabe-verwaltet",
+        title: "Abgabe und Block",
+        dueDate: today,
+        scheduledStartAt: blockStart,
+        scheduledStartTimezone: "Europe/Berlin",
+        estimatedDurationMinutes: 90,
+        tags: [],
+      },
+    ],
+    managedBindings: [
+      {
+        ...managedDueBinding,
+        id: "bindung-verwaltet-frist",
+        task: {
+          id: "aufgabe-verwaltet",
+          title: "Abgabe und Block",
+          available: true,
+        },
+        event: {
+          calendarId: calendar.id,
+          uid: dueUid,
+          title: "Frist: Abgabe und Block",
+          etag: '"etag-verwaltete-frist"',
+          available: true,
+        },
+      },
+      {
+        ...managedDueBinding,
+        id: "bindung-verwaltet-block",
+        task: {
+          id: "aufgabe-verwaltet",
+          title: "Abgabe und Block",
+          available: true,
+        },
+        kind: "work_block",
+        label: "Geplanter Zeitblock",
+        event: {
+          calendarId: calendar.id,
+          uid: blockUid,
+          title: "Zeitblock: Abgabe und Block",
+          etag: '"etag-verwalteter-block"',
+          available: true,
+        },
+        status: "active",
+        eventKind: "timed",
+        lastKnownEtag: '"etag-verwalteter-block"',
+      },
+    ],
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Kalender" }).first().click();
+
+  /*
+   * Paket 9: Das aktive verwaltete Ereignis vertritt die fachliche Bedeutung.
+   * Die Aufgabenprojektion erscheint daneben nicht ein zweites Mal – in keiner
+   * der vier Ansichten.
+   */
+  for (const view of ["Tag", "Woche", "Monat", "Agenda"] as const) {
+    await page.getByRole("button", { name: view, exact: true }).click();
+    await expect(
+      page.locator(".projection-card.projection-deadline"),
+    ).toHaveCount(0);
+    await expect(
+      page.locator(".projection-card.projection-planned_task"),
+    ).toHaveCount(0);
+    await expect(
+      page.locator(".projection-card.projection-start_marker"),
+    ).toHaveCount(0);
+  }
+
+  // Die beiden verwalteten Ereignisse sind je genau einmal sichtbar.
+  await page.getByRole("button", { name: "Woche", exact: true }).click();
+  await expect(
+    page.locator(".projection-card", { hasText: "Frist: Abgabe und Block" }),
+  ).toHaveCount(1);
+  await expect(
+    page.locator(".projection-card", {
+      hasText: "Zeitblock: Abgabe und Block",
+    }),
+  ).toHaveCount(1);
+  await expect(
+    page.locator(".projection-card", { hasText: "Abgabe und Block" }),
+  ).toHaveCount(2);
+});
+
+/**
+ * Paket 9: Eine verwaltete Startmarkierung hat bewusst kein Ende. Sie darf im
+ * Termineditor nicht in einen Zeitblock umgedreht werden: Bearbeiten führt in
+ * den Aufgabeneditor, ein unverändertes Speichern erzeugt keine Dauer, und UID
+ * sowie Zeitform des Kalenderereignisses bleiben unverändert.
+ */
+test("führt eine verwaltete Startmarkierung in den Aufgabeneditor statt in den Termineditor", async ({
+  page,
+}) => {
+  const writes: Array<{ method: string; path: string; body: unknown }> = [];
+  const startMarkerUid = "aufgabe-startmarke.zeitblock@tasks.lifeos.local";
+  /** Gleiche Schreibweise wie in den übrigen Nachweisen: Tag + feste Uhrzeit. */
+  const startMarkerStart = `${today}T09:00:00.000Z`;
+  await installApi(page, {
+    recordedWrites: writes,
+    additionalEvents: [
+      {
+        ...initialEvent,
+        uid: startMarkerUid,
+        title: "Start: Prüfung planen",
+        description: null,
+        location: null,
+        isAllDay: false,
+        isStartMarker: true,
+        startsAt: startMarkerStart,
+        endsAt: null,
+        startDate: null,
+        endDate: null,
+        timezone: "UTC",
+        reminderMinutes: [],
+        etag: '"etag-startmarke"',
+      },
+    ],
+    additionalTasks: [
+      {
+        ...initialTask,
+        id: "aufgabe-startmarke",
+        title: "Prüfung planen",
+        dueDate: null,
+        scheduledStartAt: startMarkerStart,
+        scheduledStartTimezone: "Europe/Berlin",
+        estimatedDurationMinutes: null,
+        tags: [],
+      },
+    ],
+    managedBindings: [
+      {
+        ...managedDueBinding,
+        id: "bindung-startmarke",
+        task: {
+          id: "aufgabe-startmarke",
+          title: "Prüfung planen",
+          available: true,
+        },
+        kind: "work_block",
+        label: "Geplanter Zeitblock",
+        event: {
+          calendarId: calendar.id,
+          uid: startMarkerUid,
+          title: "Start: Prüfung planen",
+          etag: '"etag-startmarke"',
+          available: true,
+        },
+        status: "active",
+        eventKind: "start_only",
+        lastKnownEtag: '"etag-startmarke"',
+      },
+    ],
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Kalender" }).first().click();
+  await page.getByRole("button", { name: "Woche", exact: true }).click();
+
+  // Die Startmarkierung ist sichtbar – genau einmal und ohne erfundenes Ende.
+  const card = page.locator(".projection-card", {
+    hasText: "Start: Prüfung planen",
+  });
+  await expect(card).toHaveCount(1);
+  await expect(
+    page.locator(".projection-card", { hasText: "Prüfung planen" }),
+  ).toHaveCount(1);
+  await expect(card.getByText("Start ohne Dauer")).toBeVisible();
+  await expect(card.locator(".event-when")).toContainText("09:00");
+  await expect(card.locator(".event-when")).not.toContainText("–");
+
+  // Bearbeiten führt in den Aufgabeneditor – nicht in den Termineditor.
+  await card
+    .getByRole("button", { name: "Start: Prüfung planen bearbeiten" })
+    .click();
+  await expect(page.locator(".event-editor")).toHaveCount(0);
+  const taskEditor = page.locator(".task-editor");
+  await expect(taskEditor).toBeVisible();
+  await expect(taskEditor.locator("#task-title")).toHaveValue("Prüfung planen");
+  // Kein erfundenes Ende und keine erfundene Dauer.
+  await expect(taskEditor.locator("#ends-at")).toHaveCount(0);
+  await expect(taskEditor.locator("#task-duration")).toHaveValue("");
+  await expect(taskEditor.getByText(/Start ohne Dauer/)).toBeVisible();
+
+  // Ein unverändertes Speichern erzeugt keine Dauer.
+  await taskEditor
+    .getByRole("button", { name: "Änderungen speichern" })
+    .click();
+  await expect
+    .poll(() => writes.filter((entry) => entry.method === "PATCH").length)
+    .toBeGreaterThan(0);
+  const taskWrite = writes.find(
+    (entry) =>
+      entry.method === "PATCH" &&
+      entry.path === "/api/v1/tasks/aufgabe-startmarke",
+  );
+  expect(taskWrite?.body).toMatchObject({
+    estimatedDurationMinutes: null,
+    scheduledStartAt: startMarkerStart,
+  });
+  // Das Kalenderereignis wird nicht angefasst: UID und Zeitform bleiben.
+  expect(writes.filter((entry) => entry.path.includes(startMarkerUid))).toEqual(
+    [],
+  );
+  expect(
+    writes.filter(
+      (entry) => entry.path.includes("/calendars/") && entry.method !== "GET",
+    ),
+  ).toEqual([]);
+
+  // Die Startmarkierung bleibt sichtbar – genau einmal, weiterhin ohne Ende.
+  await page.getByRole("button", { name: "Kalender" }).first().click();
+  await page.getByRole("button", { name: "Woche", exact: true }).click();
+  const afterSave = page.locator(".projection-card", {
+    hasText: "Start: Prüfung planen",
+  });
+  await expect(afterSave).toHaveCount(1);
+  await expect(afterSave.getByText("Start ohne Dauer")).toBeVisible();
+  await expect(afterSave.locator(".event-when")).not.toContainText("–");
+});
+
+test("stellt verwaltete Aufgabenabbildungen getrennt von freien Verknüpfungen dar", async ({
+  page,
+}) => {
+  await installApi(page, { managedBindings: [managedDueBinding] });
+  await page.goto("/");
+  await showView(page, "Aufgaben");
+  await page
+    .locator(".task-card")
+    .filter({ hasText: "Roadmap prüfen" })
+    .getByRole("button", { name: "Roadmap prüfen bearbeiten" })
+    .click();
+
+  const managed = page.locator(".managed-bindings");
+  await expect(managed).toBeVisible();
+  await expect(
+    managed.getByRole("heading", { name: "Verwaltete Kalenderabbildung" }),
+  ).toBeVisible();
+  await expect(managed.getByText("Frist", { exact: true })).toBeVisible();
+  await expect(managed.getByText(/Mit dem Kalender abgeglichen/)).toBeVisible();
+  await expect(
+    managed.getByText(/aufgabe-1\.frist@tasks\.lifeos\.local/),
+  ).toBeVisible();
+
+  // Die freie Verknüpfung bleibt eine eigene, unveränderte Liste.
+  const free = page.getByRole("region", { name: "Verknüpfungen" });
+  await expect(free).toBeVisible();
+  await expect(free.getByText("Noch keine Verknüpfung.")).toBeVisible();
+  expect(await free.locator("li").count()).toBe(0);
+  // Die verwaltete Abbildung erscheint ausschließlich im eigenen Bereich.
+  await expect(page.locator(".managed-bindings .link-list li")).toHaveCount(1);
+});
+
+test("benennt Start ohne Dauer und fehlende Ereignisse verwalteter Abbildungen", async ({
+  page,
+}) => {
+  await installApi(page, {
+    additionalTasks: [
+      {
+        ...initialTask,
+        id: "aufgabe-ohne-dauer",
+        title: "Aufgabe ohne Dauer",
+        dueDate: null,
+        scheduledStartAt: `${today}T06:30:00.000Z`,
+        scheduledStartTimezone: "Europe/Berlin",
+        estimatedDurationMinutes: null,
+      },
+    ],
+    managedBindings: [
+      {
+        ...managedDueBinding,
+        id: "bindung-2",
+        task: {
+          id: "aufgabe-ohne-dauer",
+          title: "Aufgabe ohne Dauer",
+          available: true,
+        },
+        kind: "work_block",
+        label: "Geplanter Zeitblock",
+        event: {
+          calendarId: null,
+          uid: null,
+          title: null,
+          etag: null,
+          available: false,
+        },
+        status: "event_missing",
+        eventKind: null,
+        lastKnownEtag: '"etag-verloren"',
+      },
+    ],
+  });
+  await page.goto("/");
+  await showView(page, "Aufgaben");
+  await page
+    .locator(".task-card")
+    .filter({ hasText: "Aufgabe ohne Dauer" })
+    .getByRole("button", { name: "Aufgabe ohne Dauer bearbeiten" })
+    .click();
+
+  const managed = page.locator(".managed-bindings");
+  await expect(managed.getByText("Geplanter Zeitblock")).toBeVisible();
+  await expect(managed.getByText(/Das Kalenderereignis fehlt/)).toBeVisible();
+  await expect(managed.getByText(/Start ohne Dauer/)).toBeVisible();
 });
 
 test("trennt Frist, Zeitblock und Startmarkierung, unterdrückt verknüpfte Studienzeiten und bearbeitet Aufgaben aus der Ansicht", async ({

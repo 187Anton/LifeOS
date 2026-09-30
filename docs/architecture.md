@@ -254,6 +254,62 @@ Aufgabenstatus noch Terminzeiten kopiert. Soft-Deletes bleiben als nicht
 verfügbare Beziehungspartner sichtbar. Das Ändern, Abschließen oder Löschen
 eines Objekts löst keine unbestätigte Änderung am anderen Objekt aus.
 
+## Verwaltete Aufgaben-Kalender-Abbildung
+
+Paket 9 ergänzt neben der freien `TaskEventLink`-Beziehung eine eigene,
+besitzgebundene und separat erkennbare Abbildung zwischen Aufgabe und
+Kalenderereignis. `TaskCalendarBinding` speichert Besitzer, Aufgabe, Ereignis,
+Art (`due` oder `work_block`) und den zuletzt bestätigten ETag. Ein eindeutiger
+Schlüssel je Aufgabe und Art erzwingt höchstens eine Frist und höchstens einen
+Arbeitsblock; die UID wird deterministisch aus Aufgabenkennung und Art gebildet
+und bleibt über Änderungen und Wiederherstellungen stabil. Die freie Beziehung
+wird dabei weder verändert noch automatisch umgedeutet.
+
+Aufgabe, Ereignis, Beziehung, ETag, Kalender-`syncToken` und Auditdatensatz
+werden in genau einer Datenbanktransaktion geschrieben. Ein ETag-Konflikt oder
+eine nicht unterstützte Änderung bricht die gesamte Transaktion ab; es bleibt
+keine Teiländerung zurück.
+
+Die verbindliche Abbildung:
+
+- **Frist** (`dueDate`): ganztägiges Ereignis im persönlichen Primärkalender,
+  Start am Fälligkeitstag, exklusives Ende am Folgetag.
+- **Arbeitsblock** (`scheduledStartAt` mit `estimatedDurationMinutes`):
+  zeitgebundenes Ereignis in der Zeitzone der Aufgabe.
+- **Start ohne Dauer**: als **gezielte Startmarkierung** abgebildet. Das
+  Ereignis ist zeitgebunden und führt `DTSTART` ohne `DTEND` und ohne
+  `DURATION`; die Spalte `isStartMarker` macht diese dritte Zeitform eindeutig
+  unterscheidbar. Für alle übrigen Ereignisse bleibt die Invariante
+  `endsAt > startsAt` unverändert – die Zeilenform ist an das Flag gebunden und
+  wird nur über den verwalteten Prüfpfad erzeugt. Die Aufgabe bleibt führend:
+  aus dem Ereignis werden Start und Zeitzone übernommen, eine Dauer entsteht
+  erst mit einem `DTEND`; beim Löschen der Startmarkierung entfällt nur der
+  geplante Start.
+- **Titel**: festes Präfix (`Frist: `, `Zeitblock: ` bzw. `Start: ` für die
+  Startmarkierung), Aufgabentitel und Statuskennzeichnung (` (erledigt)` bzw.
+  ` (abgebrochen)`) für `done` und `cancelled`.
+- **Beschreibung**: freie Aufgabenbeschreibung plus Markierungsblock mit
+  Aufgabenkennung und Art. Dieser Block macht Abbildungen eindeutig erkennbar
+  und trägt die idempotente Bestandsprüfung.
+- **Erinnerungen**: ausschließlich `DISPLAY`-Alarme; Änderungen daran werden
+  übernommen.
+- **Priorität, Projekt, Studium, Tags und andere Aufgabenfelder** werden über
+  CalDAV niemals verändert.
+
+Ohne aktiven persönlichen Primärkalender wird eine automatische Zuordnung
+abgelehnt statt stillschweigend einen anderen Kalender zu wählen. Ist der
+Kalender einer bestehenden Abbildung gelöscht oder nicht mehr primär, wird die
+Abbildung in den aktuellen Primärkalender überführt; einen dritten Kalender
+wählt LifeOS nie.
+
+Apple-Änderungen an einem verwalteten Ereignis werden feldweise geprüft: Titel
+mit gültigem Präfix und erlaubtem Statuswechsel sowie Erinnerungen sind
+zulässig. Alles andere – Zeiten, Zeitform, Zeitzone, Ort, Beschreibung, Titel
+ohne Präfix, unzulässiger Statuswechsel, Wiederholung – wird ohne Teiländerung
+abgelehnt. Ein serverinternes `MOVE` verwalteter Ereignisse wird abgelehnt, weil
+ein Kalenderwechsel nicht atomar über beide Kalender und die Aufgabe
+kommuniziert werden kann.
+
 ## Studienmodul
 
 Das Studienmodul ist ein eigenes Fachmodul und kein Hochschulverwaltungssystem.
@@ -363,6 +419,14 @@ Die Standardbindung an `127.0.0.1` bleibt sicher lokal. Zugriff von Apple
 Kalender im selben vertrauenswürdigen Netz ist eine bewusste Betriebsart mit
 LAN-Bindung. Der erste Entwicklungsbetrieb nutzt HTTP Basic Auth; außerhalb
 eines vertrauenswürdigen LAN ist TLS vorgeschaltet erforderlich.
+
+Verwaltete Aufgabenereignisse laufen über denselben Kalenderkern, werden aber
+vor jedem Schreiben feldweise gegen die Aufgabe geprüft. Sie tragen stabile
+UID und ETag, werden nur mit bestätigtem `If-Match` geändert (sonst `428`) und
+in einem vollständigen `PUT` des unverändert gelesenen Stands unverändert
+angenommen. Wiederkehrende verwaltete Aufgabenereignisse und ein
+Kalenderwechsel über `MOVE` sind nicht unterstützt und werden ohne
+Teiländerung abgelehnt.
 
 Der optionale externe CalDAV-Client ist eine getrennte, standardmäßig
 deaktivierte read-only-Integration und setzt den lokalen Kalenderkern nicht

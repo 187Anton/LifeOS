@@ -6,6 +6,8 @@ import type {
 } from "@lifeos/contracts";
 
 import { ApiError } from "../../errors.js";
+import { taskStatusTransitions } from "../task-calendar-bindings/mapping.js";
+import type { TaskBindingSynchronizer } from "../task-calendar-bindings/service.js";
 import {
   ParentTaskNotFoundError,
   ProjectNotFoundError,
@@ -16,14 +18,19 @@ import {
   type TaskListFilters,
   type TaskRepository,
   type TaskValues,
+  type TaskWriteSideEffect,
 } from "./repository.js";
 
+/**
+ * Dieselbe Übergangsregel gilt für Aufgabenänderungen über die API und für
+ * Statusänderungen, die aus einem verwalteten Kalenderereignis zurückkommen.
+ */
 const transitions: Record<TaskStatus, ReadonlySet<TaskStatus>> = {
-  open: new Set(["in_progress", "blocked", "done", "cancelled"]),
-  in_progress: new Set(["open", "blocked", "done", "cancelled"]),
-  blocked: new Set(["open", "in_progress", "done", "cancelled"]),
-  done: new Set(["open"]),
-  cancelled: new Set(["open"]),
+  open: new Set(taskStatusTransitions.open),
+  in_progress: new Set(taskStatusTransitions.in_progress),
+  blocked: new Set(taskStatusTransitions.blocked),
+  done: new Set(taskStatusTransitions.done),
+  cancelled: new Set(taskStatusTransitions.cancelled),
 };
 
 const parseDate = (value: string | null | undefined): Date | null => {
@@ -68,7 +75,20 @@ export class TaskService {
   constructor(
     private readonly repository: TaskRepository,
     private readonly now: () => Date = () => new Date(),
+    /**
+     * Paket 9: Nachführung der verwalteten Kalenderabbildung. Ohne Angabe
+     * verhält sich der Dienst wie bisher; die Abbildung verändert dann keine
+     * Aufgabenschreibung.
+     */
+    private readonly bindings?: TaskBindingSynchronizer,
   ) {}
+
+  private taskSideEffect(userId: string): TaskWriteSideEffect | undefined {
+    const bindings = this.bindings;
+    if (!bindings) return undefined;
+    return (transaction, taskId) =>
+      bindings.synchronizeTask(transaction, userId, taskId);
+  }
 
   listTasks(userId: string, filters: TaskListFilters) {
     return this.repository.listTasks(userId, filters);
@@ -87,6 +107,7 @@ export class TaskService {
       return await this.repository.createTask(
         userId,
         createValues(input, this.now()),
+        this.taskSideEffect(userId),
       );
     } catch (error) {
       this.rethrow(error);
@@ -97,7 +118,12 @@ export class TaskService {
     try {
       const current = await this.repository.getTask(userId, taskId);
       const changes = this.updateValues(current, input);
-      return await this.repository.updateTask(userId, taskId, changes);
+      return await this.repository.updateTask(
+        userId,
+        taskId,
+        changes,
+        this.taskSideEffect(userId),
+      );
     } catch (error) {
       this.rethrow(error);
     }
@@ -105,7 +131,11 @@ export class TaskService {
 
   async deleteTask(userId: string, taskId: string) {
     try {
-      await this.repository.deleteTask(userId, taskId);
+      await this.repository.deleteTask(
+        userId,
+        taskId,
+        this.taskSideEffect(userId),
+      );
     } catch (error) {
       this.rethrow(error);
     }

@@ -1,0 +1,4 @@
+Paket 9 ergänzt an "CalendarEvent" die gezielte Startmarkierung
+(isStartMarker) und erweitert dafür den Check-Constraint der Zeitform; SQLite
+baut die Tabelle dafür neu auf. Vorher ist ein vollständiges, geprüftes Backup
+aus Datenbank und Dokumenten nötig.

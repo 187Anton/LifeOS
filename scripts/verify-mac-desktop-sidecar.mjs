@@ -622,6 +622,8 @@ try {
     "20260925120000_remove_finance_module",
     "20260925121600_task_study_module",
     "20260926120500_document_pdf_extraction",
+    "20260929120500_task_calendar_binding",
+    "20260929140500_calendar_event_start_marker",
   ]);
   assert.equal(
     database
@@ -833,7 +835,9 @@ try {
         entry.isDirectory() &&
         entry.name !== "20260925120000_remove_finance_module" &&
         entry.name !== "20260925121600_task_study_module" &&
-        entry.name !== "20260926120500_document_pdf_extraction",
+        entry.name !== "20260926120500_document_pdf_extraction" &&
+        entry.name !== "20260929120500_task_calendar_binding" &&
+        entry.name !== "20260929140500_calendar_event_start_marker",
     )
     .map((entry) => entry.name)
     .sort();

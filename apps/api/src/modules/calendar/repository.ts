@@ -14,6 +14,8 @@ export interface EventValues {
   endDate?: Date | null;
   timezone: string;
   isAllDay: boolean;
+  /** Paket 9: gezielte Startmarkierung ohne Ende. */
+  isStartMarker?: boolean;
   recurrenceRule?: string | null;
   reminderMinutes: number[];
 }
@@ -46,6 +48,8 @@ export const mapEvent = (event: {
   description: string | null;
   location: string | null;
   isAllDay: boolean;
+  /** Paket 9: gezielte Startmarkierung ohne Ende. */
+  isStartMarker?: boolean;
   startsAt: Date | null;
   endsAt: Date | null;
   startDate: Date | null;
@@ -62,6 +66,7 @@ export const mapEvent = (event: {
   description: event.description,
   location: event.location,
   isAllDay: event.isAllDay,
+  isStartMarker: event.isStartMarker ?? false,
   startsAt: event.startsAt?.toISOString() ?? null,
   endsAt: event.endsAt?.toISOString() ?? null,
   startDate: event.startDate?.toISOString().slice(0, 10) ?? null,

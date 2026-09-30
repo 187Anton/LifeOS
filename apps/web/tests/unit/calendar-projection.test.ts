@@ -1,6 +1,7 @@
 import type {
   CalendarEventResponse,
   StudyEntryResponse,
+  TaskCalendarBindingResponse,
   TaskResponse,
 } from "@lifeos/contracts";
 import { describe, expect, it } from "vitest";
@@ -85,6 +86,29 @@ const studyEntry = (
   ...overrides,
 });
 
+/** Verwaltete Aufgabenabbildung, wie sie die Kalenderansicht mitliest. */
+const managedBinding = (
+  overrides: Partial<TaskCalendarBindingResponse> = {},
+): TaskCalendarBindingResponse => ({
+  id: "abbildung-1",
+  task: { id: "aufgabe-frist", title: "Synthetische Aufgabe", available: true },
+  kind: "due",
+  label: "Frist",
+  event: {
+    calendarId: "kalender-1",
+    uid: "aufgabe-frist.frist@tasks.lifeos.local",
+    title: "Frist: Synthetische Aufgabe",
+    etag: '"etag-frist"',
+    available: true,
+  },
+  status: "active",
+  eventKind: "all_day",
+  lastKnownEtag: '"etag-frist"',
+  createdAt: "2032-03-01T10:00:00.000Z",
+  updatedAt: "2032-03-01T10:00:00.000Z",
+  ...overrides,
+});
+
 const build = (
   overrides: {
     events?: CalendarEventResponse[];
@@ -103,12 +127,14 @@ const build = (
      * öffentlichen Identität `(calendarId, uid)` der gezeigten Ereignisse.
      */
     calendarId?: string | null;
+    managedBindings?: TaskCalendarBindingResponse[];
   } = {},
 ): CalendarProjectionEntry[] =>
   buildCalendarProjection({
     events: overrides.events ?? [],
     tasks: overrides.tasks ?? [],
     studyEntries: overrides.studyEntries ?? [],
+    managedBindings: overrides.managedBindings ?? [],
     range: overrides.view ?? rangeForView("week", "2032-03-10"),
     profileTimezone: overrides.profileTimezone ?? "Europe/Berlin",
     calendarId: overrides.calendarId ?? "kalender-1",
@@ -166,6 +192,47 @@ describe("Gemeinsame Kalenderprojektion", () => {
     expect(marker?.dateKey).toBe("2032-03-10");
     expect(formatProjectionTime(marker!.item, "Europe/Berlin")).toBe("07:00");
     expect(kindLabels[marker!.item.kind]).toBe("Start ohne Dauer");
+
+    const managedStartEvent = event({
+      uid: "aufgabe-start.zeitblock@tasks.lifeos.local",
+      title: "Start: Synthetische Aufgabe",
+      isStartMarker: true,
+      startsAt: "2032-03-10T06:00:00.000Z",
+      endsAt: null,
+    });
+    const managedStartEntries = build({
+      events: [managedStartEvent],
+      tasks: [
+        task({
+          id: "aufgabe-start",
+          scheduledStartAt: "2032-03-10T06:00:00.000Z",
+          scheduledStartTimezone: "Europe/Berlin",
+        }),
+      ],
+      managedBindings: [
+        managedBinding({
+          task: {
+            id: "aufgabe-start",
+            title: "Synthetische Aufgabe",
+            available: true,
+          },
+          kind: "work_block",
+          eventKind: "start_only",
+          event: {
+            calendarId: "kalender-1",
+            uid: managedStartEvent.uid,
+            title: managedStartEvent.title,
+            etag: managedStartEvent.etag,
+            available: true,
+          },
+        }),
+      ],
+    });
+    expect(managedStartEntries).toHaveLength(1);
+    expect(managedStartEntries[0]?.item.kind).toBe("start_marker");
+    expect(kindLabels[managedStartEntries[0]!.item.kind]).toBe(
+      "Start ohne Dauer",
+    );
   });
 
   it("lässt eine Frist ohne belegte Arbeitszeit und ohne Ende", () => {
@@ -678,5 +745,141 @@ describe("Gemeinsame Kalenderprojektion", () => {
     expect(outside.some((entry) => entry.item.uid === "vorlesung-aussen")).toBe(
       false,
     );
+  });
+
+  /**
+   * Paket 9: Eine aktive verwaltete Abbildung ersetzt genau die eine
+   * dazugehörige Aufgabenprojektion – dieselbe fachliche Bedeutung erscheint
+   * genau einmal, und zwar im selben Kalender.
+   */
+  it("zeigt je fachlicher Bedeutung genau eine Darstellung bei aktiver verwalteter Abbildung", () => {
+    const managedEvent = event({
+      uid: "aufgabe-frist.frist@tasks.lifeos.local",
+      title: "Frist: Synthetische Aufgabe",
+      isAllDay: true,
+      startsAt: null,
+      endsAt: null,
+      startDate: "2032-03-10",
+      endDate: "2032-03-11",
+    });
+    const deadlineTask = task({ id: "aufgabe-frist", dueDate: "2032-03-10" });
+    const blockTask = task({
+      id: "aufgabe-block",
+      scheduledStartAt: "2032-03-10T08:00:00.000Z",
+      scheduledStartTimezone: "Europe/Berlin",
+      estimatedDurationMinutes: 90,
+    });
+    const blockEvent = event({
+      uid: "aufgabe-block.zeitblock@tasks.lifeos.local",
+      title: "Zeitblock: Synthetische Aufgabe",
+    });
+
+    const dueSuppressed = build({
+      events: [managedEvent],
+      tasks: [deadlineTask],
+      managedBindings: [
+        managedBinding({
+          task: {
+            id: "aufgabe-frist",
+            title: "Synthetische Aufgabe",
+            available: true,
+          },
+        }),
+      ],
+    });
+    expect(dueSuppressed).toHaveLength(1);
+    expect(dueSuppressed[0]?.item.objectType).toBe("calendar_event");
+    expect(dueSuppressed.some((entry) => entry.item.kind === "deadline")).toBe(
+      false,
+    );
+
+    const blockSuppressed = build({
+      events: [blockEvent],
+      tasks: [blockTask],
+      managedBindings: [
+        managedBinding({
+          id: "abbildung-2",
+          kind: "work_block",
+          label: "Geplanter Zeitblock",
+          event: {
+            calendarId: "kalender-1",
+            uid: "aufgabe-block.zeitblock@tasks.lifeos.local",
+            title: "Zeitblock: Synthetische Aufgabe",
+            etag: '"etag-block"',
+            available: true,
+          },
+          eventKind: "timed",
+          task: {
+            id: "aufgabe-block",
+            title: "Synthetische Aufgabe",
+            available: true,
+          },
+        }),
+      ],
+    });
+    expect(blockSuppressed).toHaveLength(1);
+    expect(blockSuppressed[0]?.item.objectType).toBe("calendar_event");
+    expect(
+      blockSuppressed.some((entry) => entry.item.kind === "planned_task"),
+    ).toBe(false);
+
+    /* (i) Ereignis fehlt (Abbildung nicht aktiv): Aufgabenprojektion bleibt. */
+    const missing = build({
+      tasks: [deadlineTask],
+      managedBindings: [
+        managedBinding({ status: "event_missing", eventKind: null }),
+      ],
+    });
+    expect(missing.map((entry) => entry.item.sourceId)).toEqual([
+      "aufgabe-frist",
+    ]);
+    expect(missing[0]?.item.kind).toBe("deadline");
+
+    /* (ii) Gleiche UID in einem anderen Kalender: nichts wird unterdrückt. */
+    const otherCalendar = build({
+      events: [
+        event({
+          uid: "aufgabe-frist.frist@tasks.lifeos.local",
+          title: "Fremde Frist",
+          isAllDay: true,
+          startsAt: null,
+          endsAt: null,
+          startDate: "2032-03-10",
+          endDate: "2032-03-11",
+        }),
+      ],
+      tasks: [deadlineTask],
+      calendarId: "kalender-2",
+      managedBindings: [managedBinding()],
+    });
+    expect(otherCalendar.map((entry) => entry.item.kind).sort()).toEqual([
+      "deadline",
+      "fixed_event",
+    ]);
+
+    /* (iii) Kalender nicht geladen: die Aufgabenprojektion bleibt sichtbar. */
+    const otherSelection = build({
+      events: [],
+      tasks: [deadlineTask],
+      managedBindings: [managedBinding()],
+    });
+    expect(otherSelection.map((entry) => entry.item.kind)).toEqual([
+      "deadline",
+    ]);
+
+    /**
+     * Die Frist wird nur für die eigene Aufgabe unterdrückt: der Zeitblock
+     * einer anderen Aufgabe bleibt sichtbar.
+     */
+    const otherTask = build({
+      events: [managedEvent],
+      tasks: [deadlineTask, blockTask],
+      managedBindings: [managedBinding()],
+    });
+    expect(
+      otherTask
+        .filter((entry) => entry.item.sourceId === "aufgabe-block")
+        .map((entry) => entry.item.kind),
+    ).toEqual(["planned_task"]);
   });
 });

@@ -175,6 +175,66 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   await source.taskEventLink.create({
     data: { userId: user.id, taskId: task.id, calendarEventId: event.id },
   });
+  /**
+   * Paket 9: Die verwaltete Aufgaben-Kalender-Abbildung ist eigener Bestand.
+   * Sie überlebt Export, Import und Wiederherstellung unverändert und bleibt
+   * von der freien Verknüpfung getrennt.
+   */
+  const managedEvent = await source.calendarEvent.create({
+    data: {
+      userId: user.id,
+      calendarId: calendar.id,
+      uid: `${task.id}.frist@tasks.lifeos.local`,
+      title: `Frist: ${task.title}`,
+      description: "Synthetische verwaltete Fristabbildung.",
+      timezone: "Europe/Berlin",
+      isAllDay: true,
+      startDate: new Date("2032-09-02T00:00:00.000Z"),
+      endDate: new Date("2032-09-03T00:00:00.000Z"),
+      etag: '"transfer-frist"',
+      sequence: 1,
+      syncVersion: 7,
+    },
+  });
+  const binding = await source.taskCalendarBinding.create({
+    data: {
+      userId: user.id,
+      taskId: task.id,
+      calendarEventId: managedEvent.id,
+      kind: "due",
+      lastKnownEtag: managedEvent.etag,
+    },
+  });
+  /**
+   * Paket 9: Die gezielte Startmarkierung ist eine eigene Zeitform
+   * (`DTSTART` ohne `DTEND`). Sie muss den Export, den Import und die
+   * Wiederherstellung unverändert überstehen – samt Flag und leerem Ende.
+   */
+  const markerEvent = await source.calendarEvent.create({
+    data: {
+      userId: user.id,
+      calendarId: calendar.id,
+      uid: `${task.id}.zeitblock@tasks.lifeos.local`,
+      title: `Start: ${task.title}`,
+      description: "Synthetische verwaltete Startmarkierung.",
+      timezone: "Europe/Berlin",
+      isAllDay: false,
+      isStartMarker: true,
+      startsAt: new Date("2032-09-02T08:00:00.000Z"),
+      etag: '"transfer-startmarkierung"',
+      sequence: 2,
+      syncVersion: 8,
+    },
+  });
+  const markerBinding = await source.taskCalendarBinding.create({
+    data: {
+      userId: user.id,
+      taskId: task.id,
+      calendarEventId: markerEvent.id,
+      kind: "work_block",
+      lastKnownEtag: markerEvent.etag,
+    },
+  });
   await source.projectEventLink.create({
     data: { userId: user.id, projectId: project.id, calendarEventId: event.id },
   });
@@ -487,6 +547,7 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
       projectEventLinks: true,
       tasks: true,
       taskEventLinks: true,
+      taskCalendarBindings: true,
       studyPrograms: true,
       studyModules: true,
       studyEntries: true,
@@ -525,7 +586,9 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     externalCalDavMapping.id,
   );
   assert.equal(importedUser.githubConnections[0]?.id, gitHubConnection.id);
-  assert.equal(importedUser.calendars[0]?.events[0]?.uid, event.uid);
+  const importedEvents = importedUser.calendars.flatMap((item) => item.events);
+  const importedEvent = importedEvents.find((item) => item.id === event.id);
+  assert.equal(importedEvent?.uid, event.uid);
   assert.equal(
     importedUser.tasks[0]?.dueDate?.toISOString(),
     "2032-09-02T00:00:00.000Z",
@@ -586,6 +649,45 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   assert.equal(importedUser.shoppingLists[0]?.items[0]?.id, shoppingItem.id);
   assert.equal(importedUser.shoppingItems[0]?.id, shoppingItem.id);
   assert.equal(importedUser.shoppingCategoryRules[0]?.id, shoppingRule.id);
+  /**
+   * Paket 9: Die verwaltete Abbildung wird über ihren Primärschlüssel und den
+   * Ereignisbezug geprüft – nicht über eine Reihenfolgeannahme.
+   */
+  const importedDueBinding = importedUser.taskCalendarBindings.find(
+    (entry) => entry.id === binding.id,
+  );
+  const importedMarkerBinding = importedUser.taskCalendarBindings.find(
+    (entry) => entry.id === markerBinding.id,
+  );
+  assert.equal(importedUser.taskCalendarBindings.length, 2);
+  assert.equal(importedDueBinding?.kind, "due");
+  assert.equal(importedMarkerBinding?.kind, "work_block");
+  assert.equal(
+    importedMarkerBinding?.lastKnownEtag,
+    '"transfer-startmarkierung"',
+  );
+  const importedMarker = importedEvents.find(
+    (item) => item.id === markerEvent.id,
+  );
+  assert.equal(importedMarker?.isStartMarker, true);
+  assert.equal(importedMarker?.endsAt, null);
+  assert.equal(
+    importedMarker?.startsAt?.toISOString(),
+    "2032-09-02T08:00:00.000Z",
+  );
+  assert.equal(importedDueBinding?.lastKnownEtag, '"transfer-frist"');
+  assert.equal(importedDueBinding?.calendarEventId, managedEvent.id);
+  assert.equal(
+    importedEvents.find((item) => item.id === managedEvent.id)?.uid,
+    `${task.id}.frist@tasks.lifeos.local`,
+  );
+  assert.equal(
+    importedEvents.find((item) => item.id === managedEvent.id)?.isAllDay,
+    true,
+  );
+  // Die freie Verknüpfung bleibt unverändert bestehen.
+  assert.equal(importedUser.taskEventLinks.length, 1);
+  assert.equal(importedUser.taskEventLinks[0]?.taskId, task.id);
 
   const documents = path.join(directory, "documents-source");
   await mkdir(path.join(documents, user.id), { recursive: true });
@@ -674,6 +776,24 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
   assert.equal(restoredEvent.uid, event.uid);
   assert.equal(restoredEvent.etag, event.etag);
   assert.equal(restoredEvent.syncVersion, event.syncVersion);
+  // Paket 9: Die Startmarkierung überlebt das Backup mit leerem Ende.
+  const restoredMarker = await restored.calendarEvent.findUniqueOrThrow({
+    where: { id: markerEvent.id },
+  });
+  assert.equal(restoredMarker.isStartMarker, true);
+  assert.equal(restoredMarker.endsAt, null);
+  assert.equal(
+    restoredMarker.startsAt?.toISOString(),
+    "2032-09-02T08:00:00.000Z",
+  );
+  assert.equal(
+    (
+      await restored.taskCalendarBinding.findUniqueOrThrow({
+        where: { id: markerBinding.id },
+      })
+    ).calendarEventId,
+    markerEvent.id,
+  );
   // Paket 4: Der Modulbezug bleibt nach Backup und Wiederherstellung erhalten,
   // der Studieneintrag verweist weiterhin auf dieselbe Aufgabe.
   assert.equal(

@@ -7,6 +7,7 @@ import type {
 import { useState, type FormEvent } from "react";
 
 import type { EventPayload } from "../api";
+import { isStartMarkerEvent } from "../calendar-projection";
 import {
   browserTimezone,
   dateTimeInputToIso,
@@ -28,6 +29,13 @@ interface EventFormProps {
   onDelete: () => Promise<void>;
   onLink: (input: CreateTaskEventLinkRequest) => Promise<void>;
   onUnlink: (linkId: string) => Promise<void>;
+  /**
+   * Zugehörige Aufgabe einer verwalteten Startmarkierung. Ist sie bekannt,
+   * verweist der schreibgeschützte Editor direkt auf den Aufgabeneditor, über
+   * den der geplante Start und eine spätere Dauer gepflegt werden.
+   */
+  startMarkerTask?: { id: string; title: string | null } | null;
+  onOpenTask?: (taskId: string) => void;
 }
 
 interface Draft {
@@ -74,6 +82,7 @@ const initialDraft = (event: CalendarEventResponse | null): Draft => {
       reminderMinutes: "",
     };
   }
+  const startMarker = isStartMarkerEvent(event);
   return {
     title: event.title,
     description: event.description ?? "",
@@ -83,9 +92,16 @@ const initialDraft = (event: CalendarEventResponse | null): Draft => {
     startsAt: event.startsAt
       ? toDateTimeInput(event.startsAt, event.timezone)
       : defaultTimes.startsAt,
+    /**
+     * Eine verwaltete Startmarkierung hat bewusst kein Ende. Der Editor
+     * erfindet hier keines: das Feld bleibt leer, damit auch ein unverändertes
+     * Speichern keine Dauer erzeugt.
+     */
     endsAt: event.endsAt
       ? toDateTimeInput(event.endsAt, event.timezone)
-      : defaultTimes.endsAt,
+      : startMarker
+        ? ""
+        : defaultTimes.endsAt,
     startDate: event.startDate ?? startDate,
     endDate: event.endDate ?? tomorrow(startDate),
     recurrenceRule: event.recurrenceRule ?? "",
@@ -105,10 +121,18 @@ export const EventForm = ({
   onDelete,
   onLink,
   onUnlink,
+  startMarkerTask = null,
+  onOpenTask,
 }: EventFormProps) => {
   const [draft, setDraft] = useState(() => initialDraft(event));
   const [validationError, setValidationError] = useState<string | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState(false);
+  /**
+   * Eine verwaltete Startmarkierung (`DTSTART` ohne `DTEND`) wird
+   * ausschließlich über die Aufgabe gepflegt. Der allgemeine Termineditor bleibt
+   * für sie schreibgeschützt und lehnt das Speichern einer erfundenen Dauer ab.
+   */
+  const locked = isStartMarkerEvent(event);
 
   const update = <Key extends keyof Draft>(key: Key, value: Draft[Key]) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -116,6 +140,7 @@ export const EventForm = ({
 
   const deleteEvent = async () => {
     setValidationError(null);
+    if (locked) return;
     try {
       await onDelete();
     } catch {
@@ -128,6 +153,16 @@ export const EventForm = ({
   const submit = async (formEvent: FormEvent<HTMLFormElement>) => {
     formEvent.preventDefault();
     setValidationError(null);
+    /**
+     * Eine Startmarkierung wird nie über den Termineditor gespeichert: das
+     * würde ein Ende und damit eine Dauer erfinden. Sie bleibt schreibgeschützt.
+     */
+    if (locked) {
+      setValidationError(
+        "Diese Startmarkierung wird über die Aufgabe gepflegt. Sie hat bewusst kein Ende; hier wird weder ein Ende noch eine Dauer erzeugt.",
+      );
+      return;
+    }
     const common = {
       title: draft.title.trim(),
       description: draft.description.trim() || null,
@@ -215,11 +250,34 @@ export const EventForm = ({
       </div>
 
       <form onSubmit={(formEvent) => void submit(formEvent)}>
+        {locked ? (
+          <div className="event-editor-locked full-field" role="status">
+            <p>
+              Schreibgeschützt: Diese verwaltete Startmarkierung
+              {startMarkerTask?.title
+                ? ` gehört zur Aufgabe „${startMarkerTask.title}“ und`
+                : ""}{" "}
+              hat bewusst kein Ende (DTSTART ohne DTEND). Sie wird über den
+              Aufgabeneditor gepflegt; hier wird kein Ende und keine Dauer
+              erzeugt.
+            </p>
+            {startMarkerTask && onOpenTask ? (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => onOpenTask(startMarkerTask.id)}
+              >
+                Aufgabe öffnen
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <div className="field full-field">
           <label htmlFor="event-title">Titel</label>
           <input
             id="event-title"
             value={draft.title}
+            disabled={locked}
             onChange={(input) => update("title", input.target.value)}
             maxLength={500}
             required
@@ -231,6 +289,7 @@ export const EventForm = ({
           <input
             type="checkbox"
             checked={draft.isAllDay}
+            disabled={locked}
             onChange={(input) => update("isAllDay", input.target.checked)}
           />
           <span className="toggle" aria-hidden="true" />
@@ -245,6 +304,7 @@ export const EventForm = ({
                 id="start-date"
                 type="date"
                 value={draft.startDate}
+                disabled={locked}
                 onChange={(input) => update("startDate", input.target.value)}
                 required
               />
@@ -255,6 +315,7 @@ export const EventForm = ({
                 id="end-date"
                 type="date"
                 value={draft.endDate}
+                disabled={locked}
                 onChange={(input) => update("endDate", input.target.value)}
                 required
               />
@@ -268,6 +329,7 @@ export const EventForm = ({
                 id="starts-at"
                 type="datetime-local"
                 value={draft.startsAt}
+                disabled={locked}
                 onChange={(input) => update("startsAt", input.target.value)}
                 required
               />
@@ -278,6 +340,7 @@ export const EventForm = ({
                 id="ends-at"
                 type="datetime-local"
                 value={draft.endsAt}
+                disabled={locked}
                 onChange={(input) => update("endsAt", input.target.value)}
                 required
               />
@@ -296,6 +359,7 @@ export const EventForm = ({
           <input
             id="location"
             value={draft.location}
+            disabled={locked}
             onChange={(input) => update("location", input.target.value)}
             maxLength={500}
           />
@@ -305,6 +369,7 @@ export const EventForm = ({
           <select
             id="reminder"
             value={draft.reminderMinutes}
+            disabled={locked}
             onChange={(input) => update("reminderMinutes", input.target.value)}
           >
             <option value="">Keine Erinnerung</option>
@@ -321,6 +386,7 @@ export const EventForm = ({
           <input
             id="recurrence"
             value={draft.recurrenceRule}
+            disabled={locked}
             onChange={(input) =>
               update("recurrenceRule", input.target.value.toUpperCase())
             }
@@ -335,6 +401,7 @@ export const EventForm = ({
             id="description"
             rows={4}
             value={draft.description}
+            disabled={locked}
             onChange={(input) => update("description", input.target.value)}
             maxLength={10_000}
           />
@@ -357,7 +424,7 @@ export const EventForm = ({
             onUnlink={onUnlink}
           />
         ) : null}
-        {event ? (
+        {event && !locked ? (
           <div className="task-danger-zone full-field">
             {deleteConfirmation ? (
               <div className="delete-confirmation" role="alert">
@@ -393,12 +460,14 @@ export const EventForm = ({
           <button type="button" className="secondary-button" onClick={onCancel}>
             Abbrechen
           </button>
-          <button className="primary-button" disabled={pending}>
-            {pending
-              ? "Wird gespeichert …"
-              : event
-                ? "Änderungen speichern"
-                : "Termin anlegen"}
+          <button className="primary-button" disabled={pending || locked}>
+            {locked
+              ? "Schreibgeschützt"
+              : pending
+                ? "Wird gespeichert …"
+                : event
+                  ? "Änderungen speichern"
+                  : "Termin anlegen"}
           </button>
         </div>
       </form>

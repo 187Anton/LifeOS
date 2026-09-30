@@ -989,3 +989,167 @@ test("unterdrückt einen verknüpften Studieneintrag nur bei gleicher UID im sel
     planning.items.some((item) => item.sourceId === "entry-dritter-kalender"),
   );
 });
+
+/**
+ * Paket 9: Kalenderansicht und Planung verwenden dieselbe Duplikatregel. Eine
+ * aktive verwaltete Abbildung ersetzt genau die dazugehörige Aufgabenprojektion
+ * – dieselbe fachliche Bedeutung erscheint genau einmal, und zwar als Termin.
+ */
+test("zeigt je fachlicher Bedeutung genau eine Darstellung bei aktiver verwalteter Abbildung", async () => {
+  const dueUid = "task-frist.frist@tasks.lifeos.local";
+  const blockUid = "task-block.zeitblock@tasks.lifeos.local";
+  const managedEvents = [
+    {
+      id: "event-frist",
+      userId: "owner-1",
+      uid: dueUid,
+      calendarId: "calendar-1",
+      title: "Frist: Fristaufgabe",
+      isAllDay: true,
+      startsAt: null,
+      endsAt: null,
+      startDate: new Date("2032-03-29T00:00:00.000Z"),
+      endDate: new Date("2032-03-30T00:00:00.000Z"),
+      timezone: "Europe/Berlin",
+      updatedAt: new Date("2032-03-01T00:00:00.000Z"),
+    },
+    {
+      id: "event-block",
+      userId: "owner-1",
+      uid: blockUid,
+      calendarId: "calendar-1",
+      title: "Zeitblock: Blockaufgabe",
+      isAllDay: false,
+      startsAt: new Date("2032-03-29T09:00:00.000Z"),
+      endsAt: new Date("2032-03-29T10:30:00.000Z"),
+      timezone: "Europe/Berlin",
+      updatedAt: new Date("2032-03-01T00:00:00.000Z"),
+    },
+  ];
+  const managedTasks = [
+    {
+      id: "task-frist",
+      userId: "owner-1",
+      title: "Fristaufgabe",
+      status: "open",
+      priority: "medium",
+      dueDate: new Date("2032-03-29T00:00:00.000Z"),
+      updatedAt: new Date("2032-03-01T00:00:00.000Z"),
+    },
+    {
+      id: "task-block",
+      userId: "owner-1",
+      title: "Blockaufgabe",
+      status: "open",
+      priority: "medium",
+      scheduledStartAt: new Date("2032-03-29T09:00:00.000Z"),
+      estimatedDurationMinutes: 90,
+      updatedAt: new Date("2032-03-01T00:00:00.000Z"),
+    },
+  ];
+  const binding = (
+    id: string,
+    taskId: string,
+    kind: "due" | "work_block",
+    uid: string,
+    deletedAt: Date | null = null,
+  ) => ({
+    id,
+    userId: "owner-1",
+    taskId,
+    kind,
+    calendarEvent: { uid, calendarId: "calendar-1", deletedAt },
+  });
+  /** Nur Kalender- und Aufgabenprojektionen; Verfügbarkeiten gehören nicht dazu. */
+  const relevant = (items: Array<{ id: string; area: string }>): string[] =>
+    items
+      .filter((item) => item.area === "calendar" || item.area === "tasks")
+      .map((item) => item.id)
+      .sort();
+  const plan = async (overrides: Record<string, unknown>) => {
+    const data = sourceWith({
+      events: managedEvents,
+      tasks: managedTasks,
+      studyEntries: [],
+      workTimeEntries: [],
+      ...overrides,
+    });
+    return new PlanningService(repository(data)).getPlanning("owner-1", {
+      from: "2032-03-29",
+      to: "2032-03-29",
+    });
+  };
+
+  /* (i) Aktive Abbildungen: nur die Termine, keine Aufgabenprojektionen. */
+  const suppressed = await plan({
+    bindings: [
+      binding("binding-1", "task-frist", "due", dueUid),
+      binding("binding-2", "task-block", "work_block", blockUid),
+    ],
+  });
+  assert.deepEqual(relevant(suppressed.items), [
+    "calendar:event-block",
+    "calendar:event-frist",
+  ]);
+  assert.equal(
+    suppressed.items.filter(
+      (item) => item.kind === "deadline" || item.kind === "planned_task",
+    ).length,
+    0,
+    "Die Aufgabenprojektion erscheint nicht zusätzlich zum verwalteten Termin",
+  );
+
+  /* (ii) Ohne Abbildungen bleiben beide Aufgabenprojektionen sichtbar. */
+  const unmanaged = await plan({ bindings: [] });
+  assert.deepEqual(relevant(unmanaged.items), [
+    "calendar:event-block",
+    "calendar:event-frist",
+    "task:task-block:planned",
+    "task:task-frist:deadline",
+  ]);
+
+  /* (iii) Fehlendes Ereignis: die Aufgabenprojektion bleibt sichtbar. */
+  const missingEvent = await plan({
+    bindings: [
+      binding("binding-1", "task-frist", "due", dueUid, new Date()),
+      binding("binding-2", "task-block", "work_block", blockUid, new Date()),
+    ],
+  });
+  assert.ok(
+    missingEvent.items.some((item) => item.id === "task:task-frist:deadline"),
+  );
+  assert.ok(
+    missingEvent.items.some((item) => item.id === "task:task-block:planned"),
+  );
+
+  /* (iv) Gleiche UID in einem anderen Kalender unterdrückt nichts. */
+  const foreignCalendar = await plan({
+    events: managedEvents.map((event) => ({
+      ...event,
+      calendarId: "calendar-2",
+    })),
+    bindings: [
+      binding("binding-1", "task-frist", "due", dueUid),
+      binding("binding-2", "task-block", "work_block", blockUid),
+    ],
+  });
+  assert.ok(
+    foreignCalendar.items.some(
+      (item) => item.id === "task:task-frist:deadline",
+    ),
+    "Der Aufgabenbezug bleibt sichtbar, wenn der Termin in einem anderen Kalender liegt",
+  );
+
+  /* (v) Eine Fristabbildung unterdrückt keinen Zeitblock und umgekehrt. */
+  const onlyDue = await plan({
+    bindings: [binding("binding-1", "task-frist", "due", dueUid)],
+  });
+  assert.ok(
+    onlyDue.items.some((item) => item.id === "task:task-block:planned"),
+  );
+  assert.equal(
+    onlyDue.items.filter((item) => item.id === "task:task-frist:deadline")
+      .length,
+    0,
+  );
+});

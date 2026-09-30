@@ -226,6 +226,8 @@ unset CALDAV_TEST_PASSWORD
 | `GET/PATCH/DELETE /api/v1/tasks/:taskId`           | Aufgabe lesen, ändern oder soft löschen            |
 | `GET/POST /api/v1/task-event-links`                | Aufgaben-Termin-Beziehungen lesen oder anlegen     |
 | `DELETE /api/v1/task-event-links/:linkId`          | Aufgaben-Termin-Beziehung entfernen                |
+| `GET /api/v1/task-calendar-bindings`               | verwaltete Aufgaben-Kalender-Abbildungen lesen     |
+| `POST /api/v1/task-calendar-bindings/reconcile`    | Bestand idempotent prüfen und wiederherstellen     |
 | `GET /api/v1/dashboard`                            | rein lesenden Organisations-Snapshot laden         |
 | `GET /api/v1/work`                                 | eigene Arbeitsdaten filtern und laden              |
 | `POST/PATCH /api/v1/work/contexts/:id?`            | Arbeitsbereiche anlegen oder ändern                |
@@ -328,6 +330,39 @@ Kalendermodell. Das Abschließen oder Löschen einer Aufgabe verändert den Term
 nicht, und das Löschen eines Termins löscht die Aufgabe nicht. Soft gelöschte
 Objekte werden in bestehenden Beziehungen als nicht verfügbar angezeigt,
 damit die Beziehung nachvollziehbar entfernt werden kann.
+
+## Vertrag der verwalteten Aufgaben-Kalender-Abbildung
+
+`GET /task-calendar-bindings` liefert die verwalteten Abbildungen des
+angemeldeten Besitzers. Sie sind bewusst **getrennt** von der freien
+`TaskEventLink`-Beziehung: eine verwaltete Abbildung wird aus den
+Aufgabenfeldern geführt, während eine freie Verknüpfung eine reine Beziehung
+bleibt. Je Aufgabe existieren höchstens eine Frist (`due`) und höchstens ein
+Arbeitsblock (`work_block`).
+
+Eine Frist (`dueDate`) wird als ganztägiges Ereignis im persönlichen
+Primärkalender geführt. Ein Arbeitsblock entsteht aus geplantem Start **mit**
+geschätzter Dauer und nutzt die Zeitzone der Aufgabe. Ein geplanter Start
+**ohne** Dauer wird als sichtbare Startmarkierung abgebildet: ein
+zeitgebundenes Ereignis mit `DTSTART` ohne `DTEND` und ohne `DURATION`, das
+über die Spalte `isStartMarker` eindeutig von Frist und Zeitblock unterschieden
+wird. Die Aufgabe bleibt führend; aus dem Ereignis werden Start und Zeitzone
+übernommen, eine Dauer entsteht erst mit einem `DTEND`. Für alle anderen
+Ereignisse gilt unverändert `endsAt > startsAt`. Ohne aktiven Primärkalender antwortet
+die API mit HTTP 409, statt stillschweigend einen anderen Kalender zu wählen.
+
+Aufgabenkennung, Art und der zuletzt bestätigte ETag liegen in der
+Abbildungstabelle. Aufgabe, Ereignis, Beziehung, ETag, Kalender-`syncToken` und
+Auditdatensatz werden in einer Transaktion geschrieben. Bei einem
+ETag-Konflikt antwortet die API mit HTTP 412 und rollt vollständig zurück; es
+bleibt keine Teiländerung zurück.
+
+`POST /task-calendar-bindings/reconcile` prüft den Bestand idempotent. Nur
+eindeutig über die Aufgabenkennung erkennbare verwaltete Ereignisse werden
+erneut verbunden; fehlende Ereignisse werden aus den Aufgabenfeldern
+wiederhergestellt. Mehrdeutige Ereignisse werden gemeldet und niemals
+umgedeutet, dupliziert oder automatisch in eine verwaltete Abbildung
+konvertiert.
 
 ## Dashboard-Vertrag
 
@@ -436,6 +471,13 @@ Berechtigungen. Der technische Nachweis steht im
   Datenbanktransaktionen und HTTP-Verträge.
 - `modules/task-event-links/` kapselt besitzgebundene, idempotente Beziehungen
   zwischen Aufgaben- und Kalenderkern.
+- `modules/task-calendar-bindings/` kapselt die verwaltete
+  Aufgaben-Kalender-Abbildung: reine Abbildungsregeln in `mapping.ts`, den
+  transaktionalen Kern in `repository.ts`, den gemeinsamen Dienst in
+  `service.ts` und die HTTP-Routen in `router.ts`. Aufgaben-, Kalender- und
+  CalDAV-Schreibpfade nutzen ausschließlich diesen Dienst, damit Aufgabe,
+  Ereignis, Beziehung, ETag, `syncToken` und Audit gemeinsam schreiben oder
+  vollständig zurückrollen.
 - `modules/dashboard/` bündelt den besitzgebundenen, rein lesenden
   Organisations-Snapshot ohne eigene Fachdaten oder Schreiblogik.
 - `modules/work/` kapselt Arbeitskontexte, berufliche Projekte,

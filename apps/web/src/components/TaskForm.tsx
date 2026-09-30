@@ -5,6 +5,8 @@ import type {
   ProjectResponse,
   StudyModuleResponse,
   TaskArea,
+  TaskCalendarBindingResponse,
+  TaskCalendarBindingStatus,
   TaskPriority,
   TaskResponse,
   TaskEventLinkResponse,
@@ -44,6 +46,9 @@ interface TaskFormProps {
   selectedCalendarId: string | null;
   timezone: string;
   pending: boolean;
+  /** Verwaltete Kalenderabbildungen; sie sind getrennt von freien Verknüpfungen. */
+  managedBindings: TaskCalendarBindingResponse[];
+  onReconcile: () => Promise<void>;
   onCancel: () => void;
   onSubmit: (payload: CreateTaskRequest | UpdateTaskRequest) => Promise<void>;
   onArchive: (archived: boolean) => Promise<void>;
@@ -107,6 +112,123 @@ const initialDraft = (
   parentTaskId: task?.parentTaskId ?? "",
 });
 
+/**
+ * Zustandstexte der verwalteten Abbildung. Konflikte, fehlende Ereignisse und
+ * fehlende Kalender werden ausdrücklich benannt, damit nichts stillschweigend
+ * geschieht.
+ */
+const managedBindingStatusCopy: Record<TaskCalendarBindingStatus, string> = {
+  active:
+    "Mit dem Kalender abgeglichen. Änderungen werden nur mit dem bestätigten Kalenderstand gespeichert.",
+  event_missing:
+    "Das Kalenderereignis fehlt. Es wird beim nächsten Speichern der Aufgabe aus den Fachfeldern wieder aufgebaut.",
+  calendar_missing:
+    "Der Kalender der Abbildung fehlt. Es wird bewusst kein anderer Kalender gewählt.",
+};
+
+/**
+ * Verwaltete Abbildungen einer Aufgabe. Sie sind fachlich geführt und klar von
+ * den freien Verknüpfungen darunter getrennt.
+ */
+const ManagedBindingPanel = ({
+  task,
+  bindings,
+  pending,
+  onReconcile,
+}: {
+  task: TaskResponse;
+  bindings: TaskCalendarBindingResponse[];
+  pending: boolean;
+  onReconcile: () => Promise<void>;
+}) => {
+  const [error, setError] = useState<string | null>(null);
+  const relevant = bindings.filter((binding) => binding.task.id === task.id);
+  const startWithoutDuration =
+    task.scheduledStartAt !== null && task.estimatedDurationMinutes === null;
+
+  const reconcile = async () => {
+    setError(null);
+    try {
+      await onReconcile();
+    } catch {
+      setError("Die Bestandsprüfung konnte nicht ausgeführt werden.");
+    }
+  };
+
+  return (
+    <section
+      className="task-event-links managed-bindings full-field"
+      aria-label="Verwaltete Kalenderabbildung"
+    >
+      <div className="link-panel-heading">
+        <div>
+          <h3>Verwaltete Kalenderabbildung</h3>
+          <p>
+            Frist und Zeitblock werden aus den Aufgabenfeldern geführt. Diese
+            Abbildung ist getrennt von den freien Verknüpfungen darunter.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="secondary-button compact-action"
+          disabled={pending}
+          onClick={() => void reconcile()}
+        >
+          Bestand prüfen
+        </button>
+      </div>
+
+      {relevant.length > 0 ? (
+        <ul className="link-list">
+          {relevant.map((binding) => (
+            <li key={binding.id}>
+              <span>
+                <strong>
+                  {binding.label}
+                  {binding.task.available ? "" : " (Aufgabe nicht verfügbar)"}
+                </strong>
+                <small>{managedBindingStatusCopy[binding.status]}</small>
+                <small>
+                  {binding.event.uid
+                    ? `${binding.event.title ?? "Ereignis"} · ${
+                        binding.event.calendarId ?? "Kalender unbekannt"
+                      }`
+                    : "Noch kein Ereignis vorhanden"}
+                </small>
+                {binding.event.uid ? (
+                  <small className="managed-binding-uid">
+                    Stabile UID: {binding.event.uid}
+                  </small>
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="empty-link-copy">
+          Keine verwaltete Abbildung. Sie entsteht aus einer Fälligkeit oder aus
+          einem geplanten Start (Startmarkierung ohne Dauer oder Zeitblock mit
+          geschätzter Dauer).
+        </p>
+      )}
+
+      {startWithoutDuration ? (
+        <p className="link-scope-note">
+          Start ohne Dauer: Der geplante Start wird als sichtbare
+          Startmarkierung ohne erfundenes Ende abgebildet (DTSTART ohne DTEND).
+          Ergänze eine geschätzte Dauer, um daraus einen Zeitblock zu machen.
+        </p>
+      ) : null}
+
+      {error ? (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </section>
+  );
+};
+
 export const TaskForm = ({
   task,
   tasks,
@@ -118,6 +240,8 @@ export const TaskForm = ({
   selectedCalendarId,
   timezone,
   pending,
+  managedBindings,
+  onReconcile,
   onCancel,
   onSubmit,
   onArchive,
@@ -315,6 +439,11 @@ export const TaskForm = ({
               update("estimatedDurationMinutes", input.target.value)
             }
           />
+          <small className="field-hint">
+            Für einen verwalteten Zeitblock im Kalender ist eine Dauer
+            erforderlich. Ein geplanter Beginn ohne Dauer wird nicht in den
+            Kalender abgebildet.
+          </small>
         </div>
 
         <div className="field">
@@ -456,6 +585,15 @@ export const TaskForm = ({
           <p role="alert" className="form-error full-field">
             {validationError}
           </p>
+        ) : null}
+
+        {task ? (
+          <ManagedBindingPanel
+            task={task}
+            bindings={managedBindings}
+            pending={pending}
+            onReconcile={onReconcile}
+          />
         ) : null}
 
         {task ? (

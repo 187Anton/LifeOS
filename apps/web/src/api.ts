@@ -17,6 +17,8 @@ import type {
   SessionResponse,
   TaskResponse,
   TaskEventLinkResponse,
+  TaskCalendarBindingResponse,
+  ReconcileTaskCalendarBindingsResponse,
   StudyOverviewResponse,
   UpdateStudyEntryRequest,
   UpdateStudyModuleRequest,
@@ -257,6 +259,21 @@ export const api = {
     return request<void>(`/task-event-links/${encodeURIComponent(linkId)}`, {
       method: "DELETE",
     });
+  },
+
+  /**
+   * Verwaltete Kalenderabbildungen von Aufgaben. Sie sind bewusst von den
+   * freien Verknüpfungen (`listTaskEventLinks`) getrennt.
+   */
+  listTaskCalendarBindings() {
+    return request<TaskCalendarBindingResponse[]>("/task-calendar-bindings");
+  },
+
+  reconcileTaskCalendarBindings() {
+    return request<ReconcileTaskCalendarBindingsResponse>(
+      "/task-calendar-bindings/reconcile",
+      { method: "POST" },
+    );
   },
 
   listTasks(includeArchived = true, studyModuleId?: string | null) {

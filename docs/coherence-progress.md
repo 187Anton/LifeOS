@@ -1,9 +1,417 @@
 # Kohärenzumbau: Fortschritt und nächste Übergabe
 
-Stand: 27.09.2026 (Übergabe-Snapshot vor dem Merge von PR #128). Diese Datei ist eine Übergabe, kein Ersatz für Live-Prüfungen.
+Stand: 29.09.2026 (Paket 9 lokal umgesetzt und geprüft; PR und Pflicht-CI stehen aus). Diese Datei ist eine Übergabe, kein Ersatz für Live-Prüfungen.
 Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
 
 ## Aktuelles Paket
+
+- Paket: **9 – verwaltete Aufgaben-CalDAV-Abbildung** lokal umgesetzt, um die
+  fünf Befunde der Korrekturrunde nachgezogen und um drei Restbefunde der
+  Nachprüfung ergänzt. Stand:
+  **254/254** API-Tests, **33/33** Datenbanktests, **94/94** Web-Unit-Tests in
+  13 Dateien, **58/58** Playwright-E2E-Abläufe auf Desktop und Smartphone
+  (29 je Projekt), dazu `typecheck`, `lint`, `format:check`, `repo:check`,
+  `build`, `db:migrate`, `db:sqlite:validate` sowie `caldav:verify:lan` und
+  `desktop:verify:sidecar` als synthetische Kalender- und Sidecar-Nachweise.
+  `desktop:verify:sidecar` wurde für diesen Stand separat ausgeführt (Der
+  LAN-Nachweis allein enthält nur `desktop:prepare`). Ein physischer
+  Apple-Gerätetest wurde nicht behauptet und nicht ausgeführt.
+  Die Einzelheiten je Befund stehen in den Abschnitten „Paket 9 –
+  Korrekturrunde“ und „Paket 9 – Nachprüfung der Korrekturrunde“.
+- Vorbedingung Paket 8: live geprüft. `origin/develop` steht auf `e01fe3c`
+  (`feat(knowledge): lokale PPTX- und DOCX-Extraktion (#128)`), PR #128 ist
+  gemergt und die Vorprüfung des Pakets ist damit im Zielstand enthalten. Der
+  Branch dieser Runde `feat/coherence-task-caldav-bindings` ist auf genau
+  dieser Basis angelegt; der lokale Hauptcheckout war detached und veraltet
+  (`f37524d`) und blieb unverändert.
+- Umsetzung: genau ein Worker für Umsetzung, Prüfung und Nachweise; keine
+  Subagenten, keine zweite Schreibinstanz und kein paralleler Agent.
+- Worktree: `/private/tmp/lifeos-coherence-task-caldav`; der Hauptcheckout
+  `/Users/anton/Projekte/LifeOS` blieb unberührt. Eigener Compose-Betrieb
+  (`-p lifeos-task-caldav`, PostgreSQL nur auf `127.0.0.1`) mit ausschließlich
+  synthetischer Datenbank; die installierte App wurde nicht angefasst.
+- Keine neue Abhängigkeit: `package.json` und `package-lock.json` enthalten
+  zusätzlich nur aktualisierte Security-Overrides für die von CI gemeldeten
+  transitiven Patch-Versionen (`brace-expansion` und `fast-uri`).
+- Zwei additive Migrationen: `20260929120000_task_calendar_binding`
+  (PostgreSQL) und `20260929120500_task_calendar_binding` (SQLite) legen
+  ausschließlich die neue Tabelle mit Besitzer-, Aufgaben- und Ereignisbezug,
+  Art, letztem bestätigten ETag und Eindeutigkeitsregeln an. Bestehende
+  Tabellen, Zeilen und die freie `TaskEventLink`-Beziehung bleiben unverändert.
+- Geänderter Umfang: neuer Bereich
+  `apps/api/src/modules/task-calendar-bindings/` (`mapping.ts`,
+  `repository.ts`, `service.ts`, `router.ts`), Einbindung in
+  `modules/tasks/`, `modules/calendar/` und `modules/caldav/`, Verdrahtung in
+  `server.ts`, Verträge in `packages/contracts/src/api.ts`, beide
+  Prisma-Schemata, `sqlite-import.ts`, `sqlite-compatibility-client.ts`,
+  Oberflächenkennzeichnung in Web (`api.ts`, `App.tsx`, `TaskForm.tsx`,
+  `TaskWorkspace.tsx`, `CalendarWorkspace.tsx`, `styles.css`) sowie API-,
+  Datenbank-, Web-Unit-, E2E- und Nachweisdateien.
+- Nicht geändert: die Fachlogik von `task-event-links/`, die
+  `external-caldav/`-Integration, Finanzmodule, Paket-10- und
+  Paket-11-Funktionen sowie allgemeine Aufräumarbeiten.
+- Offene Blocker: keiner.
+
+## Paket 9 – verwaltete Aufgaben-CalDAV-Abbildung (29.09.2026)
+
+### Ausgangsprüfung und Umfang
+
+`gh`-frei über Git geprüft: `origin/develop` = `e01fe3c` aus PR #128
+(Paket 8), Vorgänger `d4dc091` aus PR #127 (Paket 7). Der Branch dieser Runde
+zweigt von `e01fe3c` ab; damit ist die geforderte Voraussetzung nachgewiesen
+und nicht aus der Dokumentation übernommen. Rein additive Umsetzung ohne
+Änderung bestehender Beziehungen, ohne automatische Umdeutung freier
+Verknüpfungen und ohne externe CalDAV-Zugangsdaten.
+
+### Datenmodell und Transaktion
+
+`TaskCalendarBinding` trennt die verwaltete Abbildung ausdrücklich von der
+freien `TaskEventLink`-Beziehung und speichert Besitzer, Aufgabe, Ereignis, Art
+(`due`/`work_block`) und den zuletzt bestätigten ETag. Zusammengesetzte
+Fremdschlüssel halten Besitzergrenzen; ein eindeutiger Schlüssel je Aufgabe und
+Art erzwingt höchstens eine Frist und höchstens einen Arbeitsblock. Die UID
+bleibt über Änderungen stabil und wird nicht aus Eingaben erfunden.
+
+Aufgaben-, Kalender-, Beziehungs-, ETag-, `syncToken`- und Auditdaten werden in
+derselben Transaktion geschrieben. Der Binding-Service ist der einzige
+Schreibpfad für verwaltete Ereignisse; `TaskService`, `CalendarService` und der
+CalDAV-Router reichen denselben Dienst in ihre Transaktion weiter. Ein
+ETag-Konflikt beantwortet die API mit `412`, ein fehlender Primärkalender mit
+`409`; in beiden Fällen rollt die gesamte Transaktion zurück.
+
+### Verbindliche Abbildung
+
+- Frist: ganztägiges Ereignis im persönlichen Primärkalender, Fälligkeitstag
+  als Start und exklusives Ende am Folgetag.
+- Arbeitsblock: zeitgebundenes Ereignis bei geplantem Start **mit** geschätzter
+  Dauer; das Ende wird aus der Dauer berechnet, nicht erfunden.
+- Titel: festes Präfix plus Aufgabentitel plus Statuskennzeichnung
+  (` (erledigt)`/` (abgebrochen)`).
+- Beschreibung: Aufgabenbeschreibung plus Markierungsblock mit
+  Aufgabenkennung und Art.
+- Erinnerungen: ausschließlich `DISPLAY`-Alarme und über CalDAV übernehmbar.
+- Priorität, Projekt, Studium, Tags und weitere Aufgabenfelder bleiben unter
+  Apple-Änderungen unverändert.
+- Archivieren und Löschen der Aufgabe entfernen die verwalteten Abbildungen
+  synchron; die Aufgabe selbst bleibt erhalten, wenn nur das Ereignis gelöscht
+  wird.
+
+### Bewusste Entscheidungen dieser Runde
+
+- **„Start ohne Dauer“ wird als gezielte Startmarkierung abgebildet**
+  (in der Korrekturrunde nachgezogen). Die Startmarkierung ist ein
+  zeitgebundenes Ereignis mit `DTSTART` ohne `DTEND` und ohne `DURATION`; die
+  eigene Spalte `isStartMarker` trennt sie eindeutig von allen anderen
+  Zeitformen, und der Prüfpfad erlaubt diese Form nur für verwaltete
+  Aufgabenereignisse. Die frühere Begründung dieser Runde bleibt als
+  Zwischenstand erhalten: die bestehende Datenbankinvariante verlangt für
+  zeitgebundene Ereignisse `endsAt > startsAt`; ein erfundenes Ende oder eine
+  Dauer null wären eine erfundene Fachangabe gewesen.
+- **Ein vom Client angefordertes `MOVE` wird weiterhin abgelehnt.** Für
+  verwaltete Ereignisse geschieht der Kalenderwechsel als interner, atomarer
+  Umzug beim Ausrichten der Abbildung; ein freies `MOVE` über CalDAV bleibt
+  verboten.
+- **Wiederkehrende verwaltete Ereignisse werden abgelehnt.** `RRULE` an einem
+  verwalteten Ereignis führt zur atomaren Ablehnung ohne Teiländerung.
+- **Kalender ohne Primärkalender.** Fehlt ein aktiver Primärkalender, wird die
+  Zuordnung klar abgelehnt statt stillschweigend einen anderen Kalender zu
+  wählen; das gilt auch für die Bestandsprüfung: `task-calendar-bindings/reconcile`
+  wird ohne aktiven Primärkalender vollständig mit `409 CONFLICT` abgelehnt und
+  verbindet, verschiebt oder löscht nichts. Ein aus dem Primärkalender
+  gedriftetes verwaltetes Ereignis wird in den aktuellen Primärkalender
+  überführt.
+- **Apple-Änderungen sind feldweise begrenzt.** Titel mit gültigem Präfix und
+  erlaubtem Statuswechsel sowie Erinnerungen sind zulässig; Zeiten, Zeitform,
+  Zeitzone, Ort, Beschreibung, Titel ohne Präfix, unzulässiger Statuswechsel
+  und `RRULE` werden ohne Teiländerung abgelehnt. Ohne `If-Match` antwortet der
+  Server mit `428`.
+
+### Nachweise dieser Runde
+
+- `npm test --workspace @lifeos/api`: **246/246** grün (Baseline vor Paket 9:
+  217/217). Neu: 15 Unit-Tests der Abbildungsregeln (Frist, Arbeitsblock,
+  Zeitzonen, Sommerzeitwechsel, UID, Status, Erinnerungen, Beschreibung,
+  Löschung, Ablehnungen) und 14 Integrationstests (Erstellen, Lesen, Ändern,
+  Löschen über API und CalDAV, vollständiges `PUT`, Archivieren, Wiederöffnen,
+  stabile UID, Duplikatfreiheit, ETag-Konflikt mit vollständigem Rollback,
+  Bestandsprüfung, Besitzergrenzen, fehlender Primärkalender, konkurrierende
+  Änderungen, Regression frei verknüpfter und wiederkehrender Ereignisse).
+- `npm run db:test`: **33/33** grün, inklusive SQLite-Migrationspfad,
+  Vor-Migrationsbackup sowie Transfer, Import, Backup, Restore und Recovery mit
+  bestehender Aufgabe, bestehendem Ereignis, freier Verknüpfung und
+  verwalteter Abbildung.
+- `npm test --workspace @lifeos/web` (Vitest): **89/89** in 12 Dateien. Neu:
+  getrennte Darstellung verwalteter und freier Verknüpfungen, Konflikt- und
+  Fehleranzeigen, Hinweis zu „Start ohne Dauer“.
+- Playwright-E2E auf Desktop und Smartphone: **54/54** grün (27 Abläufe je
+  Projekt, 50 vor Paket 9). Neu sind zwei Abläufe zur getrennten Darstellung
+  verwalteter und freier Verknüpfungen und zur Benennung fehlender Ereignisse
+  sowie zu „Start ohne Dauer“.
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: grün.
+- `npm run caldav:verify:lan`: grün. Der synthetische LAN-Nachweis deckt
+  zusätzlich Fristabbildung, vollständiges `PUT`, Ablehnung einer nicht
+  unterstützten Änderung, Arbeitsblock mit Dauer, Löschung über CalDAV und
+  Löschung über die Aufgabe ab. Ein physischer Apple-Kalender-Test ist damit
+  nicht ersetzt.
+- `node scripts/verify-mac-desktop-sidecar.mjs`: grün nach Ergänzung der neuen
+  SQLite-Migration in den Nachweislisten.
+
+### Offene Risiken und bewusst unveränderte Punkte
+
+- Ein physischer Apple-Kalender- und Gerätetest bleibt offen; der LAN-Nachweis
+  prüft nur den eigenen Server über die Netzwerkschnittstelle.
+- Beide Punkte dieser Liste sind in der Korrekturrunde vom 29.09.2026
+  nachgezogen: „Start ohne Dauer“ ist als gezielte Startmarkierung abgebildet,
+  und beim Überführen in den Primärkalender wird der alte Kalender mit einer
+  nachvollziehbaren Entfernung samt fortgeschriebenem `syncToken` versehen.
+  Ein physischer Apple-Gerätetest bleibt weiterhin offen.
+- PR, Pflicht-CI und Merge nach `develop` stehen noch aus; diese Runde liefert
+  den lokalen Nachweis, keine Release-Freigabe.
+- Die Paket-8-Notizen dieser Datei bleiben als historischer Stand erhalten und
+  sind nicht der aktuelle Git- und CI-Zustand.
+
+## Paket 9 – Korrekturrunde (29.09.2026)
+
+Auftrag: die Umsetzungskarte von Paket 9 vollständig einhalten. Die vorhandenen
+Tests waren grün, deckten aber fünf konkrete Fehler nicht ab. Betroffene
+Ursache, Korrektur und Nachweis je Fehler:
+
+1. **Apple-Änderungen an verwalteten Ereignissen wurden falsch abgelehnt.**
+   _Ursache:_ `reviewManagedEventChange` behandelte `DTSTART`, `DTEND` und die
+   Fristdaten als grundsätzlich unveränderlich; jede Verschiebung oder
+   Verlängerung lief in eine Ablehnung ohne Teiländerung. _Korrektur:_ Die
+   feldweise Prüfung hängt jetzt von der Abbildungsart ab. Eine Frist (`due`)
+   verlangt eine gültige ganztägige `DTSTART`/`DTEND`-Kombination mit genau
+   einem Tag Abstand und übernimmt den neuen Fälligkeitstag in die Aufgabe; ein
+   Arbeitsblock (`work_block`) übernimmt Start, Zeitzone und die aus
+   `DTSTART`/`DTEND` berechnete Dauer in ganzen Minuten; fehlt `DTEND`, wird
+   daraus die Startmarkierung ohne Dauer. Die jeweils andere Fachangabe bleibt
+   unberührt, die Transaktion umfasst Aufgabe, Ereignis, Binding, ETag,
+   Sync-Token und Audit. Abgelehnt werden weiterhin Ort, freie Beschreibung,
+   ungültige UID, `RRULE`, Zeitform-Wechsel der Frist, `DURATION` ohne `DTEND`
+   und unzulässige Statuswechsel; veraltete ETags bleiben 412, fehlendes
+   `If-Match` bleibt 428. _Nachweis:_ `apps/api/tests/task-calendar-bindings.test.ts`
+   (Verschiebung, Verlängerung, Zeitzonenwechsel, Sommerzeit, Startmarkierung
+   aus Apple) und `task-calendar-bindings.integration.test.ts`
+   (Fristverschiebung über CalDAV, Arbeitsblockverlängerung).
+
+2. **Kalender- und Planungsansicht zeigten verwaltete Inhalte doppelt.**
+   _Ursache:_ `apps/web/src/calendar-projection.ts` und
+   `apps/api/src/modules/planning/service.ts` kannten die
+   `TaskCalendarBinding`-Beziehung nicht und fügten Aufgabenprojektionen
+   unabhängig vom vorhandenen verwalteten Ereignis hinzu. _Korrektur:_ Beide
+   Projektionen verwenden dieselbe besitzgebundene Duplikatregel: eine aktive
+   verwaltete Abbildung unterdrückt genau die dazugehörige Aufgabenprojektion
+   und nur dann, wenn ihr Ereignis über den stabilen Schlüssel aus Besitzer,
+   Kalender-ID und UID tatsächlich in derselben Ansicht geliefert wird. Fehlt
+   das Ereignis, ist der Kalender nicht verfügbar oder liegt dieselbe UID in
+   einem anderen Kalender, bleibt die Aufgabenprojektion sichtbar; freie
+   `TaskEventLink`-Beziehungen bleiben unverändert. _Nachweis:_
+   `apps/web/tests/unit/calendar-projection.test.ts` (aktive Abbildung,
+   fehlendes Ereignis, fremder Kalender, Gegenprobe),
+   `apps/api/tests/planning.test.ts` (fünf Fälle der Planning-API) und
+   `apps/web/tests/e2e/lifeos.spec.ts` (genau eine Darstellung in Tag-, Wochen-,
+   Monats- und Agendaansicht).
+
+3. **Nach einer Apple-Änderung blieb die zweite verwaltete Abbildung
+   veraltet.** _Ursache:_ `applyEventChange` aktualisierte nur das bearbeitete
+   Ereignis und synchronisierte die Aufgabe danach nicht. _Korrektur:_ Nach der
+   akzeptierten Änderung werden innerhalb derselben Transaktion die führenden
+   Aufgabenfelder übernommen, die Erinnerungen des bearbeiteten Ereignisses
+   geschrieben und anschließend über `synchronizeTask` beide verwalteten
+   Abbildungen aus den Aufgabenfeldern neu berechnet. Beide UIDs bleiben stabil,
+   es entstehen keine Duplikate, und ein Fehler bei einer der beiden Abbildungen
+   rollt die vollständige Änderung zurück. _Nachweis:_
+   `task-calendar-bindings.integration.test.ts` („führt nach einer
+   Apple-Änderung beide verwalteten Abbildungen derselben Aufgabe nach“).
+
+4. **Das Löschen eines verwalteten Ereignisses prüfte den ETag nicht atomar.**
+   _Ursache:_ `removeEvent` verglich den erwarteten ETag nur vorab, das
+   eigentliche Update filterte lediglich `deletedAt: null` und konnte eine
+   gleichzeitige Änderung überschreiben. _Korrektur:_ Das Lösch-Update prüft
+   jetzt Ereignis-ID, erwarteten ETag und `deletedAt: null` und verlangt
+   `count === 1`; bei `count === 0` entsteht ein ETag-Konflikt und die
+   Transaktion rollt vollständig zurück. _Nachweis:_
+   `task-calendar-bindings.integration.test.ts` („verhindert beim Löschen das
+   Überschreiben einer konkurrierenden ETag-Änderung“ – die Fremdänderung
+   wartet zwischen Lesen und Schreiben auf der Zeilensperre).
+
+5. **Beim Wechsel des Primärkalenders blieb das Ereignis im alten Kalender.**
+   _Ursache:_ `writeManagedEvent` aktualisierte Felder, ETag, Sequence und
+   Sync-Version, aber nie den Kalenderbezug; `alignBinding` erhöhte nur den
+   Sync-Token des neuen Kalenders. _Korrektur:_ Ein Kalenderwechsel ist jetzt
+   ein atomarer Umzug mit stabiler UID: der bisherige Datensatz bleibt im alten
+   Kalender als nachvollziehbare Löschmarkierung stehen (neuer ETag,
+   `sequence + 1`, fortgeschriebener Sync-Token des alten Kalenders), im neuen
+   Primärkalender entsteht genau ein aktiver Datensatz derselben UID
+   (vorhandene oder gelöschte Datensätze werden übernommen beziehungsweise
+   wiederbelebt, nie verdoppelt). Das Binding verweist danach auf das Ereignis
+   im neuen Kalender; Erinnerungen wandern mit. Die Bestandsprüfung richtet
+   bestehende Abbildungen ebenfalls aus und meldet einen unbestätigten
+   Fremdstand als Befund, statt zu raten. Ohne Primärkalender bleibt die klare
+   Ablehnung. _Nachweis:_ `task-calendar-bindings.integration.test.ts`
+   („überführt ein verwaltetes Ereignis beim Wechsel des Primärkalenders
+   atomar in den neuen Kalender“ und „rollt einen Wechsel des Primärkalenders
+   bei einer konkurrierenden Änderung vollständig zurück“).
+
+6. **„Start ohne Dauer“ ist jetzt abgebildet.** _Ursache:_ Die vorige Runde
+   lehnte den Fall ab, weil die Datenbankinvariante für zeitgebundene
+   Ereignisse `endsAt > startsAt` verlangt. _Korrektur:_ Eine gezielt
+   verwaltete Startmarkierung ist eine dritte, eindeutig unterschiedene
+   Zeitform: `isAllDay = false`, `isStartMarker = true`, `startsAt` gesetzt,
+   `endsAt` leer. Der Check-Constraint wurde nicht aufgeweicht, sondern um eine
+   ausschließlich für dieses Flag gültige Zeilenform erweitert; alle anderen
+   Ereignisse behalten die bisherige Invariante. Für die Erweiterung nötig:
+   PostgreSQL-Migration `20260929140000_calendar_event_start_marker`
+   (Spalte plus gezielter Constraint-Zweig) und SQLite-Migration
+   `20260929140500_calendar_event_start_marker` (kontrollierte Tabellen-
+   neuanlage mit den Markern `requires-backup` und `foreign-keys-off`). Der
+   iCalendar-Parser nimmt `DTSTART` ohne `DTEND` nur über den verwalteten Pfad
+   an, die Serialisierung erzeugt dann genau `DTSTART` ohne `DTEND` und ohne
+   `DURATION`, und ein `DURATION`-Feld wird klar abgelehnt, statt eine genannte
+   Dauer stillschweigend zu verwerfen. Die Aufgabe bleibt führend: aus dem
+   Ereignis werden Start und Zeitzone übernommen, eine Dauer entsteht erst mit
+   `DTEND`, und beim Löschen der Startmarkierung wird nur der geplante Start
+   entfernt. _Nachweis:_ `task-calendar-bindings.test.ts`,
+   `task-calendar-bindings.integration.test.ts` („bildet ‚Start ohne Dauer‘ als
+   sichtbare Startmarkierung ohne erfundenes Ende ab“ mit
+   Apple-kompatibler Abfrage) und der synthetische LAN-Nachweis
+   `npm run caldav:verify:lan` (Startmarkierung, Verlängerung,
+   `DURATION:PT0S` abgelehnt, Löschung).
+
+7. **Die Bestandsprüfung konnte ohne Primärkalender stillschweigend einen
+   fremden Kalender verwenden.** _Ursache:_ `reconcile` ermittelte den
+   persönlichen Primärkalender nur für die Sortierung. Fehlte er, konnte die
+   Schleife eine vorhandene markierte Abbildung trotzdem verbinden; der Kalender
+   des Ereignisses wurde damit faktisch als Ersatz gewählt. _Korrektur:_
+   `reconcile` ermittelt den Primärkalender zuerst und lehnt ohne aktiven
+   persönlichen Primärkalender vollständig ab (`MissingPrimaryCalendarError` →
+   `409 CONFLICT` mit klarer Meldung). Es entsteht kein `TaskCalendarBinding`,
+   das Ereignis bleibt in Kalender, UID, ETag, Sync-Token und Zeitstempel
+   unangetastet, es entsteht keine erfolgreiche Wieder-Verbindungs-Auditspur,
+   und ein sekundärer oder beliebiger anderer Kalender wird nie als Ersatz
+   gewählt. Mit vorhandenem Primärkalender ist das Verhalten unverändert.
+   _Nachweis:_ neuer Integrationstest „lehnt die Bestandsprüfung ohne aktiven
+   persönlichen Primärkalender vollständig ab“ (markiertes Ereignis im
+   Zweitkalender, Aufgabe ohne aktiven Primärkalender: `409`, kein Binding,
+   Ereignis und Kalender unverändert, keine Auditspur) und der angepasste zweite
+   Teil von „repariert fehlende Abbildungen über die Bestandsprüfung, ohne zu
+   erfinden“ (ohne Primärkalender wird auch eine vorhandene Abbildung nicht mehr
+   nachgeführt). Ein Wegwerf-Nachweis gegen den ungeprüften Stand zeigte den
+   Fehler direkt: `reconnected: 1` und ein Binding auf dem Zweitkalender bei
+   null aktiven Primärkalendern.
+
+**Paketgrenzen dieser Runde.** Geändert wurden ausschließlich Dateien des
+Pakets 9 sowie die in der Korrektur ausdrücklich benannten Projektionen
+(`apps/api/src/modules/planning/{service,repository}.ts`,
+`apps/web/src/calendar-projection.ts`, `apps/web/src/calendar-view.ts`) samt
+ihren Tests und der Dokumentation. `apps/api/src/modules/external-caldav/`,
+`task-event-links/`, die Finanzmodule, die installierte App und die
+Paket-10-/Paket-11-Funktionen blieben unberührt; es entstand keine neue
+Abhängigkeit. `package.json` und `package-lock.json` enthalten nur die für das
+aktuelle npm-Audit-Gate nötigen sicheren Patch-Overrides.
+Kein PR und kein Merge in dieser Runde.
+
+**Nachweise dieser Runde.** `npm test --workspace @lifeos/api`: **253/253**
+(16 Unit- und 19 Integrationstests allein für die verwaltete Abbildung; neu:
+Fristverschiebung, Arbeitsblockverlängerung, gemeinsame Synchronisierung beider
+Abbildungen, atomarer ETag-Schutz beim Löschen, atomarer Kalenderwechsel mit
+Rollback, gezielte Startmarkierung, vollständige Ablehnung der Bestandsprüfung
+ohne aktiven Primärkalender). `npm run db:test`: **33/33** (SQLite-
+Migrationspfad mit 16 versionierten Migrationen, Vor-Migrationsbackup, Transfer
+mit Startmarkierung, Backup, Restore, Recovery). Web-Unit: **90/90** in 12
+Dateien. Playwright: **56/56** über Desktop und Smartphone, darunter der neue
+Ablauf „genau eine Darstellung je fachlicher Bedeutung“ in Tag-, Wochen-,
+Monats- und Agendaansicht. `npm run typecheck`, `npm run lint`,
+`npm run format:check`, `npm run repo:check`, `npm run db:sqlite:validate` und
+`npm run caldav:verify:lan`: grün. `db:migrate` hat die neue
+PostgreSQL-Migration `20260929140000_calendar_event_start_marker` auf die
+synthetische Entwicklungsdatenbank angewendet.
+
+**Offen.** Ein physischer Apple-Kalender- und Gerätetest bleibt offen; der
+LAN-Nachweis prüft weiterhin nur den eigenen Server über die
+Netzwerkschnittstelle. Das Bearbeitungsformular für Kalenderereignisse ist auf
+Frist und Zeitblock ausgelegt: eine Startmarkierung wird dort nicht in eine
+Dauer umgedreht, sondern mit einer klaren Meldung abgelehnt; gepflegt wird sie
+über die Aufgabe.
+
+## Paket 9 – Nachprüfung der Korrekturrunde (30.09.2026)
+
+Drei Restbefunde aus der Nachprüfung der Korrekturrunde sind nachgezogen. Die
+Änderungen sind rein additiv; die Paketgrenzen bleiben unberührt
+(`task-event-links`, `external-caldav`, Finanzmodule, Paket 10, Paket 11; keine
+neue Abhängigkeit, kein Reset bestehender Änderungen).
+
+- **Befund 8 – die Bestandsprüfung verband ein Ereignis im falschen Kalender.**
+  `reconcile` ermittelte den persönlichen Primärkalender nur für die Sortierung.
+  Die Schleife konnte ein ungebundenes, markiertes Ereignis auch dann wieder
+  verbinden, wenn es ausschließlich im Zweitkalender lag; dadurch konnte eine
+  fremde oder veraltete Kopie als führendes Ereignis gelten. Korrektur: Vor jedem
+  automatischen Verbinden wird geprüft, dass das Ereignis im aktuellen
+  persönlichen Primärkalender liegt. Andernfalls wird der Fall als mehrdeutig
+  gemeldet und das Ereignis bleibt vollständig unangetastet – kein
+  `TaskCalendarBinding`, keine Verschiebung, keine Löschung, keine
+  Reconnect-Auditspur. Ein bereits eindeutig gebundenes Ereignis wird weiterhin
+  atomar in den neuen Primärkalender überführt. Nachweis: neuer
+  Integrationstest (aktiver Primär- und Zweitkalender, markiertes Ereignis nur im
+  Zweitkalender, kein vorhandenes Binding) mit `reconnected === 0`, mehrdeutiger
+  Meldung und unverändertem Ereignis einschließlich UID, ETag, Sync-Token,
+  Zeitform, Erinnerungen und Kalenderzugehörigkeit. Gegenprobe: mit ausgegebauter
+  Kalenderprüfung meldet derselbe Test `reconnected: 1` und legt die Bindung im
+  Zweitkalender an.
+- **Befund 9 – eine Startmarkierung wurde im Termineditor zum Zeitblock.** Der
+  allgemeine Termineditor ersetzte ein fehlendes Ende durch die nächste volle
+  Stunde. Ein unverändertes Öffnen und Speichern erzeugte dadurch eine Dauer und
+  schrieb eine andere Zeitform. Korrektur: Kalender- und Planungsansicht führen
+  eine aktive verwaltete Startmarkierung in den zugehörigen Aufgabeneditor;
+  verglichen wird die öffentliche Identität aus Kalenderkennung und UID, nie die
+  reine UID über mehrere Kalender hinweg. Wird der Termineditor doch direkt mit
+  einer Startmarkierung aufgerufen, zeigt er eine klare Schreibschutzmeldung,
+  bleibt vollständig gesperrt und verhindert das Speichern. `DTSTART` ohne `DTEND`
+  wird in keinem Fall in einen Zeitblock umgewandelt; Fristen, echte Zeitblöcke
+  und gewöhnliche Termine behalten ihr Bearbeitungsverhalten. Nachweis:
+  Web-Unit-Tests für den Editor (Schreibschutz, kein erfundenes Ende, weiterhin
+  bearbeitbare Zeitblöcke und Fristen) und ein Playwright-Ablauf auf Desktop und
+  Smartphone (genau eine Darstellung, Bearbeiten öffnet den Aufgabeneditor, ein
+  unverändertes Speichern sendet `estimatedDurationMinutes: null` und schreibt
+  kein Kalenderereignis). Die gemeinsame Kalenderprojektion klassifiziert das
+  verwaltete Markerereignis zusätzlich als `start_marker`, damit die sichtbare
+  Beschriftung „Start ohne Dauer“ erhalten bleibt; gewöhnliche Ereignisse
+  bleiben `fixed_event`/„Fester Termin“. Gegenprobe: ohne den Aufrufpfad scheitert derselbe
+  Ablauf, weil der Termineditor mit erfundenem Ende (`11:00`) erscheint. Die
+  entsprechende Aussage der Korrekturrunde („wird dort nicht in eine Dauer
+  umgedreht“) trifft damit erst für diesen Stand vollständig zu.
+- **Befund 10 – die Nachweise waren widersprüchlich.** Der Kopf des Dokuments
+  nannte 252/252 API-Tests, während der belegte Lauf 253/253 meldete; außerdem war
+  `desktop:verify:sidecar` als Nachweis aufgeführt, obwohl im LAN-Nachweis nur
+  `desktop:prepare` läuft. Korrektur: Die Zahlen im Kopf sind auf die
+  tatsächlichen Läufe dieses Stands gesetzt, `desktop:verify:sidecar` wurde
+  separat ausgeführt, und nur Prüfungen mit belegbarem Lauf sind als grün
+  dokumentiert.
+
+### Nachweise der Nachprüfung (30.09.2026)
+
+- `npm test --workspace @lifeos/api`: **254/254** grün (253 vor dieser Runde; die
+  Abbildung umfasst 16 Unit- und 20 Integrationstests).
+- `npm run db:test`: **33/33** grün.
+- `npm test --workspace @lifeos/web`: **94/94** Web-Unit-Tests in 13 Dateien und
+  **58/58** Playwright-Abläufe (29 je Projekt).
+- `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run build`,
+  `npm run repo:check`, `npm run db:migrate`, `npm run db:sqlite:validate`:
+  grün.
+- `npm run caldav:verify:lan`: grün (enthält `desktop:prepare`).
+- `npm run desktop:verify:sidecar`: separat ausgeführt, **exit 0**. Der
+  synthetische Sidecar-Nachweis meldet: gebündelter Sidecar mit Node 22.23.2,
+  synthetische 0.6-Produktdemo ohne aktive Finanzroute (acht alte Finanzpfade
+  mit `404 NOT_FOUND`), zweimaliger Start ohne Homebrew-Pfad, empfangene Fach-
+  und Kalenderidentitäten sowie Migration eines Vor-Paket-3-Stands erst nach
+  geprüftem Vor-Migrationsbackup.
+- Die im Abschnitt „Paket 9 – Korrekturrunde“ genannten 253/253 API-Tests
+  beschreiben den Stand vor dieser Nachprüfung.
+- **Offen.** Ein physischer Apple-Gerätetest (Signierung, Installation und
+  echtes Gerät) wurde nicht ausgeführt und wird nicht behauptet.
+
+## Paket 8 – Stand dieser Runde (27.09.2026)
 
 - Paket: **8 – PPTX- und DOCX-Extraktion** lokal umgesetzt, geprüft und um die
   Abnahmekorrektur ergänzt (begrenzter Workerlauf mit harter Frist). Stand dieser
@@ -17,7 +425,8 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   Head `2204b6d` bestand `Local macOS release`, aber `Repository checks` scheiterte
   im mobilen PDF-/DOCX-E2E-Klick auf „Lokal ablegen“. Die CI-Korrektur und ihre
   lokalen Nachweise stehen im folgenden Abschnitt. Ein Merge war zu diesem
-  Snapshot noch nicht erfolgt.
+  Snapshot noch nicht erfolgt. Inzwischen ist PR #128 gemergt; `develop` steht
+  auf `e01fe3c`.
 - Vorbedingung Paket 7: live geprüft. `gh pr view 127` meldet **MERGED** mit
   Merge-Commit `d4dc091` (`feat(knowledge): add local PDF text extraction`) als
   Spitze von `origin/develop`; beide Pflichtchecks des Merge-Commits sind
@@ -1442,8 +1851,9 @@ gespeicherte Währung und kein `TaskArea=finance` mehr voraus. Die alten
 | 5 Kalender/Planung            | Integriert über PR #125 (`f37524d`)               |
 | 6 Modul-Arbeitsbereich        | Lokal geprüft, um Befunde korrigiert; PR/CI offen |
 | 7 PDF-Suche                   | Nicht begonnen                                    |
-| 8 Office-Suche                | Nicht begonnen                                    |
-| 9 Aufgaben–CalDAV             | Nicht begonnen                                    |
+| 8 Office-Suche                | Integriert über PR #128 (`e01fe3c`)               |
+| 9 Aufgaben–CalDAV             | Lokal umgesetzt und um fünf Befunde korrigiert;   |
+|                               | PR/CI offen                                       |
 | 10 Mac/iPhone-Anbindung       | Nicht begonnen                                    |
 | 11 Gesamtabnahme/App-Update   | Nicht begonnen                                    |
 
