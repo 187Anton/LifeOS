@@ -586,7 +586,9 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     externalCalDavMapping.id,
   );
   assert.equal(importedUser.githubConnections[0]?.id, gitHubConnection.id);
-  assert.equal(importedUser.calendars[0]?.events[0]?.uid, event.uid);
+  const importedEvents = importedUser.calendars.flatMap((item) => item.events);
+  const importedEvent = importedEvents.find((item) => item.id === event.id);
+  assert.equal(importedEvent?.uid, event.uid);
   assert.equal(
     importedUser.tasks[0]?.dueDate?.toISOString(),
     "2032-09-02T00:00:00.000Z",
@@ -651,14 +653,17 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
    * Paket 9: Die verwaltete Abbildung wird über ihren Primärschlüssel und den
    * Ereignisbezug geprüft – nicht über eine Reihenfolgeannahme.
    */
-  const importedEvents = importedUser.calendars.flatMap((item) => item.events);
+  const importedDueBinding = importedUser.taskCalendarBindings.find(
+    (entry) => entry.id === binding.id,
+  );
+  const importedMarkerBinding = importedUser.taskCalendarBindings.find(
+    (entry) => entry.id === markerBinding.id,
+  );
   assert.equal(importedUser.taskCalendarBindings.length, 2);
-  assert.equal(importedUser.taskCalendarBindings[0]?.id, binding.id);
-  assert.equal(importedUser.taskCalendarBindings[0]?.kind, "due");
-  assert.equal(importedUser.taskCalendarBindings[1]?.id, markerBinding.id);
-  assert.equal(importedUser.taskCalendarBindings[1]?.kind, "work_block");
+  assert.equal(importedDueBinding?.kind, "due");
+  assert.equal(importedMarkerBinding?.kind, "work_block");
   assert.equal(
-    importedUser.taskCalendarBindings[1]?.lastKnownEtag,
+    importedMarkerBinding?.lastKnownEtag,
     '"transfer-startmarkierung"',
   );
   const importedMarker = importedEvents.find(
@@ -671,11 +676,11 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     "2032-09-02T08:00:00.000Z",
   );
   assert.equal(
-    importedUser.taskCalendarBindings[0]?.lastKnownEtag,
+    importedDueBinding?.lastKnownEtag,
     '"transfer-frist"',
   );
   assert.equal(
-    importedUser.taskCalendarBindings[0]?.calendarEventId,
+    importedDueBinding?.calendarEventId,
     managedEvent.id,
   );
   assert.equal(
