@@ -30,8 +30,9 @@ Plan: [coherence-implementation-plan.md](coherence-implementation-plan.md).
   `/Users/anton/Projekte/LifeOS` blieb unberührt. Eigener Compose-Betrieb
   (`-p lifeos-task-caldav`, PostgreSQL nur auf `127.0.0.1`) mit ausschließlich
   synthetischer Datenbank; die installierte App wurde nicht angefasst.
-- Keine neue Abhängigkeit: `package.json` und `package-lock.json` blieben
-  unverändert.
+- Keine neue Abhängigkeit: `package.json` und `package-lock.json` enthalten
+  zusätzlich nur aktualisierte Security-Overrides für die von CI gemeldeten
+  transitiven Patch-Versionen (`brace-expansion` und `fast-uri`).
 - Zwei additive Migrationen: `20260929120000_task_calendar_binding`
   (PostgreSQL) und `20260929120500_task_calendar_binding` (SQLite) legen
   ausschließlich die neue Tabelle mit Besitzer-, Aufgaben- und Ereignisbezug,
@@ -306,8 +307,9 @@ Pakets 9 sowie die in der Korrektur ausdrücklich benannten Projektionen
 `apps/web/src/calendar-projection.ts`, `apps/web/src/calendar-view.ts`) samt
 ihren Tests und der Dokumentation. `apps/api/src/modules/external-caldav/`,
 `task-event-links/`, die Finanzmodule, die installierte App und die
-Paket-10-/Paket-11-Funktionen blieben unberührt; `package.json` und
-`package-lock.json` sind unverändert, es entstand keine neue Abhängigkeit.
+Paket-10-/Paket-11-Funktionen blieben unberührt; es entstand keine neue
+Abhängigkeit. `package.json` und `package-lock.json` enthalten nur die für das
+aktuelle npm-Audit-Gate nötigen sicheren Patch-Overrides.
 Kein PR und kein Merge in dieser Runde.
 
 **Nachweise dieser Runde.** `npm test --workspace @lifeos/api`: **253/253**
