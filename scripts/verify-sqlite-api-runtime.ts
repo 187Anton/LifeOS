@@ -340,7 +340,13 @@ const main = async () => {
       });
     assert.equal(persistedEvent.etag, createdEvent.etag);
     assert.equal(persistedEvent.sequence, createdEvent.sequence);
-    assert.equal(persistedEvent.syncVersion, persistedCalendar.syncToken);
+    // Nach dem Neustart ist der Kalender-Token nicht zwingend die Version
+    // dieses Ereignisses: Die Aufgabe aus diesem Nachweis erzeugt inzwischen
+    // zusätzlich ihre verwaltete Frist im selben Kalender. Die Ereignisversion
+    // muss daher positiv und höchstens so groß wie der aktuelle Kalendertoken
+    // sein.
+    assert.ok(persistedEvent.syncVersion > 0);
+    assert.ok(persistedEvent.syncVersion <= persistedCalendar.syncToken);
     // Paket 4: Der Modulbezug steht unverändert in der SQLite-Datei.
     const persistedTask = await verificationDatabase.task.findFirstOrThrow({
       where: { id: created.id },
