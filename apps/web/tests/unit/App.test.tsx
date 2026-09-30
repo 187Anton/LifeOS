@@ -422,6 +422,7 @@ const installApi = ({
   deleteEventConflict = false,
   dashboardError = false,
   setupRequired = false,
+  managedBindings = [],
 }: {
   calendars?: (typeof calendar)[];
   events?: (typeof event)[];
@@ -454,10 +455,18 @@ const installApi = ({
   deleteEventConflict?: boolean;
   dashboardError?: boolean;
   setupRequired?: boolean;
+  /**
+   * Verwaltete Kalenderabbildungen. Sie werden getrennt von den freien
+   * Verknüpfungen geladen und sind in der Oberfläche eigens gekennzeichnet.
+   */
+  managedBindings?: Array<Record<string, unknown>>;
 } = {}) => {
   const eventState = events.map((item) => ({ ...item }));
   const taskState = tasks.map((item) => ({ ...item }));
   const linkState = links.map((item) => structuredClone(item));
+  const bindingState = (managedBindings ?? []).map((item) =>
+    structuredClone(item),
+  );
   const noteState = knowledgeNotes.map((item) => ({ ...item }));
   const documentState = knowledgeDocuments.map((item) => ({ ...item }));
   const studyState = {
@@ -966,6 +975,22 @@ const installApi = ({
       }
       if (path === "/api/v1/task-event-links" && method === "GET") {
         return json(linkState);
+      }
+      if (path === "/api/v1/task-calendar-bindings" && method === "GET") {
+        return json(bindingState);
+      }
+      if (
+        path === "/api/v1/task-calendar-bindings/reconcile" &&
+        method === "POST"
+      ) {
+        return json({
+          checkedEvents: bindingState.length,
+          reconnected: 0,
+          repaired: 0,
+          alreadyLinked: bindingState.length,
+          skippedUnrelated: 0,
+          ambiguous: [],
+        });
       }
       if (path === "/api/v1/task-event-links" && method === "POST") {
         const payload = requestBody(init);
@@ -1633,6 +1658,56 @@ describe("LifeOS-Weboberfläche", () => {
     expect(
       await within(eventEditor).findByText("Noch keine Verknüpfung."),
     ).toBeVisible();
+  });
+
+  it("stellt verwaltete Abbildungen getrennt von freien Verknüpfungen dar", async () => {
+    installApi({
+      managedBindings: [
+        {
+          id: "bindung-1",
+          task: { id: task.id, title: task.title, available: true },
+          kind: "due",
+          label: "Frist",
+          event: {
+            calendarId: "kalender-1",
+            uid: `${task.id}.frist@tasks.lifeos.local`,
+            title: `Frist: ${task.title}`,
+            etag: '"etag-1"',
+            available: true,
+          },
+          status: "active",
+          eventKind: "all_day",
+          lastKnownEtag: '"etag-1"',
+          createdAt: "2026-07-22T08:00:00.000Z",
+          updatedAt: "2026-07-22T08:00:00.000Z",
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /Guten Tag, Anton/ });
+    await user.click(screen.getAllByRole("button", { name: "Aufgaben" })[0]!);
+    await user.click(
+      screen.getByRole("button", { name: "Roadmap prüfen bearbeiten" }),
+    );
+
+    const taskEditor = screen.getByRole("region", { name: "Roadmap prüfen" });
+    const managed = within(taskEditor).getByRole("region", {
+      name: "Verwaltete Kalenderabbildung",
+    });
+    const free = within(taskEditor).getByRole("region", {
+      name: "Verknüpfungen",
+    });
+    expect(managed).toBeVisible();
+    expect(free).toBeVisible();
+    expect(managed).not.toBe(free);
+    expect(within(managed).getByText("Frist")).toBeVisible();
+    expect(
+      within(managed).getByText(/Mit dem Kalender abgeglichen/),
+    ).toBeVisible();
+    // Freie Verknüpfungen bleiben unverändert getrennt und leer.
+    expect(within(free).getByText("Noch keine Verknüpfung.")).toBeVisible();
   });
 
   it("erstellt, bearbeitet und filtert Aufgaben gemeinsam", async () => {

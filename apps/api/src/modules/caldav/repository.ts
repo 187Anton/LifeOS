@@ -1,6 +1,7 @@
 import type {
   CalendarEventResponse,
   CalendarResponse,
+  TaskCalendarBindingKind,
 } from "@lifeos/contracts";
 import type { DatabaseClient } from "@lifeos/database";
 
@@ -45,6 +46,16 @@ export interface CalDavRepository {
     externalId: string,
     afterSyncVersion: number,
   ): Promise<CalDavEventChange[]>;
+  /**
+   * Paket 9: erkennt, ob ein Ereignis die verwaltete Abbildung einer Aufgabe
+   * ist. Nur dann gelten die eingeschränkten Änderungsregeln und die
+   * Darstellung „Start ohne Dauer“.
+   */
+  getManagedBinding(
+    userId: string,
+    externalId: string,
+    uid: string,
+  ): Promise<TaskCalendarBindingKind | null>;
 }
 
 export class PrismaCalDavRepository implements CalDavRepository {
@@ -164,5 +175,22 @@ export class PrismaCalDavRepository implements CalDavRepository {
       deleted: event.deletedAt !== null,
       syncVersion: event.syncVersion,
     }));
+  }
+
+  async getManagedBinding(
+    userId: string,
+    externalId: string,
+    uid: string,
+  ): Promise<TaskCalendarBindingKind | null> {
+    const calendar = await this.getCalendar(userId, externalId);
+    if (!calendar) return null;
+    const binding = await this.database.taskCalendarBinding.findFirst({
+      where: {
+        userId,
+        calendarEvent: { calendarId: calendar.databaseId, uid },
+      },
+      select: { kind: true },
+    });
+    return binding ? binding.kind : null;
   }
 }

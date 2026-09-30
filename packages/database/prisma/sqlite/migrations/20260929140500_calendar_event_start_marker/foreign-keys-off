@@ -1,0 +1,5 @@
+Die Migration baut die Tabelle "CalendarEvent" neu auf, um den Check-Constraint
+der Zeitform um die gezielt verwaltete Startmarkierung zu erweitern. Wie bei
+Paket 3 und Paket 4 läuft sie bewusst ohne Fremdschlüsselprüfung, damit das
+Ersetzen der Tabelle keine abhängigen Zeilen kaskadierend löscht; der Runner
+prüft danach verpflichtend foreign_key_check und integrity_check.

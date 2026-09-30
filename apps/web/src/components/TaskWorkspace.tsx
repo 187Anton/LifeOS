@@ -5,6 +5,7 @@ import type {
   ProjectResponse,
   StudyModuleResponse,
   TaskArea,
+  TaskCalendarBindingResponse,
   TaskPriority,
   TaskResponse,
   TaskEventLinkResponse,
@@ -68,6 +69,12 @@ interface TaskWorkspaceProps {
   onDelete: (taskId: string) => Promise<void>;
   onLink: (input: CreateTaskEventLinkRequest) => Promise<void>;
   onUnlink: (linkId: string) => Promise<void>;
+  /**
+   * Verwaltete Kalenderabbildungen und die idempotente Bestandsprüfung. Sie
+   * bleiben bewusst getrennt von den freien Verknüpfungen.
+   */
+  managedBindings: TaskCalendarBindingResponse[];
+  onReconcile: () => Promise<void>;
 }
 
 export const TaskWorkspace = ({
@@ -93,6 +100,8 @@ export const TaskWorkspace = ({
   onDelete,
   onLink,
   onUnlink,
+  managedBindings,
+  onReconcile,
 }: TaskWorkspaceProps) => {
   const [editorTask, setEditorTask] = useState<TaskResponse | null | undefined>(
     createRequested ? null : undefined,
@@ -515,6 +524,8 @@ export const TaskWorkspace = ({
             }
             onLink={onLink}
             onUnlink={onUnlink}
+            managedBindings={managedBindings}
+            onReconcile={onReconcile}
           />
         ) : null}
       </div>

@@ -4,10 +4,12 @@ import type {
   CreateTaskEventLinkRequest,
   PlanningItemResponse,
   StudyEntryResponse,
+  TaskCalendarBindingResponse,
+  TaskCalendarBindingStatus,
   TaskEventLinkResponse,
   TaskResponse,
 } from "@lifeos/contracts";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { EventPayload } from "../api";
 import {
@@ -15,6 +17,7 @@ import {
   buildCalendarProjection,
   continuationLabels,
   formatProjectionTime,
+  isStartMarkerEvent,
   kindLabels,
   type CalendarProjectionEntry,
 } from "../calendar-projection";
@@ -86,7 +89,20 @@ interface CalendarWorkspaceProps {
   onDelete: (event: CalendarEventResponse) => Promise<void>;
   onLink: (input: CreateTaskEventLinkRequest) => Promise<void>;
   onUnlink: (linkId: string) => Promise<void>;
+  /**
+   * Verwaltete Aufgabenabbildungen. Sie sind eigener Bestand und bleiben von
+   * den freien Verknüpfungen getrennt.
+   */
+  managedBindings: TaskCalendarBindingResponse[];
+  onReconcile: () => Promise<void>;
 }
+
+/** Kurze Zustandstexte der verwalteten Abbildungen in der Kalenderansicht. */
+const managedEventStatusLabels: Record<TaskCalendarBindingStatus, string> = {
+  active: "abgeglichen",
+  event_missing: "Ereignis fehlt",
+  calendar_missing: "Kalender fehlt",
+};
 
 const viewLabels: Record<CalendarView, string> = {
   day: "Tag",
@@ -391,6 +407,8 @@ export const CalendarWorkspace = ({
   onDelete,
   onLink,
   onUnlink,
+  managedBindings,
+  onReconcile,
 }: CalendarWorkspaceProps) => {
   const [editorEvent, setEditorEvent] = useState<
     CalendarEventResponse | null | undefined
@@ -415,7 +433,49 @@ export const CalendarWorkspace = ({
     requestResolvable && editEventRequest
       ? events.find((event) => event.uid === editEventRequest.uid)
       : undefined;
-  const openEvent = editorEvent === undefined ? requestedEvent : editorEvent;
+  /**
+   * Paket 9: Eine verwaltete Startmarkierung hat bewusst kein Ende und wird
+   * ausschließlich über ihre Aufgabe gepflegt. Ist die Aufgabe bekannt, öffnet
+   * der Aufrufpfad deshalb den Aufgabeneditor statt des Termineditors, der ein
+   * Ende und damit eine Dauer erfinden würde. Verglichen wird die öffentliche
+   * Identität `(calendarId, uid)` im ausgewählten Kalender – nie die reine UID
+   * über mehrere Kalender hinweg.
+   */
+  const startMarkerTaskFor = useCallback(
+    (
+      event: CalendarEventResponse,
+    ): { id: string; title: string | null } | null => {
+      if (!isStartMarkerEvent(event)) return null;
+      const binding = managedBindings.find(
+        (candidate) =>
+          candidate.status === "active" &&
+          candidate.event.calendarId === selectedCalendarId &&
+          candidate.event.uid === event.uid,
+      );
+      return binding
+        ? { id: binding.task.id, title: binding.task.title }
+        : null;
+    },
+    [managedBindings, selectedCalendarId],
+  );
+  /**
+   * Angeforderte Startmarkierung: Solange sie über die Aufgabe geführt wird,
+   * bleibt der Termineditor geschlossen. Der Effekt beendet die Anforderung
+   * dabei selbst und läuft deshalb höchstens einmal je Anforderung.
+   */
+  const requestedStartMarkerTaskId =
+    (requestedEvent ? startMarkerTaskFor(requestedEvent)?.id : null) ?? null;
+  const openEvent =
+    editorEvent === undefined
+      ? requestedStartMarkerTaskId
+        ? undefined
+        : requestedEvent
+      : editorEvent;
+  useEffect(() => {
+    if (!requestedStartMarkerTaskId) return;
+    onEditEventRequestHandled();
+    onOpenTask(requestedStartMarkerTaskId);
+  }, [requestedStartMarkerTaskId, onEditEventRequestHandled, onOpenTask]);
   /**
    * Erst wenn die Anforderung auflösbar ist und der Termin auch danach
    * unauffindbar bleibt, wurde er zwischenzeitlich gelöscht.
@@ -465,12 +525,14 @@ export const CalendarWorkspace = ({
         events: projectedEvents,
         tasks,
         studyEntries,
+        managedBindings,
         range,
         profileTimezone,
         calendarId: selectedCalendarId ?? null,
         ownerId,
       }),
     [
+      managedBindings,
       ownerId,
       profileTimezone,
       projectedEvents,
@@ -490,6 +552,18 @@ export const CalendarWorkspace = ({
    */
   const requestEventEdit = (event: CalendarEventResponse) => {
     if (!selectedCalendarId) return;
+    /**
+     * Kein Termineditor für eine verwaltete Startmarkierung: der Aufgabeneditor
+     * ist der eine Pflegepfad für den geplanten Start und eine spätere Dauer.
+     * Ist die Aufgabe nicht verfügbar, öffnet der Editor die klare
+     * Schreibschutzmeldung statt ein Ende zu erfinden.
+     */
+    const startMarkerTask = startMarkerTaskFor(event);
+    if (startMarkerTask) {
+      onEditEventRequestHandled();
+      onOpenTask(startMarkerTask.id);
+      return;
+    }
     setEditorEvent(undefined);
     onRequestEditEvent({ calendarId: selectedCalendarId, uid: event.uid });
   };
@@ -690,6 +764,56 @@ export const CalendarWorkspace = ({
           )}
         </section>
 
+        {managedBindings.length > 0 ? (
+          <section
+            className="calendar-managed-bindings"
+            aria-label="Verwaltete Aufgabenabbildungen"
+          >
+            <div className="link-panel-heading">
+              <div>
+                <h3>Verwaltete Aufgabenabbildungen</h3>
+                <p>
+                  Frist und Zeitblock werden aus den Aufgabenfeldern geführt.
+                  Freie Verknüpfungen bleiben davon getrennt.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="secondary-button compact-action"
+                disabled={saving}
+                onClick={() => void onReconcile()}
+              >
+                Bestand prüfen
+              </button>
+            </div>
+            <ul className="link-list">
+              {managedBindings.map((binding) => (
+                <li key={binding.id}>
+                  <span>
+                    <strong>{binding.label}</strong>
+                    <small>
+                      {binding.task.title ?? "Aufgabe nicht mehr verfügbar"} ·{" "}
+                      {managedEventStatusLabels[binding.status]}
+                      {binding.status === "active" && binding.event.uid
+                        ? ` · ${binding.event.uid}`
+                        : ""}
+                    </small>
+                  </span>
+                  {binding.task.available ? (
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => onOpenTask(binding.task.id)}
+                    >
+                      Aufgabe öffnen
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         {openEvent !== undefined ? (
           <EventForm
             key={openEvent?.etag ?? "new-event"}
@@ -704,6 +828,8 @@ export const CalendarWorkspace = ({
             onDelete={deleteEvent}
             onLink={onLink}
             onUnlink={onUnlink}
+            startMarkerTask={openEvent ? startMarkerTaskFor(openEvent) : null}
+            onOpenTask={onOpenTask}
           />
         ) : null}
       </div>

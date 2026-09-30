@@ -1,4 +1,4 @@
-import type { DatabaseClient } from "@lifeos/database";
+import type { DatabaseClient, Prisma } from "@lifeos/database";
 import type {
   TaskArea,
   TaskPriority,
@@ -39,16 +39,36 @@ export interface TaskChanges extends Partial<TaskValues> {
   archivedAt?: Date | null;
 }
 
+/**
+ * Paket 9: Nachführung der verwalteten Kalenderabbildung innerhalb derselben
+ * Aufgabentransaktion. Die Aufgabe wird erst mit dem Ereignis, der Beziehung,
+ * dem Sync-Token und dem Audit gemeinsam bestätigt; schlägt ein Teil fehl, wird
+ * die gesamte Aufgabenschreibung zurückgerollt.
+ */
+export type TaskWriteSideEffect = (
+  transaction: Prisma.TransactionClient,
+  taskId: string,
+) => Promise<void>;
+
 export interface TaskRepository {
   listTasks(userId: string, filters: TaskListFilters): Promise<TaskResponse[]>;
   getTask(userId: string, taskId: string): Promise<TaskResponse>;
-  createTask(userId: string, values: TaskValues): Promise<TaskResponse>;
+  createTask(
+    userId: string,
+    values: TaskValues,
+    sideEffect?: TaskWriteSideEffect,
+  ): Promise<TaskResponse>;
   updateTask(
     userId: string,
     taskId: string,
     changes: TaskChanges,
+    sideEffect?: TaskWriteSideEffect,
   ): Promise<TaskResponse>;
-  deleteTask(userId: string, taskId: string): Promise<void>;
+  deleteTask(
+    userId: string,
+    taskId: string,
+    sideEffect?: TaskWriteSideEffect,
+  ): Promise<void>;
 }
 
 export class TaskNotFoundError extends Error {}
@@ -147,7 +167,11 @@ export class PrismaTaskRepository implements TaskRepository {
     return mapTask(task as TaskRecord);
   }
 
-  async createTask(userId: string, values: TaskValues): Promise<TaskResponse> {
+  async createTask(
+    userId: string,
+    values: TaskValues,
+    sideEffect?: TaskWriteSideEffect,
+  ): Promise<TaskResponse> {
     return this.database.$transaction(async (transaction) => {
       await this.validateParent(
         transaction,
@@ -160,6 +184,7 @@ export class PrismaTaskRepository implements TaskRepository {
       const task = await transaction.task.create({
         data: { ...values, userId },
       });
+      await sideEffect?.(transaction, task.id);
       await transaction.auditEvent.create({
         data: {
           userId,
@@ -176,6 +201,7 @@ export class PrismaTaskRepository implements TaskRepository {
     userId: string,
     taskId: string,
     changes: TaskChanges,
+    sideEffect?: TaskWriteSideEffect,
   ): Promise<TaskResponse> {
     return this.database.$transaction(async (transaction) => {
       const current = await transaction.task.findFirst({
@@ -213,6 +239,7 @@ export class PrismaTaskRepository implements TaskRepository {
         where: { id: current.id },
         data: changes,
       });
+      await sideEffect?.(transaction, task.id);
       await transaction.auditEvent.create({
         data: {
           userId,
@@ -226,7 +253,11 @@ export class PrismaTaskRepository implements TaskRepository {
     });
   }
 
-  async deleteTask(userId: string, taskId: string): Promise<void> {
+  async deleteTask(
+    userId: string,
+    taskId: string,
+    sideEffect?: TaskWriteSideEffect,
+  ): Promise<void> {
     await this.database.$transaction(async (transaction) => {
       const current = await transaction.task.findFirst({
         where: { id: taskId, userId, deletedAt: null },
@@ -236,6 +267,7 @@ export class PrismaTaskRepository implements TaskRepository {
         where: { id: current.id },
         data: { deletedAt: new Date() },
       });
+      await sideEffect?.(transaction, current.id);
       await transaction.auditEvent.create({
         data: {
           userId,

@@ -321,10 +321,208 @@ try {
     headers: { authorization, "if-match": allDayEtag },
   });
 
+  /**
+   * Paket 9: verwaltete Aufgabenabbildung über den gebauten Sidecar. Der
+   * Nachweis prüft die Ereignisform, das vollständige PUT des gelesenen
+   * Stands, die atomare Ablehnung nicht unterstützter Änderungen, die
+   * Löschung über beide Wege und den unveränderten Rückweg zur Aufgabe.
+   * Ein physischer Apple-Gerätetest ist damit nicht ersetzt.
+   */
+  const login = await request(`${loopbackBaseUrl}/api/v1/session`, 201, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password: localPassword }),
+  });
+  const sessionCookie = (login.headers.get("set-cookie") ?? "").split(";")[0];
+  const apiHeaders = {
+    "content-type": "application/json",
+    cookie: sessionCookie,
+  };
+  const taskResponse = await request(`${loopbackBaseUrl}/api/v1/tasks`, 201, {
+    method: "POST",
+    headers: apiHeaders,
+    body: JSON.stringify({
+      title: "Synthetische LAN-Aufgabe",
+      dueDate: "2036-10-20",
+      scheduledStartAt: "2036-10-19T08:00:00.000Z",
+      scheduledStartTimezone: "Europe/Berlin",
+      estimatedDurationMinutes: 45,
+    }),
+  });
+  const task = await taskResponse.json();
+  const dueUid = `${task.id}.frist@tasks.lifeos.local`;
+  const dueUrl = `${calendarUrl}${encodeURIComponent(dueUid)}.ics`;
+  const dueResponse = await request(dueUrl, 200, {
+    headers: { authorization },
+  });
+  const dueBody = await dueResponse.text();
+  assert.match(dueBody, /DTSTART;VALUE=DATE:20361020/);
+  assert.match(dueBody, /DTEND;VALUE=DATE:20361021/);
+  assert.match(dueBody, /SUMMARY:Frist: Synthetische LAN-Aufgabe/);
+
+  // Das vollständige PUT des unverändert gelesenen Stands wird angenommen.
+  const acceptedPut = await request(dueUrl, 204, {
+    method: "PUT",
+    headers: {
+      authorization,
+      "if-match": dueResponse.headers.get("etag"),
+      "content-type": "text/calendar",
+    },
+    body: dueBody,
+  });
+  const acceptedEtag = acceptedPut.headers.get("etag");
+  assert.ok(acceptedEtag);
+  // Eine nicht unterstützte Änderung wird ohne Teiländerung abgelehnt.
+  // Ohne bestätigten Stand wird gar nichts geschrieben (428).
+  await request(dueUrl, 428, {
+    method: "PUT",
+    headers: { authorization, "content-type": "text/calendar" },
+    body: dueBody.replace(
+      "SUMMARY:Frist: Synthetische LAN-Aufgabe",
+      "SUMMARY:Synthetischer LAN-Termin",
+    ),
+  });
+  await request(dueUrl, 409, {
+    method: "PUT",
+    headers: {
+      authorization,
+      "if-match": acceptedEtag,
+      "content-type": "text/calendar",
+    },
+    body: dueBody.replace(
+      "SUMMARY:Frist: Synthetische LAN-Aufgabe",
+      "SUMMARY:Synthetischer LAN-Termin",
+    ),
+  });
+  const unchangedTask = await (
+    await request(`${loopbackBaseUrl}/api/v1/tasks/${task.id}`, 200, {
+      headers: apiHeaders,
+    })
+  ).json();
+  assert.equal(unchangedTask.title, "Synthetische LAN-Aufgabe");
+  assert.equal(unchangedTask.dueDate, "2036-10-20");
+  assert.equal(unchangedTask.estimatedDurationMinutes, 45);
+  const dueAfter = await request(dueUrl, 200, { headers: { authorization } });
+  assert.match(
+    await dueAfter.text(),
+    /SUMMARY:Frist: Synthetische LAN-Aufgabe/,
+  );
+
+  // Der geplante Arbeitsblock entsteht mit geschätzter Dauer und eigener UID.
+  const blockUid = `${task.id}.zeitblock@tasks.lifeos.local`;
+  const blockUrl = `${calendarUrl}${encodeURIComponent(blockUid)}.ics`;
+  const blockBody = await (
+    await request(blockUrl, 200, { headers: { authorization } })
+  ).text();
+  assert.match(blockBody, /DTSTART;TZID=Europe\/Berlin:20361019T100000/);
+  assert.match(blockBody, /DTEND;TZID=Europe\/Berlin:20361019T104500/);
+
+  /**
+   * Paket 9: Ohne geschätzte Dauer bleibt der geplante Start als sichtbare
+   * Startmarkierung stehen – als `DTSTART` ohne `DTEND` und ohne `DURATION`.
+   * Es wird weder ein Ende noch eine Dauer erfunden.
+   */
+  await request(`${loopbackBaseUrl}/api/v1/tasks/${task.id}`, 200, {
+    method: "PATCH",
+    headers: apiHeaders,
+    body: JSON.stringify({ estimatedDurationMinutes: null }),
+  });
+  const markerResponse = await request(blockUrl, 200, {
+    headers: { authorization },
+  });
+  const markerBody = await markerResponse.text();
+  assert.match(markerBody, new RegExp(`UID:${blockUid}`));
+  assert.match(markerBody, /DTSTART;TZID=Europe\/Berlin:20361019T100000/);
+  assert.doesNotMatch(markerBody, /DTEND/);
+  assert.doesNotMatch(markerBody, /DURATION/);
+  const strippedTask = await (
+    await request(`${loopbackBaseUrl}/api/v1/tasks/${task.id}`, 200, {
+      headers: apiHeaders,
+    })
+  ).json();
+  assert.equal(strippedTask.scheduledStartAt, "2036-10-19T08:00:00.000Z");
+  assert.equal(strippedTask.estimatedDurationMinutes, null);
+
+  /**
+   * Apple verlängert den Block: das vollständige PUT mit `DTEND` ergänzt die
+   * Dauer in der Aufgabe; die stabile UID bleibt erhalten.
+   */
+  await request(blockUrl, 204, {
+    method: "PUT",
+    headers: {
+      authorization,
+      "if-match": markerResponse.headers.get("etag"),
+      "content-type": "text/calendar",
+    },
+    body: markerBody.replace(
+      "DTSTART;TZID=Europe/Berlin:20361019T100000",
+      "DTSTART;TZID=Europe/Berlin:20361019T100000\r\nDTEND;TZID=Europe/Berlin:20361019T113000",
+    ),
+  });
+  const extendedBody = await (
+    await request(blockUrl, 200, { headers: { authorization } })
+  ).text();
+  assert.match(extendedBody, /DTEND;TZID=Europe\/Berlin:20361019T113000/);
+  const extendedTask = await (
+    await request(`${loopbackBaseUrl}/api/v1/tasks/${task.id}`, 200, {
+      headers: apiHeaders,
+    })
+  ).json();
+  assert.equal(extendedTask.estimatedDurationMinutes, 90);
+
+  /**
+   * Ein PUT ohne `DTEND`, aber mit `DURATION:PT0S`, bleibt ungültig: eine
+   * Dauer von null wird nicht als Ende erfunden.
+   */
+  await request(blockUrl, 400, {
+    method: "PUT",
+    headers: {
+      authorization,
+      "if-match": (
+        await request(blockUrl, 200, { headers: { authorization } })
+      ).headers.get("etag"),
+      "content-type": "text/calendar",
+    },
+    body: extendedBody.replace(
+      "DTEND;TZID=Europe/Berlin:20361019T113000",
+      "DURATION:PT0S",
+    ),
+  });
+  assert.match(
+    await (await request(blockUrl, 200, { headers: { authorization } })).text(),
+    /DTEND;TZID=Europe\/Berlin:20361019T113000/,
+  );
+
+  // Löschung über CalDAV entfernt die verwaltete Abbildung und gibt die
+  // Aufgabenfelder frei; die Frist bleibt bestehen.
+  const blockEtag = (
+    await request(blockUrl, 200, { headers: { authorization } })
+  ).headers.get("etag");
+  await request(blockUrl, 204, {
+    method: "DELETE",
+    headers: { authorization, "if-match": blockEtag },
+  });
+  const releasedTask = await (
+    await request(`${loopbackBaseUrl}/api/v1/tasks/${task.id}`, 200, {
+      headers: apiHeaders,
+    })
+  ).json();
+  assert.equal(releasedTask.scheduledStartAt, null);
+  assert.equal(releasedTask.estimatedDurationMinutes, null);
+  assert.equal(releasedTask.dueDate, "2036-10-20");
+  await request(blockUrl, 404, { headers: { authorization } });
+
+  // Das Löschen der Aufgabe entfernt die verwaltete Frist.
+  await request(`${loopbackBaseUrl}/api/v1/tasks/${task.id}`, 204, {
+    method: "DELETE",
+    headers: apiHeaders,
+  });
+  await request(dueUrl, 404, { headers: { authorization } });
+
   await stopServer(child, output);
   running = false;
   console.info(
-    `CalDAV-LAN-Vorprüfung über ${lanHost} bestand Discovery, CRUD, stabile UID, ETag-Konflikt, Ganztag, Zeitzone, Wiederholung und Duplikatschutz. Ein physischer Apple-Kalender-Test ist damit nicht ersetzt.`,
+    `CalDAV-LAN-Vorprüfung über ${lanHost} bestand Discovery, CRUD, stabile UID, ETag-Konflikt, Ganztag, Zeitzone, Wiederholung, Duplikatschutz und die verwaltete Aufgabenabbildung samt gezielter Startmarkierung ohne Ende. Ein physischer Apple-Kalender-Test ist damit nicht ersetzt.`,
   );
 } finally {
   if (running && child.exitCode === null) {

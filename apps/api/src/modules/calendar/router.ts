@@ -66,7 +66,19 @@ const commonEvent = {
     .regex(/^[^\r\n]+$/)
     .optional(),
 };
-const eventInput = z.discriminatedUnion("isAllDay", [
+/**
+ * Eingehende Ereignisform. Die verwaltete Startmarkierung (Paket 9) ist
+ * zeitgebunden ohne Ende: `startMarker` ersetzt hier `endsAt`. Der
+ * Kalenderdienst nimmt sie ausschließlich über den verwalteten Schreibpfad an.
+ */
+const eventInput = z.union([
+  z.strictObject({
+    ...commonEvent,
+    isAllDay: z.literal(false),
+    startMarker: z.literal(true),
+    startsAt: z.iso.datetime({ offset: true }),
+    endsAt: z.null(),
+  }),
   z.strictObject({
     ...commonEvent,
     isAllDay: z.literal(false),

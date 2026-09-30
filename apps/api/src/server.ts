@@ -80,6 +80,9 @@ import { GitHubIntegrationService } from "./modules/github-integration/service.j
 import { PrismaShoppingRepository } from "./modules/shopping/repository.js";
 import { createShoppingRouter } from "./modules/shopping/router.js";
 import { ShoppingService } from "./modules/shopping/service.js";
+import { PrismaTaskCalendarBindingRepository } from "./modules/task-calendar-bindings/repository.js";
+import { createTaskCalendarBindingRouter } from "./modules/task-calendar-bindings/router.js";
+import { TaskCalendarBindingService } from "./modules/task-calendar-bindings/service.js";
 
 const main = async (): Promise<void> => {
   loadLocalEnvironment();
@@ -106,8 +109,23 @@ const main = async (): Promise<void> => {
   const database = createDatabaseClient(config.databaseUrl);
   const profileRepository = new PrismaProfileRepository(database);
   const calendarRepository = new PrismaCalendarRepository(database);
-  const calendars = new CalendarService(calendarRepository);
-  const tasks = new TaskService(new PrismaTaskRepository(database));
+  /**
+   * Paket 9: ein gemeinsamer Fachdienst für die verwaltete Aufgaben-Kalender-
+   * Abbildung. Aufgaben- und Kalender-Schreibpfade verwenden ihn, damit
+   * Aufgabe, Ereignis, Beziehung, ETag, Sync-Token und Audit atomar ändern.
+   */
+  const taskCalendarBindings = new TaskCalendarBindingService(
+    new PrismaTaskCalendarBindingRepository(database),
+  );
+  const calendars = new CalendarService(
+    calendarRepository,
+    taskCalendarBindings,
+  );
+  const tasks = new TaskService(
+    new PrismaTaskRepository(database),
+    undefined,
+    taskCalendarBindings,
+  );
   const study = new StudyService(new PrismaStudyRepository(database));
   const work = new WorkService(new PrismaWorkRepository(database));
   const planning = new PlanningService(new PrismaPlanningRepository(database));
@@ -184,6 +202,10 @@ const main = async (): Promise<void> => {
       createTaskEventLinkRouter({
         authentication,
         links: taskEventLinks,
+      }),
+      createTaskCalendarBindingRouter({
+        authentication,
+        bindings: taskCalendarBindings,
       }),
       createDashboardRouter({
         authentication,

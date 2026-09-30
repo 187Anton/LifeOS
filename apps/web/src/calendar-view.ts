@@ -200,13 +200,22 @@ const occurrenceFromDate = (
     `${date}${startInput.slice(10)}`,
     event.timezone,
   );
+  /**
+   * Paket 9: Eine verwaltete Startmarkierung hat kein Ende. Das Vorkommen
+   * endet dann nicht – es wird keine Dauer und kein Ende erfunden.
+   */
   const duration =
-    new Date(event.endsAt!).valueOf() - new Date(event.startsAt!).valueOf();
+    event.endsAt === null
+      ? null
+      : new Date(event.endsAt).valueOf() - new Date(event.startsAt!).valueOf();
   return {
     key: `${event.uid}:${index}`,
     event,
     startsAt,
-    endsAt: new Date(new Date(startsAt).valueOf() + duration).toISOString(),
+    endsAt:
+      duration === null
+        ? null
+        : new Date(new Date(startsAt).valueOf() + duration).toISOString(),
     startDate: null,
     endDate: null,
     dateKey: date,

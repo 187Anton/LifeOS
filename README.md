@@ -21,8 +21,11 @@ Dokument-/Notizbedienung ist als Vorgänger lokal umgesetzt und geprüft. Paket 
 mit der lokalen, seitenbezogenen PDF-Textextraktion und der modulspezifischen
 Suche ist über PR #127 (Merge-Commit `d4dc091`) in `develop` integriert; Paket 8
 ergänzt dazu die lokal geprüfte PPTX- und DOCX-Extraktion mit Folien- und
-Absatzfundstellen und ist noch nicht in `develop` integriert.
-Die Pakete 9 bis 11 bleiben geplant und sind kein aktueller Funktionsnachweis.
+Absatzfundstellen und ist über PR #128 (Merge-Commit `e01fe3c`) in `develop`
+integriert. Paket 9 mit der verwalteten Aufgaben-Kalender-Abbildung ist auf
+diesem Stand lokal umgesetzt und geprüft (Branch
+`feat/coherence-task-caldav-bindings`) und noch nicht in `develop` integriert.
+Die Pakete 10 und 11 bleiben geplant und sind kein aktueller Funktionsnachweis.
 Studienmaterialien sollen lokal durchsuchbar werden; Apple
 Kalender auf Mac und iPhone soll Aufgabenplanung einschließlich Verschieben
 unterstützen. Umfang, Abnahme und Startauftrag stehen im

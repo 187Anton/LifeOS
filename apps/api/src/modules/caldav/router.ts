@@ -374,6 +374,13 @@ const eventMatchesRange = (
       ? `${event.startDate}T00:00:00.000Z`
       : String(event.startsAt),
   );
+  /**
+   * Eine verwaltete Startmarkierung hat kein Ende (`DTSTART` ohne `DTEND`).
+   * Nach RFC 4791 gilt sie dann als zeitloser Zeitpunkt am Start; sie wird
+   * deshalb über `eventStart` geprüft und nie über einen erfundenen Endwert.
+   */
+  if (event.isStartMarker)
+    return (!end || eventStart < end) && (!start || eventStart >= start);
   const eventEnd = new Date(
     event.isAllDay ? `${event.endDate}T00:00:00.000Z` : String(event.endsAt),
   );
@@ -518,7 +525,22 @@ const putEvent = async (
   if (typeof request.body !== "string" || !request.body.trim()) {
     throw new CalDavError(400, "Ein iCalendar-Anfragekörper ist erforderlich.");
   }
-  const input = parseCalendarEvent(request.body, calendar.timezone);
+  /**
+   * Die Zuordnung wird vor dem Parsen ermittelt. Für verwaltete
+   * Aufgabenereignisse gelten dieselben Zeitregeln wie für alle anderen
+   * Ereignisse; zusätzlich ist dort DTSTART ohne DTEND als gezielte
+   * Startmarkierung erlaubt (Paket 9), damit ein geplanter Start ohne Dauer
+   * sichtbar bleibt, ohne ein Ende zu erfinden.
+   */
+  const managedKind = await repository.getManagedBinding(
+    userId,
+    calendar.id,
+    path.uid,
+  );
+  const current = await repository.getEvent(userId, calendar.id, path.uid);
+  const input = parseCalendarEvent(request.body, calendar.timezone, {
+    allowStartMarker: managedKind !== null,
+  });
   if (input.uid !== path.uid) {
     throw new CalDavError(
       409,
@@ -526,7 +548,6 @@ const putEvent = async (
       "no-uid-conflict",
     );
   }
-  const current = await repository.getEvent(userId, calendar.id, path.uid);
   if (current) {
     if (request.headers["if-none-match"] === "*") {
       throw new CalDavError(412, "Die Ereignisressource existiert bereits.");
@@ -541,6 +562,17 @@ const putEvent = async (
     response.setHeader("ETag", updated.etag).status(204).end();
     return;
   }
+  if (managedKind !== null) {
+    /**
+     * Die verwaltete Abbildung wird nie als neues Ereignis angenommen: sie
+     * wird ausschließlich aus den Fachfeldern der Aufgabe wieder aufgebaut.
+     */
+    throw new CalDavError(
+      409,
+      "Die verwaltete Abbildung ist derzeit nicht verfügbar. Sie wird ausschließlich aus den Fachfeldern der Aufgabe wieder aufgebaut.",
+      "no-uid-conflict",
+    );
+  }
   if (request.headers["if-match"]) {
     throw new CalDavError(
       412,
@@ -553,6 +585,55 @@ const putEvent = async (
     .setHeader("Location", eventHref(calendar.id, created.uid))
     .status(201)
     .end();
+};
+
+/**
+ * Kalenderwechsel (MOVE) von Aufgabenereignissen.
+ *
+ * Ein verwaltetes Aufgabenereignis wird ausdrücklich und ohne Teiländerung
+ * abgelehnt: das vorhandene Sync-Token-Modell kennt je Kalender nur
+ * Ereignisänderungen und kann eine Verschiebung nicht als Löschung im
+ * Quellkalender fortschreiben, sodass ein Apple-Client dort eine veraltete
+ * Kopie behielte. Statt eines unsicheren Verschubs bleibt die Abbildung im
+ * persönlichen Primärkalender. Nicht verwaltete Ereignisse behalten ihren
+ * bisherigen Funktionsumfang: MOVE war für sie nie verfügbar.
+ */
+const moveEvent = async (
+  request: Request,
+  response: Response,
+  repository: CalDavRepository,
+  userId: string,
+  path: Extract<CalDavPath, { kind: "event" }>,
+): Promise<void> => {
+  const destination = request.headers.destination;
+  const destinationHref = Array.isArray(destination)
+    ? destination[0]
+    : destination;
+  const destinationPath = destinationHref
+    ? parsePathname(new URL(destinationHref, "http://lifeos.local").pathname)
+    : null;
+  if (!destinationPath || destinationPath.kind !== "event") {
+    throw new CalDavError(400, "Der Destination-Kopf fehlt oder ist ungültig.");
+  }
+  const calendar = await requireCalendar(repository, userId, path.calendarId);
+  const event = await repository.getEvent(userId, calendar.id, path.uid);
+  if (!event) throw new CalDavError(404, "Das Ereignis wurde nicht gefunden.");
+  const managedKind = await repository.getManagedBinding(
+    userId,
+    calendar.id,
+    path.uid,
+  );
+  if (managedKind !== null) {
+    throw new CalDavError(
+      403,
+      "Ein Kalenderwechsel verwalteter Aufgabenereignisse wird derzeit ausdrücklich abgelehnt: die Verschiebung könnte im Quellkalender nicht konsistent als Löschung fortgeschrieben werden. Es wurde nichts geändert.",
+      "cannot-modify-protected-property",
+    );
+  }
+  throw new CalDavError(
+    405,
+    "MOVE wird für dieses Ereignis nicht unterstützt.",
+  );
 };
 
 const mkcalendar = async (
@@ -721,6 +802,10 @@ export const createCalDavRouter = ({
         if (request.method === "DELETE" && path.kind === "calendar") {
           await calendars.deleteCalendar(userId, path.calendarId);
           response.status(204).end();
+          return;
+        }
+        if (request.method === "MOVE" && path.kind === "event") {
+          await moveEvent(request, response, repository, userId, path);
           return;
         }
         if (request.method === "MKCALENDAR") {

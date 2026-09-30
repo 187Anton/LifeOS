@@ -76,19 +76,19 @@ Prüfungsnoten und Prüfungsstatus sind keine automatisch erledigten Aufgaben.
 
 ### Kalender und Apple-Abbildung
 
-| Situation/Aktion                         | Zielverhalten                                                                                                                             |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Nur Fälligkeit                           | Ganztägige Fristmarkierung, keine belegte Arbeitszeit                                                                                     |
-| Geplanter Start mit Dauer                | Bearbeitungsblock; Aufwandsschätzung und tatsächlich gebuchte Zeit fachlich unterscheiden                                                 |
-| Start ohne Dauer                         | Sichtbare Startmarkierung ohne erfundene Endzeit; für Apple in Paket 9 interoperable Darstellung nachweisen                               |
-| Planung plus Fälligkeit                  | Zwei verschieden bezeichnete Darstellungen derselben Aufgabe                                                                              |
-| Bearbeitungsblock verschieben/verlängern | Planung ändern, Fälligkeit nicht verändern                                                                                                |
-| Ganztägige Frist verschieben             | Aufgabenfälligkeit ändern                                                                                                                 |
-| Bearbeitungsblock löschen                | Planung entfernen, Aufgabe erhalten                                                                                                       |
-| Fristeintrag löschen                     | Fälligkeit entfernen, Aufgabe erhalten                                                                                                    |
-| Aufgabe erledigen/wieder öffnen          | LifeOS-Status überall angleichen; Apple-Titel eindeutig als erledigt markieren beziehungsweise Markierung entfernen, stabile UID erhalten |
-| Aufgabe archivieren/löschen              | Verwaltete Kalenderabbildungen synchron entfernt; normale nur verknüpfte Termine bleiben bestehen                                         |
-| Gleichzeitige Änderungen                 | Veraltete Version zurückweisen und verständlich als Konflikt behandeln; kein stiller Datenverlust                                         |
+| Situation/Aktion                         | Zielverhalten                                                                                                                                                                                                                                                                                                    |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nur Fälligkeit                           | Ganztägige Fristmarkierung, keine belegte Arbeitszeit                                                                                                                                                                                                                                                            |
+| Geplanter Start mit Dauer                | Bearbeitungsblock; Aufwandsschätzung und tatsächlich gebuchte Zeit fachlich unterscheiden                                                                                                                                                                                                                        |
+| Start ohne Dauer                         | Sichtbare Startmarkierung ohne erfundene Endzeit; für Apple in Paket 9 interoperable Darstellung nachweisen (**Paket-9-Status: umgesetzt** – die Startmarkierung entsteht als gezielt markiertes zeitgebundenes Ereignis mit `DTSTART` ohne `DTEND`; Nachweis in [coherence-progress.md](coherence-progress.md)) |
+| Planung plus Fälligkeit                  | Zwei verschieden bezeichnete Darstellungen derselben Aufgabe                                                                                                                                                                                                                                                     |
+| Bearbeitungsblock verschieben/verlängern | Planung ändern, Fälligkeit nicht verändern                                                                                                                                                                                                                                                                       |
+| Ganztägige Frist verschieben             | Aufgabenfälligkeit ändern                                                                                                                                                                                                                                                                                        |
+| Bearbeitungsblock löschen                | Planung entfernen, Aufgabe erhalten                                                                                                                                                                                                                                                                              |
+| Fristeintrag löschen                     | Fälligkeit entfernen, Aufgabe erhalten                                                                                                                                                                                                                                                                           |
+| Aufgabe erledigen/wieder öffnen          | LifeOS-Status überall angleichen; Apple-Titel eindeutig als erledigt markieren beziehungsweise Markierung entfernen, stabile UID erhalten                                                                                                                                                                        |
+| Aufgabe archivieren/löschen              | Verwaltete Kalenderabbildungen synchron entfernt; normale nur verknüpfte Termine bleiben bestehen                                                                                                                                                                                                                |
+| Gleichzeitige Änderungen                 | Veraltete Version zurückweisen und verständlich als Konflikt behandeln; kein stiller Datenverlust                                                                                                                                                                                                                |
 
 In LifeOS sind erledigte Aufgaben standardmäßig ausblendbar, aber wieder
 einblendbar. Fristen zählen nicht zur Auslastung. Kalender und Planung verwenden
@@ -116,6 +116,20 @@ abgewiesen, nicht teilweise angewendet. Normale Kalenderereignisse behalten
 ihren vorhandenen Funktionsumfang. Änderungen allein an Titel/Erinnerung dürfen
 keine Aufgabenfelder löschen. Bestandszuordnungen sind idempotent; uneindeutige
 Fälle werden aufgelistet und nicht automatisch dupliziert.
+
+**Paketstatus (29.09.2026):** Paket 9 ist lokal umgesetzt und geprüft, aber noch
+nicht über einen PR in `develop` integriert. Umgesetzt sind die separate
+Abbildungstabelle mit Eindeutigkeitsregeln, PostgreSQL- und SQLite-Migration,
+der gemeinsame transaktionale Binding-Service inklusive Einbindung in
+Aufgaben-, Kalender- und CalDAV-Schreibpfade, die CalDAV-Prüfung verwalteter
+Ereignisse, die Verträge und Oberflächenkennzeichnung sowie die idempotente
+Bestandsprüfung. Die Zeile „Start ohne Dauer“ ist inzwischen
+umgesetzt: die Aufgabe erhält eine gezielt markierte Startmarkierung als
+zeitgebundenes Ereignis mit `DTSTART` ohne `DTEND`. Die globalen Kalender-
+invarianten bleiben unverändert, weil ausschließlich ausdrücklich markierte
+verwaltete Startmarkierungen diese Form annehmen dürfen. Ein serverinternes
+`MOVE` und wiederkehrende verwaltete Ereignisse werden weiterhin abgelehnt. Die
+Nachweise stehen in [coherence-progress.md](coherence-progress.md).
 
 ### Studienmaterialien und Suche
 

@@ -34,6 +34,7 @@ const delegateNames = new Set([
   "document",
   "task",
   "taskEventLink",
+  "taskCalendarBinding",
   "studyProgram",
   "studyModule",
   "studyEntry",

@@ -170,6 +170,21 @@ export const serializeCalendarEvent = (
     }
     lines.push(`DTSTART;VALUE=DATE:${dateValue(event.startDate)}`);
     lines.push(`DTEND;VALUE=DATE:${dateValue(event.endDate)}`);
+  } else if (event.isStartMarker) {
+    /**
+     * Gezielte verwaltete Startmarkierung: DTSTART ohne DTEND oder DURATION.
+     * Ein VEVENT ohne DTEND gilt nach RFC 5545 als zeitloser Zeitpunkt am
+     * Start; es wird deshalb kein Ende und keine Dauer erfunden.
+     */
+    if (!event.startsAt) {
+      throw new Error("Startmarkierung ohne Startzeitpunkt");
+    }
+    const startsAt = new Date(event.startsAt);
+    lines.push(
+      event.timezone === "UTC"
+        ? `DTSTART:${utcTimestamp(startsAt)}`
+        : `DTSTART;TZID=${event.timezone}:${localTimestamp(startsAt, event.timezone)}`,
+    );
   } else {
     if (!event.startsAt || !event.endsAt) {
       throw new Error("Zeitgebundenes Ereignis ohne Zeitgrenzen");
@@ -272,6 +287,14 @@ const dateString = (value: ICAL.Time): string =>
 export const parseCalendarEvent = (
   source: string,
   defaultTimezone: string,
+  options: {
+    /**
+     * Paket 9: Nur für verwaltete Aufgabenereignisse darf `DTSTART` ohne
+     * `DTEND` ankommen. Das ist die gezielte Startmarkierung ohne erfundenes
+     * Ende; für alle übrigen Ereignisse bleibt das Ende Pflicht.
+     */
+    allowStartMarker?: boolean;
+  } = {},
 ): EventInput => {
   let calendar: ICAL.Component;
   try {
@@ -307,9 +330,10 @@ export const parseCalendarEvent = (
     !title ||
     title.length > 500 ||
     !startsProperty ||
-    !endsProperty ||
     !(startsValue instanceof ICAL.Time) ||
-    !(endsValue instanceof ICAL.Time)
+    (endsProperty
+      ? !(endsValue instanceof ICAL.Time)
+      : !options.allowStartMarker)
   ) {
     throw new CalDavError(
       400,
@@ -362,15 +386,65 @@ export const parseCalendarEvent = (
     throw new CalDavError(400, "Es sind höchstens zehn Erinnerungen erlaubt.");
   }
 
-  if (startsValue.isDate !== endsValue.isDate) {
+  /**
+   * `DURATION` wird bewusst nicht angenommen: die Kalenderablage führt
+   * ausschließlich `DTEND`. Ein Ereignis mit `DURATION` ohne `DTEND` würde
+   * sonst als Startmarkierung gelesen und die genannte Dauer stillschweigend
+   * verworfen. Deshalb wird es klar abgelehnt statt stillschweigend gekürzt.
+   */
+  if (component.getFirstProperty("duration")) {
+    throw new CalDavError(
+      400,
+      "Ein Ereignis mit DURATION wird nicht unterstützt; bitte DTSTART und DTEND angeben.",
+    );
+  }
+
+  /**
+   * Ab hier sind DTSTART und – falls angegeben – DTEND geprüft. Fehlt DTEND,
+   * darf das ausschließlich bei einer verwalteten Startmarkierung vorkommen
+   * (`allowStartMarker`); sie ist zeitgebunden und erhält kein erfundenes Ende.
+   */
+  const startTime = startsValue as ICAL.Time;
+  const endTime = endsValue instanceof ICAL.Time ? endsValue : null;
+  if (!endTime) {
+    if (startTime.isDate) {
+      throw new CalDavError(
+        400,
+        "Ein ganztägiges Ereignis braucht DTSTART und DTEND.",
+      );
+    }
+    const timezone = readTimezone(
+      startsProperty as ICAL.Property,
+      startTime,
+      calendar,
+      defaultTimezone,
+    );
+    return {
+      uid,
+      title,
+      ...(description === null ? {} : { description }),
+      ...(location === null ? {} : { location }),
+      timezone,
+      isAllDay: false,
+      startMarker: true,
+      startsAt: localTimeToDate(startTime, timezone).toISOString(),
+      endsAt: null,
+      ...(recurrenceRule === null ? {} : { recurrenceRule }),
+      reminderMinutes: [...new Set(reminderMinutes)].sort(
+        (left, right) => left - right,
+      ),
+    };
+  }
+
+  if (startTime.isDate !== endTime.isDate) {
     throw new CalDavError(
       400,
       "DTSTART und DTEND müssen denselben Werttyp verwenden.",
     );
   }
-  if (startsValue.isDate) {
-    const startDate = dateString(startsValue);
-    const endDate = dateString(endsValue);
+  if (startTime.isDate) {
+    const startDate = dateString(startTime);
+    const endDate = dateString(endTime);
     if (endDate <= startDate) {
       throw new CalDavError(400, "DTEND muss nach DTSTART liegen.");
     }
@@ -398,20 +472,25 @@ export const parseCalendarEvent = (
   }
 
   const timezone = readTimezone(
-    startsProperty,
-    startsValue,
+    startsProperty as ICAL.Property,
+    startTime,
     calendar,
     defaultTimezone,
   );
-  const endTimezone = readTimezone(endsProperty, endsValue, calendar, timezone);
+  const endTimezone = readTimezone(
+    endsProperty as ICAL.Property,
+    endTime,
+    calendar,
+    timezone,
+  );
   if (endTimezone !== timezone) {
     throw new CalDavError(
       400,
       "DTSTART und DTEND müssen dieselbe Zeitzone verwenden.",
     );
   }
-  const startsAt = localTimeToDate(startsValue, timezone);
-  const endsAt = localTimeToDate(endsValue, timezone);
+  const startsAt = localTimeToDate(startTime, timezone);
+  const endsAt = localTimeToDate(endTime, timezone);
   if (endsAt <= startsAt) {
     throw new CalDavError(400, "DTEND muss nach DTSTART liegen.");
   }

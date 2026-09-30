@@ -5,6 +5,7 @@ import type {
   PlanningPriority,
   PlanningResponse,
   PlanningWarningResponse,
+  TaskCalendarBindingKind,
   UpdateAvailabilityWindowRequest,
 } from "@lifeos/contracts";
 import { ApiError } from "../../errors.js";
@@ -51,6 +52,18 @@ const hiddenStudyStatus = (status: string) =>
  */
 const eventKey = (calendarId: string, uid: string) =>
   `${calendarId}\u0000${uid}`;
+
+/**
+ * Paket 9: Schlüssel einer unterdrückten Aufgabenprojektion. Er besteht aus
+ * Besitzer, Aufgabe und Abbildungsart; ein aktives verwaltetes Fristereignis
+ * unterdrückt damit ausschließlich die dazugehörige Aufgabenfrist, ein aktives
+ * verwaltetes Arbeitsblockereignis ausschließlich den dazugehörigen Zeitblock.
+ */
+const suppressedTaskKey = (
+  ownerId: string,
+  taskId: string,
+  kind: TaskCalendarBindingKind,
+) => `${ownerId}\u0000${taskId}\u0000${kind}`;
 const inRange = (date: string, from: string, to: string) =>
   date >= from && date <= to;
 const priorityRank: Record<PlanningPriority, number> = {
@@ -193,6 +206,13 @@ export class PlanningService {
      * allein: dieselbe UID kann in mehreren Kalendern vorkommen.
      */
     const displayedEventKeys = new Set<string>();
+    /**
+     * Paket 9: Aufgabenprojektionen, die ein aktives verwaltetes Ereignis
+     * ersetzt. Der Schlüssel besteht aus Besitzer, Aufgabe und Abbildungsart;
+     * die Zuordnung entsteht ausschließlich über die tatsächlich angezeigten
+     * Ereignisse `(Besitzer, Kalender, UID)`.
+     */
+    const suppressedTaskProjections = new Set<string>();
 
     for (const event of owned(source.events)) {
       const date = event.isAllDay
@@ -200,6 +220,12 @@ export class PlanningService {
         : event.startsAt
           ? dateInTimezone(event.startsAt, timezone)
           : null;
+      /**
+       * Eine verwaltete Startmarkierung hat kein Ende. Sie erscheint als
+       * zeitloser Punkt an ihrem geplanten Start, sofern dieser im Zeitraum
+       * liegt; es wird kein Ende und keine Dauer erfunden.
+       */
+      const startMarker = !event.isAllDay && event.isStartMarker === true;
       const overlaps = event.isAllDay
         ? Boolean(
             date &&
@@ -207,20 +233,45 @@ export class PlanningService {
             date <= to &&
             event.endDate.toISOString().slice(0, 10) > from,
           )
-        : Boolean(
-            event.startsAt &&
-            event.endsAt &&
-            event.startsAt < range.toExclusive &&
-            event.endsAt > range.from,
-          );
+        : startMarker
+          ? Boolean(
+              event.startsAt &&
+              event.startsAt < range.toExclusive &&
+              event.startsAt >= range.from,
+            )
+          : Boolean(
+              event.startsAt &&
+              event.endsAt &&
+              event.startsAt < range.toExclusive &&
+              event.endsAt > range.from,
+            );
       if (!date || !overlaps) continue;
       /**
        * Unterdrückt wird nur gegen die tatsächlich gelieferte Projektion. Ist
        * der Bereich „Kalender" ausgeblendet, erscheint das Ereignis nicht und
        * sein verknüpfter Studieneintrag darf deshalb nicht verschwinden.
        */
-      if (visibleAreas.has("calendar"))
+      if (visibleAreas.has("calendar")) {
         displayedEventKeys.add(eventKey(event.calendarId, event.uid));
+        /**
+         * Paket 9: Eine aktive verwaltete Abbildung unterdrückt genau die
+         * dazugehörige Aufgabenprojektion – und nur dann, wenn ihr Ereignis
+         * hier tatsächlich gezeigt wird.
+         */
+        for (const binding of owned(source.bindings ?? [])) {
+          const managedEvent = binding.calendarEvent;
+          if (!managedEvent || managedEvent.deletedAt !== null) continue;
+          if (
+            managedEvent.calendarId === event.calendarId &&
+            managedEvent.uid === event.uid &&
+            binding.userId === event.userId
+          ) {
+            suppressedTaskProjections.add(
+              suppressedTaskKey(binding.userId, binding.taskId, binding.kind),
+            );
+          }
+        }
+      }
       items.push({
         id: `calendar:${event.id}`,
         sourceId: event.id,
@@ -251,7 +302,19 @@ export class PlanningService {
     for (const task of owned(source.tasks).filter((value) =>
       activeStatus(value.status),
     )) {
-      if (task.dueDate) {
+      /**
+       * Paket 9: Zeigt die Planung ein aktives verwaltetes Ereignis dieser
+       * Aufgabe – erkennbar über Besitzer, Kalender und UID des tatsächlich
+       * angezeigten Termins –, dann ersetzt es genau die dazugehörige
+       * Aufgabenprojektion. Eine fehlende oder gelöschte Abbildung, ein
+       * Kalender ohne sichtbaren Bereich oder ein Termin außerhalb des
+       * Zeitraums lässt die Aufgabenprojektion sichtbar.
+       */
+      const suppressed = (kind: TaskCalendarBindingKind): boolean =>
+        suppressedTaskProjections.has(
+          suppressedTaskKey(task.userId, task.id, kind),
+        );
+      if (task.dueDate && !suppressed("due")) {
         const date = task.dueDate.toISOString().slice(0, 10);
         if (inRange(date, from, to)) {
           items.push({
@@ -278,7 +341,11 @@ export class PlanningService {
         }
       }
       const scheduledStart = task.scheduledStartAt;
-      if (scheduledStart && task.estimatedDurationMinutes) {
+      if (
+        scheduledStart &&
+        task.estimatedDurationMinutes &&
+        !suppressed("work_block")
+      ) {
         const end = new Date(
           scheduledStart.getTime() + task.estimatedDurationMinutes * 60_000,
         );
@@ -312,7 +379,7 @@ export class PlanningService {
             sourceUpdatedAt: task.updatedAt.toISOString(),
           });
         }
-      } else if (scheduledStart) {
+      } else if (scheduledStart && !suppressed("work_block")) {
         /**
          * Reine Startmarkierung: Der geplante Beginn ist bekannt, die Dauer
          * nicht. Es wird bewusst kein Ende erfunden und keine Dauer in die

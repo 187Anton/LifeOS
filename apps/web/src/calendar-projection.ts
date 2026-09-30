@@ -7,6 +7,8 @@ import type {
   PlanningItemResponse,
   PlanningPriority,
   StudyEntryResponse,
+  TaskCalendarBindingKind,
+  TaskCalendarBindingResponse,
   TaskResponse,
   TaskStatus,
 } from "@lifeos/contracts";
@@ -135,6 +137,20 @@ const visibleStudyEntry = (entry: StudyEntryResponse): boolean =>
 const durationMinutes = (startsAt: Date, endsAt: Date): number =>
   Math.max(0, Math.round((endsAt.getTime() - startsAt.getTime()) / 60_000));
 
+/**
+ * Paket 9: Schlüssel einer unterdrückten Aufgabenprojektion. Er besteht aus
+ * Besitzer, Aufgabe und Abbildungsart; ein aktives verwaltetes Fristereignis
+ * unterdrückt damit ausschließlich die dazugehörige Aufgabenfrist, ein aktives
+ * verwaltetes Arbeitsblockereignis ausschließlich den dazugehörigen Zeitblock.
+ * Die Planungs-API verwendet denselben Schlüssel, damit Kalender und Planung
+ * dieselbe fachliche Bedeutung genau einmal zeigen.
+ */
+const suppressedTaskKey = (
+  ownerId: string,
+  taskId: string,
+  kind: TaskCalendarBindingKind,
+): string => `${ownerId}\u0000${taskId}\u0000${kind}`;
+
 interface ProjectionItemInput {
   id: string;
   sourceId: string;
@@ -205,6 +221,13 @@ export interface CalendarProjectionInput {
   events: CalendarEventResponse[];
   tasks: TaskResponse[];
   studyEntries: StudyEntryResponse[];
+  /**
+   * Paket 9: verwaltete Aufgabenabbildungen. Sie werden ausschließlich gelesen,
+   * um dieselbe fachliche Bedeutung nicht doppelt zu zeigen: ein aktives
+   * verwaltetes Ereignis ersetzt genau die dazugehörige Aufgabenprojektion.
+   * Fehlende oder gelöschte Ereignisse ändern nichts.
+   */
+  managedBindings?: TaskCalendarBindingResponse[];
   /** Bereich der Kalenderansicht: `start` einschließlich, `end` ausschließlich. */
   range: DateRange;
   /**
@@ -271,6 +294,25 @@ const placeBlock = (
 };
 
 /**
+ * Paket 9: Eine verwaltete Startmarkierung ist ein zeitgebundenes Ereignis
+ * ohne Ende (`DTSTART` ohne `DTEND`). Fehlt das Kennzeichen in einer älteren
+ * Antwort, gilt das fehlende Ende weiterhin als Startmarkierung.
+ */
+export const isStartMarkerEvent = (
+  event:
+    | Pick<
+        CalendarEventResponse,
+        "isAllDay" | "isStartMarker" | "startsAt" | "endsAt"
+      >
+    | null
+    | undefined,
+): boolean => {
+  if (!event || event.isAllDay) return false;
+  if (event.isStartMarker === true) return true;
+  return event.startsAt !== null && event.endsAt === null;
+};
+
+/**
  * Baut die gemeinsame Projektion für einen sichtbaren Kalenderbereich. Alle
  * Quellen stammen aus bereits besitzgebunden geladenen Antworten der API; die
  * Projektion liest nichts nach und schreibt nie.
@@ -279,6 +321,7 @@ export const buildCalendarProjection = ({
   events,
   tasks,
   studyEntries,
+  managedBindings = [],
   range,
   profileTimezone,
   calendarId = null,
@@ -300,6 +343,25 @@ export const buildCalendarProjection = ({
   const projectedEventKeys = new Set(
     occurrences.map((occurrence) => eventKey(calendarId, occurrence.event.uid)),
   );
+  /**
+   * Paket 9: Eine aktive verwaltete Abbildung unterdrückt genau die eine
+   * dazugehörige Aufgabenprojektion – und nur, wenn ihr Ereignis im
+   * ausgewählten Kalender tatsächlich projiziert wird. Der Schlüssel enthält
+   * Besitzer, Kalender und UID des Ereignisses sowie Aufgabe und Abbildungsart;
+   * eine reine UID-Prüfung über mehrere Kalender findet nicht statt.
+   */
+  const suppressedTaskProjections = new Set<string>();
+  for (const binding of managedBindings) {
+    if (binding.status !== "active") continue;
+    const event = binding.event;
+    if (!event.uid || event.calendarId === null) continue;
+    if (event.calendarId !== calendarId) continue;
+    if (!projectedEventKeys.has(eventKey(event.calendarId, event.uid)))
+      continue;
+    suppressedTaskProjections.add(
+      suppressedTaskKey(ownerId, binding.task.id, binding.kind),
+    );
+  }
 
   for (const occurrence of occurrences) {
     const event = occurrence.event;
@@ -311,7 +373,7 @@ export const buildCalendarProjection = ({
         uid: event.uid,
         calendarId,
         area: "calendar",
-        kind: "fixed_event",
+        kind: isStartMarkerEvent(event) ? "start_marker" : "fixed_event",
         objectType: "calendar_event",
         ownerId,
         title: event.title,
@@ -350,7 +412,16 @@ export const buildCalendarProjection = ({
   }
 
   for (const task of tasks.filter((value) => activeTaskStatus(value.status))) {
-    if (task.dueDate && inRange(task.dueDate)) {
+    /**
+     * Paket 9: Ein aktives verwaltetes Fristereignis ersetzt genau die
+     * dazugehörige Aufgabenfrist. Fehlt das Ereignis, liegt der Kalender nicht
+     * in der Ansicht oder ist der Termin außerhalb des Zeitraums, bleibt die
+     * Aufgabenfrist sichtbar.
+     */
+    const suppressed = (kind: TaskCalendarBindingKind): boolean =>
+      suppressedTaskProjections.has(suppressedTaskKey(ownerId, task.id, kind));
+
+    if (task.dueDate && inRange(task.dueDate) && !suppressed("due")) {
       entries.push({
         key: `task:${task.id}:deadline`,
         item: projectionItem({
@@ -382,7 +453,7 @@ export const buildCalendarProjection = ({
     }
 
     const scheduledStart = task.scheduledStartAt;
-    if (!scheduledStart) continue;
+    if (!scheduledStart || suppressed("work_block")) continue;
     const startsAt = new Date(scheduledStart);
     const itemTimezone = task.scheduledStartTimezone ?? profileTimezone;
     if (task.estimatedDurationMinutes) {

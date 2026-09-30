@@ -98,6 +98,13 @@ export interface CalendarEventResponse {
   description: string | null;
   location: string | null;
   isAllDay: boolean;
+  /**
+   * Paket 9: gezielte Startmarkierung. `true` bedeutet „zeitgebundenes Ereignis
+   * ohne Ende“ (DTSTART ohne DTEND) für eine verwaltete Aufgaben-Startmarkierung.
+   * Nur dann darf `endsAt` leer bleiben; für alle übrigen Ereignisse gilt
+   * unverändert `endsAt > startsAt`.
+   */
+  isStartMarker?: boolean;
   startsAt: string | null;
   endsAt: string | null;
   startDate: string | null;
@@ -247,6 +254,75 @@ export interface CreateTaskEventLinkRequest {
   taskId: string;
   calendarId: string;
   eventUid: string;
+}
+
+/**
+ * Art einer **verwalteten** Aufgaben-Kalender-Abbildung. Je Aufgabe entsteht
+ * höchstens eine Frist (`due`) und höchstens ein Arbeitsblock (`work_block`).
+ * Ein Arbeitsblock entsteht nur aus geplantem Start **mit** geschätzter Dauer;
+ * „Start ohne Dauer“ wird ausdrücklich nicht in den Kalender abgebildet.
+ */
+export type TaskCalendarBindingKind = "due" | "work_block";
+
+/**
+ * Anzeigezustand einer verwalteten Abbildung. Fehlende Zuordnungen werden
+ * ausgewiesen statt stillschweigend neu erzeugt.
+ */
+export type TaskCalendarBindingStatus =
+  "active" | "event_missing" | "calendar_missing";
+
+export interface TaskCalendarBindingResponse {
+  id: string;
+  task: {
+    id: string;
+    title: string | null;
+    available: boolean;
+  };
+  kind: TaskCalendarBindingKind;
+  /** Anzeigebeschriftung: „Frist“ oder „Geplanter Zeitblock“. */
+  label: string;
+  event: {
+    calendarId: string | null;
+    uid: string | null;
+    title: string | null;
+    etag: string | null;
+    available: boolean;
+  };
+  status: TaskCalendarBindingStatus;
+  /**
+   * Form des Ereignisses: ganztägige Frist, zeitgebundener Arbeitsblock mit
+   * Dauer oder gezielte Startmarkierung ohne Ende („Start ohne Dauer“).
+   */
+  eventKind: "all_day" | "timed" | "start_only" | null;
+  lastKnownEtag: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Befund einer eindeutigen, idempotenten Bestandsprüfung. Es werden
+ * ausschließlich eindeutig erkennbare verwaltete Ereignisse erneut verbunden;
+ * mehrdeutige Fälle werden nur gemeldet.
+ */
+export interface TaskCalendarBindingReconciliationItemResponse {
+  /**
+   * Kennung des betroffenen Ereignisses. `null`, wenn der Befund eine
+   * bestehende Beziehung betrifft, deren Ereignis fehlt.
+   */
+  eventUid: string | null;
+  calendarId: string | null;
+  taskId: string | null;
+  kind: TaskCalendarBindingKind | null;
+  reason: string;
+}
+
+export interface ReconcileTaskCalendarBindingsResponse {
+  checkedEvents: number;
+  reconnected: number;
+  repaired: number;
+  alreadyLinked: number;
+  skippedUnrelated: number;
+  ambiguous: TaskCalendarBindingReconciliationItemResponse[];
 }
 
 export interface DashboardEventResponse extends CalendarEventResponse {

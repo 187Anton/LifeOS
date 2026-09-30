@@ -31,6 +31,7 @@ type ReadClient = Pick<
   | "document"
   | "task"
   | "taskEventLink"
+  | "taskCalendarBinding"
   | "studyProgram"
   | "studyModule"
   | "studyEntry"
@@ -108,6 +109,9 @@ const readDataset = async (database: ReadClient) => ({
   ),
   tasks: await database.task.findMany({ orderBy: { id: "asc" } }),
   taskEventLinks: await database.taskEventLink.findMany({
+    orderBy: { id: "asc" },
+  }),
+  taskCalendarBindings: await database.taskCalendarBinding.findMany({
     orderBy: { id: "asc" },
   }),
   studyPrograms: await database.studyProgram.findMany({
@@ -271,6 +275,10 @@ const insertDataset = async (
     if (dataset.taskEventLinks.length)
       await transaction.taskEventLink.createMany({
         data: dataset.taskEventLinks,
+      });
+    if (dataset.taskCalendarBindings.length)
+      await transaction.taskCalendarBinding.createMany({
+        data: dataset.taskCalendarBindings,
       });
     if (dataset.projectEventLinks.length)
       await transaction.projectEventLink.createMany({

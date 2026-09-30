@@ -33,6 +33,7 @@ model User {
   documents                 Document[]
   tasks                     Task[]
   taskEventLinks            TaskEventLink[]
+  taskCalendarBindings      TaskCalendarBinding[]
   studyPrograms             StudyProgram[]
   studyModules              StudyModule[]
   studyEntries              StudyEntry[]
@@ -222,6 +223,14 @@ model CalendarEvent {
   endDate         DateTime?          @db.Date
   timezone        String             @default("Europe/Berlin") @db.VarChar(100)
   isAllDay        Boolean            @default(false)
+  /**
+   * Paket 9: gezielt verwaltete Startmarkierung. `true` bedeutet
+   * „zeitgebundenes Ereignis ohne Ende“ (DTSTART ohne DTEND) für eine
+   * verwaltete Aufgaben-Startmarkierung. Die Form ist über dieses Kennzeichen
+   * eindeutig von ganztägigen und von zeitgebundenen Ereignissen mit Ende
+   * getrennt; für alle übrigen Ereignisse gilt weiterhin `endsAt > startsAt`.
+   */
+  isStartMarker   Boolean            @default(false)
   recurrenceRule  String?            @db.Text
   reminderMinutes Int[]              @default([])
   etag            String             @db.VarChar(100)
@@ -232,6 +241,7 @@ model CalendarEvent {
   updatedAt       DateTime           @updatedAt @db.Timestamptz(3)
   calendar        Calendar           @relation(fields: [calendarId, userId], references: [id, userId], onDelete: Cascade)
   taskLinks       TaskEventLink[]
+  taskBindings    TaskCalendarBinding[]
   studyEntries    StudyEntry[]
   workProjects    WorkProject[]
   projectLinks    ProjectEventLink[]
@@ -394,6 +404,7 @@ model Task {
   parentTask               Task?           @relation("TaskHierarchy", fields: [parentTaskId, userId], references: [id, userId], onDelete: Restrict)
   subtasks                 Task[]          @relation("TaskHierarchy")
   eventLinks               TaskEventLink[]
+  calendarBindings         TaskCalendarBinding[]
   studyEntries             StudyEntry[]
   workTaskLinks            WorkTaskLink[]
   workTimeEntries          WorkTimeEntry[]
@@ -421,6 +432,43 @@ model TaskEventLink {
   @@unique([userId, taskId, calendarEventId])
   @@index([userId, taskId])
   @@index([userId, calendarEventId])
+}
+
+/**
+ * Paket 9: separat erkennbare, besitzgebundene und **verwaltete** Verbindung
+ * zwischen einer Aufgabe und einem Kalenderereignis. Sie ist bewusst nicht die
+ * freie `TaskEventLink`-Beziehung; bestehende freie Verknüpfungen werden nicht
+ * automatisch umgedeutet. Je Aufgabe sind höchstens eine Frist (`due`) und
+ * höchstens ein Arbeitsblock (`work_block`) möglich; ein Ereignis gehört
+ * höchstens zu einer verwalteten Abbildung. `lastKnownEtag` ist die zuletzt
+ * bestätigte Version des verwalteten Ereignisses und macht konkurrierende
+ * Änderungen erkennbar, ohne still Daten zu überschreiben.
+ */
+model TaskCalendarBinding {
+  id              String                  @id @default(uuid()) @db.Uuid
+  userId          String                  @db.Uuid
+  taskId          String                  @db.Uuid
+  calendarEventId String                  @db.Uuid
+  kind            TaskCalendarBindingKind
+  lastKnownEtag   String                  @db.VarChar(100)
+  createdAt       DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime                @updatedAt @db.Timestamptz(3)
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task            Task                    @relation(fields: [taskId, userId], references: [id, userId], onDelete: Cascade)
+  calendarEvent   CalendarEvent           @relation(fields: [calendarEventId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([taskId, kind])
+  @@unique([calendarEventId])
+  @@unique([id, userId])
+  @@index([userId, kind])
+  @@index([userId, taskId])
+  @@index([calendarEventId])
+}
+
+/** Art der verwalteten Aufgaben-Kalender-Abbildung. */
+enum TaskCalendarBindingKind {
+  due
+  work_block
 }
 
 enum StudyStatus {

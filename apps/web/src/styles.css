@@ -2387,6 +2387,26 @@ input[readonly] {
   color: var(--muted);
   font-size: 0.68rem;
 }
+/**
+ * Paket 9: Schreibschutzmeldung des Termineditors für eine verwaltete
+ * Startmarkierung. Sie erklärt, warum kein Ende und keine Dauer entsteht, und
+ * verweist auf den Aufgabeneditor als einzigen Pflegepfad.
+ */
+.event-editor-locked {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--sage);
+}
+.event-editor-locked p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
 .link-list .text-button {
   flex: 0 0 auto;
   font-size: 0.7rem;
@@ -2411,6 +2431,49 @@ input[readonly] {
   align-items: center;
   gap: 0.4rem;
   color: var(--danger);
+}
+/**
+ * Verwaltete Kalenderabbildungen. Sie sind gegenüber den freien Verknüpfungen
+ * bewusst eigenständig gestaltet, damit beide Bestände unterscheidbar bleiben.
+ */
+.managed-bindings {
+  border-color: var(--forest-soft);
+  background: #f2f5ee;
+}
+.managed-bindings .link-panel-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.managed-bindings .link-panel-heading h3::before {
+  content: "verwaltet";
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--forest-soft);
+  color: #fffefa;
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.managed-bindings .managed-binding-uid {
+  color: var(--muted);
+  font-size: 0.68rem;
+  word-break: break-all;
+}
+.calendar-managed-bindings {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f2f5ee;
+}
+.calendar-managed-bindings .link-list {
+  margin-top: 0.2rem;
+}
+.field-hint {
+  color: var(--muted);
+  font-size: 0.68rem;
 }
 .danger-text svg {
   width: 17px;

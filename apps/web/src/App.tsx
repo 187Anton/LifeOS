@@ -10,6 +10,7 @@ import type {
   ProfileResponse,
   TaskResponse,
   TaskEventLinkResponse,
+  TaskCalendarBindingResponse,
   StudyOverviewResponse,
   UpdateStudyEntryRequest,
   UpdateStudyModuleRequest,
@@ -83,6 +84,9 @@ export const App = () => {
   const [taskEventLinks, setTaskEventLinks] = useState<TaskEventLinkResponse[]>(
     [],
   );
+  const [taskCalendarBindings, setTaskCalendarBindings] = useState<
+    TaskCalendarBindingResponse[]
+  >([]);
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [study, setStudy] = useState<StudyOverviewResponse | null>(null);
   const [work, setWork] = useState<WorkOverviewResponse | null>(null);
@@ -237,6 +241,15 @@ export const App = () => {
 
   const loadTaskEventLinks = useCallback(async () => {
     setTaskEventLinks(await api.listTaskEventLinks());
+  }, []);
+
+  /**
+   * Verwaltete Kalenderabbildungen. Sie werden getrennt von den freien
+   * Verknüpfungen geführt und nach jeder Aufgabe- oder Terminänderung neu
+   * geladen, damit kein veralteter Kalenderstand angezeigt wird.
+   */
+  const loadTaskCalendarBindings = useCallback(async () => {
+    setTaskCalendarBindings(await api.listTaskCalendarBindings());
   }, []);
 
   const loadDashboard = useCallback(async () => {
@@ -625,17 +638,24 @@ export const App = () => {
   );
 
   const loadAuthenticatedData = useCallback(async () => {
-    const [loadedProfile, loadedCalendars, loadedTasks, loadedLinks] =
-      await Promise.all([
-        api.getProfile(),
-        api.listCalendars(),
-        api.listTasks(true),
-        api.listTaskEventLinks(),
-      ]);
+    const [
+      loadedProfile,
+      loadedCalendars,
+      loadedTasks,
+      loadedLinks,
+      loadedBindings,
+    ] = await Promise.all([
+      api.getProfile(),
+      api.listCalendars(),
+      api.listTasks(true),
+      api.listTaskEventLinks(),
+      api.listTaskCalendarBindings(),
+    ]);
     setProfile(loadedProfile);
     setCalendars(loadedCalendars);
     setTasks(loadedTasks);
     setTaskEventLinks(loadedLinks);
+    setTaskCalendarBindings(loadedBindings);
     const selected =
       loadedCalendars.find((calendar) => calendar.isPrimary) ??
       loadedCalendars[0];
@@ -772,6 +792,7 @@ export const App = () => {
       await Promise.all([
         calendarId ? loadEvents(calendarId) : Promise.resolve(),
         loadTasks(),
+        loadTaskCalendarBindings(),
         loadStudy(),
         loadDashboard(),
         loadPlanning(planningRange),
@@ -782,6 +803,7 @@ export const App = () => {
       loadEvents,
       loadPlanning,
       loadStudy,
+      loadTaskCalendarBindings,
       loadTasks,
       planningRange,
     ],
@@ -951,6 +973,38 @@ export const App = () => {
       ]);
     } catch (error) {
       setTaskError(errorMessage(error));
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /**
+   * Idempotente Bestands- und Wiederverbindungsprüfung der verwalteten
+   * Abbildungen. Sie verbindet nur eindeutig erkennbare Ereignisse erneut und
+   * meldet mehrdeutige Fälle, ohne etwas zu erfinden.
+   */
+  const reconcileTaskCalendarBindings = async () => {
+    setSaving(true);
+    setTaskError(null);
+    setCalendarError(null);
+    try {
+      const result = await api.reconcileTaskCalendarBindings();
+      await loadTaskCalendarBindings();
+      const parts = [
+        `${result.checkedEvents} Ereignisse geprüft`,
+        `${result.reconnected} wieder verbunden`,
+        `${result.repaired} wiederhergestellt`,
+        `${result.ambiguous.length} nicht eindeutig`,
+      ];
+      if (view === "tasks") {
+        setTaskSuccess(`Bestandsprüfung: ${parts.join(", ")}.`);
+      } else {
+        setSuccess(`Bestandsprüfung: ${parts.join(", ")}.`);
+      }
+    } catch (error) {
+      if (view === "tasks") setTaskError(errorMessage(error));
+      else setCalendarError(errorMessage(error));
       throw error;
     } finally {
       setSaving(false);
@@ -1188,6 +1242,8 @@ export const App = () => {
           onDelete={deleteTask}
           onLink={createTaskEventLink}
           onUnlink={deleteTaskEventLink}
+          managedBindings={taskCalendarBindings}
+          onReconcile={reconcileTaskCalendarBindings}
         />
       ) : view === "study" ? (
         <StudyWorkspace
@@ -1526,6 +1582,8 @@ export const App = () => {
           studyEntries={study?.entries ?? []}
           tasks={tasks}
           links={taskEventLinks}
+          managedBindings={taskCalendarBindings}
+          onReconcile={reconcileTaskCalendarBindings}
           ownerId={profile.id}
           profileTimezone={profile.settings.timezone}
           initialView={profile.settings.defaultCalendarView}
