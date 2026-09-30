@@ -675,14 +675,8 @@ test("überträgt alle Fachmodelle und restauriert SQLite samt Dokumenten nur in
     importedMarker?.startsAt?.toISOString(),
     "2032-09-02T08:00:00.000Z",
   );
-  assert.equal(
-    importedDueBinding?.lastKnownEtag,
-    '"transfer-frist"',
-  );
-  assert.equal(
-    importedDueBinding?.calendarEventId,
-    managedEvent.id,
-  );
+  assert.equal(importedDueBinding?.lastKnownEtag, '"transfer-frist"');
+  assert.equal(importedDueBinding?.calendarEventId, managedEvent.id);
   assert.equal(
     importedEvents.find((item) => item.id === managedEvent.id)?.uid,
     `${task.id}.frist@tasks.lifeos.local`,
